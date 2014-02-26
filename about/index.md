@@ -1,6 +1,6 @@
 ---
 layout: page
-title: About Me
+title: About
 ---
 
 <p class="row gutters archive-entry offset2">
