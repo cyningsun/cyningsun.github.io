@@ -1,0 +1,8 @@
+markdown: redcarpet
+pygments: true
+permalink: /:title
+
+url:
+
+redcarpet:
+  extensions: [strikethrough]
