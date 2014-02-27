@@ -1,12 +1,14 @@
 ---
-layout: page
+layout: default
 title: About
 ---
 
-<p class="row gutters archive-entry offset2 fadeInDown animated">
+<section class="post-archive">
+<div class="year-bundle tabbable fadeInDown animated tabs-left">
+<p class="about row gutters archive-entry offset2">
      <strong>Author : {{ site.data.brume.author }}</strong><BR/>
-     <strong>Email : {{ site.data.brume.email }}</strong><BR/>
+     <strong>Email : {{ site.data.brume.email }}</strong><BR/><BR/>
+	 <strong class="signature">{{ site.data.brume.description }}.</strong><BR/>
 </p>
-<p class="row gutters archive-entry signature fadeInDown animated">
-{{ site.data.brume.description }}
-</p>
+</div>
+</section>

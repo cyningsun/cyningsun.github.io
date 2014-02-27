@@ -111,3 +111,64 @@
   color: #007fff;
  
 }
+
+.tabbable {
+  *zoom: 1;
+}
+.tabs-left > .nav-tabs > li{
+  float: none;
+}
+.tabs-left > .nav-tabs > li > strong{
+  min-width: 74px;
+  margin-right: 0;
+  margin-bottom: 3px;
+}
+.tabs-left > .nav-tabs {
+  float: left;
+  margin-right: 10px;
+  border-right: 1px solid #ddd;
+}
+.tabs-left > .nav-tabs > li > strong {
+  margin-right: -1px;
+  -webkit-border-radius: 4px 0 0 4px;
+  -moz-border-radius: 4px 0 0 4px;
+  border-radius: 4px 0 0 4px;
+}
+.tabs-left > .nav-tabs > li > strong:hover,
+.tabs-left > .nav-tabs > li > strong:focus {
+  border-color: #eeeeee #dddddd #eeeeee #eeeeee;
+}
+.tabs-left > .nav-tabs .active > strong,
+.tabs-left > .nav-tabs .active > strong:hover,
+.tabs-left > .nav-tabs .active > strong:focus {
+  border-color: #ddd transparent #ddd #ddd;
+  *border-right-color: #ffffff;
+}
+.nav {
+  margin-left: 0;
+  margin-bottom: 20px;
+  list-style: none;
+}
+.nav > li > strong {
+  display: block;
+}
+.nav > li > strong:hover,
+.nav > li > strong:focus {
+  text-decoration: none;
+  background-color: #eeeeee;
+}
+.nav > li > strong > img {
+  max-width: none;
+}
+.nav > .pull-right {
+  float: right;
+}
+.tab-content {
+  overflow: auto;
+}
+.tab-content > .tab-pane {
+  display: none;
+}
+.tab-content > .active{
+  display: block;
+}

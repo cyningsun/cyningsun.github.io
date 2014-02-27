@@ -1,7 +1,7 @@
 ---
 layout: post
 title: GitHub安家啦
-category: Uncategorized
+category: 生活
 ---
 
 　　午休时间+下午时间，终于算是大致搞定了这个博客。
