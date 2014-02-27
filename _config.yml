@@ -1,3 +1,4 @@
+encoding: utf-8
 markdown: redcarpet
 pygments: true
 permalink: /:title
@@ -6,3 +7,4 @@ url:
 
 redcarpet:
   extensions: [strikethrough]
+timezone: Asia/Shanghai
