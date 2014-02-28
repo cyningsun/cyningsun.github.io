@@ -119,14 +119,14 @@
   float: none;
 }
 .tabs-left > .nav-tabs > li > strong{
-  min-width: 74px;
+  min-width: 100px;
   margin-right: 0;
   margin-bottom: 3px;
 }
 .tabs-left > .nav-tabs {
   float: left;
   margin-right: 10px;
-  border-right: 1px solid #ddd;
+  border-right: 1px solid #eeeeee;
 }
 .tabs-left > .nav-tabs > li > strong {
   margin-right: -1px;
@@ -156,6 +156,10 @@
 .nav > li > strong:focus {
   text-decoration: none;
   background-color: #eeeeee;
+}
+.nav > .active {
+  text-decoration: none;
+  background-color: #ddd;
 }
 .nav > li > strong > img {
   max-width: none;

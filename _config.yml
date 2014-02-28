@@ -8,3 +8,4 @@ url:
 redcarpet:
   extensions: [strikethrough]
 timezone: Asia/Shanghai
+excerpt_separator: ""

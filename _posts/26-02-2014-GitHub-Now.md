@@ -1,7 +1,7 @@
 ---
 layout: post
 title: GitHub安家啦
-category: 生活
+category: 生活琐碎
 ---
 
 　　午休时间+下午时间，终于算是大致搞定了这个博客。
