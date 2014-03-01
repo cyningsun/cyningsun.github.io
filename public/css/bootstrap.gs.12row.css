@@ -176,3 +176,6 @@
 .tab-content > .active{
   display: block;
 }
+.tab-pane{
+ margin-left:8px;
+}
