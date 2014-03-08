@@ -202,6 +202,7 @@ body {
   float: left;
 }
 .nav-tabs li strong {
+  cursor: pointer;
   font: 16px Georgia, "Times New Roman", Times, sans-serif;
   display: block;
   line-height: 1.5;
@@ -220,6 +221,9 @@ body {
 }
 .tab-content .active {
   display: block;
+}
+.tab-content li {
+  cursor: pointer;
 }
 .tab-content a {
   display: block;
