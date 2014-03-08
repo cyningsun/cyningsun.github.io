@@ -1,6 +1,6 @@
-﻿---
+---
 layout: post
-title: 身体有点累
+title: 有点累
 category: 生活琐碎
 tags: 日志
 ---
