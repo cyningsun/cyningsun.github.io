@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: post
 title: Velocity资源加载过程
 category: 后台技术
 ---

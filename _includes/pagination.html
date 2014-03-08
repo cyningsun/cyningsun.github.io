@@ -1,17 +1,32 @@
 <!-- Pagination links -->
-<div class="pagination row gutters">
-  <div class="col span_2">
-    {% if paginator.previous_page %}
-    {% if paginator.page == 2 %}
-      <a href="/" class="previous" rel="prev"><i class="fa fa-arrow-circle-left"></i></a>
-    {% else %}
-      <a href="/page{{ paginator.previous_page }}"
-         class="previous" rel="prev"><i class="fa fa-arrow-circle-left"></i></a>
-    {% endif %}
-    {% endif %}
-    {% if paginator.next_page %}
-      <a href="/page{{ paginator.next_page }}"
-         class="next" rel="next"><i class="fa fa-arrow-circle-right"></i></a>
-    {% endif %}
-  </div>
-</div>
+<ul class="pagination-clean">
+	{% if paginator.previous_page %}
+	  {% if paginator.previous_page == 1 %}
+		<li><a href="/">&laquo; Previous</a></li>
+	  {% else %}
+		<li><a href="{{ paginator.previous_page_path }}">&laquo; Previous</a></li>
+	  {% endif %}
+	{% else %}
+		<li class="previous-off">&laquo; Previous</li>
+	{% endif %}
+
+	{% if paginator.page == 1 %}
+		<li class="active">1</li>
+	{% else %}
+		<li><a href="/">1</a></li>
+	{% endif %}
+
+	{% for count in (2..paginator.total_pages) %}
+		{% if count == paginator.page %}
+		  <li class="active">{{ count }}</li>
+		{% else %}
+		  <li><a href="/page{{ count }}">{{ count }}</a></li>
+		{% endif %}
+	{% endfor %}
+
+	{% if paginator.next_page %}
+	  <li class="next"><a href="{{ paginator.next_page_path }}">Next &raquo;</a></li>
+	{% else %}
+	  <li class="next-off">Next &raquo;</li>
+	{% endif %}
+</ul>

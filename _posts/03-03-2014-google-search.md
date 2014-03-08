@@ -1,7 +1,8 @@
 ---
-layout: page
+layout: post
 title: Google搜索技巧
 category: 实践技巧
+tags: 搜索
 ---
 
 ###基础知识

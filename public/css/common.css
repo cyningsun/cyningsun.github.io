@@ -1,0 +1,303 @@
+html {
+  height: 100%;
+}
+body {
+  background-color: #f5f5f5;
+  border-top: 5px solid #333333;
+  font-family: 'Source Sans Pro', sans-serif;
+  color: #333333;
+  font-weight: 400;
+  line-height: 1.5;
+  height: 95%;
+}
+.container {
+  max-width: 750px;
+  padding: 0 20px 50px 20px;
+  margin: 0 auto;
+  min-height: 100%;
+}
+/* ===================== Header ========================= */
+.logo {
+  display: inline-block;
+  height: 110px;
+  width: 110px;
+  background-size: 100px 100px;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin-left: 10px;
+  margin-top: 8px;
+}
+.top {
+  margin-bottom: 50px;
+  height: 110px;
+}
+.top ul {
+  height: 110px;
+}
+.top ul li {
+  cursor: pointer;
+  color: #333333;
+  display: inline-block;
+  padding: 66px 25px 25px;
+  margin-right: 20px;
+  margin-top: -5px;
+  text-transform: uppercase;
+  border-radius: 0 0 5px 5px;
+  border-bottom: 1px solid #4d4d4d;
+}
+.top ul li:hover,
+.top ul li.current-page {
+  color: #f5f5f5;
+  border-bottom: none;
+}
+.top ul li:hover {
+  background-color: #4d4d4d;
+}
+.top ul li.current-page {
+  background-color: #333333;
+}
+/* ===================== Index Body ========================= */
+.article {
+  margin-bottom: 60px;
+}
+.article a {
+  margin-left: 0px;
+  height: 35px;
+  color: #333333;
+  font: 20px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
+  text-decoration: none;
+}
+.article a:hover {
+  color: #ff7e00;
+  text-decoration: none;
+}
+.article small {
+  height: 20px;
+  margin-left: 0px;
+  border-top-style: dashed;
+  line-height: 100%;
+  border-top-width: 1px;
+  color: #696969;
+  text-align: right;
+  font: 12px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
+}
+.article .entry {
+  margin-bottom: 15px;
+  font: 16px Georgia, "Times New Roman", Times, sans-serif;
+  line-height: 1.5;
+  word-break: break-all;
+}
+.article .entry a {
+  font: 16px Georgia, "Times New Roman", Times, sans-serif;
+  color: #007fff;
+  border-bottom-style: dashed;
+  border-bottom-width: 1px;
+  text-decoration: none;
+}
+.article .entry a:hover {
+  color: #ff7e00;
+}
+.article .tags label,
+.article .category label {
+  cursor: pointer;
+  font: 16px Georgia, "Times New Roman", Times, sans-serif;
+  color: #f5f5f5;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #66b2ff;
+  text-align: center;
+  display: inline-block;
+  margin-left: 10px;
+}
+.article .tags label:hover,
+.article .category label:hover {
+  background: #ffb266;
+}
+.article hr {
+  border-bottom: 1px #696969;
+}
+.pagination-clean {
+  font-family: Monaco, "Courier New", monospace;
+  height: 20px;
+}
+.pagination-clean li {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  list-style: none;
+  float: left;
+}
+.pagination-clean a {
+  border-right: solid 1px #b5b5b5;
+  margin-right: 2px;
+}
+.pagination-clean .previous-off,
+.pagination-clean .next-off {
+  color: #888888;
+  display: block;
+  float: left;
+  font-weight: bold;
+  padding: 3px 4px;
+}
+.pagination-clean .next a,
+.pagination-clean previous a {
+  border: none;
+  font-weight: bold;
+}
+.pagination-clean .active {
+  color: #ff7e00;
+  font-weight: bold;
+  display: block;
+  float: left;
+  padding: 4px 6px;
+  border-right: solid 1px #b5b5b5;
+}
+.pagination-clean a:link,
+.pagination-clean a:visited {
+  color: #0e509e;
+  display: block;
+  float: left;
+  padding: 3px 6px;
+  text-decoration: none;
+}
+.pagination-clean a:hover {
+  text-decoration: none;
+  color: #ff7e00;
+}
+/* ===================== Post Body ========================= */
+.single-post .post-content {
+  margin-top: 10px;
+}
+.single-post .post-content h3 {
+  margin: 10px 0 3px 0;
+}
+.single-post .post-content ol {
+  list-style-type: decimal;
+  margin-bottom: 5px;
+  margin-left: 35px;
+}
+.single-post .post-content ul {
+  margin-bottom: 5px;
+}
+.single-post a {
+  font: 16px Georgia, "Times New Roman", Times, sans-serif;
+  color: #007fff;
+  border-bottom-style: dashed;
+  border-bottom-width: 1px;
+  text-decoration: none;
+  margin-right: 5px;
+}
+.single-post hr {
+  margin-top: 50px;
+  border: 0;
+  height: 25px;
+  background: url(/public/images/flower.png) center center no-repeat;
+}
+/* =================== Category Body ===================== */
+.nav-tabs {
+  margin-left: 0;
+  margin-bottom: 20px;
+  list-style: none;
+  float: left;
+}
+.nav-tabs li strong {
+  font: 16px Georgia, "Times New Roman", Times, sans-serif;
+  display: block;
+  line-height: 1.5;
+}
+.nav-tabs li strong:hover,
+.nav-tabs li strong:focus {
+  text-decoration: none;
+  background-color: #ddd;
+}
+.nav-tabs .active {
+  text-decoration: none;
+  background-color: #eeeeee;
+}
+.tab-content .tab-pane {
+  display: none;
+}
+.tab-content .active {
+  display: block;
+}
+.tab-content a {
+  display: block;
+  font: 16px Georgia, "Times New Roman", Times, sans-serif;
+  color: #007fff;
+  border-bottom-style: dashed;
+  border-bottom-width: 1px;
+  text-decoration: none;
+  line-height: 1.5;
+  float: left;
+}
+.tab-content .time {
+  text-align: right;
+  line-height: 1.5;
+  display: block;
+}
+/* ==================== Tag Page ======================== */
+.tags a {
+  font-family: 14px "Galdeano", "Hiragino Sans GB", "Microsoft YaHei", Trebuchet, "Trebuchet MS", Tahoma, "Lucida Grande", "Lucida Sans Unicode", Verdana, sans-serif;
+  text-decoration: none;
+  color: #ff7e00;
+}
+.tag-posts {
+  font: 13.34px helvetica, arial, clean, sans-serif;
+  margin-top: 20px;
+}
+.tag-posts li label {
+  color: #696969;
+  font-family: Monaco, "Courier New", monospace;
+  font-size: 80%;
+  margin-right: 10px;
+}
+.tag-posts li a {
+  color: #007fff;
+  border-bottom-style: dashed;
+  border-bottom-width: 1px;
+  text-decoration: none;
+  font-size: 80%;
+  margin-left: 10px;
+}
+/* ==================== Intro Page ======================== */
+.self-intro {
+  background-color: #4d4d4d;
+  height: 200px;
+  width: 400px;
+  margin: 0 auto;
+  border-radius: 15px 15px 15px 15px;
+  box-shadow: 0 2px 6px 0 #696969;
+  padding: 2px;
+  /* 实现图片的相框的效果，数值也大图片外边框越宽 */
+  border: 2px solid #EEEEEE;
+  /* 相框外面的边儿 */
+  color: #f5f5f5;
+  vertical-align: middle;
+}
+.self-intro p {
+  font-family: 'Titillium Web', Verdana, 'Microsoft Yahei', 'sans serif';
+  font-size: 20px;
+  padding-top: 35px;
+  padding-bottom: 35px;
+  display: block;
+  width: 90%;
+  margin: 0 auto;
+}
+.self-intro label {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 30px;
+  text-align: center;
+  display: block;
+  width: 90%;
+  margin: 0 auto;
+}
+/* ===================== Footer ========================= */
+footer,
+footer a {
+  background-color: #333333;
+  font: 12px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
+  color: #f5f5f5;
+  line-height: 2;
+  text-align: center;
+}

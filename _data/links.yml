@@ -1,8 +1,11 @@
-- url: /
-  title: Home
+﻿- url: /
+  title: 首页
 
 - url: /category
-  title: Category
- 
+  title: 分类
+
+- url: /tag
+  title: 标签
+
 - url: /about
-  title: About
+  title: 关于

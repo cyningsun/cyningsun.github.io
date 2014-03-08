@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: post
 title: 运动与生活中的姿势
 category: 运动健康
 ---
@@ -23,7 +23,7 @@ category: 运动健康
  6. 膝盖略高于大腿保证腿部血液畅通  
 
  图片：
-[坐姿]({{ site.url }}/blogImage/site-posture.jpg "坐姿图片")
+[坐姿]({{ site.url }}/public/blog-img/site-posture.jpg "坐姿图片")
 
 
 ---

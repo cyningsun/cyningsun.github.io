@@ -1,14 +1,12 @@
 ---
 layout: default
-title: About
+title: 关于
 ---
 
-<section class="post-archive">
-<div class="year-bundle tabbable fadeInDown animated tabs-left">
-<p class="about row gutters archive-entry offset2">
-     <strong>Author : {{ site.data.brume.author }}</strong><BR/>
-     <strong>Email : {{ site.data.brume.email }}</strong><BR/><BR/>
-	 <strong class="signature">{{ site.data.brume.description }}.</strong><BR/>
+<section class="self-intro  fadeInDown animated">
+<p>
+Author : {{ site.data.brume.author }}  
+Email : {{ site.data.brume.email }}  
 </p>
-</div>
+<label>{{ site.data.brume.description }}</label>
 </section>

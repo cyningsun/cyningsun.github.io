@@ -1,0 +1,20 @@
+---
+layout: default
+title: 标签
+---
+
+<section class="fadeInDown animated">
+	<div class="tags">
+	 {% for tag in site.tags %}
+	  <a href="#{{ tag | first  | upcase}}">{{ tag | first  | upcase}}</a>
+	 {% endfor %}
+	</div>
+	<ul class="tag-posts">
+	 {% for tag in site.tags %}
+	  <h3 id="{{ tag | first  | upcase}}">{{ tag | first  | upcase}}<h3>
+		  {% for post in tag.last %}
+		  <li><label>{{ post.date | date: "%d %B %Y"}}</label>»<a href="{{ site.url }}{{ post.url }}">{{ post.title }}</a></li>
+		  {% endfor %}
+	 {% endfor %}
+	</ul>
+</section>

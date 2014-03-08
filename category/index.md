@@ -1,33 +1,31 @@
 ---
 layout: category
-title: Category
+title: 分类
 ---
 
-<section class="post-archive">
-<div class="year-bundle tabbable fadeInDown animated tabs-left">
-<ul class="nav nav-tabs active">
+<section class=" fadeInDown animated">
+<ul class="span2 nav nav-tabs">
 {% for category in site.categories %}
-{% if forloop.first %}<li class="cate active">{% else %}<li class="cate">{% endif %}<strong data-toggle="tab" onclick="javascript:document.location.href='#{{ category | first }}'">{{ category | first  | upcase}}({{ category | last | size }})</strong>
+{% if forloop.first %}<li class="{{ category | first  | upcase}} cate active">{% else %}<li class="{{ category | first  | upcase}} cate">{% endif %}
+<strong>{{ category | first  | upcase}}({{ category | last | size }})</strong>
 </li>
 {% endfor %}
 </ul>
-<div class="tab-content">
-{% for category in site.categories %}
-{% if forloop.first %}
- <div class="{{category | first | upcase }} tab-pane active">
-{% else %}
-   <div class="{{category | first | upcase}} tab-pane">
-{% endif %}
-{% for post in category.last %}
-  <div class="row gutters archive-entry">
-	<a href="{{site.url}}{{ post.url }}" title="{{ post.title }}" class="col span_8">{{ post.title }}</a>
-	<div class="archive-date col span_4">
-	  <time datetime="{{ post.date | date: '%Y-%m-%d' }}">{{ post.date | date:"%d/%m/%Y" }}</time>
-	</div>
-  </div>
-{% endfor %}
- </div>
- {% endfor %}
-</div>
-</div>
+
+<ul class="offset2 span10 nav tab-content active">
+	{% for category in site.categories %}
+		{% if forloop.first %}
+		 <ul class="{{category | first | upcase }} tab-pane active">
+		{% else %}
+		   <ul class="{{category | first | upcase}} tab-pane">
+		{% endif %}
+		{% for post in category.last %}
+			<li onClick="javascript:location.href='{{ site.url }}{{ post.url }}'" >
+			 <a class="span7" >{{ post.title }}</a>
+			 <a class="span4 time">{{ post.date | date:"%Y-%m-%d" }}</a>
+			</li>
+		{% endfor %}
+	</ul>
+	{% endfor %}
+</ul>
 </section>

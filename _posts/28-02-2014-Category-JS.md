@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: post
 title: js定义和调用
 category: Web前端
 ---

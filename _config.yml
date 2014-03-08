@@ -1,11 +1,13 @@
-encoding: utf-8
+encoding: UTF-8
 markdown: redcarpet
 pygments: true
-permalink: /:title
+permalink: /:month-:day-:year/:title.html
 
 url:
 
 redcarpet:
-  extensions: [strikethrough]
+  extensions: ["fenced_code_blocks", "highlight", "strikethrough"]
+  render_options:
 timezone: Asia/Shanghai
 excerpt_separator: ""
+paginate: 4
