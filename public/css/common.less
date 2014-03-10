@@ -278,9 +278,14 @@ body {
 /* ==================== Tag Page ======================== */
 .tags {
  a{
-   font-family: 14px "Galdeano","Hiragino Sans GB","Microsoft YaHei",Trebuchet,"Trebuchet MS",Tahoma,"Lucida Grande","Lucida Sans Unicode",Verdana,sans-serif;
+   font: 14px Monaco, "Courier New", monospace;
    text-decoration:none;
    color:@amber-accent-color;
+   padding: 4px 6px;
+   margin: 2px;
+   border-radius: 3px;
+   text-decoration: none;
+   border: 1px dashed @gray-accent-color;
  }
 }
 .tag-posts {
@@ -334,6 +339,10 @@ body {
 	width: 90%;
 	margin: 0 auto;
    }
+}
+/* ===================== Footer ========================= */
+.container .ds-powered-by {
+	display: none;
 }
 /* ===================== Footer ========================= */
 

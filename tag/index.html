@@ -6,7 +6,7 @@ title: 标签
 <section class="fadeInDown animated">
 	<div class="tags">
 	 {% for tag in site.tags %}
-	  <a href="#{{ tag | first  | upcase}}">{{ tag | first  | upcase}}</a>
+	  <a href="#{{ tag | first  | upcase}}">{{ tag | first  | upcase}}<sup>{{ tag | last | size }}</sup></a>
 	 {% endfor %}
 	</div>
 	<ul class="tag-posts">
