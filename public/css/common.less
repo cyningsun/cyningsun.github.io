@@ -5,27 +5,29 @@
 @ruby-accent-color: #e0115f;  //粉红
 @amber-accent-color: #ff7e00; //橙色
 @avocado-accent-color: #568203; //绿色
-@gray-accent-color: #696969; //灰色
+@gray-accent-color: #797979; //灰色
 
-html {
-	height: 100%;
+html{
+  height:100%;
 }
-
 body {
   background-color: @site-background-color;
   border-top: 5px solid @contrast-color;
-  font-family: 'Source Sans Pro', sans-serif;
   color: @contrast-color;
-  font-weight: 400;
-  line-height: 1.5;
-  height: 95%;
+  height:90%;
 }
 .container {
   max-width: 750px;
   padding: 0 20px 50px 20px;
   margin: 0 auto;
-  
-  min-height:100%
+  min-height:100%;
+  font-family: 'Classic Grotesque W01', Arial, 'Hiragino Sans GB', STHeiti, 'Microsoft YaHei', 'WenQuanYi Micro Hei', SimSun, sans-serif;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  font-size: 16px;
+  line-height: 27.200000762939453px;
+  text-align: left;
 }
 
 /* ===================== Header ========================= */
@@ -76,61 +78,49 @@ body {
 }
 /* ===================== Index Body ========================= */
 .article {
-  margin-bottom: 60px;
+  margin-bottom: 30px;
   
   a {
-	margin-left:0px;
+    margin-left:0px;
 	height:35px;
     color: @contrast-color;
-    font: 20px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
-	text-decoration:none;
     &:hover{
   	  color: @amber-accent-color;
-	  text-decoration:none;
    }
   }
   
   small {
-   height:20px;
-	margin-left:0px;
+    margin-left:0px;
+    height:25px;
 	border-top-style:dashed;
-	line-height: 100%;
 	border-top-width: 1px;
 	color: @gray-accent-color;
-	text-align: right;
-	font: 12px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
   }
   
   .entry {
 	margin-bottom: 15px;
-	font: 16px Georgia, "Times New Roman", Times, sans-serif;
-	line-height: 1.5;
 	word-break: break-all;
 	a {
-	  font: 16px Georgia, "Times New Roman", Times, sans-serif;
 	  color:@azure-accent-color;
 	  border-bottom-style: dashed;
 	  border-bottom-width: 1px;
-	  text-decoration:none;
 	  &:hover{
 			color: @amber-accent-color;
 		}
 	}
   }
    .tags ,.category {
-	   
+	  
       label {
 	     cursor: pointer;
-		 font: 16px Georgia, "Times New Roman", Times, sans-serif;
 		 color:@site-background-color;
-		 padding: 1px 5px;
+		 padding: 1px 4px;
 		 border-radius: 4px;
-		 background: lighten(@azure-accent-color, 20%);
-		 text-align: center;
+		 background: @gray-accent-color;
 		 display: inline-block;
 		 margin-left:10px;
 		 &:hover{
-			background: lighten(@amber-accent-color,20%);
+			background: @amber-accent-color;
 		}
 	 }
   }
@@ -140,13 +130,11 @@ body {
 }
 
 .pagination-clean {
-  font-family: Monaco, "Courier New", monospace;
   height:20px;
   li { 
 	border:0;
 	margin:0;
 	padding:0;
-	font-size:14px;
 	list-style:none; 
 	float:left; 
   }
@@ -158,16 +146,13 @@ body {
     color:#888888; 
 	display:block; 
 	float:left; 
-	font-weight:bold; 
 	padding:3px 4px; 
   }	
   .next a, previous a { 
     border:none; 
-	font-weight:bold;
   }
   .active { 
     color:@amber-accent-color; 
-	font-weight:bold; 
 	display:block; 
 	float:left; 
 	padding:4px 6px; 
@@ -178,10 +163,8 @@ body {
 	display:block; 
 	float:left; 
 	padding:3px 6px; 
-	text-decoration:none; 
   }
   a:hover { 
-    text-decoration:none; 
 	color:@amber-accent-color; 
   }
 }
@@ -207,11 +190,9 @@ body {
    }
    
    a {
-	  font: 16px Georgia, "Times New Roman", Times, sans-serif;
 	  color:@azure-accent-color;
 	  border-bottom-style: dashed;
 	  border-bottom-width: 1px;
-	  text-decoration:none;
 	  margin-right:5px;
    }
    hr {
@@ -222,123 +203,43 @@ body {
    }
 }
 
-/* =================== Category Body ===================== */
-
-.nav-tabs {
-  margin-left: 0;
-  margin-bottom: 20px;
-  list-style: none;
-  float:left;
-  
-  li {
-	strong{
-	  cursor: pointer;
-	  font: 16px Georgia, "Times New Roman", Times, sans-serif;
-	  display: block;
-	  line-height: 1.5;
-	  
-	  &:hover, &:focus{
-		text-decoration: none;
-		background-color: #ddd;
-	  }
-	}
-  }
-  .active {
-	text-decoration: none;
-	background-color: #eeeeee;
-  }
-}
-.tab-content {
-  .tab-pane {
-	display: none;
-  }
-  .active{
-    display: block;
-  }
-  li {
-    cursor: pointer;
-  }
-  a {
-	  display: block;
-	  font: 16px Georgia, "Times New Roman", Times, sans-serif;
-	  color:@azure-accent-color;
-	  border-bottom-style: dashed;
-	  border-bottom-width: 1px;
-	  text-decoration:none;
-	  line-height: 1.5;
-	  float:left
-  }
-  .time {
-    text-align: right;
-	line-height: 1.5;
-	display: block;
-  }
-}
-
 /* ==================== Tag Page ======================== */
 .tags {
  a{
-   font: 14px Monaco, "Courier New", monospace;
-   text-decoration:none;
    color:@amber-accent-color;
    padding: 4px 6px;
    margin: 2px;
    border-radius: 3px;
-   text-decoration: none;
    border: 1px dashed @gray-accent-color;
  }
 }
 .tag-posts {
-  font: 13.34px helvetica, arial, clean, sans-serif;
   margin-top:20px;
-
+  h3 {
+	  margin-top:20px;
+	  padding:0px;
+  }
   li {
   
 	 label {
 		color: @gray-accent-color;
-		font-family: Monaco, "Courier New", monospace;
-		font-size: 80%;
 		margin-right: 10px;
 	 }
 	 a {
 	 	color:@azure-accent-color;
 	    border-bottom-style: dashed;
 	    border-bottom-width: 1px;
-	    text-decoration:none;
-		font-size: 80%;
 		margin-left: 10px;
 	 }
   }
 }
 /* ==================== Intro Page ======================== */
 .self-intro {
-   background-color: lighten(@contrast-color, 10%);
-   height: 200px;
-   width: 400px;
-   margin: 0 auto;
-   border-radius: 15px 15px 15px 15px;
-   box-shadow: 0 2px 6px 0 @gray-accent-color;
-   padding: 2px; /* 实现图片的相框的效果，数值也大图片外边框越宽 */
-   border: 2px solid #EEEEEE; /* 相框外面的边儿 */
-   color:@site-background-color;
-   vertical-align:middle;
-   p {
-    font-family: 'Titillium Web', Verdana, 'Microsoft Yahei', 'sans serif';
-    font-size: 20px;
-    padding-top: 35px;
-    padding-bottom: 35px;
-    display: block;
-	width: 90%;
-	margin: 0 auto;
-   }
-    label{
-    font-family: "Courier New", Courier, monospace;
-    font-size: 30px;
-	text-align:center;
-    display: block;
-	width: 90%;
-	margin: 0 auto;
-   }
+   background:-moz-linear-gradient(left,@gray-accent-color,@site-background-color);/*Mozilla*/
+   background:-webkit-gradient(linear,0 50%,100% 50%,from(@gray-accent-color),to(@site-background-color));/*Old gradient for webkit*/
+   background:-webkit-linear-gradient(left,@gray-accent-color,@site-background-color);/*new gradient for Webkit*/
+   background:-o-linear-gradient(left,@gray-accent-color,@site-background-color); /*Opera11*/
+   font-size: 20px;
 }
 /* ===================== Footer ========================= */
 .container .ds-powered-by {
@@ -347,10 +248,14 @@ body {
 /* ===================== Footer ========================= */
 
 footer, footer a {
-  background-color: @contrast-color;
-  font: 12px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
-  color: @site-background-color;
-  line-height: 2;
+  font-family: 'Classic Grotesque W01', Arial, 'Hiragino Sans GB', STHeiti, 'Microsoft YaHei', 'WenQuanYi Micro Hei', SimSun, sans-serif;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  font-size: 16px;
+  line-height: 27.200000762939453px;
   text-align: center;
+  background-color: @contrast-color;
+  color: @site-background-color;
 }
 

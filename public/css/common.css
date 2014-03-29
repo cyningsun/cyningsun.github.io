@@ -4,17 +4,21 @@ html {
 body {
   background-color: #f5f5f5;
   border-top: 5px solid #333333;
-  font-family: 'Source Sans Pro', sans-serif;
   color: #333333;
-  font-weight: 400;
-  line-height: 1.5;
-  height: 95%;
+  height: 90%;
 }
 .container {
   max-width: 750px;
   padding: 0 20px 50px 20px;
   margin: 0 auto;
   min-height: 100%;
+  font-family: 'Classic Grotesque W01', Arial, 'Hiragino Sans GB', STHeiti, 'Microsoft YaHei', 'WenQuanYi Micro Hei', SimSun, sans-serif;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  font-size: 16px;
+  line-height: 27.200000762939453px;
+  text-align: left;
 }
 /* ===================== Header ========================= */
 .logo {
@@ -58,41 +62,31 @@ body {
 }
 /* ===================== Index Body ========================= */
 .article {
-  margin-bottom: 60px;
+  margin-bottom: 30px;
 }
 .article a {
   margin-left: 0px;
   height: 35px;
   color: #333333;
-  font: 20px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
-  text-decoration: none;
 }
 .article a:hover {
   color: #ff7e00;
-  text-decoration: none;
 }
 .article small {
-  height: 20px;
   margin-left: 0px;
+  height: 25px;
   border-top-style: dashed;
-  line-height: 100%;
   border-top-width: 1px;
-  color: #696969;
-  text-align: right;
-  font: 12px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
+  color: #797979;
 }
 .article .entry {
   margin-bottom: 15px;
-  font: 16px Georgia, "Times New Roman", Times, sans-serif;
-  line-height: 1.5;
   word-break: break-all;
 }
 .article .entry a {
-  font: 16px Georgia, "Times New Roman", Times, sans-serif;
   color: #007fff;
   border-bottom-style: dashed;
   border-bottom-width: 1px;
-  text-decoration: none;
 }
 .article .entry a:hover {
   color: #ff7e00;
@@ -100,36 +94,32 @@ body {
 .article .tags label,
 .article .category label {
   cursor: pointer;
-  font: 16px Georgia, "Times New Roman", Times, sans-serif;
   color: #f5f5f5;
-  padding: 1px 5px;
+  padding: 1px 4px;
   border-radius: 4px;
-  background: #66b2ff;
-  text-align: center;
+  background: #797979;
   display: inline-block;
   margin-left: 10px;
 }
 .article .tags label:hover,
 .article .category label:hover {
-  background: #ffb266;
+  background: #ff7e00;
 }
 .article hr {
-  border-bottom: 1px #696969;
+  border-bottom: 1px #797979;
 }
 .pagination-clean {
-  font-family: Monaco, "Courier New", monospace;
   height: 20px;
 }
 .pagination-clean li {
   border: 0;
   margin: 0;
   padding: 0;
-  font-size: 14px;
   list-style: none;
   float: left;
 }
 .pagination-clean a {
-  border-right: solid 1px #b5b5b5;
+  border-right: solid 1px #c5c5c5;
   margin-right: 2px;
 }
 .pagination-clean .previous-off,
@@ -137,21 +127,18 @@ body {
   color: #888888;
   display: block;
   float: left;
-  font-weight: bold;
   padding: 3px 4px;
 }
 .pagination-clean .next a,
 .pagination-clean previous a {
   border: none;
-  font-weight: bold;
 }
 .pagination-clean .active {
   color: #ff7e00;
-  font-weight: bold;
   display: block;
   float: left;
   padding: 4px 6px;
-  border-right: solid 1px #b5b5b5;
+  border-right: solid 1px #c5c5c5;
 }
 .pagination-clean a:link,
 .pagination-clean a:visited {
@@ -159,10 +146,8 @@ body {
   display: block;
   float: left;
   padding: 3px 6px;
-  text-decoration: none;
 }
 .pagination-clean a:hover {
-  text-decoration: none;
   color: #ff7e00;
 }
 /* ===================== Post Body ========================= */
@@ -181,11 +166,9 @@ body {
   margin-bottom: 5px;
 }
 .single-post a {
-  font: 16px Georgia, "Times New Roman", Times, sans-serif;
   color: #007fff;
   border-bottom-style: dashed;
   border-bottom-width: 1px;
-  text-decoration: none;
   margin-right: 5px;
 }
 .single-post hr {
@@ -194,111 +177,42 @@ body {
   height: 25px;
   background: url(/public/images/flower.png) center center no-repeat;
 }
-/* =================== Category Body ===================== */
-.nav-tabs {
-  margin-left: 0;
-  margin-bottom: 20px;
-  list-style: none;
-  float: left;
-}
-.nav-tabs li strong {
-  cursor: pointer;
-  font: 16px Georgia, "Times New Roman", Times, sans-serif;
-  display: block;
-  line-height: 1.5;
-}
-.nav-tabs li strong:hover,
-.nav-tabs li strong:focus {
-  text-decoration: none;
-  background-color: #ddd;
-}
-.nav-tabs .active {
-  text-decoration: none;
-  background-color: #eeeeee;
-}
-.tab-content .tab-pane {
-  display: none;
-}
-.tab-content .active {
-  display: block;
-}
-.tab-content li {
-  cursor: pointer;
-}
-.tab-content a {
-  display: block;
-  font: 16px Georgia, "Times New Roman", Times, sans-serif;
-  color: #007fff;
-  border-bottom-style: dashed;
-  border-bottom-width: 1px;
-  text-decoration: none;
-  line-height: 1.5;
-  float: left;
-}
-.tab-content .time {
-  text-align: right;
-  line-height: 1.5;
-  display: block;
-}
 /* ==================== Tag Page ======================== */
 .tags a {
-  font: 14px Monaco, "Courier New", monospace;
   color: #ff7e00;
   padding: 4px 6px;
   margin: 2px;
   border-radius: 3px;
-  text-decoration: none;
-  border: 1px dashed #696969;
+  border: 1px dashed #797979;
 }
 .tag-posts {
-  font: 13.34px helvetica, arial, clean, sans-serif;
   margin-top: 20px;
 }
+.tag-posts h3 {
+  margin-top: 20px;
+  padding: 0px;
+}
 .tag-posts li label {
-  color: #696969;
-  font-family: Monaco, "Courier New", monospace;
-  font-size: 80%;
+  color: #797979;
   margin-right: 10px;
 }
 .tag-posts li a {
   color: #007fff;
   border-bottom-style: dashed;
   border-bottom-width: 1px;
-  text-decoration: none;
-  font-size: 80%;
   margin-left: 10px;
 }
 /* ==================== Intro Page ======================== */
 .self-intro {
-  background-color: #4d4d4d;
-  height: 200px;
-  width: 400px;
-  margin: 0 auto;
-  border-radius: 15px 15px 15px 15px;
-  box-shadow: 0 2px 6px 0 #696969;
-  padding: 2px;
-  /* 实现图片的相框的效果，数值也大图片外边框越宽 */
-  border: 2px solid #EEEEEE;
-  /* 相框外面的边儿 */
-  color: #f5f5f5;
-  vertical-align: middle;
-}
-.self-intro p {
-  font-family: 'Titillium Web', Verdana, 'Microsoft Yahei', 'sans serif';
+  background: -moz-linear-gradient(left, #797979, #f5f5f5);
+  /*Mozilla*/
+  background: -webkit-gradient(linear, 0 50%, 100% 50%, from(#797979), to(#f5f5f5));
+  /*Old gradient for webkit*/
+  background: -webkit-linear-gradient(left, #797979, #f5f5f5);
+  /*new gradient for Webkit*/
+  background: -o-linear-gradient(left, #797979, #f5f5f5);
+  /*Opera11*/
   font-size: 20px;
-  padding-top: 35px;
-  padding-bottom: 35px;
-  display: block;
-  width: 90%;
-  margin: 0 auto;
-}
-.self-intro label {
-  font-family: "Courier New", Courier, monospace;
-  font-size: 30px;
-  text-align: center;
-  display: block;
-  width: 90%;
-  margin: 0 auto;
 }
 /* ===================== Footer ========================= */
 .container .ds-powered-by {
@@ -307,9 +221,13 @@ body {
 /* ===================== Footer ========================= */
 footer,
 footer a {
-  background-color: #333333;
-  font: 12px Verdana, "Lucida Grande", Geneva, Arial, sans-serif;
-  color: #f5f5f5;
-  line-height: 2;
+  font-family: 'Classic Grotesque W01', Arial, 'Hiragino Sans GB', STHeiti, 'Microsoft YaHei', 'WenQuanYi Micro Hei', SimSun, sans-serif;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  font-size: 16px;
+  line-height: 27.200000762939453px;
   text-align: center;
+  background-color: #333333;
+  color: #f5f5f5;
 }
