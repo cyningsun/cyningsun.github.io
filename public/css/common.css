@@ -214,9 +214,13 @@ body {
   /*Opera11*/
   font-size: 20px;
 }
-/* ===================== Footer ========================= */
+/* ===================== other component ========================= */
 .container .ds-powered-by {
   display: none;
+}
+img {
+  max-width: 700px;
+  height: auto;
 }
 /* ===================== Footer ========================= */
 footer,
