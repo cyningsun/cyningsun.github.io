@@ -1,6 +1,6 @@
 ---
 layout: post
-title: CSS标准
+title: CSS标准(1)-特性和值
 category: 读书总结
 tags: css
 ---

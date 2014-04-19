@@ -2,7 +2,7 @@
 layout: post
 title: 移动设备屏幕相关的知识
 category: 读书总结
-tags: css
+tags: px dpi
 ---
 ###基本概念
 
