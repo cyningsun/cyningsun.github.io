@@ -32,13 +32,12 @@ tags: 健身
 ###相关书籍
 《施瓦辛格健身全书》、《无器械健身》、《囚徒健身》、《身体锻炼手册：真实年龄健身计划》、《拉伸：最好的运动》
 
-<br/>
+(完)
+
 ###参考链接：
-[http://www.zhihu.com/question/22082222](http://www.zhihu.com/question/22082222)
-
-[http://www.zhihu.com/question/20684684](http://www.zhihu.com/question/20684684)
-
-[http://www.zhihu.com/question/20589558](http://www.zhihu.com/question/20589558)
+[http://www.zhihu.com/question/22082222](http://www.zhihu.com/question/22082222)       
+[http://www.zhihu.com/question/20684684](http://www.zhihu.com/question/20684684)      
+[http://www.zhihu.com/question/20589558](http://www.zhihu.com/question/20589558)         
 
 
 

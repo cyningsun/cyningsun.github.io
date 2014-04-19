@@ -31,32 +31,36 @@ Ps: 如无论Web app、Deamon app都需要互不信任、进行防御，构成�
 
 ####3、数据与代码分离
 例如：  
-{% highlight html %}
+
+```html
 <html>
 <head></head>
 <body>
 $var
 </body>
 </html>
-{% endhighlight %}
+```
 对于这段代码:
-{% highlight html %}
+
+````html
 <html>
 <head></head>
 <body>
 </body>
 </html>
-{% endhighlight %}
+```
 就是程序的代码段，而
-{% highlight html %}
+
+```html
 $var
-{% endhighlight %}
+```
 就是用户数据。
 当$var的值是：  
 <script src="http://evil"></script>
 此时就会出现安全问题。    
 此时如何处理，根据代码分离的原则，重写程序片段并对$var进行安全处理
-{% highlight html %}
+
+```html
 <html>
 <head></head>
 <body>
@@ -65,17 +69,18 @@ $var
 </script>
 </body>
 </html>
-{% endhighlight %}
+```
 此时，script还原为代码片段，用户数据只有$var，就可以做安全处理了。
 
 ####4、不可预测性
 不可预测性能后效的对抗基于篡改、伪造的攻击。  
 例如，一个内容管理系统，如果文章的序号是按照数字升序排列，那么如果攻击者如果想批量删除这些文章，只需要简单的一个脚本：
-{% highlight javascript %}
+
+```javascript
 for (i=0; i<1000; i++) {
   delete(url+"?id="+i);
 }
-{% endhighlight %}
+```
 
 ###四、跨站脚本攻击(XSS:cross site script)
 ####本质：用户数据被当成了HTML代码的一部分执行，从而混淆了原本的语义，产生新的语义

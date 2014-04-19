@@ -17,10 +17,14 @@ tags: 搜索
 
 ###示例实践
 想查找tomcat配置文件server.xml的说明，但是你在http://tomcat.apache.org/的首页又找不到入口。ok，现在转移到Google search：  
-{% highlight html %}
+
+```html
 site:tomcat.apache.org   server.xml       6.0  
 操作符:网址      关键字         tomcat版本号  
-{% endhighlight %}
+```
 别不相信自己的眼睛，打开第一个链接就是我们想要的页面，awesome！
+
+(完)
+
 
 ---

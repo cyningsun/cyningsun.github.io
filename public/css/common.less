@@ -182,10 +182,12 @@ html{
 	 ol {
 	   list-style-type: decimal;
 	   margin-bottom:5px;
-	   margin-left:35px;
+	   margin-left:25px;
 	 }
 	 ul{
-		margin-bottom:5px;
+	   list-style-image: url('/public/images/arrow.gif');
+	   margin-bottom:5px;
+	   list-style-position: inside
 	 }
    }
    
@@ -247,7 +249,8 @@ html{
 }
 img{ 
 	max-width:700px;
-	height:auto;
+	max-height:500px;
+	display:block; 
 }
 /* ===================== Footer ========================= */
 
@@ -270,4 +273,9 @@ pre{
   white-space:-pre-wrap; /* Opera 4-6 */
   white-space:-o-pre-wrap; /* Opera 7 */
   word-wrap:break-word; /* Internet Explorer 5.5+ */
+  border: 1px solid #ddd !important;
+  padding: 9.5px !important;
+  border-radius: 5px;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
 }

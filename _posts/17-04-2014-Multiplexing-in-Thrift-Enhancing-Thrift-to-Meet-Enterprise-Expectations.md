@@ -79,7 +79,8 @@ public Server1(T serverTransport, F protFactory) {
 super(serverTransport, protFactory);
 }
 #####第三步：实现configureMultiplexer()方法以配置lookup multiplexer。作为配置的一部分，你需要创建包含绑定到server上所有service以及相应的service information详细信息列表的MultiplexerArgs。示例如下，我们已经绑定HR和Finance service到Server1
-{% highlight java linenos %}
+
+```java
 @Override
 protected List<MultiplexerArgs<URIContext, TProcessor>> configureMultiplexer() {
 // list of multiplexer arguments
@@ -100,9 +101,10 @@ arg = new MultiplexerArgs<URIContext, TProcessor>(processor, context);
 args.add(arg);
 return args;
 }
-{% endhighlight %}
+```
 #####第四步：实现getServer(…)方法以创建目的Server的实例。在下面的示例中，我们使用参数创建了一个ThreadProolServer的实例。
-{% highlight java linenos %}
+
+```java
 @Override
 protected TServer getServer (TServerTransport serverTransport, TProtocolFactory protFactory, TProcessor processor) {
 //creating server args
@@ -115,9 +117,10 @@ serverArgs.maxWorkerThreads=5;
 //creating server instance
 return new TThreadPoolServer(serverArgs);
 }
-{% endhighlight %}
+```
 #####第五步：使用何时的transport和protocol创建server类的实例，并启动server
-{% highlight java linenos %}
+
+```java
 public static void main(String[] args) {
 //identifying server transport
 TServerSocket SERVER1_TRANSPORT = new TServerSocket(Constants.SERVICE1_PORT);
@@ -128,11 +131,12 @@ Server1<TServerSocket, TBinaryProtocol.Factory> server1 = new Server1<TServerSoc
 //starting server
 server1.start();
 }
-{% endhighlight %}
+```
 创建一个客户端查询registry并使用service context
 
 一个来查询multiplexing server registry的客户端可以从org.apache.thrift.registry.TRegistryClientFactory类获得。class.TRegistryClientFactory是便利类，它提供multiplexing客户端的实例。在客户端侧，你可以使用工厂的静态方法getClient（..）以获取registry客户端。它可以进一步用来查询registry和确定合适的server处理该请求。下面提供的示例代码是关于客户端使用的finance service检索雇员的税务细节的客户端：
-{% highlight java linenos %}
+
+```java
 public double getTaxDetails(intempId){
 TTransport transport = null;
 TProtocol protocol = null;
@@ -165,7 +169,7 @@ if(transport!=null)
 transport.close();
 }
 }
-{% endhighlight %}
+```
 ###明智的投资利润丰厚
 Thrift在当今的企业环境中有巨大优势，因为它通过有效的方式解决了所有大数据解决方案带来的挑战，并提供了一个公开为整个网络提供服务的解决方案。大多数企业，特别是在生产环境中，具有有限的端口，打开新的端口将引入相关的成本。使用Thrift作为解决方案的RPC机制是考虑到端口的有限。此外，像Hadoop、Hive、HBase、Cassandra、NoSQL数据存储等等，以及其他企业软件，如Web服务器、应用服务器和ESBs已经使用了多个端口。在成本和资源方面，如果企业将服务公开到网络上，然后为每个服务打开额外的端口是低效的。这一企业问题，可以通过Thrift multiplexing的帮助，减少端口数为一个，用很小的开发和管理开支绑定所有的服务。
 
@@ -175,15 +179,15 @@ Thrift在当今的企业环境中有巨大优势，因为它通过有效的方�
 
 ###参考：
 
-+  [1] http://thrift.apache.org/ 
-+  [2] http://avro.apache.org/
-+  [3] http://msgpack.org/
-+  [4] http://code.google.com/p/protobuf/
-+  [5] http://bsonspec.org/
-+  [6] http://hbase.apache.org/
-+  [7] http://hive.apache.org/
-+  [8] http://cassandra.apache.org/
-+  [9] git://github.com/impetus-opensource/thrift.git
+[1] http://thrift.apache.org/      
+[2] http://avro.apache.org/           
+[3] http://msgpack.org/       
+[4] http://code.google.com/p/protobuf/          
+[5] http://bsonspec.org/           
+[6] http://hbase.apache.org/         
+[7] http://hive.apache.org/       
+[8] http://cassandra.apache.org/      
+[9] git://github.com/impetus-opensource/thrift.git       
 
 ###英文原文：
 <iframe src="http://www.slideshare.net/slideshow/embed_code/33628708" width="700" height="500" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px 1px 0; margin-bottom:5px; max-width: 100%;" allowfullscreen> </iframe>

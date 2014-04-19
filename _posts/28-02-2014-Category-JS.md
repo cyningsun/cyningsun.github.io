@@ -9,23 +9,25 @@ category: Web前端
 原生js和jQuery函数定义的方式有所不同
 
 原生js：
-{% highlight javascript linenos %}
+
+```javascript
 var scope = {};
 scope.func = function() {
 }
 
 scope.func();
-{% endhighlight %}
+```
 jQuery函数:
-{% highlight javascript linenos %}
+
+```javascript
 (function ($) {
 	$.fn.func = function (a) {
 	}
 })(jQuery);
 
 $.func();
-{% endhighlight %}
+```
 
-
+(完)
 
 ---

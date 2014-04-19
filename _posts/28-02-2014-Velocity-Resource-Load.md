@@ -26,9 +26,9 @@ category: 后台技术
 　　Ps:若是StringResourceLoader，会首先去StringResourceRepository取数据，然后再去加载数据。
 
 **Finally**，VelocityEngine/VelocityServlet获取模板资源，向RuntimeInStance的ResourceManager请求数据，拿到Template数据。
-剩余的就是渲染引擎的工作了。（完）
+剩余的就是渲染引擎的工作了。
 
-
+(完)
 
 
 ---

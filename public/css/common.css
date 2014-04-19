@@ -160,10 +160,12 @@ html {
 .single-post .post-content ol {
   list-style-type: decimal;
   margin-bottom: 5px;
-  margin-left: 35px;
+  margin-left: 25px;
 }
 .single-post .post-content ul {
+  list-style-image: url('/public/images/arrow.gif');
   margin-bottom: 5px;
+  list-style-position: inside;
 }
 .single-post a {
   color: #007fff;
@@ -220,7 +222,8 @@ html {
 }
 img {
   max-width: 700px;
-  height: auto;
+  max-height: 500px;
+  display: block;
 }
 /* ===================== Footer ========================= */
 footer,
@@ -247,4 +250,9 @@ pre {
   /* Opera 7 */
   word-wrap: break-word;
   /* Internet Explorer 5.5+ */
+  border: 1px solid #ddd !important;
+  padding: 9.5px !important;
+  border-radius: 5px;
+  -webkit-border-radius: 3px;
+  -moz-border-radius: 3px;
 }
