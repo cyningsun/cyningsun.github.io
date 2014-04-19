@@ -1,6 +1,6 @@
 ---
 layout: post
-title: 关于健身
+title: 做更好的自己-健身
 category: 运动健康
 tags: 健身
 ---
