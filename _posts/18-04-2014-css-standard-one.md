@@ -29,11 +29,11 @@ style="" /* a=1 b=0 c=0 d=0 -> specificity = 1,0,0,0 */
 
 ###CSS 层叠顺序( Cascading order )
 1. 根据 CSS 样式的来源和重要性(是否含 !important )，给出了优先级的升序排列：
-1. 用户端声明( UA declarations )
-2. 一般用户声明( user normal declarations )
-3. 一般作者声明( author normal declarations )
-4. 加了 '!important' 的作者声明( author important declarations )
-5. 加了 '!important' 的用户声明( user important declarations )
+	1. 用户端声明( UA declarations )
+	2. 一般用户声明( user normal declarations )
+	3. 一般作者声明( author normal declarations )
+	4. 加了 '!important' 的作者声明( author important declarations )
+	5. 加了 '!important' 的用户声明( user important declarations )
 2. 拥有相同重要性和来源的规则，按照 CSS specificity 来排序。
 3. 最后，根据先后次序来排列：如果两条规则具有相同的权重，相同的来源和相同的选择器特殊性，则后出现的规则超越先出现的规则.
 
