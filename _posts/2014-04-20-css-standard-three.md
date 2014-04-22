@@ -2,7 +2,7 @@
 layout: post
 title: CSS标准(3)-包含块
 category: 读书总结
-tags: css 包含块
+tags: css 盒模型 包含块
 ---
 ###概念
 包含块：一个元素box的定位和尺寸，有时候会跟某一矩形框有关，这个矩形框，就被称作该元素的包含块。
