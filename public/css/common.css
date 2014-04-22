@@ -205,16 +205,226 @@ html {
   margin-left: 10px;
 }
 /* ==================== Intro Page ======================== */
-.self-intro {
-  background: -moz-linear-gradient(left, #797979, #f5f5f5);
-  /*Mozilla*/
-  background: -webkit-gradient(linear, 0 50%, 100% 50%, from(#797979), to(#f5f5f5));
-  /*Old gradient for webkit*/
-  background: -webkit-linear-gradient(left, #797979, #f5f5f5);
-  /*new gradient for Webkit*/
-  background: -o-linear-gradient(left, #797979, #f5f5f5);
-  /*Opera11*/
-  font-size: 20px;
+#aboutme-cyningsun div,
+#aboutme-cyningsun span,
+#aboutme-cyningsun img {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  vertical-align: baseline;
+  text-align: left;
+  background: none;
+}
+/* reset for aboutme-default */
+.aboutme-default#aboutme-cyningsun div,
+.aboutme-default#aboutme-cyningsun p,
+.aboutme-default#aboutme-cyningsun img,
+.aboutme-default#aboutme-cyningsun ol,
+.aboutme-default#aboutme-cyningsun ul,
+.aboutme-default#aboutme-cyningsun li {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun span,
+.aboutme-default#aboutme-cyningsun a,
+.aboutme-default#aboutme-cyningsun sub,
+.aboutme-default#aboutme-cyningsun sup {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun b,
+.aboutme-default#aboutme-cyningsun strong {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: bold;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun em,
+.aboutme-default#aboutme-cyningsun i {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: italic;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  box-shadow: none;
+}
+/* base styles for aboutme-embed */
+.aboutme-embed#aboutme-cyningsun {
+  margin: 10px 0;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-img img {
+  display: block;
+  border: 0;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-name {
+  font-size: 140%;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-headline {
+  font-size: 120%;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-bio {
+  margin-bottom: 15px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-bio p {
+  margin: 0;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a {
+  border: 0 !important;
+  display: inline-block !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 2px 5px 0 !important;
+  padding: 0 !important;
+  text-decoration: none !important;
+  background-repeat: no-repeat !important;
+  background-position: left top !important;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-github {
+  background-image: url(/public/images/github@32x32.png);
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-sinaWeibo {
+  background-image: url(/public/images/sinaWeibo@32x32.png);
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-gmail {
+  background-image: url(/public/images/gmail@32x32.png);
+}
+/* styles for horizontal layout */
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-content {
+  display: table;
+  width: 100%;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-img {
+  display: table-cell;
+  vertical-align: top;
+  padding-right: 15px;
+  margin-bottom: 0;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-img img {
+  margin-bottom: 0;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-text {
+  display: table-cell;
+  vertical-align: top;
+}
+/* styles for aboutme-default */
+.aboutme-default#aboutme-cyningsun {
+  font-family: Helvetica, Arial, Sans-Serif;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1.4;
+  color: #333;
+  background-color: #fff;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-color: rgba(0, 0, 0, 0.2);
+  box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  margin: 10px 0;
+}
+.aboutme-default#aboutme-cyningsun a {
+  color: #2b82ad;
+  text-decoration: none;
+}
+.aboutme-default#aboutme-cyningsun a:hover {
+  color: #3aa9e9;
+  text-decoration: none;
+}
+.aboutme-default#aboutme-cyningsun p,
+.aboutme-default#aboutme-cyningsun ol,
+.aboutme-default#aboutme-cyningsun ul {
+  margin-bottom: 0.75em !important;
+}
+.aboutme-default#aboutme-cyningsun .aboutme-img img {
+  border: 1px solid;
+  border-color: #999;
+  border-color: rgba(0, 0, 0, 0.5);
+}
+.aboutme-default#aboutme-cyningsun .aboutme-name {
+  font-size: 140%;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.aboutme-default#aboutme-cyningsun .aboutme-headline {
+  font-size: 120%;
+  margin-bottom: 8px;
+}
+.aboutme-default#aboutme-cyningsun .aboutme-bio {
+  font-family: Georgia,Times,Serif;
+  font-size: 14px;
+}
+.aboutme-default#aboutme-cyningsun ul {
+  list-style: disc;
+}
+.aboutme-default#aboutme-cyningsun ol {
+  list-style: decimal;
+}
+.aboutme-default#aboutme-cyningsun ul,
+.aboutme-default#aboutme-cyningsun ol {
+  list-style-position: outside;
+  padding-left: 2em;
+}
+.aboutme-default#aboutme-cyningsun ul li,
+.aboutme-default#aboutme-cyningsun ol li {
+  display: list-item;
+  padding: 0;
+  margin: 0;
 }
 /* ===================== other component ========================= */
 .container .ds-powered-by {
