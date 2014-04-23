@@ -151,6 +151,30 @@ html {
   color: #ff7e00;
 }
 /* ===================== Post Body ========================= */
+.single-post h2 {
+  display: block;
+  font-size: 1.5em;
+  -webkit-margin-before: 0.83em;
+  -webkit-margin-after: 0.83em;
+  -webkit-margin-start: 0px;
+  -webkit-margin-end: 0px;
+  font-weight: bold;
+}
+.single-post h3 {
+  display: block;
+  font-size: 1.17em;
+  -webkit-margin-before: 1em;
+  -webkit-margin-start: 0px;
+  -webkit-margin-end: 0px;
+  font-weight: bold;
+}
+.single-post h4 {
+  display: block;
+  -webkit-margin-before: 0.5em;
+  -webkit-margin-start: 0px;
+  -webkit-margin-end: 0px;
+  font-weight: bold;
+}
 .single-post .post-content {
   margin-top: 10px;
 }
