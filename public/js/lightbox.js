@@ -93,9 +93,10 @@
       this.sizeOverlay();
 
       this.image = $link;
+	  this.positionFromTop = ($(window).height() - this.image[0].naturalHeight)/2;
       
       // Position Lightbox
-      var top  = $window.scrollTop() + this.options.positionFromTop;
+      var top  = $window.scrollTop() + this.positionFromTop;
       var left = $window.scrollLeft();
       this.$lightbox.css({
         top: top + 'px',
