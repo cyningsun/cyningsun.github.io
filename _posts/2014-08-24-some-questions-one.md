@@ -1,6 +1,6 @@
 ---
 layout: post
-title: 遗留的问题汇总(1)
+title: 遗留的疑问汇总(1)
 category: 后台技术
 tags: MYBATIS MYSQL
 ---
