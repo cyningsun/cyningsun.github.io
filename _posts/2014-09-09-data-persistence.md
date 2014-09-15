@@ -29,7 +29,7 @@ tags: MYSQL
 3.  select count(*)要比select count(primary key)快速，前者会优先选择使用辅助索引(size小)而不是聚集索引(size大)。因为减少I/O，所以速度更快。
 
 熟悉索引类型，BTree索引(聚簇索引、非聚簇索引)、Hash索引、全文索引。更深入的了解Innodb，才能更好的使用它，扩展资料：  
-Innodb文件格式：http://www.slideshare.net/mysqlops/innodb-internal-9032556?qid=15510568-69bc-480d-a4df-63afc5cf5cba&v=default&b=&from_search=1
+Innodb文件格式：http://www.slideshare.net/mysqlops/innodb-internal-9032556?qid=15510568-69bc-480d-a4df-63afc5cf5cba&v=default&b=&from_search=1    
 Innodb源码实现分析：http://www.slideshare.net/frogd?utm_campaign=profiletracking&utm_medium=sssite&utm_source=ssslideview
 
 
