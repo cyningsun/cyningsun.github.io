@@ -10,11 +10,10 @@ tags: MYSQL
 2.  尽量不使用"0"表达任何业务含义，因为0还包含默认值
 3.  枚举类型的数据尽量使用2的次方来表示
 4.  将变化的数据和持久的数据分离
-5.  尽量为所有查询设计索引，使用explain语句验证所有的语句使用了索引。更快的读，更慢的写。数据量达到50万级别时，全量搜索将不可用(0.9s左右)。
-6.  将表达同一含义的用户数据与系统数据分开存储，必要时可以冗余系统数据。
-7.  使用"汇总表"，将同步数据异步化。对技术上难以达到满意的实现，一定要考虑体验与技术的折中，而不是无底线的向体验靠拢，最终导致影响体验。
-8.  使用"计数器表"，设计多个slot汇总统计信息以降低事务加锁等待，然后周期性的异步将数据汇总到同一个slot。
-9.  尽量避免过度设计
+5.  将表达同一含义的用户数据与系统数据分开存储，必要时可以冗余系统数据。
+6.  使用"汇总表"，将同步数据异步化。对技术上难以达到满意的实现，一定要考虑体验与技术的折中，而不是无底线的向体验靠拢，最终导致影响体验。
+7.  使用"计数器表"，设计多个slot汇总统计信息以降低事务加锁等待，然后周期性的异步将数据汇总到同一个slot。
+8.  尽量避免过度设计
 
 ###索引使用
 1.  索引使用限制：
@@ -29,16 +28,13 @@ tags: MYSQL
 3.  select count(*)要比select count(primary key)快速，前者会优先选择使用辅助索引(size小)而不是聚集索引(size大)。因为减少I/O，所以速度更快。
 
 熟悉索引类型，BTree索引(聚簇索引、非聚簇索引)、Hash索引、全文索引。更深入的了解Innodb，才能更好的使用它，扩展资料：  
-Innodb文件格式：http://www.slideshare.net/mysqlops/innodb-internal-9032556?qid=15510568-69bc-480d-a4df-63afc5cf5cba&v=default&b=&from_search=1    
-Innodb源码实现分析：http://www.slideshare.net/frogd?utm_campaign=profiletracking&utm_medium=sssite&utm_source=ssslideview
-
-
-###锁使用
+**Innodb文件格式**：http://www.slideshare.net/mysqlops/innodb-internal-9032556?qid=15510568-69bc-480d-a4df-63afc5cf5cba&v=default&b=&from_search=1    
+**Innodb源码实现分析**：http://www.slideshare.net/frogd?utm_campaign=profiletracking&utm_medium=sssite&utm_source=ssslideview
 
 ###使用
 1.  区分状态数据的业务含义与物理含义
 2.  查询条件语句不是越多越好，只留下使用索引和必需的条件即可
-
+3.  尽量为所有查询设计索引，使用explain语句验证所有的语句使用了索引。更快的读，更慢的写。数据量达到50万级别时，全量搜索将不可用(0.9s左右)。
 
 
 <BR/>
