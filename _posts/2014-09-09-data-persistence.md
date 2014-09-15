@@ -17,17 +17,23 @@ tags: MYSQL
 9.  尽量避免过度设计
 
 ###索引使用
-1.  全键值匹配：(未完成)
-2.  键值范围查找：(未完成)
-3.  键值前缀查找：(未完成)
-4.  索引中列顺序的重要性：
+1.  索引使用限制：
+	1.  查询必须从索引的最左边的列开始。
+	2.  不能跳过某一索引列。例如，你不能利用索引查找last name为Smith且出生于某一天的人。
+	3.  存储引擎不能使用索引中范围条件右边的列。
+2.  索引中列顺序的重要性：
     1.  如果不是按照索引最左列开始查找，则无法使用索引。
     2.  查询不能跳过索引中的列使用索引
     3.  如果查询使用某个列中范围查询，则右边所有列都无法使用索引优化查找
 	4.  将选择性最高的列放到索引的最前列。
+3.  select count(*)要比select count(primary key)快速，前者会优先选择使用辅助索引(size小)而不是聚集索引(size大)。因为减少I/O，所以速度更快。
+
+熟悉索引类型，BTree索引(聚簇索引、非聚簇索引)、Hash索引、全文索引。更深入的了解Innodb，才能更好的使用它，扩展资料：  
+Innodb文件格式：http://www.slideshare.net/mysqlops/innodb-internal-9032556?qid=15510568-69bc-480d-a4df-63afc5cf5cba&v=default&b=&from_search=1
+Innodb源码实现分析：http://www.slideshare.net/frogd?utm_campaign=profiletracking&utm_medium=sssite&utm_source=ssslideview
 
 
-
+###锁使用
 
 ###使用
 1.  区分状态数据的业务含义与物理含义
