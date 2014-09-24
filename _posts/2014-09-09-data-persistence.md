@@ -38,7 +38,7 @@ Innodb源码实现分析：http://www.slideshare.net/frogd/my-sql-innodb
 4.  设计接口时，所有不走索引的接口都应该从业务角度来考量，寻找替代的解决方案
 
 <BR/>
-(未完待续)
+(完)
 
 
 ---
