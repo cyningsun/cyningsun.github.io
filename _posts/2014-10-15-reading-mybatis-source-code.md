@@ -5,7 +5,7 @@ category: 后台技术
 tags: MYBATIS
 ---
 ###基本原理
-	本文中Mybatis基本原理切入，同时摘录Mybatis的源码，理解Mybatis框架的工作原理。首先看一段JDBC代码：
+本文中Mybatis基本原理切入，同时摘录Mybatis的源码，理解Mybatis框架的工作原理。首先看一段JDBC代码：
 
 ```java
 	Class.forName("com.mysql.jdbc.Driver");
@@ -23,7 +23,7 @@ tags: MYBATIS
 大家应该比较熟悉这段代码，典型的jdbc流程: 建立连接->传递sql->传递参数->sql执行->处理结果->关闭连接。ORM框架的本质是抽取共性、封装逻辑。现在，如果我们来设计一个ORM框架该如何设计？
 仔细考虑JDBC流程，可以发现流程中需要用户配置的输入和输出是变化的(如下，括号中部分)，而其他部分则是固定不变的逻辑。
 
-```
+```text
 	建立连接(数据源配置信息)->传递sql(sql语句)->传递参数(sql参数)->sql执行->处理结果(映射关系)->关闭连接
 ```
 数据源配置信息:配置文件，在启动时从配置文件中读取并建立数据源对象
@@ -78,8 +78,14 @@ Mapper执行时调用MapperProxy的invoke方法，MapperProxy创建MapperMethod�
   }
 ```
 
-以上即是Mybatis的大致原理，更详细的当然就是RTFC咯~
+####结果集映射
+略。
+
+以上即是Mybatis的大致原理，更详细的当然就是RTFC咯。Mybatis的实现很明了，功能相对简单，还有更多的东西可以去扩展，譬如：多数据源、数据库切分、缓存、连接管理等等。
+
+
 <BR/>
+
 (完)
 
 
