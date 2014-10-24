@@ -12,9 +12,12 @@ MyBatis-Spring 会帮助你将 MyBatis 代码无缝地整合到 Spring 中。 �
 Mybatis需要首先扫描到所有的Mybatis的Mapper类，然后将通过session获取该Mapper对应的实例。然后Spring就可以将Mybatis的Mapper实例注入到Service中
 使用了。
 首先从配置入口来看
+
+```xml
 <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
   <property name="basePackage" value="" />
 </bean>
+```
 
 入口类为MapperScannerConfigurer, 该类实现了BeanDefinitionRegistryPostProcessor接口用来查找Mapper类，然后将MapperFactoryBean设置为Mapper的
 实现类。MapperFactoryBean是一个代理类，会根据Mapper信息通过sqlSession获取对应Mapper的实例。以上就是Mybatis-Spring的所有任务。
@@ -104,10 +107,10 @@ ClassPathMapperScanner继承了ClassPathBeanDefinitionScanner，scanner.scan()�
 ####Mybatis涉及的主要类
 MapperScannerConfigurer -- ClassPathMapperScanner -- MapperFactoryBean
 
-<BR/>
+
 (完)
 
 
----
+
 
 

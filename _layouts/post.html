@@ -2,6 +2,15 @@
 <html>
 	<head>
 		{% include head.html %}
+		<link rel="stylesheet" href="http://sindresorhus.com/github-markdown-css/github-markdown.css">
+		<style>
+			.markdown-body {
+				min-width: 200px;
+				max-width: 750px;
+				margin: 0 auto;
+				padding: 30px;
+			}
+		</style>
 	</head>
 	<body class="bodyer">
 		<div class="container">
@@ -11,7 +20,7 @@
 				</div>
 				{% include navigation.html %}
 			</header>
-			<article class="single-post row">
+			<article class="markdown-body">
 			  <h2>{{ page.title }}</h2>
 			  <div class="post-content">
 			  {{ content }}
@@ -37,4 +46,5 @@
 			<p><a href="http://cyningsun.github.io">GitHub Pages</a></p>
 		</footer>
 	</body>
+	
 </html>
