@@ -10,4 +10,4 @@ redcarpet:
   render_options:
 timezone: Asia/Shanghai
 excerpt_separator: ""
-paginate: 4
+paginate: 10
