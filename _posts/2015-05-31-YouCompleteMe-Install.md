@@ -28,7 +28,6 @@ PS：网文可以用来做什么，网文可以用来参考，一般一些常用
 **LLVM：**   
 C=/usr/local/bin/gcc CXX=/usr/local/bin/g++ cmake -DCMAKE_CXX_LINK_FLAGS="-Wl,-rpath,/usr/local/lib64 -L/usr/local/lib64"  -DCMAKE_BUILD_TYPE=Release -DLLVM_BUILD_RUNTIME=Off -DLLVM_INCLUDE_TESTS=Off -DLLVM_INCLUDE_EXAMPLES=Off -DLLVM_ENABLE_BACKTRACES=Off -LLVM_TARGETS_TO_BUILD=x86 -DCMAKE_INSTALL_PREFIX=prefix=/home/cyningsun/local/llvm ..
 **YouCompleteMe：**  
-cmake -G "Unix Makefiles" -DCMAKE_C_COMPILER=/usr/local/bin/gcc -DCMAKE_CXX_COMPILER=/usr/local/bin/g++ -DPATH_TO_LLVM_ROOT=~/local/llvm -DPYTHON_INCLUDE_DIR=~/local/python/include/python2.7/ ~/.vim/YouCompleteMe/third_party/ycmd/cpp/ 
- 2081  [2015-05-16 11:21:38] cmake -G "Unix Makefiles" -DCMAKE_C_COMPILER=/usr/local/bin/gcc -DCMAKE_CXX_COMPILER=/usr/local/bin/g++ -DPATH_TO_LLVM_ROOT=~/local/llvm -DPYTHON_INCLUDE_DIR=~/local/python/include/python2.7/ -DPYTHON_LIBRARY=~/local/python/lib/python2.7/ ~/.vim/YouCompleteMe/third_party/ycmd/cpp/
+cmake -G "Unix Makefiles" -DCMAKE_C_COMPILER=/usr/local/bin/gcc -DCMAKE_CXX_COMPILER=/usr/local/bin/g++ -DPATH_TO_LLVM_ROOT=~/local/llvm -DPYTHON_INCLUDE_DIR=~/local/python/include/python2.7/ -DPYTHON_LIBRARY=~/local/python/lib/python2.7/ ~/.vim/YouCompleteMe/third_party/ycmd/cpp/
 
 
