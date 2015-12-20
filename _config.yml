@@ -1,6 +1,6 @@
 encoding: UTF-8
 markdown: redcarpet
-highlighter: false 
+highlighter: pygments 
 permalink: /:month-:day-:year/:title.html
 
 url:
