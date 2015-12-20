@@ -11,3 +11,5 @@ redcarpet:
 timezone: Asia/Shanghai
 excerpt_separator: ""
 paginate: 10
+
+gems: [jekyll-paginate]
