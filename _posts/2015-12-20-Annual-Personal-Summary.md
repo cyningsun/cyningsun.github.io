@@ -1,9 +1,8 @@
 ﻿---
-layout: post	
-title: 2015年年终总结	
-category: 生活琐碎	
+layout: post
+title: 2015年年终总结
+category: 生活琐碎
 ---
-
 
 2015晃眼而过，这一年是我过的比较颓的一年，也或者可以说比较自由的一年。
 
