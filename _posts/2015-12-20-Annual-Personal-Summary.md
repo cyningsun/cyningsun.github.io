@@ -1,7 +1,7 @@
 ﻿---
-layout: post
-title: 2015年年终总结
-category: 生活琐碎
+layout: post	
+title: 2015年年终总结	
+category: 生活琐碎	
 ---
 
 
