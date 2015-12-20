@@ -19,7 +19,7 @@ category: 生活琐碎
 
 ###豆瓣2015
 ![]({{ site.url }}/public/blog-img/2015readingtaste1.png)
-![]({{ site.url }}/public/blog-img/2015readingtaste1.png)
+![]({{ site.url }}/public/blog-img/2015readingtaste2.png)
 
 ###总结
 今年是职业成长的一年，是个人生活成长的一年，但是依然不是基础技术成长的一年。
