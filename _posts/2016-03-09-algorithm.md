@@ -22,4 +22,5 @@ http://coolshell.cn/articles/17225.html   Cuckoo Filter  多哈希函数映射�
 
 
 ####更新记录
-2016-03-09 新增Bloom/Cuckoo Filter算法
+ 2016-03-09 新增Bloom/Cuckoo Filter算法
+ 2016-03-22 听取了QQ关系链和用户资料平台的存储，多阶哈希可以用于对读写要求较高的热点数据的存储还是挺不错的选择，但是需要容忍Master-nSlave架构下的数据丢失以及写不可用。
