@@ -1,7 +1,7 @@
 ---
 layout: post
-title: �ȸ�����ѧϰ
-category: ����
+title: 谷歌论文学习
+category: 论文
 tags:  
 ---
 
@@ -14,7 +14,7 @@ tags:
 
 
 
-���⣺
-1��Google��������������ж��ĵ��Ƿ���£�
-��simhash�㷨
+问题：
+1、Google的搜索引擎如何判断文档是否更新？
+答：simhash算法
 
