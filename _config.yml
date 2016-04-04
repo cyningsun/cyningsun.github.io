@@ -1,13 +1,20 @@
 encoding: UTF-8
-markdown: redcarpet
+markdown: kramdown
 highlighter: pygments 
 permalink: /:month-:day-:year/:title.html
 
 url:
 
-redcarpet:
-  extensions: ["fenced_code_blocks", "highlight", "strikethrough"]
-  render_options:
+kramdown:
+  input: GFM
+  extensions:
+    - autolink
+    - footnotes
+    - smart
+  use_coderay: true
+  syntax_highlighter: rouge
+  coderay:
+    coderay_line_numbers:  nil
 timezone: Asia/Shanghai
 excerpt_separator: ""
 paginate: 10
