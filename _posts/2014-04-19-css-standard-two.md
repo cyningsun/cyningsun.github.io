@@ -4,7 +4,7 @@ title: CSS标准(2)-盒模型
 category: 读书总结
 tags: css 盒模型
 ---
-###框结构
+### 框结构
 浏览器会根据渲染模型为每个元素生成四个嵌套的矩形框， 分别称作 content box、padding box、border box 和 margin box，它们是不可分割的，并可能会重合， 这就是 CSS 规范中描述的“盒模型”（box model）。
 
 ![]({{ site.url }}/public/blog-img/css-standard/boxdim.png)
@@ -16,7 +16,7 @@ tags: css 盒模型
 
 ![]({{ site.url }}/public/blog-img/css-standard/boxdimeg.png)
 
-###外边距折叠
+### 外边距折叠
 1.两个或多个毗邻的普通流中的块元素垂直方向上的margin会折叠
 <iframe width="100%" height="300" src="http://jsfiddle.net/cyningsun/n9E8h/embedded/html,result/" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
 2.浮动元素/inline-block的元素/绝对定位元素的margin不会和垂直方向上的其他元素的margin折叠

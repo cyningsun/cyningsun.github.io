@@ -5,16 +5,16 @@ category: 论文
 tags:  
 ---
 
-
-![The Anatomy of a Large-Scale Hypertextual Web Search Engine(zz)  ](http://duanple.blog.163.com/blog/static/709717672011423105543296/)
-{{ site.url }}/public/blog-img/paper/google-searcher-architecture.png
-
-
+### 论文列表
+[The Anatomy of a Large-Scale Hypertextual Web Search Engine(zz)  ](http://duanple.blog.163.com/blog/static/709717672011423105543296/)
+![The Anatomy of a Large-Scale Hypertextual Web Search Engine(zz)  ]({{ site.url }}/public/blog-img/paper/google-searcher-architecture.png)
 
 
 
 
-问题：
+
+
+### 问题：
 1、Google的搜索引擎如何判断文档是否更新？
 答：simhash算法
 
