@@ -1,6 +1,6 @@
 ---
 layout: post
-title: 字符串匹配查找
+title: 字符串匹配查找算法总结
 category: 数据结构与算法
 tags:  
 ---
