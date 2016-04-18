@@ -26,8 +26,11 @@ tags:
 
 
 [SQL中的where条件，在数据库中提取与应用浅析](http://hedengcheng.com/?p=577)
+[MYSQL查询计划KEY_LEN全知道](http://www.innomysql.com/article/25241.html)：清晰SQL执行过程使用了索引的哪部分。
 [MySQL查询优化浅析](http://hedengcheng.com/?p=372)：简明清晰的介绍了Where语句中的条件是如何使用索引的，如果了解数据库以B+树构建索引等基础知识能弄清楚该怎么优化一条SQL(附带推荐《MySQL技术内幕:InnoDB存储引擎》)
 
+
+[利用tcpcopy引流做模拟在线测试](http://www.searchtb.com/2012/05/using-tcpcopy-to-simulate-traffic.html)：tcpcopy进行线上流量的转发，interception进行应答拦截丢弃。使用线上流量验证和测试，保证服务平稳迭代上线。
 
 
 [分布式系统的事务处理](http://coolshell.cn/articles/10910.html)：十分清晰的介绍了分布式系统的算法和模型，例如微信后台系统常用的NWR模型、Paxos算法
