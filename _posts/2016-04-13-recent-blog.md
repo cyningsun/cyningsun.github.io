@@ -6,6 +6,8 @@ tags:
 ---
 
 ### 文章列表
+[【读薄 CSAPP】贰 机器指令与程序优化](http://wdxtub.com/2016/04/16/thin-csapp-2/#more)：了解下汇编语言，能够帮助查看汇编代码，理解编译器做了什么优化。
+
 [C语言：数组和指针的区别](http://coolshell.cn/articles/17225.html)：数组就是数组，只是右值表示的对象，左值表示对象的起始地址，而C语言允许内存地址的直接操作，仅此而已。
 
 [语言的数据亲和力](http://www.cnblogs.com/weidagang2046/archive/2011/06/27/2091765.html)：选择语言的根本原因是利用这个语言的优势，C语言的字节亲和力；Shell/Python等脚本语言的文本亲和力；JavaScript弱类型语言对结构化文本的亲和力
@@ -31,6 +33,9 @@ tags:
 [SQL中的where条件，在数据库中提取与应用浅析](http://hedengcheng.com/?p=577)    
 [MYSQL查询计划KEY_LEN全知道](http://www.innomysql.com/article/25241.html)：清晰SQL执行过程使用了索引的哪部分。
 [MySQL查询优化浅析](http://hedengcheng.com/?p=372)：简明清晰的介绍了Where语句中的条件是如何使用索引的，如果了解数据库以B+树构建索引等基础知识能弄清楚该怎么优化一条SQL(附带推荐《MySQL技术内幕:InnoDB存储引擎》)
+
+
+[Peterson算法实现spin lock](http://www.yebangyu.org/blog/2016/03/04/petersonalgorithm/):了解spin lock的原理
 
 
 [利用tcpcopy引流做模拟在线测试](http://www.searchtb.com/2012/05/using-tcpcopy-to-simulate-traffic.html)：tcpcopy进行线上流量的转发，interception进行应答拦截丢弃。使用线上流量验证和测试，保证服务平稳迭代上线。
