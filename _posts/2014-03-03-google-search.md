@@ -24,6 +24,8 @@ site:tomcat.apache.org   server.xml       6.0
 ```
 别不相信自己的眼睛，打开第一个链接就是我们想要的页面，awesome！
 
+更多详细攻略：
+![Google Search]({{ site.url }}/public/blog-img/google-search.jpg)
 (完)
 
 
