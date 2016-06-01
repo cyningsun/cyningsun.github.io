@@ -19,7 +19,7 @@ Nehalem是一款OOOE（Out of Order Execute）乱序执行的Superscaler超标�
 ![nehalem]({{ site.url }}/public/blog-img/nehalem/2.png)
 High-level diagram of a Nehalem core pipeline.
 
-Core由以下部分组成：
+Core由以下部分组成：  
 **in-order前端**：拾取Intel64指令，使用四个解码器将指令解码为micro-ops，放入下游阶段的缓存中。   
 **out-of-order执行引擎**：输入数据和资源具备，每个时钟周期动态分配六个micro-ops到执行单元    
 **in-order回退单元**：确保micro-ops 的执行结果和结构状态(architected state )的更新符合源程序的顺序    
@@ -54,11 +54,11 @@ Micro-Fusion: 将多条uops聚合用于降低uop的数量，提高Front-End的�
 High-level diagram of a the out-of-order execution engine in the Nehalem core
 
 执行引擎包含以下主要组件：
-**Register Rename and Allocation Unit (RRAU)**：分配执行引擎的资源给IDQ中的micro-ops，并移动micro-ops给执行引擎。
-**Reorder Buffer (ROB)**：追踪所有执行中的micro-ops。（没有结果的指令将在ROB等待）
-**Unified Reservation Station (URS)**:排队最大36条micro-ops直到操作资源ready，调度和分配ready的micro-ops到可用的执行单元。（没有数据的指令将在RS等待）
-**Memory Order Buffer (MOB)**：支持推测、乱序load/store，确保正确的次序和数据写回内存
-**Execution Units and Operand Forwarding Network**：每个时钟周期最多为一个micro-ops产生一个结果
+**Register Rename and Allocation Unit (RRAU)**：分配执行引擎的资源给IDQ中的micro-ops，并移动micro-ops给执行引擎。   
+**Reorder Buffer (ROB)**：追踪所有执行中的micro-ops。（没有结果的指令将在ROB等待）    
+**Unified Reservation Station (URS)**:排队最大36条micro-ops直到操作资源ready，调度和分配ready的micro-ops到可用的执行单元。（没有数据的指令将在RS等待）    
+**Memory Order Buffer (MOB)**：支持推测、乱序load/store，确保正确的次序和数据写回内存    
+**Execution Units and Operand Forwarding Network**：每个时钟周期最多为一个micro-ops产生一个结果   
 
 > 在乱序执行架构中，不同的指令可能都会需要用到相同的通用寄存器（GPR，General Purpose Registers），为此Intel开始引入重命名寄存器（Rename Register），不同的指令可以通过具有名字相同但实际不同的寄存器来解决。
 
@@ -79,11 +79,11 @@ High-level diagram of a the out-of-order execution engine in the Nehalem core
 敬请期待下篇《根据Nehalem架构了解CPU缓存体系》。
 
 ### 参考
-[解读 Intel® Microarchitecture](http://www.mouseos.com/arch/intel_microarchitecture.html)
-[乱序执行引擎](http://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-823-computer-system-architecture-fall-2005/lecture-notes/l12_ooo_pipes.pdf)
-[ROB](https://courses.cs.washington.edu/courses/csep548/06au/lectures/reorderBuf.pdf)
-[inside nehalem](http://www.realworldtech.com/nehalem)
-[A High-Performance Nehalem iDataPlex Cluster and DDN S2A9990 Storage for Texas A&M University](http://sc.tamu.edu/systems/eos/)
+[解读 Intel® Microarchitecture](http://www.mouseos.com/arch/intel_microarchitecture.html)   
+[乱序执行引擎](http://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-823-computer-system-architecture-fall-2005/lecture-notes/l12_ooo_pipes.pdf)    
+[ROB](https://courses.cs.washington.edu/courses/csep548/06au/lectures/reorderBuf.pdf)    
+[inside nehalem](http://www.realworldtech.com/nehalem)    
+[A High-Performance Nehalem iDataPlex Cluster and DDN S2A9990 Storage for Texas A&M University](http://sc.tamu.edu/systems/eos/)   
 
 
 
