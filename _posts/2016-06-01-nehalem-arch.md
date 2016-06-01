@@ -53,7 +53,7 @@ Micro-Fusion: 将多条uops聚合用于降低uop的数量，提高Front-End的�
 ![nehalem]({{ site.url }}/public/blog-img/nehalem/4.png)
 High-level diagram of a the out-of-order execution engine in the Nehalem core
 
-执行引擎包含以下主要组件：
+执行引擎包含以下主要组件：   
 **Register Rename and Allocation Unit (RRAU)**：分配执行引擎的资源给IDQ中的micro-ops，并移动micro-ops给执行引擎。   
 **Reorder Buffer (ROB)**：追踪所有执行中的micro-ops。（没有结果的指令将在ROB等待）    
 **Unified Reservation Station (URS)**:排队最大36条micro-ops直到操作资源ready，调度和分配ready的micro-ops到可用的执行单元。（没有数据的指令将在RS等待）    
@@ -66,7 +66,7 @@ High-level diagram of a the out-of-order execution engine in the Nehalem core
 
 猜测执行允许预先执行方向未定的分支指令。分支猜对了，其在ROB里产生的结果被标志为已结束，可以立即地被后继指令使用而不需要进行L1 Data Cache的Load操作。分支未能按照如期的情况进行，这时猜测的分支指令段将被清除，相应指令们的流水线阶段清空，对应的寄存器状态也就全都无效了。所以当指令和micro-ops在正确预测路径上才会发生状态的“Retirement”和“writeback”。Retirement处理满足以下两个条件：
 
-> 1.与回退micro-op相关的所有micro-ops已经完毕”complete”，允许整条指令的Retirement。当一个指令的micro-ops的数量超大，填满回退窗口时，micro-ops可以回退。
+> 1.与回退micro-op相关的所有micro-ops已经完毕”complete”，允许整条指令的Retirement。当一个指令的micro-ops的数量超大，填满回退窗口时，micro-ops可以回退。   
 > 2.正确预测路径上之前的指令的micro-ops已经发生回退。
 
 这些保证处理器更新的状态与in-order执行的代码的micro-ops一致。
