@@ -11,6 +11,7 @@ tags:
 [C语言：数组和指针的区别](http://coolshell.cn/articles/17225.html)：数组就是数组，只是右值表示的对象，左值表示对象的起始地址，而C语言允许内存地址的直接操作，仅此而已。
 
 [从Linux内核代码中学习获得结构体成员偏移量的方法](http://blog.csdn.net/livelylittlefish/article/details/20565261):Linux内核获取结构体成员偏移量的方法。
+[inotify -- Linux 2.6 内核中的文件系统变化通知机制](https://www.ibm.com/developerworks/cn/linux/l-inotifynew/)
 
 [语言的数据亲和力](http://www.cnblogs.com/weidagang2046/archive/2011/06/27/2091765.html)：选择语言的根本原因是利用这个语言的优势，C语言的字节亲和力；Shell/Python等脚本语言的文本亲和力；JavaScript弱类型语言对结构化文本的亲和力
 
