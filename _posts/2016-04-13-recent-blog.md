@@ -42,6 +42,7 @@ tags:
 
 [Peterson算法实现spin lock](http://www.yebangyu.org/blog/2016/03/04/petersonalgorithm/):了解spin lock的原理
 
+[二分查找(Binary Search)需要注意的问题，以及在数据库内核中的实现](http://hedengcheng.com/?p=595):你真的弄懂了二分查找了吗？
 
 [利用tcpcopy引流做模拟在线测试](http://www.searchtb.com/2012/05/using-tcpcopy-to-simulate-traffic.html)：tcpcopy进行线上流量的转发，interception进行应答拦截丢弃。使用线上流量验证和测试，保证服务平稳迭代上线。
 
