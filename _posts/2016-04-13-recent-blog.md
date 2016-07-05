@@ -9,6 +9,7 @@ tags:
 [【读薄 CSAPP】贰 机器指令与程序优化](http://wdxtub.com/2016/04/16/thin-csapp-2/#more)：了解下汇编语言，能够帮助查看汇编代码，理解编译器做了什么优化。
 
 [C语言：数组和指针的区别](http://coolshell.cn/articles/17225.html)：数组就是数组，只是右值表示的对象，左值表示对象的起始地址，而C语言允许内存地址的直接操作，仅此而已。
+[C++中的头文件和源文件](http://www.cnblogs.com/lidabo/archive/2012/04/17/2454568.html) :C++基础知识 
 
 [从Linux内核代码中学习获得结构体成员偏移量的方法](http://blog.csdn.net/livelylittlefish/article/details/20565261):Linux内核获取结构体成员偏移量的方法。
 [inotify -- Linux 2.6 内核中的文件系统变化通知机制](https://www.ibm.com/developerworks/cn/linux/l-inotifynew/)
@@ -17,7 +18,7 @@ tags:
 
 [实例分析Java Class的文件结构](http://coolshell.cn/articles/9229.html):Java的Class文件对应了内存的对象模型。
 
-[C/C++ Volatile关键词深度剖析](http://hedengcheng.com/?p=725):C语言的volatile关键字是一个很尴尬的关键字，只防止编译器优化导致指令重排的问题，但是却没有解决CPU指令执行的的乱序。并发的内存模型涉及到三点：操作的原子性、缓存一致性(Java的可见性)、顺序一致性(Java有序性)。  
+[C/C++ Volatile关键词深度剖析](http://hedengcheng.com/?p=725):C语言的volatile关键字是一个很尴尬的关键字，只防止编译器优化导致指令重排的问题，但是却没有解决CPU指令执行的的乱序。并发的内存模型涉及到三点：操作的原子性、缓存一致性(Java的可见性)、顺序一致性(Java有序性)。
 [《C++0x漫谈》系列之：多线程内存模型](http://blog.csdn.net/pongba/article/details/1659952)：详细介绍当前C++在多线程环境下面临的问题。
 
 [深入理解Java内存模型](http://www.infoq.com/cn/author/%E7%A8%8B%E6%99%93%E6%98%8E#文章):系列文章，主要是从Happens-before原则说明指令重排对并发的影响，如果了解linux的内存屏障机制可能会更好理解些，然后重点说明了并发中的volatile和锁
