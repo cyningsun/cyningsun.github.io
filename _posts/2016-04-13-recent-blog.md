@@ -9,7 +9,8 @@ tags:
 [【读薄 CSAPP】贰 机器指令与程序优化](http://wdxtub.com/2016/04/16/thin-csapp-2/#more)：了解下汇编语言，能够帮助查看汇编代码，理解编译器做了什么优化。
 
 [C语言：数组和指针的区别](http://coolshell.cn/articles/17225.html)：数组就是数组，只是右值表示的对象，左值表示对象的起始地址，而C语言允许内存地址的直接操作，仅此而已。
-[C++中的头文件和源文件](http://www.cnblogs.com/lidabo/archive/2012/04/17/2454568.html) :C++基础知识 
+
+[C++中的头文件和源文件](http://www.cnblogs.com/lidabo/archive/2012/04/17/2454568.html) :了解C++头文件和源文件的作用，了解定义和声明 
 
 [从Linux内核代码中学习获得结构体成员偏移量的方法](http://blog.csdn.net/livelylittlefish/article/details/20565261):Linux内核获取结构体成员偏移量的方法。
 [inotify -- Linux 2.6 内核中的文件系统变化通知机制](https://www.ibm.com/developerworks/cn/linux/l-inotifynew/)
