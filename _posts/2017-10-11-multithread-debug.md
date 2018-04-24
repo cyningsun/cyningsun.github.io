@@ -23,12 +23,12 @@ Continuing.
 
 Breakpoint 1, WordElement::Reset (this=0x3a5fe020, node=...) at word_element.cpp:39
 39     word_element.cpp: No such file or directory.
-(gdb) <b>print node.PrintDebugString()</b>
+(gdb) print node.PrintDebugString()
 [Switching to Thread 0x7fca27125700 (LWP 76458)]
 
 Breakpoint 1, WordElement::Reset (this=0x44b21420, node=...) at word_element.cpp:39
 39     in word_element.cpp
-<b>The program stopped in another thread while making a function call from GDB.</b>
+The program stopped in another thread while making a function call from GDB.
 
 (google::protobuf::Message::PrintDebugString() const) will be abandoned.
 When the function is done executing, GDB will silently stop.
@@ -51,7 +51,7 @@ Continuing.
 
 Breakpoint 1, WordElement::Reset (this=0x42c76020, node=...) at word_element.cpp:39
 39     word_element.cpp: No such file or directory.
-(gdb) <b>set scheduler-locking on</b>
+(gdb) set scheduler-locking on
 (gdb) print node.PrintDebugString()
 node_level: 3
 node_weight: 0.49673182
