@@ -26,23 +26,25 @@
 			  {{ content }}
 			  </div>
 			</article>
-			<!-- Duoshuo Comment BEGIN -->
-			<div class="ds-thread"></div>
-			<script type="text/javascript">
-			var duoshuoQuery = {short_name:"cyningsun"};
-				(function() {
-					var ds = document.createElement('script');
-					ds.type = 'text/javascript';ds.async = true;
-					ds.src = 'http://static.duoshuo.com/embed.js';
-					ds.charset = 'UTF-8';
-					(document.getElementsByTagName('head')[0] 
-					|| document.getElementsByTagName('body')[0]).appendChild(ds);
-				})();
-				</script>
-			<!-- Duoshuo Comment END -->
+			<!-- Comment BEGIN -->
+            <div id="container"></div>
+            <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+            <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+            <script>
+            var gitment = new Gitment({
+              owner: 'cyningsun',
+              repo: 'blog_comment',
+              oauth: {
+                client_id: '40f315f8e57ef8d9e004',
+                client_secret: 'ff1b1611ba32d4577562d70288aeb6ec69f194da',
+              },
+            })
+            gitment.render('container')
+            </script>
+			<!-- Comment END -->
 		</div>
 		<footer>
-			<p>Copyright ©2014 cyningsun</p>
+			<p>Copyright ©2018 cyningsun</p>
 			<p><a href="http://cyningsun.github.io">GitHub Pages</a></p>
 		</footer>
 	</body>
