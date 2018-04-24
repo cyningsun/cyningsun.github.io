@@ -7,6 +7,7 @@ tags:
 
 ### 文章列表
 [【读薄 CSAPP】贰 机器指令与程序优化](http://wdxtub.com/2016/04/16/thin-csapp-2/#more)：了解下汇编语言，能够帮助查看汇编代码，理解编译器做了什么优化。
+[using gcc to produce readable assembly](http://stackoverflow.com/questions/1289881/using-gcc-to-produce-readable-assembly/1289907#1289907):using gcc to produce readable assembly
 
 [C语言：数组和指针的区别](http://coolshell.cn/articles/17225.html)：数组就是数组，只是右值表示的对象，左值表示对象的起始地址，而C语言允许内存地址的直接操作，仅此而已。
 
