@@ -329,11 +329,6 @@
   border: 0 none;
 }
 
-.markdown-body ul,
-.markdown-body ol {
-  padding-left: 2em;
-}
-
 .markdown-body ul ul,
 .markdown-body ul ol,
 .markdown-body ol ol,
@@ -342,8 +337,21 @@
   margin-bottom: 0;
 }
 
+.markdown-body ol li {
+	list-style:decimal;
+	list-style-position:inside;  
+}
+
+.markdown-body ul li {
+  margin-top: 16px;
+  margin-bottom: px;
+  list-style:square;
+  list-style-position:inside;  
+}
+
 .markdown-body li>p {
   margin-top: 16px;
+  display:inline;
 }
 
 .markdown-body dl {
