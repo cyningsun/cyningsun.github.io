@@ -82,41 +82,22 @@ For 64 bit systems:
 	
 
 ##### 线程中内存管理
-每一个内存分配区中维护着[bins]的列表数据结构，用于保存free chunks。根据chunk的不同，bins分为以下几种：
-> - Fast bin
-- Unsorted bin
-- Small bin
-- Large bin
+对于空闲的chunk，ptmalloc采用分箱式内存管理方式，每一个内存分配区中维护着[bins]的列表数据结构，用于保存free chunks。根据空闲chunk的大小和处于的状态将其放在四个不同的bin中，这四个空闲chunk的容器包括fast bins，unsorted bin， small bins和large bins。
+
+从工作原理来看：
+- Fast bins是小内存块的高速缓存，当一些大小小于64字节的chunk被回收时，首先会放入fast bins中，在分配小内存时，首先会查看fast bins中是否有合适的内存块，如果存在，则直接返回fast bins中的内存块，以加快分配速度。
+- Usorted bin只有一个，回收的chunk块必须先放到unsorted bin中，分配内存时会查看unsorted bin中是否有合适的chunk，如果找到满足条件的chunk，则直接返回给用户，否则将unsorted bin的所有chunk放入small bins或是large bins中。
+- Small bins用于存放固定大小的chunk，共64个bin，最小的chunk大小为16字节或32字节，每个bin的大小相差8字节或是16字节，当分配小内存块时，采用精确匹配的方式从small bins中查找合适的chunk。
+- Large bins用于存储大于等于512B或1024B的空闲chunk，这些chunk使用双向链表的形式按大小顺序排序，分配内存时按最近匹配方式从large bins中分配chunk。
+
+从作用来看：
+- Fast bins 可以看着是small bins的一小部分cache，主要是用于提高小内存的分配效率，虽然这可能会加剧内存碎片化，但也大大加速了内存释放的速度！
+- Unsorted bin 可以重新使用最近 free 掉的 chunk，从而消除了寻找合适 bin 的时间开销，进而加速了内存分配及释放的效率。
+- Small bins 相邻的 free chunk 将被合并，这减缓了内存碎片化，但是减慢了 free 的速度；
+- Large bin 中所有 chunk 大小不一定相同，各 chunk 大小递减保存。最大的 chunk 保存顶端，而最小的 chunk 保存在尾端；查找较慢，且释放时两个相邻的空闲 chunk 会被合并。
+
 其中fastbins保存在malloc_state结构的fastbinsY变量中，其他三者保存在malloc_state结构的bins变量中。
-
-###### Fast Bin
-在所有的 bins 中，fast bins 路径享有最快的内存分配及释放速度。
-
-- 每个 fast bin 都维护着一条 free chunk 的单链表，采用单链表是因为链表中所有 chunk 的大小相等，增删 chunk 发生在链表顶端即可；—— LIFO
-- fast bins 由一系列所维护 chunk 大小以 8 字节递增的 bins 组成。也即，fast bin[0] 维护大小为 16 字节的 chunk、fast bin[1] 维护大小为 24 字节的 chunk。依此类推……
-- 指定 fast bin 中所有 chunk 大小相同；
-- 无需合并 —— 两个相邻 chunk 不会被合并。虽然这可能会加剧内存碎片化，但也大大加速了内存释放的速度！
-
-###### Unsorted Bin
-当 small chunk 和 large chunk 被 free 掉时，它们并非被添加到各自的 bin 中，而是被添加在 「unsorted bin」 中。这使得分配器可以重新使用最近 free 掉的 chunk，从而消除了寻找合适 bin 的时间开销，进而加速了内存分配及释放的效率。
-- chunk 大小：无限制，任何大小的 chunk 均可添加到这里。
-
-###### Small Bin
-大小小于 512 字节的 chunk 被称为 「small chunk」，而保存 small chunks 的 bin 被称为 「small bin」。在内存分配回收的速度上，small bin 比 large bin 更快。
-- 每个 small bin 都维护着一条 free chunk 的双向循环链表。free 掉的 chunk 添加在链表的顶端，而 malloc 的 chunk 从链表尾端摘除。—— FILO
-- Small bins 由一系列所维护 chunk 大小以 8 字节递增的 bins 组成。举例而言，small bin[0] （Bin 2）维护着大小为 16 字节的 chunks、small bin[1]（Bin 3）维护着大小为 24 字节的 chunks ，依此类推……
-- 合并 —— 相邻的 free chunk 将被合并，这减缓了内存碎片化，但是减慢了 free 的速度；
-
-###### Large Bin
-每个 large bin 都维护着一条 free chunk 的双向循环链表。free 掉的 chunk 添加在链表的顶端，而 malloc 的 chunk 从链表尾端摘除。——FILO
-- 32 个 bins 所维护的 chunk 大小以 64B 递增，也即 large chunk[0](Bin 65) 维护着大小为 512B ~ 568B 的 chunk 、large chunk[1](Bin 66) 维护着大小为 576B ~ 632B 的 chunk，依此类推……
-- large bin 中所有 chunk 大小不一定相同，各 chunk 大小递减保存。最大的 chunk 保存顶端，而最小的 chunk 保存在尾端；
-- 合并 —— 两个相邻的空闲 chunk 会被合并；
-
-如果相应 bin 中的最大 chunk 大小大于用户请求大小，分配器就从该 bin 顶端遍历到尾端，以找到一个大小最接近用户请求的 chunk。一旦找到，相应 chunk 就会被切分成两块：     
-> User chunk（用户请求大小）—— 返回给用户；        
-Remainder chunk （剩余大小）—— 添加到 unsorted bin。     
-如果相应 bin 中的最大 chunk 大小小于用户请求大小，分配器就会扫描 binmaps，从而查找最小非空 bin。如果找到了这样的 bin，就从中选择合适的 chunk 并切割给用户；反之就使用 top chunk 响应用户请求。
+![skiplist]({{ site.url }}/public/blog-img/allocator/ptmalloc-free-bins.png)
 
 ##### Chunk说明
 一个 arena 中最顶部的 chunk 被称为「top chunk」。它不属于任何 bin 。当所有 bin 中都没有合适空闲内存时，就会使用 top chunk 来响应用户请求。当 top chunk 的大小比用户请求的大小小的时候，top chunk 就通过 sbrk（main arena）或 mmap（ thread arena）系统调用扩容。
