@@ -104,6 +104,16 @@ For 64 bit systems:
 
 「last remainder chunk」即最后一次 small request 中因分割而得到的剩余部分，它有利于改进引用局部性，也即后续对 small chunk 的 malloc 请求可能最终被分配得彼此靠近。当用户请求 small chunk 而无法从 small bin 和 unsorted bin 得到服务时，分配器就会通过扫描 binmaps 找到最小非空 bin。正如前文所提及的，如果这样的 bin 找到了，其中最合适的 chunk 就会分割为两部分：返回给用户的 User chunk 、添加到 unsorted bin 中的 Remainder chunk。这一 Remainder chunk 就将成为 last remainder chunk。当用户的后续请求 small chunk，并且 last remainder chunk 是 unsorted bin 中唯一的 chunk，该 last remainder chunk 就将分割成两部分：返回给用户的 User chunk、添加到 unsorted bin 中的 Remainder chunk（也是 last remainder chunk）。因此后续的请求的 chunk 最终将被分配得彼此靠近。
 
+##### 问题
+- 如果后分配的内存先释放，无法及时归还系统。因为 ptmalloc 收缩内存是从 top chunk 开始,如果与 top chunk 相邻的 chunk 不能释放, top chunk 以下的 chunk 都无法释放。
+- 内存不能在线程间移动，多线程使用内存不均衡将导致内存浪费
+- 每个chunk至少8字节的开销很大
+- 不定期分配长生命周期的内存容易造成内存碎片，不利于回收。 
+
+从上述来看ptmalloc的主要问题其实是内存浪费以及内存碎片。频繁进行整理碎片与释放内存，需要付出的是性能的代价。
+
+
+### tcmalloc
 
 
 
