@@ -109,13 +109,17 @@ For 64 bit systems:
 - 内存不能在线程间移动，多线程使用内存不均衡将导致内存浪费
 - 每个chunk至少8字节的开销很大
 - 不定期分配长生命周期的内存容易造成内存碎片，不利于回收。 
+- 加锁耗时，无论当前分区有无耗时，在内存分配和释放时，会首先加锁。
 
-从上述来看ptmalloc的主要问题其实是内存浪费以及内存碎片。频繁进行整理碎片与释放内存，需要付出的是性能的代价。
-
+从上述来看ptmalloc的主要问题其实是内存浪费、内存碎片、以及加锁导致的性能问题。
 
 ### tcmalloc
+tcmalloc是Google开发的内存分配器，在Golang、Chrome中都有使用该分配器进行内存分配。有效的优化了ptmalloc中存在的问题。当然为此也付出了一些代价，按下不表，先看tcmalloc的具体实现。
+
+
 
 
 
 http://core-analyzer.sourceforge.net/index_files/Page335.html
 https://blog.csdn.net/maokelong95/article/details/51989081
+https://zhuanlan.zhihu.com/p/29216091
