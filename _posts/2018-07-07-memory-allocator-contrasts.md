@@ -70,7 +70,7 @@ struct malloc_chunk {
 注意：Main arena 无需维护多个堆，因此也无需 heap_info。当空间耗尽时，与 thread arena 不同，main arena 可以通过 sbrk 拓展堆段，直至堆段「碰」到内存映射段；
  
 	 
-##### 线程间内存管理
+##### 用户向内存管理
 
 当某一线程需要调用malloc()分配内存空间时，该线程先查看线程私有变量中是否已经存在一个分配区，如果存在，尝试对该分配区加锁，如果加锁成功，使用该分配区分配内存，如果失败，该线程搜索循环链表试图获得一个没有加锁的分配区。如果所有的分配区都已经加锁，那么malloc()会开辟一个新的分配区，把该分配区加入到全局分配区循环链表并加锁，然后使用该分配区进行分配内存操作。在释放操作中，线程同样试图获得待释放内存块所在分配区的锁，如果该分配区正在被别的线程使用，则需要等待直到其他线程释放该分配区的互斥锁之后才可以进行释放操作。
 
@@ -113,6 +113,9 @@ For 64 bit systems:
 
 从上述来看ptmalloc的主要问题其实是内存浪费、内存碎片、以及加锁导致的性能问题。
 
+> 备注：glibc 2.26( [2017-08-02](https://sourceware.org/glibc/wiki/Release/2.26) )中已经添加了tcache(thread local cache)优化malloc速度
+
+
 ### tcmalloc
 tcmalloc是Google开发的内存分配器，在Golang、Chrome中都有使用该分配器进行内存分配。有效的优化了ptmalloc中存在的问题。当然为此也付出了一些代价，按下不表，先看tcmalloc的具体实现。
 
@@ -120,6 +123,11 @@ tcmalloc是Google开发的内存分配器，在Golang、Chrome中都有使用该
 
 
 
+https://paper.seebug.org/papers/Archive/refs/heap/glibc%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86ptmalloc%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90.pdf
 http://core-analyzer.sourceforge.net/index_files/Page335.html
 https://blog.csdn.net/maokelong95/article/details/51989081
 https://zhuanlan.zhihu.com/p/29216091
+https://blog.csdn.net/zwleagle/article/details/45113303
+http://game.academy.163.com/library/2015/2/10/17713_497699.html
+https://www.cnblogs.com/taoxinrui/p/6492733.html
+
