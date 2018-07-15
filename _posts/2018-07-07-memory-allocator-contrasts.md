@@ -70,7 +70,7 @@ struct malloc_chunk {
 注意：Main arena 无需维护多个堆，因此也无需 heap_info。当空间耗尽时，与 thread arena 不同，main arena 可以通过 sbrk 拓展堆段，直至堆段「碰」到内存映射段；
  
 	 
-##### 线程间内存管理
+##### 用户向看内存管理
 
 当某一线程需要调用malloc()分配内存空间时，该线程先查看线程私有变量中是否已经存在一个分配区，如果存在，尝试对该分配区加锁，如果加锁成功，使用该分配区分配内存，如果失败，该线程搜索循环链表试图获得一个没有加锁的分配区。如果所有的分配区都已经加锁，那么malloc()会开辟一个新的分配区，把该分配区加入到全局分配区循环链表并加锁，然后使用该分配区进行分配内存操作。在释放操作中，线程同样试图获得待释放内存块所在分配区的锁，如果该分配区正在被别的线程使用，则需要等待直到其他线程释放该分配区的互斥锁之后才可以进行释放操作。
 
@@ -104,9 +104,35 @@ For 64 bit systems:
 
 「last remainder chunk」即最后一次 small request 中因分割而得到的剩余部分，它有利于改进引用局部性，也即后续对 small chunk 的 malloc 请求可能最终被分配得彼此靠近。当用户请求 small chunk 而无法从 small bin 和 unsorted bin 得到服务时，分配器就会通过扫描 binmaps 找到最小非空 bin。正如前文所提及的，如果这样的 bin 找到了，其中最合适的 chunk 就会分割为两部分：返回给用户的 User chunk 、添加到 unsorted bin 中的 Remainder chunk。这一 Remainder chunk 就将成为 last remainder chunk。当用户的后续请求 small chunk，并且 last remainder chunk 是 unsorted bin 中唯一的 chunk，该 last remainder chunk 就将分割成两部分：返回给用户的 User chunk、添加到 unsorted bin 中的 Remainder chunk（也是 last remainder chunk）。因此后续的请求的 chunk 最终将被分配得彼此靠近。
 
+##### 问题
+- 如果后分配的内存先释放，无法及时归还系统。因为 ptmalloc 收缩内存是从 top chunk 开始,如果与 top chunk 相邻的 chunk 不能释放, top chunk 以下的 chunk 都无法释放。
+- 内存不能在线程间移动，多线程使用内存不均衡将导致内存浪费
+- 每个chunk至少8字节的开销很大
+- 不定期分配长生命周期的内存容易造成内存碎片，不利于回收。 
+- 加锁耗时，无论当前分区有无耗时，在内存分配和释放时，会首先加锁。
+
+从上述来看ptmalloc的主要问题其实是内存浪费、内存碎片、以及加锁导致的性能问题。
+
+> 备注：glibc 2.26( [2017-08-02](https://sourceware.org/glibc/wiki/Release/2.26) )中已经添加了tcache(thread local cache)优化malloc速度
+
+
+### tcmalloc
+tcmalloc是Google开发的内存分配器，在Golang、Chrome中都有使用该分配器进行内存分配。有效的优化了ptmalloc中存在的问题。当然为此也付出了一些代价，按下不表，先看tcmalloc的具体实现。
+
+TCMalloc是专门对多线并发的内存管理而设计的，TCMalloc主要是在线程级实现了缓存，使得用户在申请内存时大多情况下是无锁内存分配。整个 TCMalloc 实现了三级缓存，分别是ThreadCache(线程级缓存)，Central Cache(中央缓存：CentralFreeeList)，PageHeap(页缓存)，最后两级需要加锁访问。小内存(小于等于256k)的分配和释放流程如下图所示(红线表示内存的申请，蓝线表示内存的释放过程):
+![skiplist]({{ site.url }}/public/blog-img/allocator/tcmalloc-simple.png)
+
+
+##### 系统向看内存管理
 
 
 
+
+https://paper.seebug.org/papers/Archive/refs/heap/glibc%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86ptmalloc%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90.pdf
 http://core-analyzer.sourceforge.net/index_files/Page335.html
-file:///C:/Users/sunyi/Downloads/demo.pdf[%E8%AE%B8%E9%B9%8F].1473845814.pdf
 https://blog.csdn.net/maokelong95/article/details/51989081
+https://zhuanlan.zhihu.com/p/29216091
+https://blog.csdn.net/zwleagle/article/details/45113303
+http://game.academy.163.com/library/2015/2/10/17713_497699.html
+https://www.cnblogs.com/taoxinrui/p/6492733.html
+
