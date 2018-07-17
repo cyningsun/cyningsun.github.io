@@ -178,10 +178,10 @@ SpanSet large_returned_;
 首先在free[n,128]中查找、然后到large set中查找，目标就是找到一个最小的满足要求的空闲Span，优先使用normal类链表中的Span。如果找到了一个Span，则尝试分裂(Carve)这个Span并分配出去；如果所有的链表中都没找到length>=n的Span，则向系统申请内存。Tcmalloc一次最少向系统申请1MB的内存，默认情况下，使用sbrk申请，在sbrk失败的时候，使用mmap申请。 
 
 ##### tcmalloc的优势
-1、小内存可以在ThreadCache中不加锁分配(加锁的代价大约100ns)
-2、大内存可以直接按照大小分配不需要再像ptmalloc一样进行查找
-3、大内存加锁使用更高效的自旋锁
-4、减少了[内存碎片][4]
+- 小内存可以在ThreadCache中不加锁分配(加锁的代价大约100ns)      
+- 大内存可以直接按照大小分配不需要再像ptmalloc一样进行查找      
+- 大内存加锁使用更高效的自旋锁     
+- 减少了[内存碎片][4]         
 
 
 
