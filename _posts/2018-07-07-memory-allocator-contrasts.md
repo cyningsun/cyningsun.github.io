@@ -122,17 +122,74 @@ tcmalloc是Google开发的内存分配器，在Golang、Chrome中都有使用该
 TCMalloc是专门对多线并发的内存管理而设计的，TCMalloc主要是在线程级实现了缓存，使得用户在申请内存时大多情况下是无锁内存分配。整个 TCMalloc 实现了三级缓存，分别是ThreadCache(线程级缓存)，Central Cache(中央缓存：CentralFreeeList)，PageHeap(页缓存)，最后两级需要加锁访问。小内存(小于等于256k)的分配和释放流程如下图所示(红线表示内存的申请，蓝线表示内存的释放过程):
 ![skiplist]({{ site.url }}/public/blog-img/allocator/tcmalloc-simple.png)
 
+当我们申请的内存大于kMaxSize(256k)的时候，tcmalloc直接向全局的PageHeap中申请最小的Span分配出去(return span->start << kPageShift))；
 
 ##### 系统向看内存管理
+tcmalloc把8kb的连续内存称为一个页(Page)，可以用下面两个常量来描述：
+const size_t kPageShift = 13;
+const size_t kPageSize = 1 << kPageShift;
+对于一个指针p，p>>kPageShift即是p的页地址。同样的对于一个页地址x，管理的实际内存区间是[x <<kPageShift, (x+1)<<kPageShift)。一个或多个连续的页组成一个Span.对于一个Span，管理的实际内存区间是[start<<kPageShift,  (start+length)<<kPageShift)。tcmalloc中所有页级别的操作，都是对Span的操作。PageHeap是一个全局的用来管理Span的类。PageHeap把小于的空闲Span保存在双向循环链表上，而大的span则保存在SET中。保证了所有的内存的申请速度，减少了内存查找。
+```c
+// Information kept for a span (a contiguous run of pages).
+struct Span {
+  PageID        start;          // Starting page number
+  Length        length;         // Number of pages in span
+  Span*         next;           // Used when in link list
+  Span*         prev;           // Used when in link list
+  union {
+    void* objects;              // Linked list of free objects
+
+    // Span may contain iterator pointing back at SpanSet entry of
+    // this span into set of large spans. It is used to quickly delete
+    // spans from those sets. span_iter_space is space for such
+    // iterator which lifetime is controlled explicitly.
+    char span_iter_space[sizeof(SpanSet::iterator)];
+  };
+  unsigned int  refcount : 16;  // Number of non-free objects
+  unsigned int  sizeclass : 8;  // Size-class for small objects (or 0)
+  unsigned int  location : 2;   // Is the span on a freelist, and if so, which?
+  unsigned int  sample : 1;     // Sampled object?
+  bool          has_span_iter : 1; // If span_iter_space has valid
+                                   // iterator. Only for debug builds.
+  // What freelist the span is on: IN_USE if on none, or normal or returned
+  enum { IN_USE, ON_NORMAL_FREELIST, ON_RETURNED_FREELIST };
+};
+
+// We segregate spans of a given size into two circular linked
+// lists: one for normal spans, and one for spans whose memory
+// has been returned to the system.
+struct SpanList {
+Span        normal;
+Span        returned;
+};
+
+// Array mapping from span length to a doubly linked list of free spans
+//
+// NOTE: index 'i' stores spans of length 'i + 1'.
+SpanList free_[kMaxPages];
+
+// Sets of spans with length > kMaxPages.
+//
+// Rather than using a linked list, we use sets here for efficient
+// best-fit search.
+SpanSet large_normal_;
+SpanSet large_returned_;
+```
+首先在free[n,128]中查找、然后到large set中查找，目标就是找到一个最小的满足要求的空闲Span，优先使用normal类链表中的Span。如果找到了一个Span，则尝试分裂(Carve)这个Span并分配出去；如果所有的链表中都没找到length>=n的Span，则向系统申请内存。Tcmalloc一次最少向系统申请1MB的内存，默认情况下，使用sbrk申请，在sbrk失败的时候，使用mmap申请。 
+
+##### tcmalloc的优势
+- 小内存可以在ThreadCache中不加锁分配(加锁的代价大约100ns)      
+- 大内存可以直接按照大小分配不需要再像ptmalloc一样进行查找      
+- 大内存加锁使用更高效的自旋锁     
+- 减少了[内存碎片][4]         
 
 
 
-
-https://paper.seebug.org/papers/Archive/refs/heap/glibc%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86ptmalloc%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90.pdf
-http://core-analyzer.sourceforge.net/index_files/Page335.html
-https://blog.csdn.net/maokelong95/article/details/51989081
-https://zhuanlan.zhihu.com/p/29216091
-https://blog.csdn.net/zwleagle/article/details/45113303
-http://game.academy.163.com/library/2015/2/10/17713_497699.html
-https://www.cnblogs.com/taoxinrui/p/6492733.html
-
+[1]:https://paper.seebug.org/papers/Archive/refs/heap/glibc%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86ptmalloc%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90.pdf
+[2]:http://core-analyzer.sourceforge.net/index_files/Page335.html
+[3]:https://blog.csdn.net/maokelong95/article/details/51989081
+[4]:https://zhuanlan.zhihu.com/p/29216091
+[5]:https://zhuanlan.zhihu.com/p/29415507
+[6]:https://blog.csdn.net/zwleagle/article/details/45113303
+[7]:http://game.academy.163.com/library/2015/2/10/17713_497699.html
+[8]:https://www.cnblogs.com/taoxinrui/p/6492733.html
