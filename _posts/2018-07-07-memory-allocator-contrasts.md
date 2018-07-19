@@ -174,6 +174,8 @@ SpanSet large_normal_;
 SpanSet large_returned_;
 ```
 
+![skiplist]({{ site.url }}/public/blog-img/allocator/tcmalloc.png)
+
 ##### 用户向看tcmalloc内存管理
 TCMalloc是专门对多线并发的内存管理而设计的，TCMalloc主要是在线程级实现了缓存，使得用户在申请内存时大多情况下是无锁内存分配。整个 TCMalloc 实现了三级缓存，分别是ThreadCache(线程级缓存)，Central Cache(中央缓存：CentralFreeeList)，PageHeap(页缓存)，最后两级需要加锁访问。如图为内存分配
 ![skiplist]({{ site.url }}/public/blog-img/allocator/tcmalloc-simple.png)
@@ -191,7 +193,6 @@ TCMalloc是专门对多线并发的内存管理而设计的，TCMalloc主要是�
 
 然而，tcmalloc也带来了一些问题，使用自旋锁虽然减少了加锁效率，但是如果使用大内存较多的情况下，内存在Central Cache或者Page Heap加锁分配。而tcmalloc对大小内存的分配过于保守，在一些内存需求较大的服务（如推荐系统），小内存上限过低，当请求量上来，锁冲突严重，CPU使用率将指数暴增。
 
-![skiplist]({{ site.url }}/public/blog-img/allocator/tcmalloc.png)
 
 
 ### jemalloc
