@@ -4,7 +4,7 @@ encoding: UTF-8
 markdown: kramdown
 permalink: /:month-:day-:year/:title.html
 
-url:https://cyningsun.github.io
+url: https://cyningsun.github.io
 
 kramdown:
   input: GFM
