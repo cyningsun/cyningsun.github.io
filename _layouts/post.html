@@ -11,6 +11,12 @@
 				padding: 0;
 			}
 		</style>
+{%if page.tags %}
+<meta name="keywords" content="{{ page.tags | join: ', ' | escape }} {{ page.category | join: ', ' | escape }}"/>
+{%endif %}
+{% for tag in page.tags %}
+<meta property="article:tag" content="{{ tag }}">
+{% endfor %}
 	</head>
 	<body class="bodyer">
 		<div class="container">

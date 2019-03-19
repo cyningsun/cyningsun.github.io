@@ -1,3 +1,5 @@
+name: "cyningsun"
+meta_description: 微信后台开发，
 encoding: UTF-8
 markdown: kramdown
 permalink: /:month-:day-:year/:title.html
@@ -18,4 +20,7 @@ timezone: Asia/Shanghai
 excerpt_separator: ""
 paginate: 10
 
-plugins: [jekyll-paginate]
+plugins:
+  - jekyll-seo-tag
+  - jekyll-paginate
+  - jekyll-sitemap
