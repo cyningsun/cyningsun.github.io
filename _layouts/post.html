@@ -1,63 +1,12 @@
-﻿<!DOCTYPE html>
-<html>
-	<head>
-		{% include head.html %}
-		<link rel="stylesheet" href="{{ site.url }}/public/css/github-markdown.min.css">
-		<style>
-			.markdown-body {
-				min-width: 200px;
-				max-width: 750px;
-				margin: 0 auto;
-				padding: 0;
-			}
-		</style>
-{%if page.tags %}
-<meta name="keywords" content="{{ page.tags | join: ', ' | escape }} {{ page.category | join: ', ' | escape }}"/>
-{%endif %}
-{% for tag in page.tags %}
-<meta property="article:tag" content="{{ tag }}">
-{% endfor %}
-	</head>
-	<body class="bodyer">
-		<div class="container">
-			<header class="top row">
-				<div class="span2 fl">
-				  <a href="/" class="logo" title="{{ site.data.brume.name }}" style="background-image: url({{site.url}}/public/images/logo.png);"></a>
-				</div>
-				{% include navigation.html %}
-			</header>
-			<article class="markdown-body">
-			  <h2>{{ page.title }}</h2>
-			  <div class="post-content">
-			  {{ content }}
-			  </div>
-			</article>
-			<!-- Comment BEGIN -->
-            <div id="container"></div>
-            <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
-            <script src="https://www.wenjunjiang.win/js/gitment.js"></script>
-            <script>
-            var gitment = new Gitment({
-              id: '{{ page.date }}',
-              owner: 'cyningsun',
-              repo: 'blog_comment',
-              oauth: {
-                client_id: 'b8ff5ed1956f484a7a1f',
-                client_secret: 'c540e05bc03d3cfbe6118be320578d3c14187d49',
-              },
-            })
-            gitment.render('container')
-            </script>
-			<!-- Comment END -->
-		</div>
-		<footer>
-			<p>Copyright ©2018 cyningsun</p>
-			<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-			<span id="busuanzi_container_page_pv">
-				本文总阅读量<span id="busuanzi_value_page_pv"></span>次
-			</span>
-			<p><a href="https://cyningsun.github.io">GitHub Pages</a></p>
-		</footer>
-	</body>
-	
-</html>
+---
+layout: default
+---
+<div id="article"  class="typo typo-selection">
+<h1>{{ page.title }}</h1><br/>
+<h2 id="tagline" class="serif">{{ page.subtitle }}</h2>
+<div class="post">
+    {{ content }}
+</div>
+{% include pager.html %}
+{% include comment.html %}
+</div>

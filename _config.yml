@@ -1,10 +1,14 @@
-name: "cyningsun"
-meta_description: 微信后台开发，
+name: 有疑者说
+author: cyningsun
 encoding: UTF-8
 markdown: kramdown
 permalink: /:month-:day-:year/:title.html
-
-url: https://cyningsun.github.io
+description: 博学、慎思、明辨、笃行
+github: https://github.com/cyningsun
+twitter: http://www.twitter.com/
+facebook: http://www.facebook.com
+linkedin: http://www.linkedin.com
+email: cyningsun[at]gmail.com
 
 kramdown:
   input: GFM
@@ -12,10 +16,7 @@ kramdown:
     - autolink
     - footnotes
     - smart
-  enable_coderay: true
   syntax_highlighter: rouge
-  coderay:
-    coderay_line_numbers:  nil
 timezone: Asia/Shanghai
 excerpt_separator: ""
 paginate: 10
@@ -24,3 +25,16 @@ plugins:
   - jekyll-seo-tag
   - jekyll-paginate
   - jekyll-sitemap
+
+
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post"
