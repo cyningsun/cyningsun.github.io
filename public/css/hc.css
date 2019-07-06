@@ -498,14 +498,14 @@ time
 #social-wrapper a
 {
   font-size:15px;
-  text-indent:20px
+  text-indent:40px
 }
 
 #social-wrapper li
 {
   font-size:15px;
   text-indent:0;
-  word-spacing:10px
+
 }
 
 #social-wrapper a:hover
@@ -597,3 +597,422 @@ time
   
   }
   
+
+
+/*--links-------------*/
+
+.label {
+  display: inline;
+  padding: .2em .6em .3em;
+  font-size: 75%;
+  font-weight: bold;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: .25em;
+}
+
+.label-danger
+{
+  background-color:#697b7b;
+  font-weight:300;
+  /* border-radius:.2em; */
+  font-size:120%;
+}
+
+.label-danger:hover
+{
+  background-color:#2d4440;
+  transition:all .4s ease 0
+}
+
+
+.fashion
+{
+  border-left:solid 2px #bc0005
+}
+
+.fashion-button
+{
+  background-color:#bc0005
+}
+
+.fashion:hover
+{
+  border-left:solid 2px #f40006
+}
+
+.fashion-button:hover
+{
+  background-color:#f40006
+}
+
+.programming
+{
+  border-left:solid 2px #7dbcb2
+}
+
+.programming-button
+{
+  background-color:#7dbcb2
+}
+
+.programming:hover
+{
+  border-left:solid 2px #bbe9e2
+}
+
+.programming-button:hover
+{
+  background-color:#bbe9e2
+}
+
+.tech
+{
+  border-left:solid 2px #644539
+}
+
+.tech-button
+{
+  background-color:#644539
+}
+
+.tech:hover
+{
+  border-left:solid 2px #F4A273
+}
+
+.tech-button:hover
+{
+  background-color:#F4A273
+}
+
+.misc
+{
+  border-left:solid 2px #9e9599
+}
+
+.misc-button
+{
+  background-color:#9e9599
+}
+
+.misc:hover
+{
+  border-left:solid 2px #cfe0ea
+}
+
+.misc-button:hover
+{
+  background-color:#cfe0ea
+}
+
+.podcasts
+{
+  border-left:solid 2px #387b94
+}
+
+.podcasts-button
+{
+  background-color:#387b94
+}
+
+.podcasts:hover
+{
+  border-left:solid 2px #2FD0EF
+}
+
+.podcasts-button:hover
+{
+  background-color:#2FD0EF
+}
+
+.table td,.table th {
+  background-color: #fff!important
+}
+
+.table {
+  border-collapse: collapse!important
+}
+
+.table>thead>tr>th,.table>tbody>tr>th,.table>tfoot>tr>th,.table>thead>tr>td,.table>tbody>tr>td,.table>tfoot>tr>td {
+	padding: 8px;
+	line-height: 1.428571429;
+	vertical-align: top;
+	border-top: 1px solid #ddd
+}
+
+.table>thead>tr>th {
+	vertical-align: bottom;
+	border-bottom: 2px solid #ddd
+}
+
+.table>caption+thead>tr:first-child>th,.table>colgroup+thead>tr:first-child>th,.table>thead:first-child>tr:first-child>th,.table>caption+thead>tr:first-child>td,.table>colgroup+thead>tr:first-child>td,.table>thead:first-child>tr:first-child>td {
+	border-top: 0
+}
+
+.table>tbody+tbody {
+	border-top: 2px solid #ddd
+}
+
+.table .table {
+	background-color: #fff
+}
+
+.table-bordered th,.table-bordered td {
+  border: 1px solid #ddd!important
+}
+
+.table>thead>tr>td.active,.table>tbody>tr>td.active,.table>tfoot>tr>td.active,.table>thead>tr>th.active,.table>tbody>tr>th.active,.table>tfoot>tr>th.active,.table>thead>tr.active>td,.table>tbody>tr.active>td,.table>tfoot>tr.active>td,.table>thead>tr.active>th,.table>tbody>tr.active>th,.table>tfoot>tr.active>th {
+	background-color: #f5f5f5
+}
+
+.table>thead>tr>td.success,.table>tbody>tr>td.success,.table>tfoot>tr>td.success,.table>thead>tr>th.success,.table>tbody>tr>th.success,.table>tfoot>tr>th.success,.table>thead>tr.success>td,.table>tbody>tr.success>td,.table>tfoot>tr.success>td,.table>thead>tr.success>th,.table>tbody>tr.success>th,.table>tfoot>tr.success>th {
+	background-color: #dff0d8
+}
+
+.table-hover>tbody>tr>td.success:hover,.table-hover>tbody>tr>th.success:hover,.table-hover>tbody>tr.success:hover>td,.table-hover>tbody>tr.success:hover>th {
+	background-color: #d0e9c6
+}
+
+.table>thead>tr>td.danger,.table>tbody>tr>td.danger,.table>tfoot>tr>td.danger,.table>thead>tr>th.danger,.table>tbody>tr>th.danger,.table>tfoot>tr>th.danger,.table>thead>tr.danger>td,.table>tbody>tr.danger>td,.table>tfoot>tr.danger>td,.table>thead>tr.danger>th,.table>tbody>tr.danger>th,.table>tfoot>tr.danger>th {
+	background-color: #f2dede
+}
+
+.table-hover>tbody>tr>td.danger:hover,.table-hover>tbody>tr>th.danger:hover,.table-hover>tbody>tr.danger:hover>td,.table-hover>tbody>tr.danger:hover>th {
+	background-color: #ebcccc
+}
+
+.table>thead>tr>td.warning,.table>tbody>tr>td.warning,.table>tfoot>tr>td.warning,.table>thead>tr>th.warning,.table>tbody>tr>th.warning,.table>tfoot>tr>th.warning,.table>thead>tr.warning>td,.table>tbody>tr.warning>td,.table>tfoot>tr.warning>td,.table>thead>tr.warning>th,.table>tbody>tr.warning>th,.table>tfoot>tr.warning>th {
+	background-color: #fcf8e3
+}
+
+.table-hover>tbody>tr>td.warning:hover,.table-hover>tbody>tr>th.warning:hover,.table-hover>tbody>tr.warning:hover>td,.table-hover>tbody>tr.warning:hover>th {
+	background-color: #faf2cc
+}
+
+
+
+/*-----Intro-------------------------*/
+
+#aboutme-cyningsun div,
+#aboutme-cyningsun span,
+#aboutme-cyningsun img {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  vertical-align: baseline;
+  text-align: left;
+  background: none;
+}
+/* reset for aboutme-default */
+.aboutme-default#aboutme-cyningsun div,
+.aboutme-default#aboutme-cyningsun p,
+.aboutme-default#aboutme-cyningsun img,
+.aboutme-default#aboutme-cyningsun ol,
+.aboutme-default#aboutme-cyningsun ul,
+.aboutme-default#aboutme-cyningsun li {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  -webkit-box-shadow: none;
+          box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun span,
+.aboutme-default#aboutme-cyningsun a,
+.aboutme-default#aboutme-cyningsun sub,
+.aboutme-default#aboutme-cyningsun sup {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  -webkit-box-shadow: none;
+          box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun b,
+.aboutme-default#aboutme-cyningsun strong {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: bold;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  -webkit-box-shadow: none;
+          box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun em,
+.aboutme-default#aboutme-cyningsun i {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: italic;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  -webkit-box-shadow: none;
+          box-shadow: none;
+}
+/* base styles for aboutme-embed */
+.aboutme-embed#aboutme-cyningsun {
+  margin: 10px 0;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-img img {
+  display: block;
+  border: 0;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-name {
+  font-size: 140%;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-headline {
+  font-size: 120%;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-bio {
+  margin-bottom: 15px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-bio p {
+  margin: 0;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a {
+  border: 0 !important;
+  display: inline-block !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 2px 5px 0 !important;
+  padding: 0 !important;
+  text-decoration: none !important;
+  background-repeat: no-repeat !important;
+  background-position: left top !important;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-github {
+  background-image: url(/public/images/github@32x32.png);
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-sinaWeibo {
+  background-image: url(/public/images/sinaWeibo@32x32.png);
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-gmail {
+  background-image: url(/public/images/gmail@32x32.png);
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-douban {
+  background-image: url(/public/images/douban@32x32.jpg);
+}
+/* styles for horizontal layout */
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-content {
+  display: table;
+  width: 100%;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-img {
+  display: table-cell;
+  vertical-align: top;
+  padding-right: 15px;
+  margin-bottom: 0;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-img img {
+  margin-bottom: 0;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-text {
+  display: table-cell;
+  vertical-align: top;
+}
+/* styles for aboutme-default */
+.aboutme-default#aboutme-cyningsun {
+  line-height: 1.4;
+  color: #333;
+  background-color: #fff;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-color: rgba(0, 0, 0, 0.2);
+  -webkit-box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+          box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  margin: 10px 0;
+}
+.aboutme-default#aboutme-cyningsun a {
+  color: #2b82ad;
+  text-decoration: none;
+}
+.aboutme-default#aboutme-cyningsun a:hover {
+  color: #3aa9e9;
+  text-decoration: none;
+}
+.aboutme-default#aboutme-cyningsun p,
+.aboutme-default#aboutme-cyningsun ol,
+.aboutme-default#aboutme-cyningsun ul {
+  margin-bottom: 0.75em !important;
+}
+.aboutme-default#aboutme-cyningsun .aboutme-img img {
+  border: 1px solid;
+  border-color: #999;
+  border-color: rgba(0, 0, 0, 0.5);
+}
+.aboutme-default#aboutme-cyningsun .aboutme-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.aboutme-default#aboutme-cyningsun .aboutme-headline {
+  margin-bottom: 8px;
+}
+
+.aboutme-default#aboutme-cyningsun ul {
+  list-style: disc;
+}
+.aboutme-default#aboutme-cyningsun ol {
+  list-style: decimal;
+}
+.aboutme-default#aboutme-cyningsun ul,
+.aboutme-default#aboutme-cyningsun ol {
+  list-style-position: outside;
+  padding-left: 2em;
+}
+.aboutme-default#aboutme-cyningsun ul li,
+.aboutme-default#aboutme-cyningsun ol li {
+  display: list-item;
+  padding: 0;
+  margin: 0;
+}
