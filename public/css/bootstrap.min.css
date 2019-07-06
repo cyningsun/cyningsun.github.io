@@ -343,6 +343,11 @@
 	overflow-y: auto
 }
 
+.container>.navbar-header,.container>.navbar-collapse {
+	margin-right: -15px;
+	margin-left: -15px
+}
+
 @media(min-width:768px) {
 	.navbar-collapse {
 		width: auto;
@@ -374,10 +379,6 @@
 	}
 }
 
-.container>.navbar-header,.container>.navbar-collapse {
-	margin-right: -15px;
-	margin-left: -15px
-}
 
 @media(min-width:768px) {
 	.container>.navbar-header,.container>.navbar-collapse {
@@ -478,6 +479,12 @@
 }
 
 @media(max-width:767px) {
+	.navbar {
+		display: inherit;
+		background-color: #ededed;
+		margin-top: -20px;
+	}
+
 	.navbar-nav .open .dropdown-menu {
 		position: static;
 		float: none;
@@ -841,4 +848,12 @@
 
 .collapse.in {
 	display: block
+}
+
+.collapsing {
+	position: relative;
+	height: 0;
+	overflow: hidden;
+	-webkit-transition: height .35s ease;
+	transition: height .35s ease
 }
