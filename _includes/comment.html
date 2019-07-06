@@ -1,0 +1,17 @@
+			<!-- Comment BEGIN -->
+      <div id="container"></div>
+      <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+      <script src="https://www.wenjunjiang.win/js/gitment.js"></script>
+      <script>
+      var gitment = new Gitment({
+        id: '{{ page.date }}',
+        owner: 'cyningsun',
+        repo: 'blog_comment',
+        oauth: {
+          client_id: 'b8ff5ed1956f484a7a1f',
+          client_secret: 'c540e05bc03d3cfbe6118be320578d3c14187d49',
+        },
+      })
+      gitment.render('container')
+      </script>
+<!-- Comment END -->

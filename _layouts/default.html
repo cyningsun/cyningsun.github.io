@@ -1,23 +1,19 @@
-﻿<!DOCTYPE html>
-<html>
-	<head>
-		{% include head.html %}
-	</head>
-	<body class="bodyer">
-		<div class="container">
-			<header class="top row  fadeInLeft animated">
-				<div class="span2 fl">
-				  <a href="/" class="logo" title="{{ site.data.brume.name }}" style="background-image: url({{site.url}}/public/images/logo.png);"></a>
-				</div>
-				{% include navigation.html %}
-			</header>
-			{{ content }}
-		</div>
-		<footer>
-			<p>Copyright ©2014 cyningsun</p>
-			<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-			<span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
-			<p><a href="http://cyningsun.github.io">GitHub Pages</a></p>
-		</footer>
-	</body>
+---
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    {% include header.html %}
+  </head>
+  <body>
+
+    <div id = "wrapper">
+    {%include navigation.html %}
+      <div class="container">
+        {{ content }}
+      </div>
+      {% include footer.html %}
+    </div>
+    {% include scripts.html %}
+  </body>
 </html>

@@ -1,21 +1,36 @@
 ---
-layout: default
-title: 首页
+title: 有疑者说
 ---
-
-<section class="conent fadeInDown animated">
-	<ul>
-	{% for post in paginator.posts %}
-		<li class="article">
-			<a class="col fb" href="{{site.url}}{{ post.url }}">{{ post.title }}</a>
-			<small class="col tr">{{ post.date | date: '%Y-%m-%d' }} by cyningsun</small>
-			<p class="entry">{{ post.content | strip_html | strip_newlines | newline_to_br | truncate: 300 }}<br><a href="{{site.url}}{{ post.url }}">查看全文</a></p>
-			<dd class="lhn">
-				<dl class="category span3 {% if post.tags.size > 0 %}fl{% endif %}">分类:{% for cat in post.categories %}<label onclick="javascript:location.href='{{ site.url }}/category/#{{ cat | upcase }}'">{{ cat | upcase }}</label>{% endfor %}</dl>
-				{% if post.tags.size > 0 %}<dl class="tags">标签:{% for tag in post.tags %}<label onclick="javascript:location.href='{{ site.url }}/tag/#{{ tag | upcase }}'">{{ tag | upcase }}</label>{% endfor %}</dl>{% endif %}
-			</dd>
-		</li>
-	{% endfor %}
-	</ul>
-	{% include pagination.html %}
-</section>
+{% if site.posts != empty %}
+<div class="recent-posts">
+  <h1>Recent Posts</h1>
+  {% for post in site.posts limit: 25 %}
+    {% if forloop.first %}
+      {% assign add_class = 'most-recent' %}
+      {% capture fresh_tag %}
+        &nbsp;<span class="badge"><smaller>FRESH</smaller></span>
+      {% endcapture %}
+    {% endif %}
+    <ul class="homepage-posts {{ add_class }}">
+      <li>
+        <span>
+          <h4>
+            <a href="{{ site.url }}/{{ post.url }}">
+              {{ post.title }}
+            </a>
+            {{ fresh_tag }}
+            <time class="pull-right">
+              {{ post.date | date_to_string | date: "%b %-d, %Y"  }}
+            </time>
+          </h4>
+        </span>
+      </li>
+    </ul>
+    {% assign add_class = '' %}
+    {% assign fresh_tag = '' %}
+  {% endfor %}
+  <ul>
+    <a href="{{ site.url }}/list.html">View More...</a>
+  </ul>
+</div>
+{% endif %}
