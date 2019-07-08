@@ -7,6 +7,8 @@ tags: stacktrace golang
 
 > 原文链接：[stack-traces-in-go](https://www.ardanlabs.com/blog/2015/01/stack-traces-in-go.html)
 
+* TOC
+{:toc}
 
 #### 简介
 在调试Go程序方面有一些基本技能可以为程序员节省大量时间来识别问题。我信奉log尽可能多的信息，但有时panic发生，而log的信息并不够。有时理解stack trace中的信息可能意味着立刻发现错误，抑或需要添加更多日志记录并等待它再次发生。

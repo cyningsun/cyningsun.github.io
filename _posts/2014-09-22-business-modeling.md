@@ -4,6 +4,10 @@ title: 《软件方法》上册笔记
 category:  UML建模
 tags: UML
 ---
+
+* TOC
+{:toc}
+
 ### 核心工作流
 ```
 * 愿景

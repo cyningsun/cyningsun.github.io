@@ -5,6 +5,9 @@ category: 后台开发
 tags:  
 ---
 
+* TOC
+{:toc}
+
 ### 文章列表
 - [【读薄 CSAPP】贰 机器指令与程序优化](http://wdxtub.com/2016/04/16/thin-csapp-2/#more)：了解下汇编语言，能够帮助查看汇编代码，理解编译器做了什么优化。<br/>
 - [using gcc to produce readable assembly](http://stackoverflow.com/questions/1289881/using-gcc-to-produce-readable-assembly/1289907#1289907):using gcc to produce readable assembly

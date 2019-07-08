@@ -5,6 +5,9 @@ category: 数据结构与算法
 tags:  
 ---
 
+* TOC
+{:toc}
+
 ### 描述
 字符串匹配查找常见的算法或数据结构有：暴力搜索、KMP算法(Extend-KMP、BM算法、Sunday算法)、AC自动机、前缀树(Double Array Trie)、后缀树（后缀数组）。以下汇总它们的算法比较，以及关键点：
 ![string match]({{site.url}}/public/blog-img/algorithm/string-match.png)

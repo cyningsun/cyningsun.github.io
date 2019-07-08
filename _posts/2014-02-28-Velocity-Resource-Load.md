@@ -4,6 +4,9 @@ title: Velocity资源加载过程
 category: 后台技术
 ---
 
+* TOC
+{:toc}
+
 以下全文根据小明哥(minghe)的讲解总结而来:）
 
 #### 资源加载的主要角色：

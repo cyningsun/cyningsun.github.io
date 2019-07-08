@@ -4,6 +4,9 @@ title: ptmalloc、tcmalloc与jemalloc对比分析
 category: 后台开发
 tags: malloc
 ---
+* TOC
+{:toc}
+
 ### 背景介绍
 在开发微信看一看期间，为了进行耗时优化，基础库这层按照惯例使用tcmalloc替代glibc标配的ptmalloc做优化，CPU消耗和耗时确实有所降低。但在晚上高峰时期，在CPU刚刚超过50%之后却出现了指数上升，服务在几分钟之内不可用。最终定位到是tcmalloc在内存分配的时候使用自旋锁，在锁冲突严重的时候导致CPU飙升。为了弄清楚tcmalloc到底做了什么，仔细了解各种内存管理库迫在眉睫。
 

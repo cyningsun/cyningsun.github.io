@@ -4,6 +4,10 @@ title: 移动设备屏幕相关的知识
 category: 读书总结
 tags: px dpi
 ---
+
+* TOC
+{:toc}
+
 ### 基本概念
 
 **Screen size（屏幕尺寸)**:指的是屏幕实际的物理尺寸，屏幕对角线的长度。  

@@ -4,15 +4,8 @@ title: 中文网页重设与排版：<em>Typo.css</em>
 subtitle: 一致化浏览器排版效果，构建最适合中文阅读的网页排版
 ---
 
-1.  [关于 _Typo.css_](https://typo.sofi.sh/#section1)
-2.  [排版实例](https://typo.sofi.sh/#section2)
-
-    * [例1：论语学而篇第一](https://typo.sofi.sh/#section2-1)
-    * [例2：英文排版](https://typo.sofi.sh/#section2-2)
-3.  [附录](https://typo.sofi.sh/#section3)
-
-    * [_Typo.css_ 排版偏重点](https://typo.sofi.sh/#appendix1)
-    * [开源许可](https://typo.sofi.sh/#appendix2)
+* TOC
+{:toc}
 
 ## 一、关于 _Typo.css_
 

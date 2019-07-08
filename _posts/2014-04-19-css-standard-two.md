@@ -4,6 +4,10 @@ title: CSS标准(2)-盒模型
 category: 读书总结
 tags: css 盒模型
 ---
+
+* TOC
+{:toc}
+
 ### 框结构
 浏览器会根据渲染模型为每个元素生成四个嵌套的矩形框， 分别称作 content box、padding box、border box 和 margin box，它们是不可分割的，并可能会重合， 这就是 CSS 规范中描述的“盒模型”（box model）。
 

@@ -5,6 +5,9 @@ category: 后台技术
 tags:  VIM
 ---
 
+* TOC
+{:toc}
+
 ### 背景
 最近从Java转回C++开发，于是开始搭建环境，相较于几年以前使用cscope、ctag、OmniComplete，Linux环境下的开发有了更好的工具，YouCompleteMe。由于菜鸟出炉，花费了若干天才在自己的开发机器上把理想的开发环境搭建起来。客观来讲，Linux下软件安装都是类似的，总结一下Linux下安装的必备素质，希望能够应用于以后的开发中。
 

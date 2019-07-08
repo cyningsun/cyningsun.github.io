@@ -4,6 +4,10 @@ title: 根据Nehalem架构了解CPU内部细节
 category: 后台开发
 tags: CPU
 ---
+
+* TOC
+{:toc}
+
 ### 背景
 这是由C++ volatile引发的血案，血案第一部：了解CPU内核的细节。
 

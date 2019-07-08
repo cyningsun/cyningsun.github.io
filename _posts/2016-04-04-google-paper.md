@@ -5,6 +5,9 @@ category: 论文
 tags:  
 ---
 
+* TOC
+{:toc}
+
 ### 论文列表
 [The Anatomy of a Large-Scale Hypertextual Web Search Engine(zz)  ](http://duanple.blog.163.com/blog/static/709717672011423105543296/)
 ![The Anatomy of a Large-Scale Hypertextual Web Search Engine(zz)  ]({{ site.url }}/public/blog-img/paper/google-searcher-architecture.png)

@@ -5,6 +5,9 @@ category: 后台技术
 tags:  算法
 ---
 
+* TOC
+{:toc}
+
 ### 哈希算法
 
 http://www.cnblogs.com/Jack47/p/bloom_filter_intro.html Bloom Filter  多哈希函数映射的快速查找算法

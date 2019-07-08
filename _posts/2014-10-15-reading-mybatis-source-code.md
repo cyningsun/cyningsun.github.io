@@ -4,6 +4,10 @@ title: 深入理解Mybatis工作原理
 category: 后台技术
 tags: MYBATIS
 ---
+
+* TOC
+{:toc}
+
 ### 基本原理
 本文中Mybatis基本原理切入，同时摘录Mybatis的源码，理解Mybatis框架的工作原理。首先看一段JDBC代码：
 

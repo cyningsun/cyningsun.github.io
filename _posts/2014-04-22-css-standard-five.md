@@ -4,6 +4,10 @@ title: CSS标准(5)-定位体系
 category: 读书总结
 tags: css 可视化格式模型 定位
 ---
+
+* TOC
+{:toc}
+
 一个框(box，就是元素形成的方块等)可以根据三种定位体系布局。
 
 ### 常规流(Normal flow)

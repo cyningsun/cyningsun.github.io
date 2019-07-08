@@ -5,6 +5,9 @@ category: 后台技术
 tags: Log4j
 ---
 
+* TOC
+{:toc}
+
 ### Log4j简介
 Log4J最核心的也就5个类：
 
