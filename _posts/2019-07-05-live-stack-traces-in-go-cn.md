@@ -10,12 +10,12 @@ tags: stacktrace golang
 * TOC
 {:toc}
 
-#### 简介
+### 简介
 在调试Go程序方面有一些基本技能可以为程序员节省大量时间来识别问题。我信奉log尽可能多的信息，但有时panic发生，而log的信息并不够。有时理解stack trace中的信息可能意味着立刻发现错误，抑或需要添加更多日志记录并等待它再次发生。
 
 自从我开始写Go以来，我一直在看stack trace。在某些时候，我们都做了一些愚蠢的事情，导致运行时杀死我们的程序并抛出stack trace。我将向您展示stack trace提供的信息，包括如何识别传递到函数的每个参数的值。
 
-##### Functions
+#### Functions
 让我们从一小段代码开始，它将产生一个stack trace:
 
 ``` go
