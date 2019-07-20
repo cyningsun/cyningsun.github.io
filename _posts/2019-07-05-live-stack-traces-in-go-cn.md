@@ -5,8 +5,6 @@ category: Golang
 tags: stacktrace golang
 ---
 
-> 原文链接：[stack-traces-in-go](https://www.ardanlabs.com/blog/2015/01/stack-traces-in-go.html)
-
 * TOC
 {:toc}
 
@@ -212,3 +210,6 @@ main.Example(`0x19010001`)
 
 ### 结论
 Go runtime提供了大量信息来帮助我们调试程序。在这篇文章中，我们专注于stack trace。解码在整个调用堆栈中传递给每个函数的值的能力是巨大的。它不止一次帮助我快速识别我的bug。既然您已经知道如何读取stack trace，那么希望您可以在下次发生stack trace时可以利用这些知识。
+
+
+_原文：[stack-traces-in-go](https://www.ardanlabs.com/blog/2015/01/stack-traces-in-go.html)_

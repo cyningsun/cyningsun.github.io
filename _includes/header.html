@@ -25,6 +25,25 @@
       }
       #fork{ display:none; }
     }
+
+    #markdown-toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    #markdown-toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    #markdown-toc li {
+      padding: 2px 5px 2px 20px;
+    }
   </style>
    <link href="{{ site.baseurl }}/public/css/iconfont.css" rel="stylesheet">
 
