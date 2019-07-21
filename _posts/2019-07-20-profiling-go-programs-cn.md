@@ -517,5 +517,5 @@ goroutine blocking profile 将在以后的文章中解释。 敬请关注。
 作者：Russ Cox，2011年7月; 由Shenghou Ma更新，2013年5月
 
 
-_原文：[https://blog.golang.org/profiling-go-programs](https://blog.golang.org/profiling-go-programs)<br/>_
+_原文：[https://blog.golang.org/profiling-go-programs](https://blog.golang.org/profiling-go-programs)_<br/>
 _源代码：[https://github.com/cyningsun/go-test](https://github.com/cyningsun/go-test)_
