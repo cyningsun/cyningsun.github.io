@@ -274,14 +274,14 @@ jemalloc 按照内存分配请求的尺寸，分了 small object (例如 1 – 5
 
 
 _参考链接：_  
-[0]:<http://mqzhuang.iteye.com/blog/1005909>
-[1]:<https://paper.seebug.org/papers/Archive/refs/heap/glibc%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86ptmalloc%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90.pdf>
-[2]:<http://core-analyzer.sourceforge.net/index_files/Page335.html>
-[3]:<https://blog.csdn.net/maokelong95/article/details/51989081>
-[4]:<https://zhuanlan.zhihu.com/p/29216091>
-[5]:<https://zhuanlan.zhihu.com/p/29415507>
-[6]:<https://blog.csdn.net/zwleagle/article/details/45113303>
-[7]:<http://game.academy.163.com/library/2015/2/10/17713_497699.html>
-[8]:<https://www.cnblogs.com/taoxinrui/p/6492733.html>
-[9]:<https://blog.csdn.net/vector03/article/details/50634802>
-[10]:<http://brionas.github.io/2015/01/31/jemalloc%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/>
+[0]:<http://mqzhuang.iteye.com/blog/1005909><br/>
+[1]:<https://paper.seebug.org/papers/Archive/refs/heap/glibc%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86ptmalloc%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90.pdf><br/>
+[2]:<http://core-analyzer.sourceforge.net/index_files/Page335.html><br/>
+[3]:<https://blog.csdn.net/maokelong95/article/details/51989081><br/>
+[4]:<https://zhuanlan.zhihu.com/p/29216091><br/>
+[5]:<https://zhuanlan.zhihu.com/p/29415507><br/>
+[6]:<https://blog.csdn.net/zwleagle/article/details/45113303><br/>
+[7]:<http://game.academy.163.com/library/2015/2/10/17713_497699.html><br/>
+[8]:<https://www.cnblogs.com/taoxinrui/p/6492733.html><br/>
+[9]:<https://blog.csdn.net/vector03/article/details/50634802><br/>
+[10]:<http://brionas.github.io/2015/01/31/jemalloc%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/><br/>

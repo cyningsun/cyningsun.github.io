@@ -47,10 +47,9 @@ Fail指针的建立：对于一个节点C，标识字符a，顺着C的父亲节�
 (未完待续)
 
 #### 参考文档
-http://www.cnblogs.com/gaochundong/p/suffix_tree.html   后缀树
-http://www.oschina.net/translate/ukkonens-suffix-tree-algorithm-in-plain-english Ukkonen 的后缀树算法的清晰解释
-https://segmentfault.com/a/1190000000484127 Aho-Corasick自动机浅析
-http://m.blog.csdn.net/article/details?id=7002823 AC自动机算法
-http://www.ruanyifeng.com/blog/2013/05/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm.html
-http://www.ruanyifeng.com/blog/2013/05/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm.html 字符串匹配的KMP算法
-http://blog.csdn.net/v_july_v/article/details/7041827 从头到尾彻底理解KMP算法
+后缀树: <http://www.cnblogs.com/gaochundong/p/suffix_tree.html><br/>
+Ukkonen 的后缀树算法的清晰解释: <http://www.oschina.net/translate/ukkonens-suffix-tree-algorithm-in-plain-english><br/>
+Aho-Corasick自动机浅析: <https://segmentfault.com/a/1190000000484127><br/>
+AC自动机算法: <http://m.blog.csdn.net/article/details?id=7002823><br/>
+从头到尾彻底理解KMP算法: <http://www.ruanyifeng.com/blog/2013/05/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm.html><br/>
+从头到尾彻底理解KMP算法: <http://blog.csdn.net/v_july_v/article/details/7041827><br/>
