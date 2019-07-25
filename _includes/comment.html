@@ -1,7 +1,7 @@
 			<!-- Comment BEGIN -->
       <div id="container"></div>
-      <link rel="stylesheet" href="https://unpkg.com/gitalk/dist/gitalk.css">
-      <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.css">
+      <script src="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js"></script>
       <script>
       var gitalk = new Gitalk({
         clientID: 'b8ff5ed1956f484a7a1f',
@@ -9,6 +9,7 @@
         owner: 'cyningsun',
         repo: 'blog_comment',
         admin: ['cyningsun'],
+        labels:['gitment'],
         id: '{{ page.date }}',
         distractionFreeMode: true  // Facebook-like distraction free mode
       })
