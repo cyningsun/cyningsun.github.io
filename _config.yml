@@ -1,9 +1,10 @@
 name: 有疑者说
+description: 博学、慎思、明辨、笃行
+url: https://cyningsun.github.io
 author: cyningsun
 encoding: UTF-8
 markdown: kramdown
 permalink: /:month-:day-:year/:title.html
-description: 博学、慎思、明辨、笃行
 weibo: http://weibo.com/CyningSun
 gmail: mailto:sunyinhangscut@gmail.com
 douban: https://www.douban.com/people/cyningscut
@@ -24,6 +25,7 @@ plugins:
   - jekyll-seo-tag
   - jekyll-paginate
   - jekyll-sitemap
+  - jekyll-feed
 
 
 defaults:
