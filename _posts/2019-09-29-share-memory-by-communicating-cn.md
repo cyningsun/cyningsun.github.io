@@ -76,5 +76,5 @@ func Poller(in, out chan *Resource) {
 
 上面的代码片段有很多遗漏之处。如需走读使用以上想法的，完整的、惯用的 Go 程序，请参阅 Codewalk [Share Memory By Communicating](https://golang.org/doc/codewalk/sharemem/)。
 
-_原文：[https://blog.golang.org/share-memory-by-communicating](https://blog.golang.org/share-memory-by-communicating)_
+_原文：[https://blog.golang.org/share-memory-by-communicating](https://blog.golang.org/share-memory-by-communicating)_       
 _源代码：[https://github.com/cyningsun/go-test](https://github.com/cyningsun/go-test)_
