@@ -1,8 +1,9 @@
 ---
 layout: post
 title: Google搜索技巧
-category: 实践技巧
-tags: 搜索
+keywords:
+  - 搜索
+  - Google
 ---
 
 * TOC

@@ -1,8 +1,11 @@
 ---
 layout: post
 title: 高可用的接入层架构细节实现
-category: 后台开发
-tags: architecture
+keywords:
+  - architecture
+  - 架构
+  - 接入层
+  - 高可用
 ---
 
 * TOC

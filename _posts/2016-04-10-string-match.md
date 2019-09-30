@@ -1,8 +1,10 @@
 ---
 layout: post
 title: 字符串匹配查找算法总结
-category: 数据结构与算法
-tags:  
+keywords:
+  - 字符串
+  - 匹配
+  - 查找
 ---
 
 * TOC

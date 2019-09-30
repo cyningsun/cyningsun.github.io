@@ -1,8 +1,9 @@
 ---
 layout: post
 title: Mysql字符集
-category: 后台技术
-tags: mysql
+keywords:
+  - mysql
+  - 字符集
 ---
 
 * TOC

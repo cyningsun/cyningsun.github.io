@@ -1,6 +1,9 @@
 ---
 layout: post
 title: Prometheus Client定制
+keywords:
+  - Prometheus
+  - Client
 ---
 
 Prometheus提供的Client无法直接使用到生产环境，需要根据需求进行定制，以下为Client中的主要概念。

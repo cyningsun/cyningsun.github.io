@@ -1,8 +1,10 @@
 ---
 layout: post
 title: 内容服务锁优化实践
-category: 后台开发
-tags: 锁 同步
+keywords:
+  - 锁
+  - 同步
+  - 多线程
 ---
 
 * TOC

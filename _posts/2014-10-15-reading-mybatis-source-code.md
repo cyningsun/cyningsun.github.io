@@ -1,8 +1,8 @@
 ---
 layout: post
 title: 深入理解Mybatis工作原理
-category: 后台技术
-tags: MYBATIS
+keywords:
+  - mybatis
 ---
 
 * TOC

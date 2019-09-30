@@ -1,8 +1,9 @@
 ---
 layout: post
 title: 根据Nehalem架构了解CPU内部细节
-category: 后台开发
-tags: CPU
+keywords:
+  - CPU
+  - 架构
 ---
 
 * TOC

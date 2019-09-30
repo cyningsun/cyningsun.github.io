@@ -1,6 +1,10 @@
 ---
 layout: post
 title: 译 | Diagnostics
+category: Golang
+tags: Profile
+keywords:
+  - Golang Profile Trace Debug
 ---
 
 * TOC

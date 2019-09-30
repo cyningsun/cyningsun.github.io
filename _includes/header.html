@@ -1,7 +1,15 @@
 <meta charset="utf-8">
 <title>{{ page.title }}</title>
+<meta property="og:site_name" content="有疑者说">
+<meta property="article:publisher" content="http://cyningsun.github.io" />
+<meta property="article:author" content="http://cyningsun.github.io" />
+<meta property="article:published_time" content="{{ page.date }}" />
+<meta property="og:url" content="{{ site.url }}{{ page.url }}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="{{ site.description }}">
+<meta itemprop="description" name="description" content="{% if page.description %}{{ page.description | truncate: 160 }}{% else %}{{ site.description | truncate: 160  }}{% endif %}" />
+{% if page.keywords %}
+<meta name="keywords" content="{{ page.keywords | join: ', ' | escape }}">
+{% endif %}
 <link href="{{ site.baseurl }}/public/css/syntax.css" rel="stylesheet">
 <link href="{{ site.baseurl }}/public/css/hc.css" rel="stylesheet">
 <link href="{{ site.baseurl }}/public/css/bootstrap.min.css" rel="stylesheet">

@@ -1,6 +1,10 @@
 ---
 layout: post
 title: 一张图看懂Go包管理历史
+category: Golang
+tags:   [Package Management]
+keywords:
+  - Package Management
 ---
 
 * TOC

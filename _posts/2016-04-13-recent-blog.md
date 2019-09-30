@@ -1,8 +1,6 @@
 ---
 layout: post
 title:  值得一读的文章和博客
-category: 后台开发
-tags:  
 ---
 
 * TOC

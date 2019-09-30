@@ -1,6 +1,11 @@
 ---
 layout: post
 title: 译｜Let’s talk about logging
+category: Golang
+tags: Logging
+keywords:
+  - 日志 logging
+  - 错误 error
 ---
 
 本文受 [Nate Finch started on the Go Forum](https://forum.golangbridge.org/t/whats-so-bad-about-the-stdlibs-log-package/1435/) 的一个话题启发。本文专注于 Go，但是如果你能看透，我认为这里提出的想法是广泛适用的。

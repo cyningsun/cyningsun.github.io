@@ -1,8 +1,9 @@
 ---
 layout: post
 title: 软件安装方法总结(YouCompleteMe总结)
-category: 后台技术
-tags:  VIM
+keywords:
+  - vim
+  - YouCompleteMe
 ---
 
 * TOC

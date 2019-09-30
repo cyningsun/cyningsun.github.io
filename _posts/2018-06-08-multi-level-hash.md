@@ -1,8 +1,8 @@
 ---
 layout: post
 title: 多阶哈希
-category: 后台开发
-tags: 哈希
+keywords:
+  - 哈希
 ---
 
 * TOC

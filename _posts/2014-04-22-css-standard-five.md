@@ -1,8 +1,10 @@
 ---
 layout: post
 title: CSS标准(5)-定位体系
-category: 读书总结
-tags: css 可视化格式模型 定位
+keywords:
+  - css
+  - 可视化格式模型
+  - 定位
 ---
 
 * TOC

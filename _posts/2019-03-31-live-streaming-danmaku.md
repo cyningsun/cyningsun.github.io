@@ -1,8 +1,10 @@
 ---
 layout: post
 title: 弹幕系统设计实践
-category: 后台开发
-tags: 弹幕 设计
+keywords:
+  - 弹幕
+  - 直播
+  - 架构设计
 ---
 
 * TOC

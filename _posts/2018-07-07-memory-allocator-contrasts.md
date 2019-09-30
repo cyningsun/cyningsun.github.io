@@ -1,8 +1,12 @@
 ---
 layout: post
 title: ptmalloc、tcmalloc与jemalloc对比分析
-category: 后台开发
-tags: malloc
+keywords:
+  - malloc
+  - ptmalloc
+  - tcmalloc
+  - jemalloc
+  - 内存管理
 ---
 * TOC
 {:toc}

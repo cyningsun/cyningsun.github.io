@@ -1,8 +1,8 @@
 ---
 layout: post
 title: 高效的学习方法
-category: 读书总结
-tags: 学习方法
+keywords:
+  - 学习方法
 ---
 
 * TOC

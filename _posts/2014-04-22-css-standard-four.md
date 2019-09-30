@@ -1,8 +1,10 @@
 ---
 layout: post
 title: CSS标准(4)-控制框
-category: 读书总结
-tags: css 可视化格式模型 控制框
+keywords:
+  - css
+  - 可视化格式模型
+  - 控制框
 ---
 
 * TOC

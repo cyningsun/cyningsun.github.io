@@ -1,6 +1,12 @@
 ---
 layout: post
 title: 译 | SOLID Go Design
+category: Golang
+tags: OOP
+keywords:
+  - SOLID
+  - interface
+  - Golang 面向对象
 ---
 
 * TOC

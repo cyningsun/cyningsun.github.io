@@ -1,6 +1,10 @@
 ---
 layout: post
 title: 译｜Don’t just check errors, handle them gracefully
+category: Golang
+tags: Error
+keywords:
+  - error handle
 ---
 
 * TOC

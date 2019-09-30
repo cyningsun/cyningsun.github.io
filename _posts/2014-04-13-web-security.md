@@ -1,8 +1,8 @@
 ---
 layout: post
 title: 《白帽子讲Web安全》
-category: 读书总结
-tags: WEB安全
+keywords:
+  - WEB安全
 ---
 
 * TOC

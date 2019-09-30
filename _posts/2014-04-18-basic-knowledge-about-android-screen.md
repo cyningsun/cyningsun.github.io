@@ -1,8 +1,9 @@
 ---
 layout: post
 title: 移动设备屏幕相关的知识
-category: 读书总结
-tags: px dpi
+keywords:
+  - px
+  - dpi
 ---
 
 * TOC

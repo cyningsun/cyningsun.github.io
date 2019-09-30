@@ -1,8 +1,13 @@
 ---
 layout: post
 title: 怎么做服务压测？
-category: 测试
-tags: 压力测试
+keywords:
+  - 压力测试
+  - 压测
+  - 性能瓶颈
+  - 容量评估
+  - 容量规划
+  - 处理能力
 ---
 
 * TOC

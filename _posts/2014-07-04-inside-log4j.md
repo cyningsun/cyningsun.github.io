@@ -1,8 +1,8 @@
 ---
 layout: post
 title: 深入理解Log4j工作原理
-category: 后台技术
-tags: Log4j
+keywords:
+  - Log4j
 ---
 
 * TOC

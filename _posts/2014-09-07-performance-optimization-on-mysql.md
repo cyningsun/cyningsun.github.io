@@ -1,8 +1,9 @@
 ---
 layout: post
 title: Mysql性能优化小结
-category: 后台技术
-tags: MYSQL
+keywords:
+  - mysql
+  - 性能优化
 ---
 
 * TOC

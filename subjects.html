@@ -1,0 +1,34 @@
+---
+title: All Posts
+---
+<div id="article">
+{%  assign sortedCate = site.categories | sort  %}
+{% for category in sortedCate %}
+    <h1>{{ category[0] }} 主题</h1>
+    {% assign sortedTags = site.tags | sort %}
+    {% for tag in sortedTags %}
+
+      {% assign tagNotEmpty = false %}
+      {% for post in tag.last %}
+        {% if post.categories contains category[0]  %}
+          {% assign tagNotEmpty = true %}
+        {% endif %}
+      {% endfor %}
+
+      {% if tagNotEmpty == true  %}
+      <BR/>
+      <h3>{{ tag | first }}</h3>
+      <ul>
+        {% for post in tag.last %}
+          {% if post.categories contains category[0]  %}
+          <li><span><a href="{{ site.baseurl }}{{ post.url }}">{{ post.title }}</a> <time class="pull-right post-list">{{ post.date | date_to_string | date: "%b %-d, %Y"  }}</h4></time></span></span></li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+    {% endfor %}
+    <BR/>
+    <BR/>
+{% endfor %}
+</div>

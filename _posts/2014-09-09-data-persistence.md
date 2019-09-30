@@ -1,8 +1,8 @@
 ---
 layout: post
 title: 数据持久化设计总结
-category: 后台技术
-tags: MYSQL
+keywords:
+  - MYSQL
 ---
 
 * TOC

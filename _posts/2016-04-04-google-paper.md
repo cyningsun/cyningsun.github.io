@@ -1,8 +1,6 @@
 ---
 layout: post
 title: 谷歌论文学习
-category: 论文
-tags:  
 ---
 
 * TOC

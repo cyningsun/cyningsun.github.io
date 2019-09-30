@@ -1,8 +1,9 @@
 ---
 layout: post
 title: CSS标准(2)-盒模型
-category: 读书总结
-tags: css 盒模型
+keywords:
+  - css
+  - 盒模型
 ---
 
 * TOC

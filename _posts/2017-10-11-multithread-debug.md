@@ -1,8 +1,10 @@
 ---
 layout: post
 title: 多线程调试—原理与实践
-category: 后台开发
-tags: debug
+keywords:
+  - debug
+  - 多线程
+  - 调试
 ---
 
 * TOC

@@ -1,8 +1,9 @@
 ---
 layout: post
 title: 如何选择合适的ID生成方案？
-category: 后台开发
-tags: ID生成
+keywords:
+  - ID生成
+  - ID Generator
 ---
 
 * TOC

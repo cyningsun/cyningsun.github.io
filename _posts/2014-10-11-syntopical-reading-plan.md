@@ -1,8 +1,8 @@
 ---
 layout: post
 title: 主题阅读计划
-category:  读书总结
-tags: 计划
+keywords:
+  - 计划
 ---
 
 * TOC

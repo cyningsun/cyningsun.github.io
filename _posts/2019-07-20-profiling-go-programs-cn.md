@@ -1,6 +1,10 @@
 ---
 layout: post
 title: 译 | Profiling Go Programs
+category: Golang
+tags: Profile
+keywords:
+  - Golang Profile 
 ---
 
 * TOC

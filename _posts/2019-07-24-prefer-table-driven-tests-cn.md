@@ -1,6 +1,11 @@
 ---
 layout: post
 title: 译 | Prefer table driven tests
+category: Golang
+tags: Test
+keywords:
+  - TDD
+  - testing
 ---
 
 * TOC

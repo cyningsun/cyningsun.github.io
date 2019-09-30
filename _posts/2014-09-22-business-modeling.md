@@ -1,8 +1,9 @@
 ---
 layout: post
 title: 《软件方法》上册笔记
-category:  UML建模
-tags: UML
+keywords:
+  -  UML
+  -  建模
 ---
 
 * TOC

@@ -1,8 +1,10 @@
 ---
 layout: post
 title:  Thrift多路复用:增强Thrift以满足企业期望
-category: 外文翻译
-tags: Thrift RPC
+keywords:
+  - Thrift
+  - RPC
+  - 多路复用
 ---
 
 * TOC

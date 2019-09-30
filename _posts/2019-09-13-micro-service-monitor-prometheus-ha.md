@@ -1,6 +1,9 @@
 ---
 layout: post
 title: 高可用Prometheus集群
+keywords:
+  - Prometheus
+  - 高可用
 ---
 
 * TOC

@@ -1,6 +1,12 @@
 ---
 layout: post
 title: 译 | Share Memory By Communicating
+category: Golang
+tags: Concurrency
+keywords:
+  - Share Memory
+  - 并发
+  - Concurrency
 ---
 
 传统的线程模型（例如，通常在编写Java，C++ 和 Python 程序时使用）要求程序员使用共享内存在线程之间进行通信。通常，共享数据结构受锁保护，线程争夺这些锁以访问数据。在某些情况下，通过使用线程安全的数据结构可以使操作变得更容易，例如 Python 的 Queue。
