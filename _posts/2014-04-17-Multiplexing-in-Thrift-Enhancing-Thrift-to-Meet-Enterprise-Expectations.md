@@ -1,6 +1,7 @@
 ---
 layout: post
 title:  Thrift多路复用:增强Thrift以满足企业期望
+last_modified_at: 2019-10-08
 keywords:
   - Thrift
   - RPC

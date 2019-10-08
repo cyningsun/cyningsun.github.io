@@ -1,6 +1,7 @@
 ---
 layout: post
 title: Mysql字符集
+last_modified_at: 2019-10-08
 keywords:
   - mysql
   - 字符集

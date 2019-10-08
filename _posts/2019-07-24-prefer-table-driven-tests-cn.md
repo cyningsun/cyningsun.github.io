@@ -1,6 +1,7 @@
 ---
 layout: post
 title: 译 | Prefer table driven tests
+last_modified_at: 2019-10-08
 category: Golang
 tags: Test
 keywords:

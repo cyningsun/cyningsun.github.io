@@ -1,6 +1,7 @@
 ---
 layout: post
 title: 译 | SOLID Go Design
+last_modified_at: 2019-10-08
 category: Golang
 tags: OOP
 keywords:

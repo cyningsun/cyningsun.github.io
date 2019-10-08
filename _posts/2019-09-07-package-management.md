@@ -1,6 +1,7 @@
 ---
 layout: post
 title: 一张图看懂Go包管理历史
+last_modified_at: 2019-10-08
 category: Golang
 tags:   [Package Management]
 keywords:

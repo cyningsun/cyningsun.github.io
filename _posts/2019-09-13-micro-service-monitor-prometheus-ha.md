@@ -1,6 +1,7 @@
 ---
 layout: post
 title: 高可用Prometheus集群
+last_modified_at: 2019-10-08
 keywords:
   - Prometheus
   - 高可用
