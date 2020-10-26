@@ -16,9 +16,8 @@
 <meta property="og:url" content="/04-25-2011/stl-rotate.html">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta itemprop="description" name="description" content="STL在rotate上的优化是极尽其所能的。分别对前向访问，双向访问，随机访问的数据结构实现了三个版本的rotate。下面是自己按照对三种算法的理解，自己进行的实现。实现中我尽力避免使用C++的特性，从而以后可以在纯C的代码中使用。
-下面是我使用到的数据结构，单向链表与双向链表，用于实现算法和验证算法的正确性：
-//单链表节点
-typedef struct ">
+下面是我使用到的数据结构，单向链表与双向链表，用于实现算法和验证算法的正确性：//单链表节点
+typedef struct N">
 
 <meta name="keywords" content="STL,rotate">
 
@@ -174,8 +173,7 @@ gtag('config', 'UA-156665333-1');
     <div class="post">
         
         <p>STL在rotate上的优化是极尽其所能的。分别对前向访问，双向访问，随机访问的数据结构实现了三个版本的rotate。下面是自己按照对三种算法的理解，自己进行的实现。实现中我尽力避免使用C++的特性，从而以后可以在纯C的代码中使用。</p>
-<p>下面是我使用到的数据结构，单向链表与双向链表，用于实现算法和验证算法的正确性：</p>
-<pre><code class="hljs c++"><span class="hljs-comment">//单链表节点</span>
+<p>下面是我使用到的数据结构，单向链表与双向链表，用于实现算法和验证算法的正确性：<br><pre><code class="hljs c++"><span class="hljs-comment">//单链表节点</span>
 <span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">Node</span>* <span class="hljs-title">Link</span>;</span>
 <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">Node</span>&#123;</span>
     <span class="hljs-keyword">int</span> value;
@@ -214,8 +212,7 @@ gtag('config', 'UA-156665333-1');
         i-&gt;value=<span class="hljs-keyword">this</span>-&gt;value;
         <span class="hljs-keyword">this</span>-&gt;value=temp;
     &#125;
-&#125;;</code></pre>
-
+&#125;;</code></pre></p>
 <h3 id="版本一：forward-iterator-即类单向链表上的rotate"><a href="#版本一：forward-iterator-即类单向链表上的rotate" class="headerlink" title="版本一：forward iterator,即类单向链表上的rotate"></a>版本一：forward iterator,即类单向链表上的rotate</h3><pre><code class="hljs c++"><span class="hljs-comment">//forward iterator,即类单向链表</span>
 <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">forwardRotate</span><span class="hljs-params">(Link head,Link middle)</span></span>
 <span class="hljs-function"></span>&#123;
@@ -234,10 +231,8 @@ gtag('config', 'UA-156665333-1');
             i=middle;                       <span class="hljs-comment">//如果后者先到达末尾，则将middle作为i，继续rotate</span>
     &#125;
 &#125;</code></pre>
-
 <p>另附上注释的图像版以帮助理解：<br><img src="/images/stl-rotate.png" alt="stl-rotate.png"> </p>
-<h3 id="版本二：bidirection-iterator-即类双向链表上的rotate"><a href="#版本二：bidirection-iterator-即类双向链表上的rotate" class="headerlink" title="版本二：bidirection iterator,即类双向链表上的rotate"></a>版本二：bidirection iterator,即类双向链表上的rotate</h3><p>这个版本的算法很容易理解，即是分段进行反转，之后对左右数据进行反转，代码如下：</p>
-<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">reverse</span><span class="hljs-params">(BiLink first,BiLink last)</span></span>
+<h3 id="版本二：bidirection-iterator-即类双向链表上的rotate"><a href="#版本二：bidirection-iterator-即类双向链表上的rotate" class="headerlink" title="版本二：bidirection iterator,即类双向链表上的rotate"></a>版本二：bidirection iterator,即类双向链表上的rotate</h3><p>这个版本的算法很容易理解，即是分段进行反转，之后对左右数据进行反转，代码如下：<br><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">reverse</span><span class="hljs-params">(BiLink first,BiLink last)</span></span>
 <span class="hljs-function"></span>&#123;
     <span class="hljs-keyword">while</span>(first!=last &amp;&amp;first!=last-&gt;backward(last))
     &#123;
@@ -251,11 +246,9 @@ gtag('config', 'UA-156665333-1');
     reverse(first,middle);
     reverse(middle,last);
     reverse(first,last);
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <h3 id="版本三：random-access-iterator-即类数组上的rotate"><a href="#版本三：random-access-iterator-即类数组上的rotate" class="headerlink" title="版本三：random access iterator,即类数组上的rotate"></a>版本三：random access iterator,即类数组上的rotate</h3><p>该版本的效率无疑是最高的，当然算法因为涉及到有关群论的知识所以有点难以理解。其理论支持详见：<a href="http://blog.csdn.net/jcwkyl/article/details/3874629" target="_blank" rel="noopener">数组循环移位问题</a></p>
-<p>自己实现版本的代码如下：</p>
-<pre><code class="hljs c++"><span class="hljs-comment">//求最大公约数</span>
+<p>自己实现版本的代码如下：<br><pre><code class="hljs c++"><span class="hljs-comment">//求最大公约数</span>
 <span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">gcd</span><span class="hljs-params">(<span class="hljs-keyword">int</span> m,<span class="hljs-keyword">int</span> n)</span></span>
 <span class="hljs-function"></span>&#123;
     <span class="hljs-keyword">int</span> t;
@@ -287,10 +280,8 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-keyword">int</span> n=gcd(len,middle);
     <span class="hljs-keyword">while</span>(n--)
         rotate_cycle(<span class="hljs-built_in">array</span>,len,n,middle);
-&#125;</code></pre>
-
-<p>最后附上我自己的测试代码：</p>
-<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>
+&#125;</code></pre></p>
+<p>最后附上我自己的测试代码：<br><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>
 <span class="hljs-function"></span>&#123;
     <span class="hljs-keyword">int</span> len=<span class="hljs-number">20</span>;
     srand(time(<span class="hljs-number">0</span>));
@@ -363,8 +354,7 @@ gtag('config', 'UA-156665333-1');
         <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">array</span>[i]&lt;&lt;<span class="hljs-string">"\t"</span>;
     <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">endl</span>;
     <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p>OK，大致如此了。三个版本的rotate，极至的优化手段，这也许就是STL的魅力所在吧。</p>
 <p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-25-2011/stl-rotate.html">https://www.cyningsun.com/04-25-2011/stl-rotate.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/" target="_blank" rel="noopener">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
@@ -391,7 +381,7 @@ gtag('config', 'UA-156665333-1');
           
             <li><span><a href="/04-08-2011/stl-list-sort.html">SGI-STL源码剖析之list::sort()</a></span></li>
           
-            <li><span><a href="/04-04-2011/stl-rbtree.html">SGI-STL源码剖析之RB-tree</a></span></li>
+            <li><span><a href="/04-04-2011/stl-heap.html">SGI-STL源码剖析之Heap</a></span></li>
           
   </ol>
 

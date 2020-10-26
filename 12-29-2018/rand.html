@@ -211,11 +211,9 @@ __random ()
  
   <span class="hljs-keyword">return</span> retval;
 &#125;</code></pre>
-
 <p>这下真想大白了，函数中有一个锁防止并发调用__random_r()。在文件头可以看到锁初始化的注释，加锁的目的是不希望多线程并发调用，同时修改功能的数据。那么我们是不是可以看下有没有什么替代函数。能否使用不加锁版本的随机数呢？</p>
 <p>从代码中我们可以看到，此段代码调用了__rand_r()，我们看下它做了什么？</p>
-<p><a href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random_r.c;hb=glibc-2.15" target="_blank" rel="noopener">random_r.c</a></p>
-<pre><code class="hljs c++"><span class="hljs-comment">/* </span>
+<p><a href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random_r.c;hb=glibc-2.15" target="_blank" rel="noopener">random_r.c</a><br><pre><code class="hljs c++"><span class="hljs-comment">/* </span>
 <span class="hljs-comment">   If we are using the trivial TYPE_0 R.N.G., just do the old linear</span>
 <span class="hljs-comment">   congruential bit.  Otherwise, we do our fancy trinomial stuff, which is the</span>
 <span class="hljs-comment">   same in all the other cases due to all the global variables that have been</span>
@@ -276,8 +274,7 @@ __random_r (buf, result)
  fail:
   __set_errno (EINVAL);
   <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
-&#125;</code></pre>
-<p>以上就是主要的运算式了,基本上输入会有两个值, buf 与result, result 就是结果, 而buf则是输入的一种seed, rand()会挑一个默认值,每次调用会改变他的默认值,这也是为什么它用锁去保护他的原因,避免两个线程取到相同的值。由于在多线程情况下，不同线程是为不同用户的请求提供服务的，因此两个线程取到同相同的值，并不会影响逻辑和功能。</p>
+&#125;</code></pre><br>以上就是主要的运算式了,基本上输入会有两个值, buf 与result, result 就是结果, 而buf则是输入的一种seed, rand()会挑一个默认值,每次调用会改变他的默认值,这也是为什么它用锁去保护他的原因,避免两个线程取到相同的值。由于在多线程情况下，不同线程是为不同用户的请求提供服务的，因此两个线程取到同相同的值，并不会影响逻辑和功能。</p>
 <p>因此，<strong>在多线程服务中，建议可以直接调用rand_r()代替rand()</strong></p>
 <h3 id="伪随机生成算法"><a href="#伪随机生成算法" class="headerlink" title="伪随机生成算法"></a>伪随机生成算法</h3><p>那么上面这段代码究竟是什么是在做什么呢？其实主要是实现了线性同余算法与线性累加反馈法。</p>
 <p>线性同余法</p>
@@ -299,11 +296,11 @@ __random_r (buf, result)
 </li>
 </ol>
 <p>从r34开始的伪随机序列，通过以下的线性反馈循环来计算：</p>
-<ol start="4">
+<ol>
 <li>r(i) = (r(i-3) + r(i-31)) % 4294967296 (i ≥ 34)</li>
 </ol>
 <p>忽略掉r0…r343序列，rand()函数输出的伪随机数o(i)为：</p>
-<ol start="5">
+<ol>
 <li>o(i) = r(i+344) &gt;&gt; 1<blockquote>
 <p>r(i+344)的个位数字移除，生成31位随机数o(i)。</p>
 </blockquote>
