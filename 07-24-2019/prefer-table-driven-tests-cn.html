@@ -189,15 +189,15 @@ gtag('config', 'UA-156665333-1');
 <p>在Go中，单元测试只是常规的Go函数（有一些规则），所以我们在同一目录的文件中，使用相同的包名 <code>strings</code>，开始为这个函数编写一个单元测试。<br><pre><code class="hljs go"><span class="hljs-keyword">package</span> split  
 
 <span class="hljs-keyword">import</span> (  
-    <span class="hljs-string">"reflect"</span>  
-    <span class="hljs-string">"testing"</span>  
+    <span class="hljs-string">&quot;reflect&quot;</span>  
+    <span class="hljs-string">&quot;testing&quot;</span>  
 )  
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
-    got := Split(<span class="hljs-string">"a/b/c"</span>, <span class="hljs-string">"/"</span>)  
-    want := []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;  
+    got := Split(<span class="hljs-string">&quot;a/b/c&quot;</span>, <span class="hljs-string">&quot;/&quot;</span>)  
+    want := []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;  
     <span class="hljs-keyword">if</span> !reflect.DeepEqual(want, got) &#123;  
-         t.Fatalf(<span class="hljs-string">"expected: %v, got: %v"</span>, want, got)  
+         t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, want, got)  
     &#125;  
 &#125;</code></pre></p>
 <p>测试只是常规的有一些规则的Go函数：</p>
@@ -222,17 +222,17 @@ total:                  (statements)   100.0%</code></pre></p>
         &amp;&amp; unlink <span class="hljs-variable">$t</span>  
 &#125;</code></pre></p>
 <h3 id="Going-beyond-100-coverage"><a href="#Going-beyond-100-coverage" class="headerlink" title="Going beyond 100% coverage"></a>Going beyond 100% coverage</h3><p>我们编写了一个测试用例，获得了100％的覆盖率，但这并不是故事的结尾。 我们有很好的分支覆盖，但我们可能需要测试一些边界条件。 例如，如果我们尝试将使用逗号分割字符串会发生什么？<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplitWrongSep</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
-    got := Split(<span class="hljs-string">"a/b/c"</span>, <span class="hljs-string">","</span>)  
-    want := []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a/b/c"</span>&#125;  
+    got := Split(<span class="hljs-string">&quot;a/b/c&quot;</span>, <span class="hljs-string">&quot;,&quot;</span>)  
+    want := []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;  
     <span class="hljs-keyword">if</span> !reflect.DeepEqual(want, got) &#123;  
-        t.Fatalf(<span class="hljs-string">"expected: %v, got: %v"</span>, want, got)  
+        t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, want, got)  
     &#125;  
 &#125;</code></pre></p>
 <p>抑或，如果源字符串中没有分隔符会发生什么？<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplitNoSep</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
-    got := Split(<span class="hljs-string">"abc"</span>, <span class="hljs-string">"/"</span>)  
-    want := []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"abc"</span>&#125;  
+    got := Split(<span class="hljs-string">&quot;abc&quot;</span>, <span class="hljs-string">&quot;/&quot;</span>)  
+    want := []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;  
     <span class="hljs-keyword">if</span> !reflect.DeepEqual(want, got) &#123;  
-        t.Fatalf(<span class="hljs-string">"expected: %v, got: %v"</span>, want, got)  
+        t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, want, got)  
     &#125;  
 &#125;</code></pre></p>
 <p>我们开始构建一组运行边界条件的测试用例。 这相当不错。</p>
@@ -244,15 +244,15 @@ total:                  (statements)   100.0%</code></pre></p>
     &#125;  
 
     tests := []test&#123;  
-        &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
-        &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">","</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a/b/c"</span>&#125;&#125;,  
-        &#123;input: <span class="hljs-string">"abc"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"abc"</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
     &#125;  
 
     <span class="hljs-keyword">for</span> _, tc := <span class="hljs-keyword">range</span> tests &#123;  
         got := Split(tc.input, tc.sep)  
         <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
-            t.Fatalf(<span class="hljs-string">"expected: %v, got: %v"</span>, tc.want, got)  
+            t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, tc.want, got)  
         &#125;  
     &#125;  
 &#125;</code></pre></p>
@@ -263,23 +263,23 @@ total:                  (statements)   100.0%</code></pre></p>
         sep   <span class="hljs-keyword">string</span>  
         want  []<span class="hljs-keyword">string</span>  
     &#125;&#123;  
-        &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
-        &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">","</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a/b/c"</span>&#125;&#125;,  
-        &#123;input: <span class="hljs-string">"abc"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"abc"</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
     &#125;   
 
     <span class="hljs-keyword">for</span> _, tc := <span class="hljs-keyword">range</span> tests &#123;  
         got := Split(tc.input, tc.sep)  
         <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
-            t.Fatalf(<span class="hljs-string">"expected: %v, got: %v"</span>, tc.want, got)  
+            t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, tc.want, got)  
         &#125;  
     &#125;  
 &#125;</code></pre></p>
 <p>现在，添加一个新的测试是直截了当的事情; 只需在 <code>tests</code> 结构中添加另一行。 例如，如果我们的输入字符串有一个尾随分隔符会发生什么？</p>
-<pre><code class="hljs sh">&#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">"/"</span>, want: []string&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
-&#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">","</span>, want: []string&#123;<span class="hljs-string">"a/b/c"</span>&#125;&#125;,  
-&#123;input: <span class="hljs-string">"abc"</span>, sep: <span class="hljs-string">"/"</span>, want: []string&#123;<span class="hljs-string">"abc"</span>&#125;&#125;,  
-**&#123;input: <span class="hljs-string">"a/b/c/"</span>, sep: <span class="hljs-string">"/"</span>, want: []string&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;, // trailing sep**</code></pre>
+<pre><code class="hljs sh">&#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []string&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+&#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []string&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+&#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []string&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+**&#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []string&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;, // trailing sep**</code></pre>
 <p>但是，当我们运行 <code>go test</code>，我们得到了<br><pre><code class="hljs sh">% go <span class="hljs-built_in">test</span>
 --- FAIL: TestSplit (0.00s)  
     split_test.go:24: expected: [a b c], got: [a b c ]</code></pre></p>
@@ -292,16 +292,16 @@ total:                  (statements)   100.0%</code></pre></p>
         sep . <span class="hljs-keyword">string</span>  
         want  []<span class="hljs-keyword">string</span>  
     &#125;&#123;  
-        &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
-        &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">","</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a/b/c"</span>&#125;&#125;,  
-        &#123;input: <span class="hljs-string">"abc"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"abc"</span>&#125;&#125;,  
-        &#123;input: <span class="hljs-string">"a/b/c/"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
     &#125;  
 
     <span class="hljs-keyword">for</span> i, tc := <span class="hljs-keyword">range</span> tests &#123;  
         got := Split(tc.input, tc.sep)  
         <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
-            t.Fatalf(<span class="hljs-string">"**test %d:** expected: %v, got: %v"</span>, **i+<span class="hljs-number">1</span>**, tc.want, got)  
+            t.Fatalf(<span class="hljs-string">&quot;**test %d:** expected: %v, got: %v&quot;</span>, **i+<span class="hljs-number">1</span>**, tc.want, got)  
         &#125;  
     &#125;  
 &#125;</code></pre></p>
@@ -316,16 +316,16 @@ total:                  (statements)   100.0%</code></pre></p>
         sep   <span class="hljs-keyword">string</span>  
         want  []<span class="hljs-keyword">string</span>  
     &#125;&#123;  
-        &#123;name: <span class="hljs-string">"simple"</span>, input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
-        &#123;name: <span class="hljs-string">"wrong sep"</span>, input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">","</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a/b/c"</span>&#125;&#125;,  
-        &#123;name: <span class="hljs-string">"no sep"</span>, input: <span class="hljs-string">"abc"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"abc"</span>&#125;&#125;,  
-        &#123;name: <span class="hljs-string">"trailing sep"</span>, input: <span class="hljs-string">"a/b/c/"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
+        &#123;name: <span class="hljs-string">&quot;simple&quot;</span>, input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        &#123;name: <span class="hljs-string">&quot;wrong sep&quot;</span>, input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        &#123;name: <span class="hljs-string">&quot;no sep&quot;</span>, input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        &#123;name: <span class="hljs-string">&quot;trailing sep&quot;</span>, input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
     &#125;  
 
     <span class="hljs-keyword">for</span> _, tc := <span class="hljs-keyword">range</span> tests &#123;  
         got := Split(tc.input, tc.sep)  
         <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
-            t.Fatalf(<span class="hljs-string">"**%s:** expected: %v, got: %v"</span>, **tc.name**, tc.want, got)  
+            t.Fatalf(<span class="hljs-string">&quot;**%s:** expected: %v, got: %v&quot;</span>, **tc.name**, tc.want, got)  
         &#125;  
     &#125;  
 &#125;</code></pre></p>
@@ -338,16 +338,16 @@ total:                  (statements)   100.0%</code></pre></p>
         sep   <span class="hljs-keyword">string</span>  
         want  []<span class="hljs-keyword">string</span>  
     &#125;**&#123;   
-        <span class="hljs-string">"simple"</span>:       &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,   
-        <span class="hljs-string">"wrong sep"</span>:    &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">","</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a/b/c"</span>&#125;&#125;,  
-        <span class="hljs-string">"no sep"</span>:       &#123;input: <span class="hljs-string">"abc"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"abc"</span>&#125;&#125;,  
-        <span class="hljs-string">"trailing sep"</span>: &#123;input: <span class="hljs-string">"a/b/c/"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;simple&quot;</span>:       &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,   
+        <span class="hljs-string">&quot;wrong sep&quot;</span>:    &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;no sep&quot;</span>:       &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;trailing sep&quot;</span>: &#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
     &#125;  
 
     <span class="hljs-keyword">for</span> name, tc := <span class="hljs-keyword">range</span> tests &#123;  
         got := Split(tc.input, tc.sep)  
         <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
-            t.Fatalf(<span class="hljs-string">"**%s:** expected: %v, got: %v"</span>, **name**, tc.want, got)  
+            t.Fatalf(<span class="hljs-string">&quot;**%s:** expected: %v, got: %v&quot;</span>, **name**, tc.want, got)  
         &#125;  
     &#125;  
 &#125;</code></pre></p>
@@ -363,17 +363,17 @@ total:                  (statements)   100.0%</code></pre></p>
         sep   <span class="hljs-keyword">string</span>  
         want  []<span class="hljs-keyword">string</span>  
     &#125;&#123;  
-        <span class="hljs-string">"simple"</span>:       &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
-        <span class="hljs-string">"wrong sep"</span>:    &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">","</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a/b/c"</span>&#125;&#125;,  
-        <span class="hljs-string">"no sep"</span>:       &#123;input: <span class="hljs-string">"abc"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"abc"</span>&#125;&#125;,  
-        <span class="hljs-string">"trailing sep"</span>: &#123;input: <span class="hljs-string">"a/b/c/"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;simple&quot;</span>:       &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;wrong sep&quot;</span>:    &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;no sep&quot;</span>:       &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;trailing sep&quot;</span>: &#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
     &#125;  
 
     <span class="hljs-keyword">for</span> name, tc := <span class="hljs-keyword">range</span> tests &#123;  
 **t.Run(name, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
             got := Split(tc.input, tc.sep)  
             <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
-                t.Fatalf(<span class="hljs-string">"expected: %v, got: %v"</span>, tc.want, got)  
+                t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, tc.want, got)  
             &#125;  
         &#125;)**  
     &#125;  
@@ -382,7 +382,8 @@ total:                  (statements)   100.0%</code></pre></p>
 <pre><code class="hljs sh">% go <span class="hljs-built_in">test</span> 
 --- FAIL: TestSplit (0.00s)  
     --- FAIL: **TestSplit/trailing_sep** (0.00s)  
-        split_test.go:25: expected: [a b c], got: [a b c ]</code></pre>
+        split_test.go:25: expected: [a b c], got: [a b c ]  
+</code></pre>
 <p>每个 subtest 都是它自己的匿名函数，因此我们可以使用 <code>t.Fatalf</code>，<code>t.Skipf</code> 和所有其他 <code>testing.T</code> helper，同时保留table driven test 的紧凑性。</p>
 <h4 id="Individual-sub-test-cases-can-be-executed-directly"><a href="#Individual-sub-test-cases-can-be-executed-directly" class="headerlink" title="Individual sub test cases can be executed directly"></a>Individual sub test cases can be executed directly</h4><p>由于 sub tests 具有名称，因此您可以使用 <code>go test -run</code> flag 按名称运行一系列 sub tests。<br><pre><code class="hljs sh">% **go <span class="hljs-built_in">test</span> -run=.*/trailing -v**  
 === RUN   TestSplit  
@@ -397,12 +398,12 @@ total:                  (statements)   100.0%</code></pre></p>
 <p>如果我们切换到 <code>%#v</code> 语法以将值视为Go（ish）声明，则可以改进输出：</p>
 <pre><code class="hljs go">got := Split(tc.input, tc.sep)  
 <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
-    t.Fatalf(<span class="hljs-string">"**expected: %#v, got: %#v**"</span>, tc.want, got)  
+    t.Fatalf(<span class="hljs-string">&quot;**expected: %#v, got: %#v**&quot;</span>, tc.want, got)  
 &#125;</code></pre>
 <p>现在，当我们运行测试时，很明显问题在于 slice 中有一个额外的空白元素。<br><pre><code class="hljs sh">% go <span class="hljs-built_in">test</span> 
 --- FAIL: TestSplit (0.00s)  
     --- FAIL: TestSplit/trailing_sep (0.00s)  
-        split_test.go:25: **expected: []string&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;, got: []string&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>, <span class="hljs-string">""</span>&#125;**</code></pre></p>
+        split_test.go:25: **expected: []string&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;, got: []string&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>, <span class="hljs-string">&quot;&quot;</span>&#125;**</code></pre></p>
 <p>但是在我们开始修复测试失败之前，我想多谈一点关于选择正确的方法来呈现测试失败的问题。我们的 <code>Split</code> 函数很简单，它接受一个原始的字符串并返回一段字符串，但是如果它处理结构，或者更糟的，指向结构的指针呢？</p>
 <p>下面是一个例子，其中 <code>%v</code> 不起作用：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;  
     <span class="hljs-keyword">type</span> T <span class="hljs-keyword">struct</span> &#123;  
@@ -410,10 +411,10 @@ total:                  (statements)   100.0%</code></pre></p>
     &#125;  
     x := []*T&#123; &#123;<span class="hljs-number">1</span>&#125;, &#123;<span class="hljs-number">2</span>&#125;, &#123;<span class="hljs-number">3</span>&#125; &#125;
     y := []*T&#123; &#123;<span class="hljs-number">1</span>&#125;, &#123;<span class="hljs-number">2</span>&#125;, &#123;<span class="hljs-number">4</span>&#125; &#125;
-    fmt.Printf(<span class="hljs-string">"%v %v\n"</span>, x, y)  
-    fmt.Printf(<span class="hljs-string">"%#v %#v\n"</span>, x, y)  
+    fmt.Printf(<span class="hljs-string">&quot;%v %v\n&quot;</span>, x, y)  
+    fmt.Printf(<span class="hljs-string">&quot;%#v %#v\n&quot;</span>, x, y)  
 &#125;</code></pre></p>
-<p>第一个 <code>fmt.Printf</code> 打印毫无帮助但符合预期的 addresses slice；<code>[0xc000096000 0xc000096008 0xc000096010] [0xc000096018 0xc000096020 0xc000096028]</code>。 但是，我们的 <code>%#v</code> 并没有做任何改进。打印一个 addresses slice 强制转换为 <code>*main.T</code>；<code>[]*main.T{(*main.T)(0xc000096000), (*main.T)(0xc000096008), (*main.T)(0xc000096010)} []*main.T{(*main.T)(0xc000096018), (*main.T)(0xc000096020), (*main.T)(0xc000096028)}</code></p>
+<p>第一个 <code>fmt.Printf</code> 打印毫无帮助但符合预期的 addresses slice；<code>[0xc000096000 0xc000096008 0xc000096010] [0xc000096018 0xc000096020 0xc000096028]</code>。 但是，我们的 <code>%#v</code> 并没有做任何改进。打印一个 addresses slice 强制转换为 <code>*main.T</code>；<code>[]*main.T&#123;(*main.T)(0xc000096000), (*main.T)(0xc000096008), (*main.T)(0xc000096010)&#125; []*main.T&#123;(*main.T)(0xc000096018), (*main.T)(0xc000096020), (*main.T)(0xc000096028)&#125;</code></p>
 <p>由于使用任何 <code>fmt.Printf</code> verb 的局限性，我想从Google引入 <a href="https://github.com/google/go-cmp" target="_blank" rel="noopener">go-cmp</a> 库。</p>
 <p>cmp 库的目标是专门比较两个值。这类似于 <code>reflect.DeepEqual</code>，但它有更多的功能。所以，使用cmp pacakge，你可以编写如下：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;  
     <span class="hljs-keyword">type</span> T <span class="hljs-keyword">struct</span> &#123;  
@@ -443,17 +444,17 @@ total:                  (statements)   100.0%</code></pre></p>
         sep   <span class="hljs-keyword">string</span>  
         want  []<span class="hljs-keyword">string</span>  
     &#125;&#123;  
-        <span class="hljs-string">"simple"</span>:       &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
-        <span class="hljs-string">"wrong sep"</span>:    &#123;input: <span class="hljs-string">"a/b/c"</span>, sep: <span class="hljs-string">","</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a/b/c"</span>&#125;&#125;,  
-        <span class="hljs-string">"no sep"</span>:       &#123;input: <span class="hljs-string">"abc"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"abc"</span>&#125;&#125;,  
-        <span class="hljs-string">"trailing sep"</span>: &#123;input: <span class="hljs-string">"a/b/c/"</span>, sep: <span class="hljs-string">"/"</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">"a"</span>, <span class="hljs-string">"b"</span>, <span class="hljs-string">"c"</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;simple&quot;</span>:       &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;wrong sep&quot;</span>:    &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;no sep&quot;</span>:       &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;trailing sep&quot;</span>: &#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-keyword">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
     &#125;  
 
     <span class="hljs-keyword">for</span> name, tc := <span class="hljs-keyword">range</span> tests &#123;  
         t.Run(name, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
             got := Split(tc.input, tc.sep)  
 **diff := cmp.Diff(tc.want, got)  
-            <span class="hljs-keyword">if</span> diff != <span class="hljs-string">""</span> &#123;  
+            <span class="hljs-keyword">if</span> diff != <span class="hljs-string">&quot;&quot;</span> &#123;  
                 t.Fatalf(diff)  
             &#125;**  
         &#125;)  
@@ -464,7 +465,7 @@ total:                  (statements)   100.0%</code></pre></p>
     --- FAIL: TestSplit/trailing_sep (0.00s)  
         split_test.go:27: &#123;[]string&#125;[?-&gt;3]:  
                 -: &lt;non-existent&gt;  
-                +: <span class="hljs-string">""</span>  
+                +: <span class="hljs-string">&quot;&quot;</span>  
 FAIL  
 <span class="hljs-built_in">exit</span> status 1  
 FAIL    split   0.006s</code></pre></p>

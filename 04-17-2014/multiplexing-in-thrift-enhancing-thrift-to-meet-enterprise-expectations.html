@@ -210,14 +210,14 @@ List&lt;MultiplexerArgs&lt;URIContext, TProcessor&gt;&gt; args = <span class="hl
 TProcessor processor = <span class="hljs-keyword">new</span> HRService.Processor&lt;HRServiceImpl&gt;(
 <span class="hljs-keyword">new</span> HRServiceImpl());
 URIContext context = <span class="hljs-keyword">new</span> URIContext(Constants.HR_CONTEXT,
-<span class="hljs-string">"HumanResource_Service"</span>);
+<span class="hljs-string">&quot;HumanResource_Service&quot;</span>);
 MultiplexerArgs&lt;URIContext, TProcessor&gt; arg = <span class="hljs-keyword">new</span> MultiplexerArgs&lt;URIContext, TProcessor&gt;(
 processor, context);
 args.add(arg);
 <span class="hljs-comment">// configuring FIN service context</span>
 processor = <span class="hljs-keyword">new</span> FinanceService.Processor&lt;FinanceServiceImpl&gt;(
 <span class="hljs-keyword">new</span> FinanceServiceImpl());
-context = <span class="hljs-keyword">new</span> URIContext(Constants.FIN_CONTEXT, <span class="hljs-string">"Finance_Service"</span>);
+context = <span class="hljs-keyword">new</span> URIContext(Constants.FIN_CONTEXT, <span class="hljs-string">&quot;Finance_Service&quot;</span>);
 arg = <span class="hljs-keyword">new</span> MultiplexerArgs&lt;URIContext, TProcessor&gt;(processor, context);
 args.add(arg);
 <span class="hljs-keyword">return</span> args;
@@ -263,7 +263,7 @@ TRegistry client = TRegistryFactory.getClient(protocol);
 <span class="hljs-comment">//opening transport</span>
 transport.open();
 <span class="hljs-comment">//querying registry to get context</span>
-Set&lt;URIContext&gt; contexts = client.lookupByName(<span class="hljs-string">"Finance_Service"</span>);
+Set&lt;URIContext&gt; contexts = client.lookupByName(<span class="hljs-string">&quot;Finance_Service&quot;</span>);
 <span class="hljs-comment">//executing the request on appropriate service using the context</span>
 <span class="hljs-keyword">if</span>(contexts.size()==<span class="hljs-number">1</span>)&#123;
 URIContext uricontext = contexts.iterator().next();

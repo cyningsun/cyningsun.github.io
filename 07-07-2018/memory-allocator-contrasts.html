@@ -207,7 +207,7 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> _<span class="hljs-title">heap_info</span> &#123;</span>
 	mstate ar_ptr; <span class="hljs-comment">/* Arena for this heap. */</span>
 	<span class="hljs-class"><span class="hljs-keyword">struct</span> _<span class="hljs-title">heap_info</span> *<span class="hljs-title">prev</span>;</span> <span class="hljs-comment">/* Previous heap. */</span>
-	<span class="hljs-keyword">size_t</span> <span class="hljs-built_in">size</span>; <span class="hljs-comment">/* Current size in bytes. */</span>
+	<span class="hljs-keyword">size_t</span> size; <span class="hljs-comment">/* Current size in bytes. */</span>
 	<span class="hljs-keyword">size_t</span> mprotect_size; <span class="hljs-comment">/* Size in bytes that has been mprotected</span>
 <span class="hljs-comment">	PROT_READ|PROT_WRITE. */</span>
 	<span class="hljs-comment">/* Make sure the following data is properly aligned, particularly</span>
@@ -218,7 +218,7 @@ gtag('config', 'UA-156665333-1');
 
 <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">malloc_chunk</span> &#123;</span>
 	INTERNAL_SIZE_T prev_size; <span class="hljs-comment">/* Size of previous chunk (if free). */</span>
-	INTERNAL_SIZE_T <span class="hljs-built_in">size</span>; <span class="hljs-comment">/* Size in bytes, including overhead. */</span>
+	INTERNAL_SIZE_T size; <span class="hljs-comment">/* Size in bytes, including overhead. */</span>
 	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">malloc_chunk</span>* <span class="hljs-title">fd</span>;</span> <span class="hljs-comment">/* double links -- used only if free. */</span>
 	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">malloc_chunk</span>* <span class="hljs-title">bk</span>;</span>
 	<span class="hljs-comment">/* Only used for large blocks: pointer to next larger size. */</span>
@@ -266,7 +266,7 @@ gtag('config', 'UA-156665333-1');
   Length        length;         <span class="hljs-comment">// Number of pages in span</span>
   Span*         next;           <span class="hljs-comment">// Used when in link list</span>
   Span*         prev;           <span class="hljs-comment">// Used when in link list</span>
-  <span class="hljs-keyword">union</span> &#123;
+  <span class="hljs-class"><span class="hljs-keyword">union</span> &#123;</span>
     <span class="hljs-keyword">void</span>* objects;              <span class="hljs-comment">// Linked list of free objects</span>
 
     <span class="hljs-comment">// Span may contain iterator pointing back at SpanSet entry of</span>
@@ -282,7 +282,7 @@ gtag('config', 'UA-156665333-1');
   <span class="hljs-keyword">bool</span>          has_span_iter : <span class="hljs-number">1</span>; <span class="hljs-comment">// If span_iter_space has valid</span>
                                    <span class="hljs-comment">// iterator. Only for debug builds.</span>
   <span class="hljs-comment">// What freelist the span is on: IN_USE if on none, or normal or returned</span>
-  <span class="hljs-keyword">enum</span> &#123; IN_USE, ON_NORMAL_FREELIST, ON_RETURNED_FREELIST &#125;;
+  <span class="hljs-class"><span class="hljs-keyword">enum</span> &#123;</span> IN_USE, ON_NORMAL_FREELIST, ON_RETURNED_FREELIST &#125;;
 &#125;;
 
 <span class="hljs-comment">// We segregate spans of a given size into two circular linked</span>
@@ -295,7 +295,7 @@ Span        returned;
 
 <span class="hljs-comment">// Array mapping from span length to a doubly linked list of free spans</span>
 <span class="hljs-comment">//</span>
-<span class="hljs-comment">// <span class="hljs-doctag">NOTE:</span> index 'i' stores spans of length 'i + 1'.</span>
+<span class="hljs-comment">// <span class="hljs-doctag">NOTE:</span> index &#x27;i&#x27; stores spans of length &#x27;i + 1&#x27;.</span>
 SpanList free_[kMaxPages];
 
 <span class="hljs-comment">// Sets of spans with length &gt; kMaxPages.</span>

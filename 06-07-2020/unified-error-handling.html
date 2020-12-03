@@ -199,12 +199,12 @@ if err != nil &#123;
 </li>
 <li><p>原始错误 vs 错误码错误</p>
 <blockquote>
-<pre><code class="hljs go">errors.New(<span class="hljs-string">"connection error"</span>)
+<pre><code class="hljs go">errors.New(<span class="hljs-string">&quot;connection error&quot;</span>)
 
 <span class="hljs-comment">// vs </span>
 
 <span class="hljs-keyword">var</span> errno <span class="hljs-keyword">uint32</span> = <span class="hljs-number">10001</span>
-errors.New(errno, <span class="hljs-string">"connection error"</span>)</code></pre>
+errors.New(errno, <span class="hljs-string">&quot;connection error&quot;</span>)</code></pre>
 <p>标准库或第三方应用库返回的是一般是上一种错误，然而H5或APP不可能根据字符串进行错误判断。因此在业务中需要把所有的错误进行统一封状为错误码错误返回，那么错误码错误中需要保存原始错误么？</p>
 </blockquote>
 </li>

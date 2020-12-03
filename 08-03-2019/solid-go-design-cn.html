@@ -241,13 +241,13 @@ gtag('config', 'UA-156665333-1');
         year <span class="hljs-keyword">int</span>
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(a A)</span> <span class="hljs-title">Greet</span><span class="hljs-params">()</span></span> &#123; fmt.Println(<span class="hljs-string">"Hello GolangUK"</span>, a.year) &#125;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(a A)</span> <span class="hljs-title">Greet</span><span class="hljs-params">()</span></span> &#123; fmt.Println(<span class="hljs-string">&quot;Hello GolangUK&quot;</span>, a.year) &#125;
 
 <span class="hljs-keyword">type</span> B <span class="hljs-keyword">struct</span> &#123;
         A
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(b B)</span> <span class="hljs-title">Greet</span><span class="hljs-params">()</span></span> &#123; fmt.Println(<span class="hljs-string">"Welcome to GolangUK"</span>, b.year) &#125;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(b B)</span> <span class="hljs-title">Greet</span><span class="hljs-params">()</span></span> &#123; fmt.Println(<span class="hljs-string">&quot;Welcome to GolangUK&quot;</span>, b.year) &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
         <span class="hljs-keyword">var</span> a A
@@ -269,7 +269,7 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span> <span class="hljs-title">Legs</span><span class="hljs-params">()</span> <span class="hljs-title">int</span></span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-number">4</span> &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span> <span class="hljs-title">PrintLegs</span><span class="hljs-params">()</span></span> &#123;
-        fmt.Printf(<span class="hljs-string">"I have %d legs\n"</span>, c.Legs())
+        fmt.Printf(<span class="hljs-string">&quot;I have %d legs\n&quot;</span>, c.Legs())
 &#125;
 
 <span class="hljs-keyword">type</span> OctoCat <span class="hljs-keyword">struct</span> &#123;
@@ -288,11 +288,11 @@ gtag('config', 'UA-156665333-1');
 <p>因此，我们可以说 Go 的类型虽然对扩展开放，但对修改是封闭的。</p>
 <p>事实上，Go 中的方法只不过是围绕在具有预先声明形式参数（即接收器）的函数的语法糖。</p>
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span> <span class="hljs-title">PrintLegs</span><span class="hljs-params">()</span></span> &#123;
-        fmt.Printf(<span class="hljs-string">"I have %d legs\n"</span>, c.Legs())
+        fmt.Printf(<span class="hljs-string">&quot;I have %d legs\n&quot;</span>, c.Legs())
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">PrintLegs</span><span class="hljs-params">(c Cat)</span></span> &#123;
-        fmt.Printf(<span class="hljs-string">"I have %d legs\n"</span>, c.Legs())
+        fmt.Printf(<span class="hljs-string">&quot;I have %d legs\n&quot;</span>, c.Legs())
 &#125;</code></pre>
 <p>接收器正是你传入它的函数，函数的第一个参数，并且因为Go不支持函数重载，OctoCat不能替代普通的Cat 。 这让我想到了下一个原则。</p>
 <h5 id="里氏替换原则（Liskov-Substitution-Principle）"><a href="#里氏替换原则（Liskov-Substitution-Principle）" class="headerlink" title="里氏替换原则（Liskov Substitution Principle）"></a>里氏替换原则（Liskov Substitution Principle）</h5><p>由Barbara Liskov 提出的里氏替换原则粗略地指出，如果两种类型表现出的行为使得调用者无法区分，则这两种类型是可替代的。</p>

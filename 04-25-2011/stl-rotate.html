@@ -288,7 +288,7 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-comment">//单向访问链表的rotate</span>
     Link head=<span class="hljs-keyword">new</span> Node;
     head-&gt;value=<span class="hljs-number">25</span>;
-    <span class="hljs-built_in">cout</span>&lt;&lt;head-&gt;value&lt;&lt;<span class="hljs-string">"\t"</span>;
+    <span class="hljs-built_in">cout</span>&lt;&lt;head-&gt;value&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
     Link p=head;
     Link middle;
     <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
@@ -296,7 +296,7 @@ gtag('config', 'UA-156665333-1');
         Link next=<span class="hljs-keyword">new</span> Node;
         p-&gt;next=next;
         next-&gt;value=rand()%<span class="hljs-number">200</span>;
-        <span class="hljs-built_in">cout</span>&lt;&lt;next-&gt;value&lt;&lt;<span class="hljs-string">"\t"</span>;
+        <span class="hljs-built_in">cout</span>&lt;&lt;next-&gt;value&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
         <span class="hljs-keyword">if</span>(i==len/<span class="hljs-number">4</span>*<span class="hljs-number">3</span>)
             middle=p;
         p=p-&gt;next;
@@ -307,7 +307,7 @@ gtag('config', 'UA-156665333-1');
     p=head;
     <span class="hljs-keyword">while</span>(p!=<span class="hljs-literal">NULL</span>)
     &#123;
-        <span class="hljs-built_in">cout</span>&lt;&lt;p-&gt;value&lt;&lt;<span class="hljs-string">"\t"</span>;
+        <span class="hljs-built_in">cout</span>&lt;&lt;p-&gt;value&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
         p=p-&gt;next;
     &#125;
     <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">endl</span>;
@@ -315,7 +315,7 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-comment">//双向链表的rotate</span>
     BiLink bihead=<span class="hljs-keyword">new</span> BiNode;
     bihead-&gt;value=<span class="hljs-number">25</span>;
-    <span class="hljs-built_in">cout</span>&lt;&lt;bihead-&gt;value&lt;&lt;<span class="hljs-string">"\t"</span>;
+    <span class="hljs-built_in">cout</span>&lt;&lt;bihead-&gt;value&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
     BiLink bip=bihead;
     BiLink bimiddle;
     <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
@@ -324,20 +324,20 @@ gtag('config', 'UA-156665333-1');
         bip-&gt;next=binext;
         binext-&gt;prev=bip;
         binext-&gt;value=rand()%<span class="hljs-number">200</span>;
-        <span class="hljs-built_in">cout</span>&lt;&lt;binext-&gt;value&lt;&lt;<span class="hljs-string">"\t"</span>;
+        <span class="hljs-built_in">cout</span>&lt;&lt;binext-&gt;value&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
         <span class="hljs-keyword">if</span>(i==len/<span class="hljs-number">4</span>)
             bimiddle=bip;
         bip=bip-&gt;next;
     &#125;
     <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">endl</span>;
-    BiNode <span class="hljs-built_in">end</span>;
-    bip-&gt;next=&amp;<span class="hljs-built_in">end</span>;
-    <span class="hljs-built_in">end</span>.prev=bip;
-    bidirectionRotate(bihead,bimiddle,&amp;<span class="hljs-built_in">end</span>);	
+    BiNode end;
+    bip-&gt;next=&amp;end;
+    end.prev=bip;
+    bidirectionRotate(bihead,bimiddle,&amp;end);	
     bip=bihead;
-    <span class="hljs-keyword">while</span>(bip!=&amp;<span class="hljs-built_in">end</span>)
+    <span class="hljs-keyword">while</span>(bip!=&amp;end)
     &#123;
-        <span class="hljs-built_in">cout</span>&lt;&lt;bip-&gt;value&lt;&lt;<span class="hljs-string">"\t"</span>;
+        <span class="hljs-built_in">cout</span>&lt;&lt;bip-&gt;value&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
         bip=bip-&gt;next;
     &#125;
     <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">endl</span>;
@@ -346,12 +346,12 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
     &#123;
         <span class="hljs-built_in">array</span>[i]=rand()%<span class="hljs-number">200</span>;
-        <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">array</span>[i]&lt;&lt;<span class="hljs-string">"\t"</span>;
+        <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">array</span>[i]&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
     &#125;	
     <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">endl</span>;
     randomRotate(<span class="hljs-built_in">array</span>,len/<span class="hljs-number">3</span>,len);
     <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
-        <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">array</span>[i]&lt;&lt;<span class="hljs-string">"\t"</span>;
+        <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">array</span>[i]&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
     <span class="hljs-built_in">cout</span>&lt;&lt;<span class="hljs-built_in">endl</span>;
     <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
 &#125;</code></pre></p>

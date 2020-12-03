@@ -186,7 +186,7 @@ gtag('config', 'UA-156665333-1');
 <p>Weibo</p>
 <p>微博 30bit的秒级时间，4bit来区分IDC，2bit 区分业务，15bit 给 Sequence。理论上限3.2w/s的速度。由于当前发号服务是机房中心式的，1bit 来区分热备。最终，没有用满64bit。</p>
 <p>Flicker</p>
-<p>Flicker 在解决全局ID生成方案里就采用了MySQL自增长ID的机制（auto_increment + replace into + MyISAM）。<br>在我们的应用端需要做下面这两个操作，在一个事务会话里提交：<br><pre><code class="hljs sql"><span class="hljs-keyword">REPLACE</span> <span class="hljs-keyword">INTO</span> Tickets64 (stub) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">'a'</span>);
+<p>Flicker 在解决全局ID生成方案里就采用了MySQL自增长ID的机制（auto_increment + replace into + MyISAM）。<br>在我们的应用端需要做下面这两个操作，在一个事务会话里提交：<br><pre><code class="hljs sql"><span class="hljs-keyword">REPLACE</span> <span class="hljs-keyword">INTO</span> Tickets64 (stub) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">&#x27;a&#x27;</span>);
 <span class="hljs-keyword">SELECT</span> <span class="hljs-keyword">LAST_INSERT_ID</span>();</code></pre><br>Flicker启用了两台数据库服务器生成ID来容灾，通过区分auto_increment的起始值和步长来生成奇偶数的ID。<br><pre><code class="hljs pgsql">TicketServer1:
 auto-<span class="hljs-keyword">increment</span>-<span class="hljs-keyword">increment</span> = <span class="hljs-number">2</span>
 auto-<span class="hljs-keyword">increment</span>-offset = <span class="hljs-number">1</span>

@@ -199,20 +199,20 @@ $var
 <p>就是程序的代码段，而</p>
 <pre><code class="hljs html">$var</code></pre>
 <p>就是用户数据。当$var的值是：</p>
-<pre><code class="hljs html"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">"http://evil"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span></code></pre>
+<pre><code class="hljs html"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">&quot;http://evil&quot;</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span></code></pre>
 <p>此时就会出现安全问题。此时如何处理，根据代码分离的原则，重写程序片段并对$var进行安全处理     </p>
 <pre><code class="hljs html"><span class="hljs-tag">&lt;<span class="hljs-name">html</span>&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">head</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">head</span>&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">body</span>&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">script</span>&gt;</span>
-<span class="actionscript">$<span class="hljs-keyword">var</span></span>
+$var
 <span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">body</span>&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">html</span>&gt;</span></code></pre>
 <p>此时，script还原为代码片段，用户数据只有$var，就可以做安全处理了。</p>
 <h4 id="4、不可预测性"><a href="#4、不可预测性" class="headerlink" title="4、不可预测性"></a>4、不可预测性</h4><p>不可预测性能后效的对抗基于篡改、伪造的攻击。例如，一个内容管理系统，如果文章的序号是按照数字升序排列，那么如果攻击者如果想批量删除这些文章，只需要简单的一个脚本：     </p>
 <pre><code class="hljs javascript"><span class="hljs-keyword">for</span> (i=<span class="hljs-number">0</span>; i&lt;<span class="hljs-number">1000</span>; i++) &#123;
-<span class="hljs-keyword">delete</span>(url+<span class="hljs-string">"?id="</span>+i);
+<span class="hljs-keyword">delete</span>(url+<span class="hljs-string">&quot;?id=&quot;</span>+i);
 &#125;</code></pre>
 <h3 id="四、跨站脚本攻击-XSS-cross-site-script"><a href="#四、跨站脚本攻击-XSS-cross-site-script" class="headerlink" title="四、跨站脚本攻击(XSS:cross site script)"></a>四、跨站脚本攻击(XSS:cross site script)</h3><h4 id="本质：用户数据被当成了HTML代码的一部分执行，从而混淆了原本的语义，产生新的语义"><a href="#本质：用户数据被当成了HTML代码的一部分执行，从而混淆了原本的语义，产生新的语义" class="headerlink" title="本质：用户数据被当成了HTML代码的一部分执行，从而混淆了原本的语义，产生新的语义"></a>本质：用户数据被当成了HTML代码的一部分执行，从而混淆了原本的语义，产生新的语义</h4><p>XSS根据效果可以划分为一下几类：</p>
 <h4 id="1、反射型-存储型XSS"><a href="#1、反射型-存储型XSS" class="headerlink" title="1、反射型\存储型XSS"></a>1、反射型\存储型XSS</h4><p>原理：从服务器应用直接输出到HTML页面中以进行攻击的XSS漏洞<br>防御：<br>输入检查：根据数据的特征进行简单的XSS过滤<br>输出检查：根据输出的场景进行XSS防御，根据场景的不同选择合适的encode函数。常见的场景包括：HTML标签、HTML属性、script标签、CSS、地址栏、Http Response头。     </p>

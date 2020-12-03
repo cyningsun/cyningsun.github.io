@@ -171,30 +171,30 @@ gtag('config', 'UA-156665333-1');
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
-        <p>// list 不能使用STL 算法 sort()，必须使用自己的 sort() member //function，因为STL算法sort() 只接受RamdonAccessIterator.<br>// 本函式采用 quick sort.<br><pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">T</span>, <span class="hljs-title">class</span> <span class="hljs-title">Alloc</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> <span class="hljs-title">list</span>&lt;T, Alloc&gt;:</span>:sort() &#123;
+        <p>// list 不能使用STL 算法 sort()，必须使用自己的 sort() member //function，因为STL算法sort() 只接受RamdonAccessIterator.<br>// 本函式采用 quick sort.<br><pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">T</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Alloc</span>&gt;</span>
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">list</span>&lt;T, Alloc&gt;::sort() &#123;
   <span class="hljs-comment">// 以下判断，如果是空白串行，或仅有一个元素，就不做任何动作。</span>
   <span class="hljs-comment">// 使用 size() == 0 || size() == 1 来判断，虽然也可以，但是比较慢。</span>
   <span class="hljs-keyword">if</span> (node-&gt;next == node || link_type(node-&gt;next)-&gt;next == node) <span class="hljs-keyword">return</span>;
   <span class="hljs-comment">// 一些新的 lists，做为中介数据存放区</span>
   <span class="hljs-built_in">list</span>&lt;T, Alloc&gt; carry;
   <span class="hljs-built_in">list</span>&lt;T, Alloc&gt; counter[<span class="hljs-number">64</span>];
-  <span class="hljs-keyword">int</span> <span class="hljs-built_in">fill</span> = <span class="hljs-number">0</span>;
+  <span class="hljs-keyword">int</span> fill = <span class="hljs-number">0</span>;
   <span class="hljs-keyword">while</span> (!empty()) &#123;
-    carry.splice(carry.<span class="hljs-built_in">begin</span>(), *<span class="hljs-keyword">this</span>, <span class="hljs-built_in">begin</span>());
+    carry.splice(carry.begin(), *<span class="hljs-keyword">this</span>, begin());
     <span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>;
-    <span class="hljs-keyword">while</span>(i &lt; <span class="hljs-built_in">fill</span> &amp;&amp; !counter[i].empty()) &#123;
+    <span class="hljs-keyword">while</span>(i &lt; fill &amp;&amp; !counter[i].empty()) &#123;
       counter[i].merge(carry);
       carry.swap(counter[i++]);
     &#125;
     carry.swap(counter[i]);        
-    <span class="hljs-keyword">if</span> (i == <span class="hljs-built_in">fill</span>) ++<span class="hljs-built_in">fill</span>;
+    <span class="hljs-keyword">if</span> (i == fill) ++fill;
   &#125;
 
-  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">1</span>; i &lt; <span class="hljs-built_in">fill</span>; ++i)
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">1</span>; i &lt; fill; ++i)
      counter[i].merge(counter[i<span class="hljs-number">-1</span>]);
 
-  swap(counter[<span class="hljs-built_in">fill</span><span class="hljs-number">-1</span>]);
+  swap(counter[fill<span class="hljs-number">-1</span>]);
 &#125;</code></pre></p>
 <p>性质：<br>counter[i]的元素个数只可能有三种可能：0,2^(i-1)，2^i<br>其中2^i为counter[i]的不稳定状态，只要满足该元素个数，在该次循环中最终交换到i+1中。若此时i+1中的元素个数为2^(i+1)，则持续向上交换到i+2中。carry作为且仅仅作为此交换的中转。</p>
 <h3 id="Quick-Sort-还是-Merge-Sort？"><a href="#Quick-Sort-还是-Merge-Sort？" class="headerlink" title="Quick Sort 还是 Merge Sort？"></a>Quick Sort 还是 Merge Sort？</h3><p>首先，看一下两个算法的思想：</p>
@@ -218,7 +218,7 @@ gtag('config', 'UA-156665333-1');
 &#125;;
 <span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>
 <span class="hljs-function"></span>&#123;
-	freopen(<span class="hljs-string">"STL List Test.txt"</span>,<span class="hljs-string">"w"</span>,<span class="hljs-built_in">stdout</span>);
+	freopen(<span class="hljs-string">&quot;STL List Test.txt&quot;</span>,<span class="hljs-string">&quot;w&quot;</span>,<span class="hljs-built_in">stdout</span>);
 	<span class="hljs-built_in">list</span>&lt;Point&gt; container;
 	srand(<span class="hljs-number">0</span>);
 	<span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;TESTNUM;i++)
@@ -229,9 +229,9 @@ gtag('config', 'UA-156665333-1');
 		container.push_back(p);
 	&#125;
 	container.sort();
-	<span class="hljs-keyword">for</span> (<span class="hljs-built_in">list</span>&lt;Point&gt;::iterator it = container.<span class="hljs-built_in">begin</span>(); it != container.<span class="hljs-built_in">end</span>(); ++it)
+	<span class="hljs-keyword">for</span> (<span class="hljs-built_in">list</span>&lt;Point&gt;::iterator it = container.begin(); it != container.end(); ++it)
 	&#123;
-		<span class="hljs-built_in">printf</span>(<span class="hljs-string">"%d   %d\n"</span>,(*it).value,(*it).num);
+		<span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;%d   %d\n&quot;</span>,(*it).value,(*it).num);
 	&#125;
 &#125;</code></pre></p>
 <p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-08-2011/stl-list-sort.html">https://www.cyningsun.com/04-08-2011/stl-list-sort.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/" target="_blank" rel="noopener">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>

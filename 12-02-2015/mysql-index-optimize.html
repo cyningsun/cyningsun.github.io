@@ -269,15 +269,15 @@ min_cost_index = NONE
 <li><p>key_len：查询使用索引的长度。</p>
 </li>
 </ul>
-<pre><code class="hljs angelscript"><span class="hljs-literal">null</span>    <span class="hljs-number">1</span>字节
-tinyint  <span class="hljs-number">1</span>字节
-<span class="hljs-built_in">int</span>    <span class="hljs-number">4</span>字节
-bigint  <span class="hljs-number">8</span>字节
-<span class="hljs-built_in">double</span>  <span class="hljs-number">8</span>字节
-datetime <span class="hljs-number">8</span>字节
-timestamp <span class="hljs-number">4</span>字节
-varchr(<span class="hljs-number">10</span>)变长字段且允许NULL: <span class="hljs-number">10</span>*(Character Set：utf8=<span class="hljs-number">3</span>,gbk=<span class="hljs-number">2</span>,latin1=<span class="hljs-number">1</span>)+<span class="hljs-number">1</span>(NULL)+<span class="hljs-number">2</span>(变长字段)
-char(<span class="hljs-number">10</span>)固定字段且允许NULL: <span class="hljs-number">10</span>*(Character Set：utf8=<span class="hljs-number">3</span>,gbk=<span class="hljs-number">2</span>,latin1=<span class="hljs-number">1</span>)+<span class="hljs-number">1</span>(NULL)</code></pre>
+<pre><code class="hljs apache"><span class="hljs-attribute">null</span>    <span class="hljs-number">1</span>字节
+<span class="hljs-attribute">tinyint</span>  <span class="hljs-number">1</span>字节
+<span class="hljs-attribute">int</span>    <span class="hljs-number">4</span>字节
+<span class="hljs-attribute">bigint</span>  <span class="hljs-number">8</span>字节
+<span class="hljs-attribute">double</span>  <span class="hljs-number">8</span>字节
+<span class="hljs-attribute">datetime</span> <span class="hljs-number">8</span>字节
+<span class="hljs-attribute">timestamp</span> <span class="hljs-number">4</span>字节
+<span class="hljs-attribute">varchr</span>(<span class="hljs-number">10</span>)变长字段且允许NULL: <span class="hljs-number">10</span>*(Character Set：utf<span class="hljs-number">8</span>=<span class="hljs-number">3</span>,gbk=<span class="hljs-number">2</span>,latin<span class="hljs-number">1</span>=<span class="hljs-number">1</span>)+<span class="hljs-number">1</span>(NULL)+<span class="hljs-number">2</span>(变长字段)
+<span class="hljs-attribute">char</span>(<span class="hljs-number">10</span>)固定字段且允许NULL: <span class="hljs-number">10</span>*(Character Set：utf<span class="hljs-number">8</span>=<span class="hljs-number">3</span>,gbk=<span class="hljs-number">2</span>,latin<span class="hljs-number">1</span>=<span class="hljs-number">1</span>)+<span class="hljs-number">1</span>(NULL)</code></pre>
 <p>   以上是常用类型的长度，示例中key_len为18，即：8字节(biz_idbigint)+1字节(biz_id允许为null)+8字节(ftimebigint)+1字节(ftime允许为null)。所以本次查询是使用了索引的所有字段加速查询</p>
 <ul>
 <li>rows：查询预估扫描的行数</li>

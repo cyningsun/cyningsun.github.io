@@ -263,13 +263,13 @@ gtag('config', 'UA-156665333-1');
 <li>在微服务中创建一个新的API版本，该版本支持与旧API同时支持</li>
 </ul>
 <h5 id="Filtering"><a href="#Filtering" class="headerlink" title="Filtering"></a>Filtering</h5><p>在参数过滤时通常会为参数值定义数据格式。为了在所有 API 中提供一致的开发者体验并减少学习曲线，API 设计人员<strong>必须</strong>使用以下<a href="https://zh.wikipedia.org/wiki/%E6%89%A9%E5%B1%95%E5%B7%B4%E7%A7%91%E6%96%AF%E8%8C%83%E5%BC%8F#%E7%BA%A6%E5%AE%9A" target="_blank" rel="noopener">扩展巴科斯范式</a>（Extended Backus-Naur Form，简写为“EBNF”）语法的变体来定义这样的语法：</p>
-<pre><code class="hljs javascript">Production  = name <span class="hljs-string">"="</span> [ Expression ] <span class="hljs-string">";"</span> ;
-Expression  = Alternative &#123; <span class="hljs-string">"|"</span> Alternative &#125; ;
+<pre><code class="hljs javascript">Production  = name <span class="hljs-string">&quot;=&quot;</span> [ Expression ] <span class="hljs-string">&quot;;&quot;</span> ;
+Expression  = Alternative &#123; <span class="hljs-string">&quot;|&quot;</span> Alternative &#125; ;
 Alternative = Term &#123; Term &#125; ;
 Term        = name | TOKEN | Group | Option | Repetition ;
-Group       = <span class="hljs-string">"("</span> Expression <span class="hljs-string">")"</span> ;
-Option      = <span class="hljs-string">"["</span> Expression <span class="hljs-string">"]"</span> ;
-Repetition  = <span class="hljs-string">"&#123;"</span> Expression <span class="hljs-string">"&#125;"</span> ;</code></pre>
+Group       = <span class="hljs-string">&quot;(&quot;</span> Expression <span class="hljs-string">&quot;)&quot;</span> ;
+Option      = <span class="hljs-string">&quot;[&quot;</span> Expression <span class="hljs-string">&quot;]&quot;</span> ;
+Repetition  = <span class="hljs-string">&quot;&#123;&quot;</span> Expression <span class="hljs-string">&quot;&#125;&quot;</span> ;</code></pre>
 <blockquote>
 <p><strong>注意</strong>：<code>TOKEN</code> 表示在语法之外定义的终端符号。</p>
 </blockquote>
@@ -284,8 +284,8 @@ Repetition  = <span class="hljs-string">"&#123;"</span> Expression <span class="
 <span class="hljs-attribute">Content-Type</span>: application/json
 
 &#123;
-    "status":"In progress",
-    "link": &#123; "rel":"cancel", "method":"delete", "href":"/api/status/12345" &#125;
+    &quot;status&quot;:&quot;In progress&quot;,
+    &quot;link&quot;: &#123; &quot;rel&quot;:&quot;cancel&quot;, &quot;method&quot;:&quot;delete&quot;, &quot;href&quot;:&quot;/api/status/12345&quot; &#125;
 &#125;</code></pre>
 <p>如果异步操作创建了新资源，则该操作完成后，状态终结点应返回状态代码 303（查看其他）。在 303 响应中，包含一个 Location 标头用于提供新资源的 URI：</p>
 <pre><code class="hljs http">HTTP/1.1 <span class="hljs-number">303</span> See Other
@@ -331,7 +331,7 @@ POST /zoos/-/action/search 搜索</code></pre>
 <p>在搜索引擎中，把中划线当做空格处理，而下划线是被忽略的。使用中划线是对搜索引擎友好的写法</p>
 </blockquote>
 <p>Example:</p>
-  <pre><code class="hljs applescript">/shipment-orders/&#123;shipment-order-<span class="hljs-built_in">id</span>&#125;</code></pre></li>
+  <pre><code class="hljs awk"><span class="hljs-regexp">/shipment-orders/</span>&#123;shipment-order-id&#125;</code></pre></li>
 <li><p>范围</p>
 <p>表示范围的字段<strong>应该</strong>使用半开区间和命名惯例 <code>[start_xxx, end_xxx)</code>，例如 <code>[start_key, end_key)</code> 或 <code>[start_time, end_time)</code>。通常 C ++ STL 库和 Java 标准库会使用半开区间语义。API <strong>应该</strong>避免使用其他表示范围的方式，例如 <code>(index, count)</code> 或 <code>[first, last]</code>。</p>
 </li>

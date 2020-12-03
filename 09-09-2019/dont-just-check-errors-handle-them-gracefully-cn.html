@@ -208,10 +208,10 @@ gtag('config', 'UA-156665333-1');
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(e *MyError)</span> <span class="hljs-title">Error</span><span class="hljs-params">()</span> <span class="hljs-title">string</span></span> &#123;
-	<span class="hljs-keyword">return</span> fmt.Sprintf(<span class="hljs-string">"%s:%d: %s”, e.File, e.Line, e.Msg)</span>
+	<span class="hljs-keyword">return</span> fmt.Sprintf(<span class="hljs-string">&quot;%s:%d: %s”, e.File, e.Line, e.Msg)</span>
 <span class="hljs-string">&#125;</span>
 <span class="hljs-string"></span>
-<span class="hljs-string">return &amp;MyError&#123;"</span>Something happened<span class="hljs-string">", “server.go"</span>, <span class="hljs-number">42</span>&#125;</code></pre>
+<span class="hljs-string">return &amp;MyError&#123;&quot;</span>Something happened<span class="hljs-string">&quot;, “server.go&quot;</span>, <span class="hljs-number">42</span>&#125;</code></pre>
 <p>由于 <code>MyError error</code> 是一种类型，因此调用者可以使用类型断言从错误中提取额外的上下文。</p>
 <pre><code class="hljs go">err := something()
 <span class="hljs-keyword">switch</span> err := err.(<span class="hljs-keyword">type</span>) &#123;
@@ -285,7 +285,7 @@ fmt.Println(“error occurred on line:”, err.Line)
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">AuthenticateRequest</span><span class="hljs-params">(r *Request)</span> <span class="hljs-title">error</span></span> &#123;
 	err := authenticate(r.User)
 	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
-		<span class="hljs-keyword">return</span> **fmt.Errorf(<span class="hljs-string">"authenticate failed: %v"</span>, err)**
+		<span class="hljs-keyword">return</span> **fmt.Errorf(<span class="hljs-string">&quot;authenticate failed: %v&quot;</span>, err)**
 	&#125;
 	<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>
 &#125;</code></pre>
@@ -301,21 +301,21 @@ fmt.Println(“error occurred on line:”, err.Line)
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">ReadFile</span><span class="hljs-params">(path <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">([]<span class="hljs-keyword">byte</span>, error)</span></span> &#123;
 	f, err := os.Open(path)
 	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
-		<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, **errors.Wrap(err, <span class="hljs-string">"open failed"</span>)**
+		<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, **errors.Wrap(err, <span class="hljs-string">&quot;open failed&quot;</span>)**
 	&#125;
 	<span class="hljs-keyword">defer</span> f.Close()
 
 	buf, err := ioutil.ReadAll(f)
 	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
-		<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, **errors.Wrap(err, <span class="hljs-string">"read failed"</span>)**
+		<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, **errors.Wrap(err, <span class="hljs-string">&quot;read failed&quot;</span>)**
 	&#125;
 	<span class="hljs-keyword">return</span> buf, <span class="hljs-literal">nil</span>
 &#125;</code></pre>
 <p>我们将使用此函数编写一个函数来读取配置文件，然后从 <code>main</code> 调用它。</p>
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">ReadConfig</span><span class="hljs-params">()</span> <span class="hljs-params">([]<span class="hljs-keyword">byte</span>, error)</span></span> &#123;
-	home := os.Getenv(<span class="hljs-string">"HOME"</span>)
-	config, err := ReadFile(filepath.Join(home, <span class="hljs-string">".settings.xml"</span>))
-	<span class="hljs-keyword">return</span> config, **errors.Wrap(err, <span class="hljs-string">"could not read config"</span>)**
+	home := os.Getenv(<span class="hljs-string">&quot;HOME&quot;</span>)
+	config, err := ReadFile(filepath.Join(home, <span class="hljs-string">&quot;.settings.xml&quot;</span>))
+	<span class="hljs-keyword">return</span> config, **errors.Wrap(err, <span class="hljs-string">&quot;could not read config&quot;</span>)**
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
@@ -357,7 +357,7 @@ open /Users/dfc/.settings.xml: no such file or directory</code></pre>
 	_, err := w.Write(buf)
 	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
 		<span class="hljs-comment">// annotated error goes to log file</span>
-		log.Println(<span class="hljs-string">"unable to write:"</span>, err)
+		log.Println(<span class="hljs-string">&quot;unable to write:&quot;</span>, err)
 
 		<span class="hljs-comment">// unannotated error returned to caller</span>
 		<span class="hljs-keyword">return</span> err
@@ -370,7 +370,7 @@ open /Users/dfc/.settings.xml: no such file or directory</code></pre>
 <p>因此，您在日志文件中获得了重复的行的堆栈，但是在程序的顶部，您将获得没有原始错误的任何上下文。 有人使用Java吗？</p>
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Write</span><span class="hljs-params">(w io.Write, buf []<span class="hljs-keyword">byte</span>)</span> <span class="hljs-title">error</span></span> &#123;
 	_, err := w.Write(buf)
-	<span class="hljs-keyword">return</span> **errors.Wrap(err, <span class="hljs-string">"write failed"</span>)**
+	<span class="hljs-keyword">return</span> **errors.Wrap(err, <span class="hljs-string">&quot;write failed&quot;</span>)**
 &#125;</code></pre>
 <p>使用 <code>errors</code> 包，您可以以人和机器都可检查的方式向错误值添加上下文。</p>
 <h4 id="Conclusion"><a href="#Conclusion" class="headerlink" title="Conclusion"></a>Conclusion</h4><p>总之，错误是包 public API 的一部分，对待它们就像对待 public API 的其他部分一样小心。</p>

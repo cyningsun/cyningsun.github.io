@@ -192,8 +192,8 @@ rand ()
 <p>可以看到函数调用__random(), 我们继续跟进这个函数</p>
 <p><a href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random.c;hb=glibc-2.15" target="_blank" rel="noopener">stdlib/random.c</a></p>
 <pre><code class="hljs c++">
-<span class="hljs-comment">/* POSIX.1c requires that there is mutual exclusion for the `rand' and</span>
-<span class="hljs-comment">   `srand' functions to prevent concurrent calls from modifying common</span>
+<span class="hljs-comment">/* POSIX.1c requires that there is mutual exclusion for the `rand&#x27; and</span>
+<span class="hljs-comment">   `srand&#x27; functions to prevent concurrent calls from modifying common</span>
 <span class="hljs-comment">   data.  */</span>
 __libc_lock_define_initialized (<span class="hljs-keyword">static</span>, lock)
 
@@ -220,9 +220,9 @@ __random ()
 <span class="hljs-comment">   set up.  The basic operation is to add the number at the rear pointer into</span>
 <span class="hljs-comment">   the one at the front pointer.  Then both pointers are advanced to the next</span>
 <span class="hljs-comment">   location cyclically in the table.  The value returned is the sum generated,</span>
-<span class="hljs-comment">   reduced to 31 bits by throwing away the "least random" low bit.</span>
+<span class="hljs-comment">   reduced to 31 bits by throwing away the &quot;least random&quot; low bit.</span>
 <span class="hljs-comment">   Note: The code takes advantage of the fact that both the front and</span>
-<span class="hljs-comment">   rear pointers can't wrap on the same call by not testing the rear</span>
+<span class="hljs-comment">   rear pointers can&#x27;t wrap on the same call by not testing the rear</span>
 <span class="hljs-comment">   pointer if the front one has wrapped.  Returns a 31-bit random number.  */</span>
  
 <span class="hljs-keyword">int</span>

@@ -184,9 +184,9 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-comment">//holeIndex: 新值将被置于的位置</span>
 <span class="hljs-comment">//topIndex: 根节点在容器中的索引</span>
 <span class="hljs-comment">//value: 新值的值</span>
-<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-title">class</span> <span class="hljs-title">Distance</span>, <span class="hljs-title">class</span> <span class="hljs-title">T</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> __<span class="hljs-title">push_heap</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>, <span class="hljs-title">Distance</span> <span class="hljs-title">holeIndex</span>,</span>
-<span class="hljs-class">    <span class="hljs-title">Distance</span> <span class="hljs-title">topIndex</span>, <span class="hljs-title">T</span> <span class="hljs-title">value</span>) &#123;</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Distance</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>&gt;</span>
+<span class="hljs-keyword">void</span> __push_heap (RandomAccessIterator first, Distance holeIndex,
+    Distance topIndex, T value) &#123;
     Distance parent = (holeIndex - <span class="hljs-number">1</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">// 找出父节点</span>
     <span class="hljs-keyword">while</span> (holeIndex &gt; topIndex &amp;&amp; *(first + parent) &lt; value) &#123;
         <span class="hljs-comment">// 当尚未到达顶端，且父节点小于新值（于是不符合 heap 的次序特性）</span>
@@ -202,9 +202,9 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-comment">//holeIndex: 被取走的根植形成 hole 位置的索引</span>
 <span class="hljs-comment">//len: 指定了排序的区域大小</span>
 <span class="hljs-comment">//value: 割舍之叶节点之值</span>
-<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-title">class</span> <span class="hljs-title">Distance</span>, <span class="hljs-title">class</span> <span class="hljs-title">T</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> __<span class="hljs-title">adjust_heap</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>, <span class="hljs-title">Distance</span> <span class="hljs-title">holeIndex</span>,</span>
-<span class="hljs-class">    <span class="hljs-title">Distance</span> <span class="hljs-title">len</span>, <span class="hljs-title">T</span> <span class="hljs-title">value</span>) &#123;</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Distance</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>&gt;</span>
+<span class="hljs-keyword">void</span> __adjust_heap (RandomAccessIterator first, Distance holeIndex,
+    Distance len, T value) &#123;
 
     Distance topIndex = holeIndex;
     Distance secondChild = <span class="hljs-number">2</span> * holeIndex + <span class="hljs-number">2</span>; <span class="hljs-comment">// 洞节点之右子节点</span>
@@ -227,18 +227,18 @@ gtag('config', 'UA-156665333-1');
     __push_heap (first, holeIndex, topIndex, value);
 &#125;</code></pre></p>
 <h4 id="sort-heap-算法"><a href="#sort-heap-算法" class="headerlink" title="sort_heap 算法"></a>sort_heap 算法</h4><p>既然每次 pop_heap 可获得 heap 之 中 键值最大的元素，如果持续对整个 heap 做pop_heap 动作，每次将操作范围从后向前缩减 一 个元素（因为 pop_heap 会把键值最大的元素放在底部容器的最尾端），当整个程序执行完毕，我们便有了㆒个递增序列。<br><pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> <span class="hljs-title">sort_heap</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>,</span>
-<span class="hljs-class">    <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>) &#123;</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sort_heap</span> <span class="hljs-params">(RandomAccessIterator first,</span></span>
+<span class="hljs-function"><span class="hljs-params">    RandomAccessIterator last)</span> </span>&#123;
     <span class="hljs-comment">// 以 下 ，每执行 一 次 pop_heap() ，极值（在 STL heap 中 为极大值）即被放在尾端。</span>
     <span class="hljs-comment">// 扣除尾端再执行 一 次 pop_heap() ，次极值又被放在新尾端。 一 直 下 去，最后即得</span>
     <span class="hljs-comment">// 排序结果。</span>
     <span class="hljs-keyword">while</span> (last - first &gt; <span class="hljs-number">1</span>)
         pop_heap (first, last--); <span class="hljs-comment">// 每执行 pop_heap() 一 次，操作范围即退缩 一 格。</span>
 &#125;</code></pre></p>
-<h4 id="make-heap-算法"><a href="#make-heap-算法" class="headerlink" title="make_heap 算法"></a>make_heap 算法</h4><p>这个算法用来将一段现有的数据转化为一个heap 。其主要依据就是 complete binary tree 的隐式表述（ implicit representation ）。<br><pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-title">class</span> <span class="hljs-title">T</span>, <span class="hljs-title">class</span> <span class="hljs-title">Distance</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> __<span class="hljs-title">make_heap</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>,</span>
-<span class="hljs-class">    <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>, <span class="hljs-title">T</span>*,</span>
-<span class="hljs-class">    <span class="hljs-title">Distance</span>*) &#123;</span>
+<h4 id="make-heap-算法"><a href="#make-heap-算法" class="headerlink" title="make_heap 算法"></a>make_heap 算法</h4><p>这个算法用来将一段现有的数据转化为一个heap 。其主要依据就是 complete binary tree 的隐式表述（ implicit representation ）。<br><pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Distance</span>&gt;</span>
+<span class="hljs-keyword">void</span> __make_heap (RandomAccessIterator first,
+    RandomAccessIterator last, T*,
+    Distance*) &#123;
     <span class="hljs-keyword">if</span> (last - first &lt; <span class="hljs-number">2</span>) <span class="hljs-keyword">return</span>; <span class="hljs-comment">// 如果长度为 0 或 1 ，不必重新排列。</span>
     
     Distance len = last - first;

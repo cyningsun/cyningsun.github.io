@@ -183,7 +183,7 @@ gtag('config', 'UA-156665333-1');
 
 <span class="hljs-comment">// 千万注意： sort() 只适用于 RandomAccessIterator</span>
 <span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">inline</span> <span class="hljs-title">void</span> <span class="hljs-title">sort</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>, <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>) &#123;</span>
+<span class="hljs-function"><span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span> <span class="hljs-title">sort</span> <span class="hljs-params">(RandomAccessIterator first, RandomAccessIterator last)</span> </span>&#123;
   <span class="hljs-keyword">if</span> (first != last) &#123;
     __introsort_loop (first, last, value_type(first), __lg (last - first) * <span class="hljs-number">2</span>);
     __final_insertion_sort (first, last);
@@ -193,17 +193,17 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-comment">//__lg() 用来控制分割恶化的情况。</span>
 <span class="hljs-comment">// 找出 2^k &lt;= n 的最大值 k 。例， n=7 ，得 k=2 ， n=20 ，得 k=4 ， n=8 ，得 k=3 。</span>
 <span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Size</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">inline</span> <span class="hljs-title">Size</span> __<span class="hljs-title">lg</span> (<span class="hljs-title">Size</span> <span class="hljs-title">n</span>) &#123;</span>
+<span class="hljs-keyword">inline</span> Size __lg (Size n) &#123;
   Size k;
   <span class="hljs-keyword">for</span> (k = <span class="hljs-number">0</span>; n &gt; <span class="hljs-number">1</span>; n &gt;&gt;= <span class="hljs-number">1</span>) ++k;   
   <span class="hljs-keyword">return</span> k;
 &#125;
 
 <span class="hljs-comment">// 完成后将返回母函数 sort() 在进入 __final_insertion_sort() 最终完成排序</span>
-<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-title">class</span> <span class="hljs-title">T</span>, <span class="hljs-title">class</span> <span class="hljs-title">Size</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> __<span class="hljs-title">introsort_loop</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>,</span>
-<span class="hljs-class">                      <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>, <span class="hljs-title">T</span>*,</span>
-<span class="hljs-class">                      <span class="hljs-title">Size</span> <span class="hljs-title">depth_limit</span>) &#123;</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Size</span>&gt;</span>
+<span class="hljs-keyword">void</span> __introsort_loop (RandomAccessIterator first,
+                      RandomAccessIterator last, T*,
+                      Size depth_limit) &#123;
   <span class="hljs-comment">// 以下， __stl_threshold 是个全局常数，稍早定义为 const int 16 。</span>
   <span class="hljs-comment">// 判断序列大小，如果小于等于 16 使用 Quick Sort 的排序，留给 Insertion Sort 最终完成排序</span>
   <span class="hljs-keyword">while</span> (last - first &gt; __stl_threshold ) &#123;
@@ -227,8 +227,8 @@ gtag('config', 'UA-156665333-1');
 
 <span class="hljs-comment">// 以插入排序完成最后的排序</span>
 <span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> __<span class="hljs-title">final_insertion_sort</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>,</span>
-<span class="hljs-class">                            <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>) &#123;</span>
+<span class="hljs-keyword">void</span> __final_insertion_sort (RandomAccessIterator first,
+                            RandomAccessIterator last) &#123;
   <span class="hljs-keyword">if</span> (last - first &gt; __stl_threshold ) &#123;
     <span class="hljs-comment">// 分为两段前者调用插入排序，因为后段的元素总是比前段大（由 Quick Sort 性质可知），所以先</span>
     <span class="hljs-comment">// 调用前者完成前段排序，然后将后段从尾部遍历的方式插入已序的元素中</span>
@@ -240,30 +240,30 @@ gtag('config', 'UA-156665333-1');
 &#125;
 
 <span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">inline</span> <span class="hljs-title">void</span> __<span class="hljs-title">unguarded_insertion_sort</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>,</span>
-<span class="hljs-class">                                <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>) &#123;</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span> __unguarded_insertion_sort (RandomAccessIterator first,
+                                RandomAccessIterator last) &#123;
   __unguarded_insertion_sort_aux (first, last, value_type(first));
 &#125;
 
-<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-title">class</span> <span class="hljs-title">T</span>, <span class="hljs-title">class</span> <span class="hljs-title">Compare</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> __<span class="hljs-title">unguarded_insertion_sort_aux</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>,</span>
-<span class="hljs-class">                                    <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>,</span>
-<span class="hljs-class">                                    <span class="hljs-title">T</span>*, <span class="hljs-title">Compare</span> <span class="hljs-title">comp</span>) &#123;</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Compare</span>&gt;</span>
+<span class="hljs-keyword">void</span> __unguarded_insertion_sort_aux (RandomAccessIterator first,
+                                    RandomAccessIterator last,
+                                    T*, Compare comp) &#123;
   <span class="hljs-keyword">for</span> (RandomAccessIterator i = first; i != last; ++i)
     __unguarded_linear_insert(i, T(*i), comp);
 &#125;
 
 <span class="hljs-comment">// 对指定区域完成插入排序</span>
 <span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> __<span class="hljs-title">insertion_sort</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>, <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>) &#123;</span>
+<span class="hljs-keyword">void</span> __insertion_sort (RandomAccessIterator first, RandomAccessIterator last) &#123;
   <span class="hljs-keyword">if</span> (first == last) <span class="hljs-keyword">return</span>;
   <span class="hljs-keyword">for</span> (RandomAccessIterator i = first + <span class="hljs-number">1</span>; i != last; ++i)   <span class="hljs-comment">// 外循环</span>
     __linear_insert (first, i, value_type(first));    <span class="hljs-comment">// first,i 形成一个子范围</span>
 &#125;
 
-<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-title">class</span> <span class="hljs-title">T</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">inline</span> <span class="hljs-title">void</span> __<span class="hljs-title">linear_insert</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>,</span>
-<span class="hljs-class">                                  <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>, <span class="hljs-title">T</span>*) &#123;</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>&gt;</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span> __linear_insert (RandomAccessIterator first,
+                                  RandomAccessIterator last, T*) &#123;
   T value = *last;      <span class="hljs-comment">// 记录尾元素</span>
   <span class="hljs-keyword">if</span> (value &lt; *first) &#123; <span class="hljs-comment">// 尾比头还小（那就别一个个比较了，一次做完…）</span>
     copy_backward (first, last, last + <span class="hljs-number">1</span>); <span class="hljs-comment">// 将整个范围向右递移一个位置</span>
@@ -274,8 +274,8 @@ gtag('config', 'UA-156665333-1');
 &#125;
 
 <span class="hljs-comment">// 由末尾遍历，将数据插入到已序元素中去。</span>
-<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-title">class</span> <span class="hljs-title">T</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">void</span> __<span class="hljs-title">unguarded_linear_insert</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>, <span class="hljs-title">T</span> <span class="hljs-title">value</span>) &#123;</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>&gt;</span>
+<span class="hljs-keyword">void</span> __unguarded_linear_insert (RandomAccessIterator last, T value) &#123;
   RandomAccessIterator next = last;
   --next;
   <span class="hljs-keyword">while</span> (value &lt; *next) &#123;  
@@ -288,7 +288,7 @@ gtag('config', 'UA-156665333-1');
 
 <span class="hljs-comment">// 传回 a,b,c 之居中者</span>
 <span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">T</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">inline</span> <span class="hljs-title">const</span> <span class="hljs-title">T</span>&amp; __<span class="hljs-title">median</span> (<span class="hljs-title">const</span> <span class="hljs-title">T</span>&amp; <span class="hljs-title">a</span>, <span class="hljs-title">const</span> <span class="hljs-title">T</span>&amp; <span class="hljs-title">b</span>, <span class="hljs-title">const</span> <span class="hljs-title">T</span>&amp; <span class="hljs-title">c</span>) &#123;</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-keyword">const</span> T&amp; __median (<span class="hljs-keyword">const</span> T&amp; a, <span class="hljs-keyword">const</span> T&amp; b, <span class="hljs-keyword">const</span> T&amp; c) &#123;
   <span class="hljs-keyword">if</span> (a &lt; b)
     <span class="hljs-keyword">if</span> (b &lt; c)      <span class="hljs-comment">// a &lt; b &lt; c</span>
       <span class="hljs-keyword">return</span> b;     
@@ -304,10 +304,10 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-keyword">return</span> b;
 &#125;
 
-<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-title">class</span> <span class="hljs-title">T</span>&gt;</span>
-<span class="hljs-class"><span class="hljs-title">RandomAccessIterator</span> __<span class="hljs-title">unguarded_partition</span> (<span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">first</span>,</span>
-<span class="hljs-class">                                           <span class="hljs-title">RandomAccessIterator</span> <span class="hljs-title">last</span>,</span>
-<span class="hljs-class">                                           <span class="hljs-title">T</span> <span class="hljs-title">pivot</span>) &#123;</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>&gt;</span>
+RandomAccessIterator __unguarded_partition (RandomAccessIterator first,
+                                           RandomAccessIterator last,
+                                           T pivot) &#123;
   <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) &#123;
     <span class="hljs-keyword">while</span> (*first &lt; pivot) ++first;    <span class="hljs-comment">// first 找到 &gt;= pivot 的元素，就停下来</span>
     --last;                     <span class="hljs-comment">// 调整</span>

@@ -275,18 +275,18 @@ mysqld     2470         mysql   11u      REG              253,1           0     
 <h3 id="文件-amp-进程管理"><a href="#文件-amp-进程管理" class="headerlink" title="文件 &amp; 进程管理"></a>文件 &amp; 进程管理</h3><p>下图是一个简单示例，说明进程是怎样与文件进行交互。三个不同进程打开同一个文件，每个进程都有自己的文件对象，其中两个进程使用同一个硬链接（每个硬链接对应一个目录对象），两个目录项对象都指向同一个 索引节点对象。</p>
 <p><img src="/images/virtual-file-system/vfs-process-interaction.jpeg" alt="vfs-process-interaction"></p>
 <p>索引节点的数据又由两部分组成：内存数据和磁盘数据。Linux 使用 <a href="https://en.wikipedia.org/wiki/Cache_(computing" target="_blank" rel="noopener">Write back</a>#Writing_policies) 作为索引节点的数据一致性策略。对于索引节点的数据，当文件被打开时，才会加载索引节点到内存；当不再被进程使用，则从内存踢出；如果中间有更新，则需要把数据写回磁盘。</p>
-<pre><code class="hljs markdown"><span class="hljs-bullet">*  </span>"in<span class="hljs-emphasis">_use" - valid inode, i_</span>count &gt; 0, i_nlink &gt; 0
-<span class="hljs-bullet">*  </span>"dirty"  - as "in_use" but also dirty
-<span class="hljs-bullet">*  </span>"unused" - valid inode, i_count = 0</code></pre>
+<pre><code class="hljs markdown"><span class="hljs-bullet">*</span>  &quot;in<span class="hljs-emphasis">_use&quot; - valid inode, i_</span>count &gt; 0, i<span class="hljs-emphasis">_nlink &gt; 0</span>
+<span class="hljs-emphasis">*  &quot;dirty&quot;  - as &quot;in_</span>use&quot; but also dirty
+<span class="hljs-bullet">*</span>  &quot;unused&quot; - valid inode, i<span class="hljs-emphasis">_count = 0</span></code></pre>
 <p>索引节点是否仍在使用，是通过 <code>open()</code> 和 <code>close()</code> 操作建立和销毁文件对象，文件对象通过索引节点提供的 <code>iget</code> 和 <code>iput</code>  更新索引节点的i_count字段，以完成使用计数。open 操作使得 i_count 加一， close 操作使得 i_count 减一。在 close 操作时判断索引节点是否释放，如果 i_count = 0，则意味着不再有进程引用，将会从内存释放。</p>
 <h3 id="文件-amp-磁盘管理"><a href="#文件-amp-磁盘管理" class="headerlink" title="文件 &amp; 磁盘管理"></a>文件 &amp; 磁盘管理</h3><p>文件与磁盘管理联系最紧密的操作，莫过于 <code>touch</code> 和 <code>rm</code> 操作，而尤以后者最为关键。通过strace(或 dtruss)，查看 <code>rm</code> 的实际的系统调用</p>
 <pre><code class="hljs sh"><span class="hljs-comment"># dtruss rm tmp</span>
 ...
 geteuid(0x0, 0x0, 0x0)		 = 0 0
 ioctl(0x0, 0x4004667A, 0x7FFEE06F09C4)		 = 0 0
-lstat64(<span class="hljs-string">"tmp\0"</span>, 0x7FFEE06F0968, 0x0)		 = 0 0
-access(<span class="hljs-string">"tmp\0"</span>, 0x2, 0x0)		 = 0 0
-unlink(<span class="hljs-string">"tmp\0"</span>, 0x0, 0x0)		 = 0 0</code></pre>
+lstat64(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x7FFEE06F0968, 0x0)		 = 0 0
+access(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x2, 0x0)		 = 0 0
+unlink(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x0, 0x0)		 = 0 0</code></pre>
 <p>可以发现 <code>rm</code> 实际是通过 <code>unlink</code> 完成的。 <code>unlink</code>代表删除目录项，以及减少其索引节点的计数。由通用文件模型可知，父目录本身同样是一个文件，也就意味着目录项是其文件数据的一部分。删除目录项等价于从父目录的文件中删除数据，也就意味着首先要打开父目录的文件。那么，删除操作即可理解为：</p>
 <ol>
 <li>删除命令（一个进程）使用 <code>open</code> 操作获得父目录文件对象</li>
@@ -334,6 +334,13 @@ unlink(<span class="hljs-string">"tmp\0"</span>, 0x0, 0x0)		 = 0 0</code></pre>
 
     
 
+
+
+  <ol class="related">
+      
+            <li><span><a href="/12-02-2020/memory-management-summary.html">内存管理基础概念总述</a></span></li>
+          
+  </ol>
 
 
     <ul class="pager">

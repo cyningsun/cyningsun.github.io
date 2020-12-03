@@ -232,19 +232,19 @@ gtag('config', 'UA-156665333-1');
 )
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
-	fmt.Printf(<span class="hljs-string">"X size:%v, Y size:%v, Z size:%v\n"</span>, unsafe.Sizeof(X), unsafe.Sizeof(Y), unsafe.Sizeof(Z))
-	fmt.Printf(<span class="hljs-string">"X addr:%v, Y addr:%v, Z addr:%v\n"</span>, &amp;X, &amp;Y, &amp;Z)
+	fmt.Printf(<span class="hljs-string">&quot;X size:%v, Y size:%v, Z size:%v\n&quot;</span>, unsafe.Sizeof(X), unsafe.Sizeof(Y), unsafe.Sizeof(Z))
+	fmt.Printf(<span class="hljs-string">&quot;X addr:%v, Y addr:%v, Z addr:%v\n&quot;</span>, &amp;X, &amp;Y, &amp;Z)
 &#125;</code></pre><br>执行程序输出为：<br><pre><code class="hljs sh">$ go run variable.go
 X size:4, Y size:4, Z size:4
 X addr:0x118ee88, Y addr:0x118ee8c, Z addr:0x118ee90</code></pre><br>可以看到，X、Y、Z三个字段大小均为4字节，且三个字段内存地址顺序排列。</p>
 <p>再看第二段代码的输出<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestLayout</span><span class="hljs-params">(t *testing.T)</span></span> &#123;
 	p := point3d&#123;X: <span class="hljs-number">1</span>, Y: <span class="hljs-number">2</span>, Z: <span class="hljs-number">3</span>&#125;
-	fmt.Printf(<span class="hljs-string">"point3d size:%v, align:%v\n"</span>, unsafe.Sizeof(p), unsafe.Alignof(p))
+	fmt.Printf(<span class="hljs-string">&quot;point3d size:%v, align:%v\n&quot;</span>, unsafe.Sizeof(p), unsafe.Alignof(p))
 	typ := reflect.TypeOf(p)
-	fmt.Printf(<span class="hljs-string">"Struct:%v is %d bytes long\n"</span>, typ.Name(), typ.Size())
-	fmt.Printf(<span class="hljs-string">"X at offset %v, size=%d\n"</span>, unsafe.Offsetof(p.X), unsafe.Sizeof(p.X))
-	fmt.Printf(<span class="hljs-string">"Y at offset %v, size=%d\n"</span>, unsafe.Offsetof(p.Y), unsafe.Sizeof(p.Y))
-	fmt.Printf(<span class="hljs-string">"Z at offset %v, size=%d\n"</span>, unsafe.Offsetof(p.Z), unsafe.Sizeof(p.Z))
+	fmt.Printf(<span class="hljs-string">&quot;Struct:%v is %d bytes long\n&quot;</span>, typ.Name(), typ.Size())
+	fmt.Printf(<span class="hljs-string">&quot;X at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.X), unsafe.Sizeof(p.X))
+	fmt.Printf(<span class="hljs-string">&quot;Y at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.Y), unsafe.Sizeof(p.Y))
+	fmt.Printf(<span class="hljs-string">&quot;Z at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.Z), unsafe.Sizeof(p.Z))
 &#125;</code></pre></p>
 <p>执行程序输出为：<br><pre><code class="hljs sh">$ go <span class="hljs-built_in">test</span> -v -run TestLayout
 === RUN   TestLayout
@@ -255,12 +255,12 @@ Y at offset 4, size=4
 Z at offset 8, size=4</code></pre><br>可以看到，X、Y、Z三个字段大小一样为4字节，内存排列也与上一个版本一样。</p>
 <p>继续，第三段代码<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestLayout</span><span class="hljs-params">(t *testing.T)</span></span> &#123;
 	p := point3d&#123;point2d: point2d&#123;point: point&#123;X: <span class="hljs-number">1</span>&#125;, Y: <span class="hljs-number">2</span>&#125;, Z: <span class="hljs-number">3</span>&#125;
-	fmt.Printf(<span class="hljs-string">"point3d size:%v, align:%v\n"</span>, unsafe.Sizeof(p), unsafe.Alignof(p))
+	fmt.Printf(<span class="hljs-string">&quot;point3d size:%v, align:%v\n&quot;</span>, unsafe.Sizeof(p), unsafe.Alignof(p))
 	typ := reflect.TypeOf(p)
-	fmt.Printf(<span class="hljs-string">"Struct:%v is %d bytes long\n"</span>, typ.Name(), typ.Size())
-	fmt.Printf(<span class="hljs-string">"X at offset %v, size=%d\n"</span>, unsafe.Offsetof(p.X), unsafe.Sizeof(p.X))
-	fmt.Printf(<span class="hljs-string">"Y at offset %v, size=%d\n"</span>, unsafe.Offsetof(p.Y), unsafe.Sizeof(p.Y))
-	fmt.Printf(<span class="hljs-string">"Z at offset %v, size=%d\n"</span>, unsafe.Offsetof(p.Z), unsafe.Sizeof(p.Z))
+	fmt.Printf(<span class="hljs-string">&quot;Struct:%v is %d bytes long\n&quot;</span>, typ.Name(), typ.Size())
+	fmt.Printf(<span class="hljs-string">&quot;X at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.X), unsafe.Sizeof(p.X))
+	fmt.Printf(<span class="hljs-string">&quot;Y at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.Y), unsafe.Sizeof(p.Y))
+	fmt.Printf(<span class="hljs-string">&quot;Z at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.Z), unsafe.Sizeof(p.Z))
 &#125;</code></pre></p>
 <p>执行程序输出为：<br><pre><code class="hljs sh">$ go <span class="hljs-built_in">test</span> -v -run TestLayout
 === RUN   TestLayout
@@ -292,9 +292,9 @@ Z at offset 8, size=4</code></pre><br>可以看到，X、Y、Z三个字段大小
 	point := point3d&#123;point2d: point2d&#123;point: point&#123;X: <span class="hljs-number">1</span>&#125;, Y: <span class="hljs-number">2</span>&#125;, Z: <span class="hljs-number">3</span>&#125; <span class="hljs-comment">// L25</span>
 	p := &amp;point  <span class="hljs-comment">// L26</span>
 	w = point.Y  <span class="hljs-comment">// L27</span>
-	fmt.Printf(<span class="hljs-string">"w:%f\n"</span>, w)
+	fmt.Printf(<span class="hljs-string">&quot;w:%f\n&quot;</span>, w)
 	w = p.Y     <span class="hljs-comment">// L29</span>
-	fmt.Printf(<span class="hljs-string">"w:%f\n"</span>, w)
+	fmt.Printf(<span class="hljs-string">&quot;w:%f\n&quot;</span>, w)
 &#125;</code></pre></p>
 <p>还记得之前提过的“编译”阶段么？我们使用 go tool 可以查看源代码汇编之后的代码<br><pre><code class="hljs x86asm"><span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x10948d8</span>	f30f11442444		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x44</span>(<span class="hljs-built_in">SP</span>)
 <span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x10948de</span>	f30f11442448		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x48</span>(<span class="hljs-built_in">SP</span>)
@@ -319,7 +319,7 @@ Z at offset 8, size=4</code></pre><br>可以看到，X、Y、Z三个字段大小
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *point3d)</span> <span class="hljs-title">Println</span><span class="hljs-params">()</span></span> &#123;
-	fmt.Printf(<span class="hljs-string">"%v,%v,%v\n"</span>, p.X, p.Y, p.Z)
+	fmt.Printf(<span class="hljs-string">&quot;%v,%v,%v\n&quot;</span>, p.X, p.Y, p.Z)
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
@@ -365,13 +365,13 @@ Z at offset 8, size=4</code></pre><br>可以看到，X、Y、Z三个字段大小
 		p Point
 	)
 	p = &amp;point&#123;X: <span class="hljs-number">1</span>&#125;
-	fmt.Printf(<span class="hljs-string">"point size:%v\n\n"</span>, unsafe.Sizeof(p))
+	fmt.Printf(<span class="hljs-string">&quot;point size:%v\n\n&quot;</span>, unsafe.Sizeof(p))
 
 	p = &amp;point2d&#123;point: point&#123;X: <span class="hljs-number">1</span>&#125;, Y: <span class="hljs-number">2</span>&#125;
-	fmt.Printf(<span class="hljs-string">"point2d size:%v\n\n"</span>, unsafe.Sizeof(p))
+	fmt.Printf(<span class="hljs-string">&quot;point2d size:%v\n\n&quot;</span>, unsafe.Sizeof(p))
 
 	p = &amp;point3d&#123;point2d: point2d&#123;point: point&#123;X: <span class="hljs-number">1</span>&#125;, Y: <span class="hljs-number">2</span>&#125;, Z: <span class="hljs-number">3</span>&#125;
-	fmt.Printf(<span class="hljs-string">"point3d size:%v\n\n"</span>, unsafe.Sizeof(p))
+	fmt.Printf(<span class="hljs-string">&quot;point3d size:%v\n\n&quot;</span>, unsafe.Sizeof(p))
 &#125;</code></pre></p>
 <p>执行程序输出为：<br><pre><code class="hljs sh">$ go <span class="hljs-built_in">test</span> -v -run TestPolymorphism
 === RUN   TestPolymorphism
@@ -431,19 +431,19 @@ p size:16, nilP size:16</code></pre></p>
 	)
 	point := &amp;point3d&#123;X: <span class="hljs-number">1</span>, Y: <span class="hljs-number">2</span>, Z: <span class="hljs-number">3</span>&#125;
 	nilP = point
-	fmt.Printf(<span class="hljs-string">"eface size:%v\n"</span>, unsafe.Sizeof(nilP))
+	fmt.Printf(<span class="hljs-string">&quot;eface size:%v\n&quot;</span>, unsafe.Sizeof(nilP))
 	eface := (*face.Eface)(unsafe.Pointer(&amp;nilP))
 	spew.Dump(eface.Type)
 	spew.Dump(eface.Data)
-	fmt.Printf(<span class="hljs-string">"eface offset: eface._type = %v, eface.data = %v\n\n"</span>,
+	fmt.Printf(<span class="hljs-string">&quot;eface offset: eface._type = %v, eface.data = %v\n\n&quot;</span>,
 		unsafe.Offsetof(eface.Type), unsafe.Offsetof(eface.Data))
 
 	p = point
-	fmt.Printf(<span class="hljs-string">"point size:%v\n"</span>, unsafe.Sizeof(p))
+	fmt.Printf(<span class="hljs-string">&quot;point size:%v\n&quot;</span>, unsafe.Sizeof(p))
 	iface := (*face.Iface)(unsafe.Pointer(&amp;p))
 	spew.Dump(iface.Tab)
 	spew.Dump(iface.Data)
-	fmt.Printf(<span class="hljs-string">"Iface offset: iface.tab = %v, iface.data = %v\n\n"</span>,
+	fmt.Printf(<span class="hljs-string">&quot;Iface offset: iface.tab = %v, iface.data = %v\n\n&quot;</span>,
 		unsafe.Offsetof(iface.Tab), unsafe.Offsetof(iface.Data))
 &#125;</code></pre></p>
 <p>执行程序输出为：<br><pre><code class="hljs sh">$ go <span class="hljs-built_in">test</span> -v -run TestInterface
@@ -476,7 +476,7 @@ Iface offset: iface.tab = 0, iface.data = 8</code></pre></p>
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *point3d)</span> <span class="hljs-title">Println</span><span class="hljs-params">()</span></span> &#123;
-	fmt.Printf(<span class="hljs-string">"%v,%v,%v\n"</span>, p.X, p.Y, p.Z)
+	fmt.Printf(<span class="hljs-string">&quot;%v,%v,%v\n&quot;</span>, p.X, p.Y, p.Z)
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;

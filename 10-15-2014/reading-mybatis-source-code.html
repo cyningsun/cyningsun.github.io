@@ -16,9 +16,9 @@
 <meta property="og:url" content="/10-15-2014/reading-mybatis-source-code.html">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta itemprop="description" name="description" content="基本原理本文中Mybatis基本原理切入，同时摘录Mybatis的源码，理解Mybatis框架的工作原理。首先看一段JDBC代码：
-Class.forName(&#34;com.mysql.jdbc.Driver&#34;);
-String url = &#34;jdbc:mysql://localhost:3306/localdb&#34;;
-Connection con = Drive">
+Class.forName(&amp;quot;com.mysql.jdbc.Driver&amp;quot;);
+String url = &amp;quot;jdbc:mysql://localhost:3306/localdb&amp;quot;;
+Co">
 
 <meta name="keywords" content="mybatis">
 
@@ -176,15 +176,15 @@ gtag('config', 'UA-156665333-1');
     <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#基本原理"><span class="toc-text">基本原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#源码解析"><span class="toc-text">源码解析</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#启动配置解析"><span class="toc-text">启动配置解析</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#SQL-参数-解析与执行"><span class="toc-text">SQL(参数)解析与执行</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#结果集映射"><span class="toc-text">结果集映射</span></a></li></ol></li></ol>
  
         <h3 id="基本原理"><a href="#基本原理" class="headerlink" title="基本原理"></a>基本原理</h3><p>本文中Mybatis基本原理切入，同时摘录Mybatis的源码，理解Mybatis框架的工作原理。首先看一段JDBC代码：</p>
-<pre><code class="hljs java">Class.forName(<span class="hljs-string">"com.mysql.jdbc.Driver"</span>);
-String url = <span class="hljs-string">"jdbc:mysql://localhost:3306/localdb"</span>;
-Connection con = DriverManager.getConnection(url, <span class="hljs-string">"root"</span>,<span class="hljs-string">"password"</span>);			
-String sql = <span class="hljs-string">"SELECT name FROM t_test_employee WHERE id = ?"</span>;
+<pre><code class="hljs java">Class.forName(<span class="hljs-string">&quot;com.mysql.jdbc.Driver&quot;</span>);
+String url = <span class="hljs-string">&quot;jdbc:mysql://localhost:3306/localdb&quot;</span>;
+Connection con = DriverManager.getConnection(url, <span class="hljs-string">&quot;root&quot;</span>,<span class="hljs-string">&quot;password&quot;</span>);			
+String sql = <span class="hljs-string">&quot;SELECT name FROM t_test_employee WHERE id = ?&quot;</span>;
 PreparedStatement ps = con.prepareStatement(sql);
-ps.setString(<span class="hljs-number">1</span>, <span class="hljs-string">"123"</span>);
+ps.setString(<span class="hljs-number">1</span>, <span class="hljs-string">&quot;123&quot;</span>);
 ResultSet rs = ps.executeQuery();
 <span class="hljs-keyword">while</span>(rs.next())&#123;
-	System.out.println(<span class="hljs-string">"name="</span> + rs.getString(<span class="hljs-number">1</span>));
+	System.out.println(<span class="hljs-string">&quot;name=&quot;</span> + rs.getString(<span class="hljs-number">1</span>));
 &#125;
 con.close();</code></pre>
 <p>大家应该比较熟悉这段代码，典型的jdbc流程: 建立连接-&gt;传递sql-&gt;传递参数-&gt;sql执行-&gt;处理结果-&gt;关闭连接。ORM框架的本质是抽取共性、封装逻辑。现在，如果我们来设计一个ORM框架该如何设计？<br>仔细考虑JDBC流程，可以发现流程中需要用户配置的输入和输出是变化的(如下，括号中部分)，而其他部分则是固定不变的逻辑。</p>

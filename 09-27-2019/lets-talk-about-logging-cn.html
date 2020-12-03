@@ -218,7 +218,7 @@ gtag('config', 'UA-156665333-1');
 <p>如果您选择通过打印日志来处理错误，那么按照定义，你已经处理了它，错误就不存在了。打印错误处理错误的行为，意味着不再适合将其打印为错误日志。</p>
 <p>让我尝试用以下代码片段说服您：<br><pre><code class="hljs go">err := somethingHard()
 <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
-        log.Error(<span class="hljs-string">"oops, something was too hard"</span>, err)
+        log.Error(<span class="hljs-string">&quot;oops, something was too hard&quot;</span>, err)
         <span class="hljs-keyword">return</span> err <span class="hljs-comment">// what is this, Java ?</span>
 &#125;</code></pre></p>
 <p>您永远不应该在 error 级别打印任何内容的日志，因为您应该处理错误，或者将其传递回调用方。</p>
