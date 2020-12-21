@@ -197,6 +197,7 @@ gtag('config', 'UA-156665333-1');
 0       lack_target     xxx_cron_WsCDNStatMonitor
 0       lack_target     xxx_cron_TaskMonitor
 0       lack_target     xxx_cron_TxCloudStatMonitor</code></pre>
+
 <p>以上几个 Key 存在比较明显的特征，即，都是定时任务使用Redis作为分布式锁创建的。该部分比较特殊的地方在于使用 lua 脚本，而同步工具对 lua的支持不太好。</p>
 <h3 id="Redis-集群流量持续不归零"><a href="#Redis-集群流量持续不归零" class="headerlink" title="Redis 集群流量持续不归零"></a>Redis 集群流量持续不归零</h3><p>第二个问题出现在 <code>步骤5</code>，迁移完成之后Redis流程持续不归零，经过捞日志发现，该部分流量来源于监控、扫描检测程序</p>
 <p><img src="/images/redis-migrate-key-lost/redis-monitor.png" alt="redis monitor"></p>
@@ -204,6 +205,7 @@ gtag('config', 'UA-156665333-1');
 <pre><code class="hljs sh">2020-03-05 18:01:32 写入key：xxx_balancestatus_216213136
 2020-03-05 18:06:49 检测到key丢失
 2020-03-06 18:05:21 再次写入key</code></pre>
+
 <p>检查了项目代码里，没有删除key的操作，请问能否查下redis数据是否正常，有没有意外丢失key的可能性。以下是我们排查的对话：</p>
 <pre><code class="hljs sh">Devops: xxx_balancestatus_216213136  这个key有设置ttl嘛？
 Dev： 有，3 天
@@ -216,6 +218,7 @@ Dev: 4号还有一次
 Me: 4号几点？
 Dev: 4号 18 点
 Devops: 4号18点 已经切换集群了, 所以2号写入的key 在老集群, 3天后 过期 forward del命令到新集群</code></pre>
+
 <p>充足的日志提供了有力的证据把握各个时间点，成功捉虫：Devops 为了确保安全，没有尽快把同步程序关掉，导致该问题</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p><img src="/images/redis-migrate-key-lost/interface-timecost.png" alt="migrate result"></p>
 <p>迁移之后，平均耗时有1～2ms的降低，服务迁移有着比较明显的效果。由于两个地方位于同一个城市，说明调用耗时产生的原因跟距离关系不大，猜测跟机房的网络架构关系很大(之前也遇到过，同一地区同样配置服务，有一个机房就是比其他机房调用慢不少)。</p>

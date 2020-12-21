@@ -20,7 +20,8 @@
 shell&amp;gt; ./configure --with-charset=latin1
 根据运行时的设定值  
 shell&amp;gt; mysqld --default-character-set=latin1
-2、数据库、表、列字符集">
+
+2、数据库、表、列字符">
 
 <meta name="keywords" content="mysql,字符集">
 
@@ -182,6 +183,7 @@ gtag('config', 'UA-156665333-1');
 <pre><code class="hljs bash">shell&gt; ./configure --with-charset=latin1</code></pre>
 <p>根据运行时的设定值  </p>
 <pre><code class="hljs bash">shell&gt; mysqld --default-character-set=latin1</code></pre>
+
 <h4 id="2、数据库、表、列字符集"><a href="#2、数据库、表、列字符集" class="headerlink" title="2、数据库、表、列字符集"></a>2、数据库、表、列字符集</h4><p>数据库、表、列字符集都可以通过相应的语句进行指定，不再列出。<br>详细参考：<a href="https://dev.mysql.com/doc/refman/5.1/zh/charset.html" target="_blank" rel="noopener">https://dev.mysql.com/doc/refman/5.1/zh/charset.html</a></p>
 <h4 id="3、连接字符集"><a href="#3、连接字符集" class="headerlink" title="3、连接字符集"></a>3、连接字符集</h4><p>在客户端和服务器的连接处理中也涉及了字符集变量。每一个客户端有一个连接相关的字符集变量。例如查询，通过连接发送到服务器。服务器通过连接发送响应给客户端，例如结果集。           </p>
 <blockquote>
@@ -189,7 +191,7 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <p>信息传递的路径如下所示：<br>信息输入路径：client→connection→server<br>信息输出路径：server→connection→results</p>
 <h4 id="4、连接字符集设置"><a href="#4、连接字符集设置" class="headerlink" title="4、连接字符集设置"></a>4、连接字符集设置</h4><p>有两个语句影响连接字符集：</p>
-<pre><code class="hljs sql"><span class="hljs-keyword">SET</span> <span class="hljs-keyword">NAMES</span> <span class="hljs-string">&#x27;charset_name&#x27;</span>
+<pre><code class="hljs sql"><span class="hljs-keyword">SET</span> <span class="hljs-keyword">NAMES</span> <span class="hljs-string">'charset_name'</span>
 <span class="hljs-keyword">SET</span> <span class="hljs-built_in">CHARACTER</span> <span class="hljs-keyword">SET</span> charset_name</code></pre>
 <p>SET NAMES显示客户端发送的SQL语句中使用什么字符集。它还为服务器发送回客户端的结果指定了字符集。SET NAMES ‘x’语句与这三个语句等价：</p>
 <pre><code class="hljs sql">mysql&gt; SET character_set_client = x;
@@ -199,9 +201,11 @@ mysql&gt; SET character_set_connection = x;</code></pre>
 <pre><code class="hljs sql">mysql&gt; SET character_set_client = x;
 mysql&gt; SET character_set_results = x;
 mysql&gt; SET collation_connection = @@collation_database;</code></pre>
-<h4 id="5、连接字符集总结"><a href="#5、连接字符集总结" class="headerlink" title="5、连接字符集总结"></a>5、连接字符集总结</h4><p>当一个客户端连接时，它向服务器发送希望使用的字符集名称。服务器为那个字符集设置character_set_client、character_set_results和 character_set_connection变量。（实际上，服务器为使用该字符集执行一个SET NAMES操作。）对于mysql客户端，如果你希望使用与默认字符集不同的字符集，不需要每次启动时执行SET NAMES语句。可以在mysql语句行中或者选项文件中添加一个—default-character-set选项设置。例如，你每次运行mysql时，以下的选项文件设置把三个字符集变量修改为koi8r：</p>
-<pre><code class="hljs csharp">[<span class="hljs-meta">mysql</span>]
-<span class="hljs-literal">default</span>-character-<span class="hljs-keyword">set</span>=koi8r</code></pre>
+<h4 id="5、连接字符集总结"><a href="#5、连接字符集总结" class="headerlink" title="5、连接字符集总结"></a>5、连接字符集总结</h4><p>当一个客户端连接时，它向服务器发送希望使用的字符集名称。服务器为那个字符集设置character_set_client、character_set_results和 character_set_connection变量。（实际上，服务器为使用该字符集执行一个SET NAMES操作。）对于mysql客户端，如果你希望使用与默认字符集不同的字符集，不需要每次启动时执行SET NAMES语句。可以在mysql语句行中或者选项文件中添加一个–default-character-set选项设置。例如，你每次运行mysql时，以下的选项文件设置把三个字符集变量修改为koi8r：</p>
+<pre><code class="hljs cs">[<span class="hljs-meta">mysql</span>]
+<span class="hljs-keyword">default</span>-character-<span class="hljs-keyword">set</span>=koi8r</code></pre>
+
+
 <p>(完)</p>
 <p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-01-2014/mysql-charset.html">https://www.cyningsun.com/05-01-2014/mysql-charset.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/" target="_blank" rel="noopener">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
@@ -221,7 +225,7 @@ mysql&gt; SET collation_connection = @@collation_database;</code></pre>
      <li class="next"><a href="/07-04-2014/inside-log4j.html">Newer &rarr;</a></li>
     
     
-    <li class="previous"><a href="/04-22-2014/css-standard-five.html">&larr; Older</a></li>
+    <li class="previous"><a href="/04-22-2014/css-standard-four.html">&larr; Older</a></li>
     
 </ul>
 </div>

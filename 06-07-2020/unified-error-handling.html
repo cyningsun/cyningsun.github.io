@@ -186,6 +186,7 @@ if err != nil &#123;
     fmt.Println(err, ...)
     return err
 &#125;</code></pre>
+
 <p>在分层系统中（例如：Controller、Service、DAO），每一层都会重复以上代码</p>
 </blockquote>
 </li>
@@ -194,17 +195,19 @@ if err != nil &#123;
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">AuthenticateRequest</span><span class="hljs-params">(r *Request)</span> <span class="hljs-title">error</span></span> &#123;
 	<span class="hljs-keyword">return</span> authenticate(r.User)
 &#125;</code></pre>
+
 <p>如果 <code>authenticate</code> 返回错误，那么 <code>AuthenticateRequest</code> 会将错误返回给调用者，调用者也可能会这样做，依此类推。 在程序的顶部，程序的主体将错误打印到屏幕或日志文件，所有打印的都会是： <code>No such file or directory</code></p>
 </blockquote>
 </li>
 <li><p>原始错误 vs 错误码错误</p>
 <blockquote>
-<pre><code class="hljs go">errors.New(<span class="hljs-string">&quot;connection error&quot;</span>)
+<pre><code class="hljs go">errors.New(<span class="hljs-string">"connection error"</span>)
 
 <span class="hljs-comment">// vs </span>
 
 <span class="hljs-keyword">var</span> errno <span class="hljs-keyword">uint32</span> = <span class="hljs-number">10001</span>
-errors.New(errno, <span class="hljs-string">&quot;connection error&quot;</span>)</code></pre>
+errors.New(errno, <span class="hljs-string">"connection error"</span>)</code></pre>
+
 <p>标准库或第三方应用库返回的是一般是上一种错误，然而H5或APP不可能根据字符串进行错误判断。因此在业务中需要把所有的错误进行统一封状为错误码错误返回，那么错误码错误中需要保存原始错误么？</p>
 </blockquote>
 </li>
@@ -222,18 +225,21 @@ errors.New(errno, <span class="hljs-string">&quot;connection error&quot;</span>)
 <ul>
 <li><p><strong>Error codes model</strong></p>
 <!-- Errors are raised under various circumstances, from network failures to unauthenticated connections, each of which is associated with a particular code. -->
+
 <blockquote>
 <p>从网络故障到未经验证的连接，各种情况下都会引发错误，每种错误都可以都与特定错误码关联。</p>
 </blockquote>
 </li>
 <li><p><strong>Standard error model</strong></p>
 <!-- If an error occurs, return error codes instead, with an optional string error message that provides further details about what happened. -->
+
 <blockquote>
 <p>如果发生错误，则返回错误代码以及一条可选的字符串错误信息，该信息提供有关所发生事件的详细信息。</p>
 </blockquote>
 </li>
 <li><p><strong>Richer error model</strong></p>
 <!-- Enables servers to return and clients to consume additional error details. It further specifies a standard set of error message types to cover the most common needs (such as invalid parameters, quota violations, and stack traces). -->
+
 <blockquote>
 <p>允许服务器和客户端返回、使用额外的错误详细信息。它进一步指定了一组标准的错误消息类型，以满足最常见的需求（例如无效参数、配额冲突和堆栈跟踪）</p>
 </blockquote>
@@ -268,6 +274,9 @@ errors.New(errno, <span class="hljs-string">&quot;connection error&quot;</span>)
 [Google API 错误模型](https://cloud.google.com/apis/design/errors)
 
  -->
+
+
+
 <p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-07-2020/unified-error-handling.html">https://www.cyningsun.com/06-07-2020/unified-error-handling.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/" target="_blank" rel="noopener">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
