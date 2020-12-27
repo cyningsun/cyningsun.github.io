@@ -179,8 +179,7 @@ gtag('config', 'UA-156665333-1');
 <p>一、如果数组k以后的是一个递减序列，则仅依靠调换k以后的元素不可能完成任务，所以必须找到满足k&gt;k+1的元素，即保证k以后的序列不递减。</p>
 <p>二、满足一之后，那么下一个序列的第k位一定是从后面找到刚好比a[k]大的一个比a[k]大的一个数打头的（为了保证刚好大于，又k+1之后的元素递减，所以从数组尾开始找到第一个比a[k]大的元素即可满足要求）。将这个数的索引记为j。</p>
 <p>三、将a[j]与a[k]对调。此时，j后面的元素是降序的。所以需要把j后面的逆转一下，从降序到升序，如此就得到了恰好比之前序列大一号的序列。</p>
-<p>代码：next_permutation</p>
-<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">bool</span> <span class="hljs-title">nextPermutation</span><span class="hljs-params">(<span class="hljs-keyword">int</span> <span class="hljs-built_in">array</span>[],<span class="hljs-keyword">int</span> len)</span></span>
+<p>代码：next_permutation<br><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">bool</span> <span class="hljs-title">nextPermutation</span><span class="hljs-params">(<span class="hljs-keyword">int</span> <span class="hljs-built_in">array</span>[],<span class="hljs-keyword">int</span> len)</span></span>
 <span class="hljs-function"></span>&#123;
     <span class="hljs-keyword">int</span> endi=len<span class="hljs-number">-1</span>;
     <span class="hljs-keyword">int</span> endii;
@@ -203,10 +202,8 @@ gtag('config', 'UA-156665333-1');
             <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
         &#125;
     &#125;
-&#125;</code></pre>
-
-<p>代码：prev_permutation</p>
-<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">bool</span> <span class="hljs-title">prevPermutation</span><span class="hljs-params">(<span class="hljs-keyword">int</span> <span class="hljs-built_in">array</span>[],<span class="hljs-keyword">int</span> len)</span></span>
+&#125;</code></pre></p>
+<p>代码：prev_permutation<br><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">bool</span> <span class="hljs-title">prevPermutation</span><span class="hljs-params">(<span class="hljs-keyword">int</span> <span class="hljs-built_in">array</span>[],<span class="hljs-keyword">int</span> len)</span></span>
 <span class="hljs-function"></span>&#123;
     <span class="hljs-keyword">int</span> endi=len<span class="hljs-number">-1</span>;
     <span class="hljs-keyword">int</span> endii;
@@ -229,8 +226,7 @@ gtag('config', 'UA-156665333-1');
             <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
         &#125;
     &#125;
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-07-2012/stl-permutation.html">https://www.cyningsun.com/05-07-2012/stl-permutation.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/" target="_blank" rel="noopener">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
@@ -256,7 +252,7 @@ gtag('config', 'UA-156665333-1');
           
             <li><span><a href="/04-08-2011/stl-list-sort.html">SGI-STL源码剖析之list::sort()</a></span></li>
           
-            <li><span><a href="/04-04-2011/stl-heap.html">SGI-STL源码剖析之Heap</a></span></li>
+            <li><span><a href="/04-04-2011/stl-rbtree.html">SGI-STL源码剖析之RB-tree</a></span></li>
           
   </ol>
 
