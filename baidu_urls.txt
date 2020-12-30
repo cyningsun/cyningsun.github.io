@@ -1,3 +1,4 @@
+https://www.cyningsun.com/12-30-2020/golang-errgroup.html
 https://www.cyningsun.com/12-27-2020/optimal-logging-cn.html
 https://www.cyningsun.com/12-15-2020/system-design-concept-and-relation.html
 https://www.cyningsun.com/12-02-2020/memory-management-summary.html
@@ -7,4 +8,3 @@ https://www.cyningsun.com/10-15-2020/advanced-golang-article.html
 https://www.cyningsun.com/09-18-2020/learn-virtual-filesystem-from-lsof.html
 https://www.cyningsun.com/09-06-2020/redis-migrate-key-lost.html
 https://www.cyningsun.com/08-25-2020/mysql-bplustree.html
-https://www.cyningsun.com/08-18-2020/first-lesson-of-database.html
