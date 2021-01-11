@@ -190,7 +190,7 @@ gtag('config', 'UA-156665333-1');
 <li>停止无效的请求，减少资源资源</li>
 <li>快速返回，方便用户再次重试，降低偶然出错的影响</li>
 </ol>
-<h3 id="errgroup"><a href="#errgroup" class="headerlink" title="errgroup"></a>errgroup</h3><p>那么，Go 语言中该怎么实现呢？ golang 提供了一个很好用的小组件：errgroup。仍然以微博为例，来演示如何使用该函数：</p>
+<h3 id="sync-errgroup"><a href="#sync-errgroup" class="headerlink" title="sync.errgroup"></a>sync.errgroup</h3><p>那么，Go 语言中该怎么实现呢？ golang 提供了一个很好用的小组件：<code>errgroup</code>。仍然以微博为例，来演示如何使用该函数：</p>
 <pre><code class="hljs go"><span class="hljs-keyword">package</span> main
 
 <span class="hljs-keyword">import</span> (
@@ -247,8 +247,8 @@ gtag('config', 'UA-156665333-1');
 
 &#125;</code></pre>
 
-<p><code>errgroup</code> 使用 Context 来控制超时，使用 Go() 函数返回的第一个错误来停止所有协程。使用errgroup尤其需要小心踩坑 <a href="https://golang.org/doc/faq#closures_and_goroutines" target="_blank" rel="noopener"><code>闭包</code></a> 问题</p>
-<h3 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h3><p>那么 <code>errgroup</code> 究竟是如何实现的呢？ errgroup 简单的令人惊讶，却功能强大。代码+注释不过六十余行，值得仔细品味。源码如下：</p>
+<p><code>errgroup</code> 使用 Context 来控制超时，使用 Go() 函数返回的第一个错误来停止所有协程。使用 <code>errgroup</code> 尤其需要小心踩坑 <a href="https://golang.org/doc/faq#closures_and_goroutines" target="_blank" rel="noopener"><code>闭包</code></a> 问题</p>
+<h3 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h3><p>那么 <code>errgroup</code> 究竟是如何实现的呢？<code>errgroup</code> 简单的令人惊讶，却功能强大。代码+注释不过六十余行，值得仔细品味。源码如下：</p>
 <pre><code class="hljs go"><span class="hljs-comment">// Package errgroup provides synchronization, error propagation, and Context</span>
 <span class="hljs-comment">// cancelation for groups of goroutines working on subtasks of a common task.</span>
 <span class="hljs-keyword">package</span> errgroup
@@ -321,7 +321,7 @@ gtag('config', 'UA-156665333-1');
 </ul>
 </blockquote>
 </li>
-<li>同样以微博为例，用户访问微博的时候，同样需要获取“评论数”、“点赞数”、“是否已关注”。不同的是，这些数据并非关键数据，获取失败却不影响用户查看微博。因此，在<code>官宣恋情婚讯</code>的高峰期，其实可以尽力提供服务。那么非关键数据，如何实现 <strong>尽力</strong> 并发获取？</li>
+<li>同样以微博为例，用户访问微博的时候，同样需要获取“评论数”、“点赞数”、“是否已关注”。不同的是，这些数据并非关键数据，获取失败却不影响用户查看微博。因此，在<strong>官宣恋情婚讯</strong> 的高峰期，其实可以尽力提供服务。那么非关键数据，如何实现 <strong>尽力</strong> 并发获取？</li>
 </ol>
 <p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-30-2020/golang-errgroup.html">https://www.cyningsun.com/12-30-2020/golang-errgroup.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/" target="_blank" rel="noopener">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
