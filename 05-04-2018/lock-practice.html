@@ -19,10 +19,10 @@
 
 内容提供方按照调用快慢依次：
 
+
 NoSQL数据库：耗时5ms以下
 BG内部服务：耗时10~20ms左右
 外BG服务：耗时50ms+
-
 
 由于内容经常会出现下线，而下线的内容一般在推荐结果中的位于头部，较大可能逃脱推">
 
@@ -184,12 +184,12 @@ gtag('config', 'UA-156665333-1');
         <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>随着内部重点服务接入的内容越来越多，维护各种内容的动态信息(例如：播放量，删除状态等)的成本越来越高。独立出一个内容服务成为很自然的选择。</p>
 <blockquote>
 <p>内容提供方按照调用快慢依次：</p>
+</blockquote>
 <ul>
 <li>NoSQL数据库：耗时5ms以下</li>
 <li>BG内部服务：耗时10~20ms左右</li>
 <li>外BG服务：耗时50ms+</li>
 </ul>
-</blockquote>
 <p>由于内容经常会出现下线，而下线的内容一般在推荐结果中的位于头部，较大可能逃脱推荐服务的若干次截断，如果只在最终返回给用户的时候再进行过滤，就会出现部分类目的内容空白或者缺失。考虑到后端接口的性能，内容服务使用了二次过滤的方式来保证，因此服务提供了两个接口：</p>
 <blockquote>
 <p>前置接口：粗粒度的状态过滤<br>后置接口：内容获取与状态再过滤</p>
@@ -279,7 +279,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2020 cyningsun
+    <p class="text-muted credit">Copyright ©2021 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -191,11 +191,13 @@ github.com/gogo/protobuf/proto.Marshal(<span class="hljs-number">0x14af2e0</span
 		...
 		
 	/usr/local/Cellar/<span class="hljs-keyword">go</span>@<span class="hljs-number">1.12</span>/<span class="hljs-number">1.12</span><span class="hljs-number">.13</span>/libexec/src/net/http/server.<span class="hljs-keyword">go</span>:<span class="hljs-number">2884</span> +<span class="hljs-number">0x2f4</span></code></pre>
+
 <p>由于报错的结构体是业务最常用的一个，且报错的接口逻辑较深，通读代码也没有发现明显的点（其实是代码量太大了，很难关注的到）。报错又出现在框架层，panic 调用栈并没有提供任何有效信息。</p>
 <h3 id="问题排查"><a href="#问题排查" class="headerlink" title="问题排查"></a>问题排查</h3><p>经过背景的一系列分析之后，所有的排查思路都被打断了。好在我们发现报错的错误类型是<code>index out of range</code>，通过阅读proto.Marshal的代码之后发现，此函数分为三步：</p>
 <pre><code class="hljs go">siz := info.Size(pb)
 b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</span>, <span class="hljs-number">0</span>, siz)
 <span class="hljs-keyword">return</span> info.Marshal(b, pb, <span class="hljs-literal">false</span>)</code></pre>
+
 <ol>
 <li>先获取结构体 Size</li>
 <li>然后按照 Size 创建字节数组</li>
@@ -237,6 +239,9 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</
 	&#125;
 	<span class="hljs-keyword">return</span> ret.(*pb.Person),<span class="hljs-literal">true</span>
 &#125;</code></pre>
+
+
+
 <p><strong>并发访问</strong></p>
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> letterBytes = <span class="hljs-string">"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"</span>
 <span class="hljs-keyword">const</span> letterLength = <span class="hljs-built_in">len</span>(letterBytes)
@@ -282,6 +287,9 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</
 	fmt.Println(<span class="hljs-string">"server is listening on 8080"</span>)
 	http.ListenAndServe(<span class="hljs-string">":8080"</span>, <span class="hljs-literal">nil</span>)
 &#125;</code></pre>
+
+
+
 <p><strong>压测脚本</strong></p>
 <pre><code class="hljs make">run:
 	go run main.go &amp;&gt; normal.log
@@ -292,6 +300,9 @@ racerun:
 benchmark:
 	wrk -t1 -c2 -d30s http:&#x2F;&#x2F;127.0.0.1:8080&#x2F;read &amp;
 	wrk -t1 -c2 -d30s http:&#x2F;&#x2F;127.0.0.1:8080&#x2F;write &amp;</code></pre>
+
+
+
 <p><strong>日志结果</strong></p>
 <pre><code class="hljs go">==================
 WARNING: DATA RACE
@@ -305,6 +316,7 @@ Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <
       /Users/yinhang.sun/Documents/workspace/src/github.com/cyningsun/<span class="hljs-keyword">go</span>-test/<span class="hljs-number">20200508</span>-<span class="hljs-keyword">go</span>-race/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">39</span> +<span class="hljs-number">0x271</span>
 
 ...</code></pre>
+
 <p>通过日志，可以很轻松的发现问题的原因。</p>
 <h3 id="总结优化"><a href="#总结优化" class="headerlink" title="总结优化"></a>总结优化</h3><p>以上过程促使我们优化非生产环境的运行脚本，通过编译参数控制 -race 参数的开关，当再遇到类似的问题时，可以快速复现、定位、修复。</p>
 <p><em>源码链接:</em></p>
@@ -326,6 +338,8 @@ Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <
 
   <ol class="related">
       
+            <li><span><a href="/01-11-2021/golang-concurrency-singleflight.html">sync.singleflight 到底怎么用才对？</a></span></li>
+          
             <li><span><a href="/12-30-2020/golang-errgroup.html">Golang Concurrency：sync.errgroup</a></span></li>
           
             <li><span><a href="/10-15-2020/advanced-golang-article.html">Golang 进阶文章一览</a></span></li>
@@ -333,8 +347,6 @@ Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <
             <li><span><a href="/01-12-2020/inside-the-go-object-model.html">深度探索 Go 对象模型</a></span></li>
           
             <li><span><a href="/12-09-2019/concurrency-is-not-parallelism.html">译 | Concurrency is not Parallelism</a></span></li>
-          
-            <li><span><a href="/09-29-2019/share-memory-by-communicating-cn.html">译 | Share Memory By Communicating</a></span></li>
           
   </ol>
 
@@ -379,7 +391,7 @@ Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2020 cyningsun
+    <p class="text-muted credit">Copyright ©2021 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

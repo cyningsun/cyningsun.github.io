@@ -175,12 +175,12 @@ gtag('config', 'UA-156665333-1');
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
-        <p>如果说之前清晰知道如何 <a href="https://www.cyningsun.com/06-29-2020/how-to-write-restful-api.html">设计HTTP API</a>  就可以了，那么随着微服务走热，服务越来越多，每个服务都要对外暴漏接口，对如何设计RPC接口有个清晰的认识，变得比以前任何时候都重要。</p>
+        <p>如果说之前清晰知道如何 <a href="/06-29-2020/how-to-write-restful-api.html">设计HTTP API</a>  就可以了，那么随着微服务走热，服务越来越多，每个服务都要对外暴漏接口，对如何设计RPC接口有个清晰的认识，变得比以前任何时候都重要。</p>
 <p>虽然设计 RPC 接口很重要，但是却并不容易，经历过多少折腾，才能理解接口那些痛：</p>
 <ul>
 <li><p>莫“名”其妙</p>
 <blockquote>
-<p>读取数据可能会因为数据不一样，分别称为：<code>GetXxx</code>  vs <code>GetXxxLite</code> ，所以 lite 不 lite 有啥不一样？类似的太多太多，关于如何取一个好名字，可以看这里：<a href="https://www.cyningsun.com/07-04-2020/how-to-naming-things.html">《如何代码命名》</a></p>
+<p>读取数据可能会因为数据不一样，分别称为：<code>GetXxx</code>  vs <code>GetXxxLite</code> ，所以 lite 不 lite 有啥不一样？类似的太多太多，关于如何取一个好名字，可以看这里：<a href="/07-04-2020/how-to-naming-things.html">《如何代码命名》</a></p>
 </blockquote>
 </li>
 <li><p>接口过多</p>
@@ -217,13 +217,14 @@ gtag('config', 'UA-156665333-1');
 </ul>
 <p>聪明的你会选择哪一种方案，你的依据又是什么？想弄清楚这些，就需要继续往下看</p>
 <h3 id="认识资源"><a href="#认识资源" class="headerlink" title="认识资源"></a>认识资源</h3><p>看接口先看资源，所有的接口都是为了操作资源。对资源了解多深刻，也就大概限制了对接口认识多深刻。</p>
-<p>资源在用户侧以  <a href="https://www.cyningsun.com/06-29-2020/how-to-write-restful-api.html">hyper media</a>  存在；资源流到服务中以对象来组织；资源落到存储里就变成了<code>id</code> + <code>content</code>。索引 <code>content</code> 的 id，一般又以 <code>单个</code> 和 <code>集合</code> 的形态存在，具体到数据库中，id 以 聚簇索引存在，content 以聚簇索引叶节点存在</p>
+<p>资源在用户侧以  <a href="/06-29-2020/how-to-write-restful-api.html">hyper media</a>  存在；资源流到服务中以对象来组织；资源落到存储里就变成了<code>id</code> + <code>content</code>。索引 <code>content</code> 的 id，一般又以 <code>单个</code> 和 <code>集合</code> 的形态存在，具体到数据库中，id 以 聚簇索引存在，content 以聚簇索引叶节点存在</p>
 <p><img src="/images/Data=ID+Content.png" alt="Data=ID+Content"></p>
 <p>越来越多的产品按照先获取 <code>id</code> 再读取 <code>content</code> 来访问资源，之前是搜索引擎，现在是各式各样的内容推荐</p>
 <h3 id="认识操作"><a href="#认识操作" class="headerlink" title="认识操作"></a>认识操作</h3><p>有了对数据的基本认识，对数据的操作无非是：增、删、改、查（包括：ID / 内容列表查询、根据 ID 批量查询内容）</p>
 <p>再加上 80 / 20 原则，为 80%的请求量 设计高性能语义清晰简洁的接口；为 20% 的请求量，引入 <a href="https://www.cnblogs.com/youring2/p/Specification-Pattern.html" target="_blank" rel="noopener">规约模式（Specification-Pattern）</a>，设计扩展性更强的接口；将复杂的查询，变化为 <code>id collection</code>（搜索引擎） +  <code>content</code> （批量查询接口）。</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>有了以上这些认知，那么如何为服务设计收敛的接口，也就不再是个问题。</p>
-<p><br/></p>
+<br/>
+
 <h4 id="课后作业"><a href="#课后作业" class="headerlink" title="课后作业"></a>课后作业</h4><p>请为以下需求设计一套查询的API接口</p>
 <p><strong>主播侧需求</strong></p>
 <p>当主播点开直播直播入口时</p>
@@ -315,7 +316,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2020 cyningsun
+    <p class="text-muted credit">Copyright ©2021 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

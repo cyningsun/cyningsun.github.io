@@ -173,23 +173,23 @@ gtag('config', 'UA-156665333-1');
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
-        <p>在 <a href="https://www.cyningsun.com/07-27-2020/how-to-write-rpc-interface.html#认识资源">如何设计 RPC 接口</a> 中讲到一个观点：</p>
+        <p>在 <a href="/07-27-2020/how-to-write-rpc-interface.html#认识资源">如何设计 RPC 接口</a> 中讲到一个观点：</p>
 <blockquote>
-<p>资源在用户侧以 <a href="https://www.cyningsun.com/06-29-2020/how-to-write-restful-api.html">hyper media</a> 存在；资源流到服务中以对象来组织；资源落到存储里就变成了<code>id</code> + <code>content</code>。索引 <code>content</code> 的 id，一般又以 <code>单个</code> 和 <code>集合</code> 的形态存在，具体到数据库中，id 以 聚簇索引存在，content 以聚簇索引叶节点存在</p>
+<p>资源在用户侧以 <a href="/06-29-2020/how-to-write-restful-api.html">hyper media</a> 存在；资源流到服务中以对象来组织；资源落到存储里就变成了<code>id</code> + <code>content</code>。索引 <code>content</code> 的 id，一般又以 <code>单个</code> 和 <code>集合</code> 的形态存在，具体到数据库中，id 以 聚簇索引存在，content 以聚簇索引叶节点存在</p>
 <p>越来越多的产品按照先获取 <code>id</code> 再读取 <code>content</code> 来访问资源</p>
 </blockquote>
 <p>在REST论文中也有类似的描述：</p>
 <blockquote>
-<p>REST 对于信息的核心抽象是<em>资源</em>。任何能够被命名的信息都能够作为一个资源。资源 <em>R</em> 是一个随时间变化的成员函数 <em>M<strong>R</strong>(t)</em>，该函数将时间 <em>t</em> 映射到等价的一个实体或值的集合，集合中的值可能是<em>资源的表述</em> 和/或 <em>资源的标识符</em>。</p>
+<p>REST 对于信息的核心抽象是<em>资源*。任何能够被命名的信息都能够作为一个资源。资源 *R</em> 是一个随时间变化的成员函数 <em>M<strong>R</strong>(t)*，该函数将时间 *t</em> 映射到等价的一个实体或值的集合，集合中的值可能是<em>资源的表述</em> 和/或 <em>资源的标识符</em>。</p>
 </blockquote>
-<p><img src="https://www.cyningsun.com/images/Data=ID+Content.png" alt="Data=ID+Content"></p>
+<p><img src="/images/Data=ID+Content.png" alt="Data=ID+Content"></p>
 <p>其中包含了以下层面的意思：</p>
 <ol>
 <li>服务是围绕资源建立的，服务存在的价值是对资源更新和组织</li>
 <li>每种资源必须依靠 id 标志，内容本身只是为了最终呈现，作为资源的识别， id 才至关重要</li>
 <li>ID 又以  <code>单个</code> 和 <code>集合</code> 形态存在，“集合” 是一种特殊的资源，包含相同类型的子资源列表</li>
 </ol>
-<p>一般的应用中，通常使用资源唯一 ID 标识资源。ID 生成一般依赖数据库递增，或者 <a href="https://www.cyningsun.com/12-26-2018/id-generator.html">分布式ID生成服务</a>。但在大型系统中，一般有很多资源，在使用资源ID标识资源时，通常需要使用特定于资源的元组来标识资源，例如：&lt;群ID、消息ID&gt; 或&lt;公众号ID，消息ID，文章位置&gt;。这会带来以下问题：</p>
+<p>一般的应用中，通常使用资源唯一 ID 标识资源。ID 生成一般依赖数据库递增，或者 <a href="/12-26-2018/id-generator.html">分布式ID生成服务</a>。但在大型系统中，一般有很多资源，在使用资源ID标识资源时，通常需要使用特定于资源的元组来标识资源，例如：&lt;群ID、消息ID&gt; 或&lt;公众号ID，消息ID，文章位置&gt;。这会带来以下问题：</p>
 <ul>
 <li>使用者必须记忆匿名元组、顺序</li>
 <li>元组通常难以传递</li>
@@ -207,7 +207,6 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <p>但是以上组织方式引入了一个新的问题，到底该把哪些数据作为生成标识符的一部分呢？答案就是：集合（依据就是开头的片段）。资源可以由 <code>集合 ID</code> 和 <code>资源 ID</code> 组成；如果资源包含子资源，则子资源可以由 <code>父资源</code> 后跟 <code>子资源的 ID</code>。</p>
 <p>示例 1：存储服务具有一组 <code>buckets</code>，其中每个存储分区都有一组 <code>objects</code>：</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -218,19 +217,15 @@ gtag('config', 'UA-156665333-1');
 <th>资源 ID</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>//storage.googleapis.com</td>
 <td>/buckets</td>
 <td>/bucket-id</td>
 <td>/objects</td>
 <td>/object-id</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 <p>示例 2：电子邮件服务具有一组 <code>users</code>。每个用户都有一个 <code>settings</code> 子资源，而 <code>settings</code> 子资源拥有包括 <code>customFrom</code> 在内的许多其他子资源：</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -241,17 +236,14 @@ gtag('config', 'UA-156665333-1');
 <th>资源 ID</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>//mail.googleapis.com</td>
 <td>/users</td>
 <td>/name@example.com</td>
 <td>/settings</td>
 <td>/customFrom</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 <p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-09-2020/resouce-id-design.html">https://www.cyningsun.com/08-09-2020/resouce-id-design.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/" target="_blank" rel="noopener">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
@@ -318,7 +310,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2020 cyningsun
+    <p class="text-muted credit">Copyright ©2021 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

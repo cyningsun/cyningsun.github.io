@@ -200,7 +200,7 @@ gtag('config', 'UA-156665333-1');
 </ol>
 <p>在这个阶段，我们投入了大量的人力，建立和维护各种看板，处理各种告警，疲于奔命，却不尽如人意。</p>
 <h3 id="前路始现"><a href="#前路始现" class="headerlink" title="前路始现"></a>前路始现</h3><p>在第一个版本稳定之后，很长一段时间没有大需求，促使我们考虑如何解决这些问题。同时在这个阶段，在部门内部开始开发自己的RPC框架，基于在微信的工作经验，促使我们把目光投向 Prometheus 等基于数据的监控平台。</p>
-<p>在监控方面，我们使用 <a href="https://www.cyningsun.com/09-15-2019/micro-service-monitor-prometheus-client.html">SDK（数据上报）</a> + <a href="https://www.cyningsun.com/09-13-2019/micro-service-monitor-prometheus-ha.html">Prometheus（数据收集）</a>+ Grafana（监控看板），构建了更灵活方便的看板</p>
+<p>在监控方面，我们使用 <a href="/09-15-2019/micro-service-monitor-prometheus-client.html">SDK（数据上报）</a> + <a href="/09-13-2019/micro-service-monitor-prometheus-ha.html">Prometheus（数据收集）</a>+ Grafana（监控看板），构建了更灵活方便的看板</p>
 <ul>
 <li>服务纬度<blockquote>
 <p>在开发RPC框架的同时，将服务纬度的上报直接嵌入框架中，同时提供SDK给兄弟团队用于现有服务的接入。然后统一维护了两套服务看板：全局看板，详细看板。前者负责日常运营，后者负责排查问题。</p>
@@ -212,7 +212,7 @@ gtag('config', 'UA-156665333-1');
 </li>
 </ul>
 <p>至此，服务纬度的数据变成了可以逐渐迭代优化的统一视图，随着经验的积累，对监控的认识越深刻，看板使用越是应手。</p>
-<p>在告警方面，使用 <a href="https://www.cyningsun.com/09-13-2019/micro-service-monitor-prometheus-ha.html">Promtheus（数据计算）</a> + Promgen（规则管理） + AlertManager（告警管理） + Webhook （告警调用）+ 企业微信群，构建了完善的告警链条。</p>
+<p>在告警方面，使用 <a href="/09-13-2019/micro-service-monitor-prometheus-ha.html">Promtheus（数据计算）</a> + Promgen（规则管理） + AlertManager（告警管理） + Webhook （告警调用）+ 企业微信群，构建了完善的告警链条。</p>
 <h3 id="方得自由"><a href="#方得自由" class="headerlink" title="方得自由"></a>方得自由</h3><p>在监控告警中，我们会频繁遇到以下问题：</p>
 <ol>
 <li>阈值设定：不同业务场景，不同指标，如何衡量阈值是过于宽松，还是过于严格。</li>
@@ -223,13 +223,15 @@ gtag('config', 'UA-156665333-1');
 </ol>
 <p>那么目前我们解决的怎么样了呢？</p>
 <ul>
-<li>问题 1、2，为了解决该问题，在监控平台里，引入了<a href="https://www.cyningsun.com/01-22-2020/use-prometheus-for-anomaly-detection.html">异常检测算法（anomaly detection）</a> ，得到了很好的解决</li>
+<li>问题 1、2，为了解决该问题，在监控平台里，引入了<a href="/01-22-2020/use-prometheus-for-anomaly-detection.html">异常检测算法（anomaly detection）</a> ，得到了很好的解决</li>
 <li>问题 3，使用Prometheus的能力，得以解决</li>
 <li>问题 4，我们对告警指标进行分级，只在调用链条的最上游配置细化的重要告警指标，告警之后通过链接跳转到对应的详细看板进行问题排查，告警更少更精确可查，维护起来也更简单了。</li>
 <li>问题 5，目前仍然没有得到很好的解决，但是已经有了方案，将在后续进一步优化</li>
 </ul>
-<h3 id="未来之路"><a href="#未来之路" class="headerlink" title="未来之路"></a>未来之路</h3><p>基于 <a href="https://www.cyningsun.com/02-22-2020/hidden-secret-to-understanding-prometheus.html">Prometheus 的数据平台能力</a>，可以构建出业务所有服务的调用的树状图，并且当时的错误变化情况，进行自动故障根源分析，这也是我们以后将要做的</p>
-<p><BR/><br>附：</p>
+<h3 id="未来之路"><a href="#未来之路" class="headerlink" title="未来之路"></a>未来之路</h3><p>基于 <a href="/02-22-2020/hidden-secret-to-understanding-prometheus.html">Prometheus 的数据平台能力</a>，可以构建出业务所有服务的调用的树状图，并且当时的错误变化情况，进行自动故障根源分析，这也是我们以后将要做的</p>
+<BR/>
+附：
+
 <p><img src="/images/site-reliability-engineering/overview.png" alt="overview"><br>（全局看板部分视图）</p>
 <p><img src="/images/site-reliability-engineering/detail1.png" alt="detail1"><br><img src="/images/site-reliability-engineering/detail2.png" alt="detail2"><br>（详细看板部分视图）</p>
 <p><strong>参考链接</strong><br><a href="https://www.jianshu.com/p/06c7dd803d4a" target="_blank" rel="noopener">https://www.jianshu.com/p/06c7dd803d4a</a></p>
@@ -301,7 +303,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2020 cyningsun
+    <p class="text-muted credit">Copyright ©2021 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

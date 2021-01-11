@@ -176,8 +176,8 @@ gtag('config', 'UA-156665333-1');
         <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>编写并行程序必须要面对的一个难题：如何正确有效的保护共享数据。一些场景必然无法逃避锁的使用，最常见的应用就是：本地缓存。当使用锁的时候我们该注意什么？当锁成为性能瓶颈的时候我们该怎么优化做到有的放矢？</p>
 <h3 id="操作代价"><a href="#操作代价" class="headerlink" title="操作代价"></a>操作代价</h3><p>如果关注性能，自然少不了要理解下，锁使用过程中性能到底消耗在哪里。如果一个锁自始至终只被一个线程使用。或者，一个锁被多个线程使用过，但是在任意时刻，都只有一个线程尝试获取锁，我们将以上两种锁称为非竞争锁，这种情况对性能的影响很小。对性能影响最严重的情况出现在多个线程同时尝试获取锁，即锁竞争。性能影响主要在于上下文切换以及数据的cacheline miss。因此，面对需要使用锁的情况，不要过分担心非竞争锁带来的开销，要关注那些真正发生了锁竞争的临界区中性能的优化。</p>
 <blockquote>
-<p>加锁耗时：10ns<br>原子+1：50ns<br>CAS：100ns<br>自旋锁竞争（cacheline miss）：100ns<br>信号量竞争（上下文切换）：1000ns<br>内存访问：100ns<br><a href="http://yarchive.net/comp/linux/lock_costs.html" target="_blank" rel="noopener" title="http://yarchive.net/comp/linux/lock_costs.html">http://yarchive.net/comp/linux/lock_costs.html</a></p>
 </blockquote>
+<p>加锁耗时：10ns<br>原子+1：50ns<br>CAS：100ns<br>自旋锁竞争（cacheline miss）：100ns<br>信号量竞争（上下文切换）：1000ns<br>内存访问：100ns<br><a href="http://yarchive.net/comp/linux/lock_costs.html" target="_blank" rel="noopener" title="http://yarchive.net/comp/linux/lock_costs.html">http://yarchive.net/comp/linux/lock_costs.html</a></p>
 <p>因此，在保证程序正确性的前提下，解决锁同步带来的性能损失的主要方向应该是降低锁竞争。通常，有以下三类方法：</p>
 <ol>
 <li>减少持有锁的时间</li>
@@ -255,7 +255,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2020 cyningsun
+    <p class="text-muted credit">Copyright ©2021 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
