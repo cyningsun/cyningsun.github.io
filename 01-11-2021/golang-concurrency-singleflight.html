@@ -216,7 +216,7 @@ gtag('config', 'UA-156665333-1');
 			<span class="hljs-keyword">if</span> atomic.AddInt32(&amp;waited, <span class="hljs-number">-1</span>) == <span class="hljs-number">0</span> &#123;
 				<span class="hljs-built_in">close</span>(done)
 			&#125;
-			fmt.Printf(<span class="hljs-string">"index: %d, val: %d, shared: %v\n"</span>, j, v, shared)
+			fmt.Printf(<span class="hljs-string">"index: %d, val: %v, shared: %v\n"</span>, j, v, shared)
 		&#125;(i)
 	&#125;
 
@@ -227,11 +227,11 @@ gtag('config', 'UA-156665333-1');
 	&#125;
 &#125;</code></pre>
 <p>输出结果如下：</p>
-<pre><code class="hljs shell">index: 0, val: %!d(main.Result=result for "https://weibo.com/1227368500/H3GIgngon"), shared: false
-index: 4, val: %!d(main.Result=result for "https://weibo.com/1227368500/H3GIgngon"), shared: false
-index: 2, val: %!d(main.Result=result for "https://weibo.com/1227368500/H3GIgngon"), shared: true
-index: 1, val: %!d(main.Result=result for "https://weibo.com/1227368500/H3GIgngon"), shared: true
-index: 3, val: %!d(main.Result=result for "https://weibo.com/1227368500/H3GIgngon"), shared: true</code></pre>
+<pre><code class="hljs shell">index: 1, val: result for "https://weibo.com/1227368500/H3GIgngon", shared: true
+index: 2, val: result for "https://weibo.com/1227368500/H3GIgngon", shared: true
+index: 3, val: result for "https://weibo.com/1227368500/H3GIgngon", shared: false
+index: 4, val: result for "https://weibo.com/1227368500/H3GIgngon", shared: false
+index: 0, val: result for "https://weibo.com/1227368500/H3GIgngon", shared: false</code></pre>
 
 <p>如果函数执行一切正常，则所有请求都能顺利获得正确的数据。相反，如果函数执行遇到问题呢？由于 <code>singleflight</code> 是以阻塞读的方式来控制向下游请求的并发量，在第一个下游请求没有返回之前，所有请求都将被阻塞。</p>
 <h3 id="问题分析"><a href="#问题分析" class="headerlink" title="问题分析"></a>问题分析</h3><p>假设服务正常情况下处理能力为 1W QPS，每次请求会发起 3 次 下游调用，其中一个下游调用使用 <code>singleflight</code> 获取控制并发获取数据，请求超时时间为3S。那么在出现请求超时的情况下，会出现以下几个问题：</p>
@@ -261,7 +261,7 @@ timeout := time.After(<span class="hljs-number">500</span> * time.Millisecond)
         fmt.Println(<span class="hljs-string">"Timeout"</span>)
     <span class="hljs-keyword">return</span>
 <span class="hljs-keyword">case</span> ret = &lt;-ch: <span class="hljs-comment">// Received result from channel</span>
-    fmt.Printf(<span class="hljs-string">"index: %d, val: %d, shared: %v\n"</span>, j, ret.Val, ret.Shared)
+    fmt.Printf(<span class="hljs-string">"index: %d, val: %v, shared: %v\n"</span>, j, ret.Val, ret.Shared)
 &#125;</code></pre>
 <h4 id="单并发"><a href="#单并发" class="headerlink" title="单并发"></a>单并发</h4><p>在一些对可用性要求极高的场景下，往往需要一定的请求饱和度来保证业务的最终成功率。一次请求还是多次请求，对于下游服务而言并没有太大区别，此时使用 <code>singleflight</code> 只是为了降低请求的数量级，那么使用 Forget() 提高下游请求的并发:</p>
 <pre><code class="hljs go">v, _, shared := g.Do(key, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span></span> &#123;
@@ -298,6 +298,8 @@ timeout := time.After(<span class="hljs-number">500</span> * time.Millisecond)
 
   <ol class="related">
       
+            <li><span><a href="/01-19-2021/go-concurrency-patterns-context-cn.html">译｜Go Concurrency Patterns: Context</a></span></li>
+          
             <li><span><a href="/12-30-2020/golang-errgroup.html">Golang Concurrency：sync.errgroup</a></span></li>
           
             <li><span><a href="/10-15-2020/advanced-golang-article.html">Golang 进阶文章一览</a></span></li>
@@ -306,13 +308,13 @@ timeout := time.After(<span class="hljs-number">500</span> * time.Millisecond)
           
             <li><span><a href="/01-12-2020/inside-the-go-object-model.html">深度探索 Go 对象模型</a></span></li>
           
-            <li><span><a href="/12-09-2019/concurrency-is-not-parallelism.html">译 | Concurrency is not Parallelism</a></span></li>
-          
   </ol>
 
 
     <ul class="pager">
      
+     <li class="next"><a href="/01-19-2021/go-concurrency-patterns-context-cn.html">Newer &rarr;</a></li>
+    
     
     <li class="previous"><a href="/12-30-2020/golang-errgroup.html">&larr; Older</a></li>
     

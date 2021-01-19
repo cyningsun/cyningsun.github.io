@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.cyningsun.com/12-30-2020/golang-errgroup.html</loc>
-    <lastmod>2021-01-11</lastmod>
+    <loc>https://www.cyningsun.com/01-19-2021/go-concurrency-patterns-context-cn.html</loc>
+    <lastmod>2021-01-19</lastmod>
   </url>  <url>
     <loc>https://www.cyningsun.com/01-11-2021/golang-concurrency-singleflight.html</loc>
+    <lastmod>2021-01-15</lastmod>
+  </url>  <url>
+    <loc>https://www.cyningsun.com/12-30-2020/golang-errgroup.html</loc>
     <lastmod>2021-01-11</lastmod>
   </url>  <url>
     <loc>https://www.cyningsun.com/03-07-2020/high-concurrency-cache-consistent.html</loc>

@@ -2,16 +2,23 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>https://www.cyningsun.com/12-30-2020/golang-errgroup.html</loc>
+    <loc>https://www.cyningsun.com/01-19-2021/go-concurrency-patterns-context-cn.html</loc>
     
-    <lastmod>2021-01-11T15:22:11.451Z</lastmod>
+    <lastmod>2021-01-19T14:14:30.361Z</lastmod>
     
   </url>
   
   <url>
     <loc>https://www.cyningsun.com/01-11-2021/golang-concurrency-singleflight.html</loc>
     
-    <lastmod>2021-01-11T15:13:04.771Z</lastmod>
+    <lastmod>2021-01-15T15:48:18.755Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>https://www.cyningsun.com/12-30-2020/golang-errgroup.html</loc>
+    
+    <lastmod>2021-01-11T15:22:11.451Z</lastmod>
     
   </url>
   
