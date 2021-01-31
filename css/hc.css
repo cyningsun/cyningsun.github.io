@@ -460,8 +460,8 @@ time {
   font-size: 2em;
   line-height: 1.35;
 }
-.recent-posts h4 {
-  line-height: 1.8;
+.recent-posts h3 {
+  line-height: 2;
 }
 .badge {
   display: inline-block;
