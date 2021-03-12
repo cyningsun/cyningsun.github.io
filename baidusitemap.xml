@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://www.cyningsun.com/03-12-2021/oop-in-go.html</loc>
+    <lastmod>2021-03-12</lastmod>
+  </url>  <url>
+    <loc>https://www.cyningsun.com/09-09-2019/dont-just-check-errors-handle-them-gracefully-cn.html</loc>
+    <lastmod>2021-03-12</lastmod>
+  </url>  <url>
+    <loc>https://www.cyningsun.com/03-03-2021/packages-as-layers-not-groups-cn.html</loc>
+    <lastmod>2021-03-05</lastmod>
+  </url>  <url>
     <loc>https://www.cyningsun.com/02-02-2020/high-concurrency-hierarchical-storage.html</loc>
     <lastmod>2021-02-18</lastmod>
   </url>  <url>
@@ -116,9 +125,6 @@
     <lastmod>2020-09-04</lastmod>
   </url>  <url>
     <loc>https://www.cyningsun.com/09-07-2019/package-management.html</loc>
-    <lastmod>2020-09-04</lastmod>
-  </url>  <url>
-    <loc>https://www.cyningsun.com/09-09-2019/dont-just-check-errors-handle-them-gracefully-cn.html</loc>
     <lastmod>2020-09-04</lastmod>
   </url>  <url>
     <loc>https://www.cyningsun.com/09-13-2019/micro-service-monitor-prometheus-ha.html</loc>

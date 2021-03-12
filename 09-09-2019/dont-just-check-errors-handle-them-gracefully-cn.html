@@ -382,8 +382,6 @@ open /Users/dfc/.settings.xml: no such file or directory</code></pre>
 	<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>
 &#125;</code></pre>
 
-<p>In this example if an error occurs during <code>Write</code>, a line will be written to a log file, noting the file and line that the error occurred, and the error is also returned to the caller, who possibly will log it, and return it, all the way back up to the top of the program.</p>
-<p>So you get a stack of duplicate lines in your log file, but at the top of the program you get the original error without any context. Java anyone?</p>
 <p>在此示例中，如果在 <code>Write</code> 期间发生错误，则会将一行写入日志文件，注意错误发生的文件和行，并且错误也会返回给调用者，调用者可能会将其记录并返回，一路回到程序的顶部。</p>
 <p>因此，您在日志文件中获得了重复的行的堆栈，但是在程序的顶部，您将获得没有原始错误的任何上下文。 有人使用Java吗？</p>
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Write</span><span class="hljs-params">(w io.Write, buf []<span class="hljs-keyword">byte</span>)</span> <span class="hljs-title">error</span></span> &#123;
