@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>SGI-STL源码剖析之list::sort()</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2011-04-08 00:00:00 +0800"/>
+<meta property="og:url" content="/04-08-2011/stl-list-sort.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="// list 不能使用STL 算法 sort()，必须使用自己的 sort() member //function，因为STL算法sort() 只接受RamdonAccessIterator.// 本函式采用 quick sort. template &amp;lt;class T class Alloc&amp;gt; void list&amp;lt;T Alloc&amp;gt;:">
+
+<meta name="keywords" content="STL,sort">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>SGI-STL源码剖析之list::sort()</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <p>// list 不能使用STL 算法 sort()，必须使用自己的 sort() member //function，因为STL算法sort() 只接受RamdonAccessIterator.<br>// 本函式采用 quick sort.</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">T</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Alloc</span>&gt;</span>
+<span class="hljs-keyword">void</span> list&lt;T, Alloc&gt;::<span class="hljs-built_in">sort</span>() &#123;
+  <span class="hljs-comment">// 以下判断，如果是空白串行，或仅有一个元素，就不做任何动作。</span>
+  <span class="hljs-comment">// 使用 size() == 0 || size() == 1 来判断，虽然也可以，但是比较慢。</span>
+  <span class="hljs-keyword">if</span> (node-&gt;next == node || <span class="hljs-built_in">link_type</span>(node-&gt;next)-&gt;next == node) <span class="hljs-keyword">return</span>;
+  <span class="hljs-comment">// 一些新的 lists，做为中介数据存放区</span>
+  list&lt;T, Alloc&gt; carry;
+  list&lt;T, Alloc&gt; counter[<span class="hljs-number">64</span>];
+  <span class="hljs-keyword">int</span> fill = <span class="hljs-number">0</span>;
+  <span class="hljs-keyword">while</span> (!<span class="hljs-built_in">empty</span>()) &#123;
+    carry.<span class="hljs-built_in">splice</span>(carry.<span class="hljs-built_in">begin</span>(), *<span class="hljs-keyword">this</span>, <span class="hljs-built_in">begin</span>());
+    <span class="hljs-keyword">int</span> i = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">while</span>(i &lt; fill &amp;&amp; !counter[i].<span class="hljs-built_in">empty</span>()) &#123;
+      counter[i].<span class="hljs-built_in">merge</span>(carry);
+      carry.<span class="hljs-built_in">swap</span>(counter[i++]);
+    &#125;
+    carry.<span class="hljs-built_in">swap</span>(counter[i]);        
+    <span class="hljs-keyword">if</span> (i == fill) ++fill;
+  &#125;
+
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i = <span class="hljs-number">1</span>; i &lt; fill; ++i)
+     counter[i].<span class="hljs-built_in">merge</span>(counter[i<span class="hljs-number">-1</span>]);
+
+  <span class="hljs-built_in">swap</span>(counter[fill<span class="hljs-number">-1</span>]);
+&#125;</code></pre>
+
+<p>性质：<br>counter[i]的元素个数只可能有三种可能：0,2^(i-1)，2^i<br>其中2^i为counter[i]的不稳定状态，只要满足该元素个数，在该次循环中最终交换到i+1中。若此时i+1中的元素个数为2^(i+1)，则持续向上交换到i+2中。carry作为且仅仅作为此交换的中转。</p>
+<h3 id="Quick-Sort-还是-Merge-Sort？"><a href="#Quick-Sort-还是-Merge-Sort？" class="headerlink" title="Quick Sort 还是 Merge Sort？"></a>Quick Sort 还是 Merge Sort？</h3><p>首先，看一下两个算法的思想：</p>
+<ul>
+<li>快速排序，采用分而治之的思想，是Hoare提出的一种划分交换排序，非stable sort，属于Exchange sorts的范畴</li>
+<li>归并排序，采用分而治之的思想，是Neumann提出的一种基于比较的排序，绝大数实现为stable sort，属于Merge sorts的范畴。</li>
+</ul>
+<p>（可参考维基百科中两种算法的描述）<br>经过调试可知，list sort算法属于merge sort。测试可得到同样的结论,以下是测试代码：</p>
+<pre><code class="hljs c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span><span class="hljs-meta-string">&lt;iostream&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;list&gt;</span></span>
+<span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> std;
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdlib.h&gt;</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> TESTNUM 500</span>
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">Point</span></span>
+<span class="hljs-class">&#123;</span>
+	<span class="hljs-keyword">int</span> value;
+	<span class="hljs-keyword">int</span> num;
+	<span class="hljs-keyword">friend</span> <span class="hljs-keyword">bool</span> <span class="hljs-keyword">operator</span> &lt;(Point v1,Point v2)
+	&#123;
+		<span class="hljs-keyword">return</span> v1.value&lt;v2.value;
+	&#125;
+&#125;;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>
+<span class="hljs-function"></span>&#123;
+	<span class="hljs-built_in">freopen</span>(<span class="hljs-string">&quot;STL List Test.txt&quot;</span>,<span class="hljs-string">&quot;w&quot;</span>,stdout);
+	list&lt;Point&gt; container;
+	<span class="hljs-built_in">srand</span>(<span class="hljs-number">0</span>);
+	<span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;TESTNUM;i++)
+	&#123;
+		Point p;
+		p.value=<span class="hljs-built_in">rand</span>()%<span class="hljs-number">100</span>;
+		p.num=i;
+		container.<span class="hljs-built_in">push_back</span>(p);
+	&#125;
+	container.<span class="hljs-built_in">sort</span>();
+	<span class="hljs-keyword">for</span> (list&lt;Point&gt;::iterator it = container.<span class="hljs-built_in">begin</span>(); it != container.<span class="hljs-built_in">end</span>(); ++it)
+	&#123;
+		<span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;%d   %d\n&quot;</span>,(*it).value,(*it).num);
+	&#125;
+&#125;</code></pre>
+
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-08-2011/stl-list-sort.html">https://www.cyningsun.com/04-08-2011/stl-list-sort.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#STL" rel="category"># STL</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/05-08-2012/stl-shuffle.html">STL算法我实现之随机洗牌</a></span></li>
+          
+            <li><span><a href="/05-07-2012/stl-permutation.html">STL算法我实现之排列</a></span></li>
+          
+            <li><span><a href="/04-25-2011/stl-rotate.html">STL算法我实现之rotate</a></span></li>
+          
+            <li><span><a href="/04-09-2011/stl-introsort.html">SGI-STL源码剖析之IntroSort</a></span></li>
+          
+            <li><span><a href="/04-04-2011/stl-heap.html">SGI-STL源码剖析之Heap</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-09-2011/stl-introsort.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-04-2011/stl-heap.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

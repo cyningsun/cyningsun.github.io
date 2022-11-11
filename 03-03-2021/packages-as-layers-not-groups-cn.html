@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译 | Packages as layers, not groups</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-03-03 00:00:00 +0800"/>
+<meta property="og:url" content="/03-03-2021/packages-as-layers-not-groups-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="四年前，我写了一篇名为 《标准包布局》 的文章试图阐述：包布局。即使对高级 Go 开发人员来说，这也是最困难的话题之一。然而，大多数开发人员还在艰难地将代码组织到目录结构中，相应的目录结构随着应用程序缓慢增长。 几乎所有编程语言都有一种机制，将相关功能组合在一起。Ruby 有 gems，Java 有 package。这些语言没有约定代码进行分组的标准，因为的">
+
+<meta name="keywords" content="分包,分组,package,group">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译 | Packages as layers, not groups</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%90%86%E8%A7%A3%E5%BE%AA%E7%8E%AF%E4%BE%9D%E8%B5%96"><span class="toc-text">理解循环依赖</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%81%B7%E5%B8%88%E6%A0%87%E5%87%86%E5%BA%93"><span class="toc-text">偷师标准库</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B0%86%E5%B1%82%E6%AC%A1%E5%BA%94%E7%94%A8%E4%BA%8E%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F%E5%BC%80%E5%8F%91"><span class="toc-text">将层次应用于应用程序开发</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8E%9F%E5%A7%8B%E7%9A%84%E6%96%B9%E6%B3%95"><span class="toc-text">原始的方法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%9A%94%E7%A6%BB%E6%82%A8%E7%9A%84%E4%B8%9A%E5%8A%A1%E9%A2%86%E5%9F%9F"><span class="toc-text">隔离您的业务领域</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%80%9A%E8%BF%87%E6%8A%BD%E8%B1%A1%E5%8E%BB%E9%99%A4%E4%BE%9D%E8%B5%96"><span class="toc-text">通过抽象去除依赖</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E7%BB%84%E5%8C%85"><span class="toc-text">重新组包</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-text">结论</span></a></li></ol>
+ 
+        <p>四年前，我写了一篇名为 <a target="_blank" rel="noopener" href="https://www.gobeyond.dev/standard-package-layout/">《标准包布局》</a> 的文章试图阐述：包布局。即使对高级 Go 开发人员来说，这也是最困难的话题之一。然而，大多数开发人员还在艰难地将代码组织到目录结构中，相应的目录结构随着应用程序缓慢增长。</p>
+<p>几乎所有编程语言都有一种机制，将相关功能组合在一起。Ruby 有 <code>gems</code>，Java 有 <code>package</code>。这些语言没有约定代码进行分组的标准，因为的确并不重要。最终一切都取决于个人喜好。</p>
+<p>然而，包组织引起问题的频率，让切换到 Go 的开发人员吃惊。为什么 Go 包与其他语言如此不同？因为其不是 <code>分组(group)</code>，而是 <code>层次（layer）</code>。</p>
+<h3 id="理解循环依赖"><a href="#理解循环依赖" class="headerlink" title="理解循环依赖"></a>理解循环依赖</h3><p>Go 的包与其他语言中的分组，主要区别在于 Go 不允许循环依赖。包 A 可以依赖于包 B，但是包 B 不能依赖于包 A。</p>
+<p><img src="/images/packages-as-layers-not-groups-cn/5A25FB3F-B5FC-4A20-94D5-74BA54CF69DA.svg" alt="5A25FB3F-B5FC-4A20-94D5-74BA54CF69DA.svg"></p>
+<p>对开发人员而言，当两个包共享公共代码，该限制会带来问题。通常有两种解决方案：将两个包合并成一个包，或者引入第三个包。</p>
+<p><img src="/images/packages-as-layers-not-groups-cn/744E11AC-B068-430F-9827-54940085D941.svg" alt="744E11AC-B068-430F-9827-54940085D941.svg+xml"></p>
+<p>然而，拆分成越来越多的包只是把问题推迟到未来。最终，仍会得到一大堆乱七八糟的包，缺少真正的结构。</p>
+<h3 id="偷师标准库"><a href="#偷师标准库" class="headerlink" title="偷师标准库"></a>偷师标准库</h3><p>当你使用 Go 编程需要指引时，查看标准库是最有效的窍门之一。没有代码是完美的，但 Go 标准库封装了语言创造者的许多理念。</p>
+<p>例如，<code>net/http</code> 包构建在 <code>net</code> 包的抽象之上，而 <code>net</code> 包又构建在 <code>io</code> 层的抽象之上。假设 <code>net</code> 包需要以某种方式依赖 <code>net/http</code> 是没有意义的，以上包结构行之有效。</p>
+<p><img src="/images/packages-as-layers-not-groups-cn/2EAF705B-4584-4128-AF1B-B6CDD8E1181B.svg" alt="2EAF705B-4584-4128-AF1B-B6CDD8E1181B.svg+xml"></p>
+<p>虽然在标准库中行之有效，但很难延续到应用程序开发。</p>
+<h3 id="将层次应用于应用程序开发"><a href="#将层次应用于应用程序开发" class="headerlink" title="将层次应用于应用程序开发"></a>将层次应用于应用程序开发</h3><p>我们将看到一个名为 <a target="_blank" rel="noopener" href="https://github.com/benbjohnson/wtf"><code>WTF Dial</code></a> 的示例应用程序，您可以阅读 <a target="_blank" rel="noopener" href="https://www.gobeyond.dev/wtf-dial/">介绍性文章</a> 了解更多关于它的信息。</p>
+<p>在此应用程序中，有两个逻辑层：</p>
+<ol>
+<li>SQLite 数据库</li>
+<li>HTTP 服务</li>
+</ol>
+<p>我们为它们各创建一个包 —— <code>sqlite</code> &amp; <code>http</code> 。许多人拒绝将包命名成与标准库包相同的名称。这是一个站得住脚的说法，你也可以将其命名为 <code>wtfhttp</code>。然而，HTTP 包完全封装了 <code>net/HTTP</code> 包，因此在同一文件中不会同时使用两者。给每个包加前缀既乏味又难看，所以我没有这么做。</p>
+<h4 id="原始的方法"><a href="#原始的方法" class="headerlink" title="原始的方法"></a>原始的方法</h4><p>一种构造应用程序的方法是将数据类型（如 <code>User</code>、<code>Dial</code>）和函数（如 <code>FindUser()</code>, <code>CreateDial()</code> ）放到 <code>sqlite</code> 中。<code>http</code> 包可以直接依赖它：</p>
+<p><img src="/images/packages-as-layers-not-groups-cn/1BBCD044-BC5D-4449-A13B-ABF05AA79576.svg" alt="1BBCD044-BC5D-4449-A13B-ABF05AA79576.svg+xml"></p>
+<p>这是一个不错的方法，它适用于简单的应用程序。不过，最终会遇到一些问题。</p>
+<p>首先，我们的数据类型被命名为 <code>sqlite.User</code> 以及 <code>sqlite.Dial</code>。两个数据类型属于我们的应用程序，而不是 <code>SQLite</code>，如此命名很奇怪。</p>
+<p>第二，HTTP 层现在只能提供来自 SQLite 的数据。如果需要在中间添加一个缓存层，会发生什么？或者如何支持其他类型的数据存储，比如 Postgres，或者甚至存储为JSON到磁盘上？</p>
+<p>最后，需要为每次 HTTP 测试运行一个 SQLite 数据库，因为没有抽象层来 mock 它。我通常支持尽可能多地进行端到端测试，但是一些用例适合在较高层次引入单元测试。一旦引入了云服务，你不希望在每次测试调用都运行它的情况下，尤其正确。</p>
+<h4 id="隔离您的业务领域"><a href="#隔离您的业务领域" class="headerlink" title="隔离您的业务领域"></a>隔离您的业务领域</h4><p>第一点可以改变的是，将 <em>业务领域</em> 移动到自己的包中。也可以称之为“应用领域”。它是特定于应用程序的数据类型 —— 例如，<code>User</code>, <code>Dial</code>（在 WTF Dial 的例子中）。</p>
+<p>为此，我使用根包（<code>wtf</code>）实现该意图，因为它已经很简便地以应用程序命名，而且根包是新开发人员打开代码库时首先看到的地方。类型现在更好的命名为 <code>wtf.User</code> 以及 <code>wtf.Dial</code>。</p>
+<p><img src="/images/packages-as-layers-not-groups-cn/804113F0-9C8B-4363-BC04-8E9113A84CA7.svg" alt="804113F0-9C8B-4363-BC04-8E9113A84CA7.svg+xml"></p>
+<p>可以看到 <code>wtf.Dial</code> 类型的一个示例：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Dial <span class="hljs-keyword">struct</span> &#123;
+	ID <span class="hljs-keyword">int</span> <span class="hljs-string">`json:&quot;id&quot;`</span>
+
+	<span class="hljs-comment">// Owner of the dial. Only the owner may delete the dial.</span>
+	UserID <span class="hljs-keyword">int</span>   <span class="hljs-string">`json:&quot;userID&quot;`</span>
+	User   *User <span class="hljs-string">`json:&quot;user&quot;`</span>
+
+	<span class="hljs-comment">// Human-readable name of the dial.</span>
+	Name <span class="hljs-keyword">string</span> <span class="hljs-string">`json:&quot;name&quot;`</span>
+
+	<span class="hljs-comment">// Code used to share the dial with other users.</span>
+	<span class="hljs-comment">// It allows the creation of a shareable link without</span>
+	<span class="hljs-comment">// explicitly inviting users.</span>
+	InviteCode <span class="hljs-keyword">string</span> <span class="hljs-string">`json:&quot;inviteCode,omitempty&quot;`</span>
+
+	<span class="hljs-comment">// Aggregate WTF level for the dial.</span>
+	Value <span class="hljs-keyword">int</span> <span class="hljs-string">`json:&quot;value&quot;`</span>
+
+	<span class="hljs-comment">// Timestamps for dial creation &amp; last update.</span>
+	CreatedAt time.Time <span class="hljs-string">`json:&quot;createdAt&quot;`</span>
+	UpdatedAt time.Time <span class="hljs-string">`json:&quot;updatedAt&quot;`</span>
+
+	<span class="hljs-comment">// List of associated members and their contributing WTF level.</span>
+	<span class="hljs-comment">// This is only set when returning a single dial.</span>
+	Memberships []*DialMembership <span class="hljs-string">`json:&quot;memberships,omitempty&quot;`</span>
+&#125;</code></pre>
+<p>以上代码没有引用任何实现细节，只有基本类型和 <code>time.Time</code>。添加 JSON 标记是为了方便。</p>
+<h4 id="通过抽象去除依赖"><a href="#通过抽象去除依赖" class="headerlink" title="通过抽象去除依赖"></a>通过抽象去除依赖</h4><p>应用程序结构看起来好些了，但是 HTTP 依赖于 SQLite 仍然很奇怪。 HTTP 服务想要从底层数据存储中获取数据，它并不特别关心底层数据存储是否是 SQLite。</p>
+<p>为了解决该问题，我们为业务域中的服务操作创建接口。服务通常是Create/Read/Update/Delete（CRUD），但可以扩展到其他操作。</p>
+<pre><code class="hljs go"><span class="hljs-comment">// DialService represents a service for managing dials.</span>
+<span class="hljs-keyword">type</span> DialService <span class="hljs-keyword">interface</span> &#123;
+	<span class="hljs-comment">// Retrieves a single dial by ID along with associated memberships. Only</span>
+	<span class="hljs-comment">// the dial owner &amp; members can see a dial. Returns ENOTFOUND if dial does</span>
+	<span class="hljs-comment">// not exist or user does not have permission to view it.</span>
+	FindDialByID(ctx context.Context, id <span class="hljs-keyword">int</span>) (*Dial, error)
+
+	<span class="hljs-comment">// Retrieves a list of dials based on a filter. Only returns dials that</span>
+	<span class="hljs-comment">// the user owns or is a member of. Also returns a count of total matching</span>
+	<span class="hljs-comment">// dials which may different from the number of returned dials if the</span>
+	<span class="hljs-comment">// &quot;Limit&quot; field is set.</span>
+	FindDials(ctx context.Context, filter DialFilter) ([]*Dial, <span class="hljs-keyword">int</span>, error)
+
+	<span class="hljs-comment">// Creates a new dial and assigns the current user as the owner.</span>
+	<span class="hljs-comment">// The owner will automatically be added as a member of the new dial.</span>
+	CreateDial(ctx context.Context, dial *Dial) error
+
+	<span class="hljs-comment">// Updates an existing dial by ID. Only the dial owner can update a dial.</span>
+	<span class="hljs-comment">// Returns the new dial state even if there was an error during update.</span>
+	<span class="hljs-comment">//</span>
+	<span class="hljs-comment">// Returns ENOTFOUND if dial does not exist. Returns EUNAUTHORIZED if user</span>
+	<span class="hljs-comment">// is not the dial owner.</span>
+	UpdateDial(ctx context.Context, id <span class="hljs-keyword">int</span>, upd DialUpdate) (*Dial, error)
+
+	<span class="hljs-comment">// Permanently removes a dial by ID. Only the dial owner may delete a dial.</span>
+	<span class="hljs-comment">// Returns ENOTFOUND if dial does not exist. Returns EUNAUTHORIZED if user</span>
+	<span class="hljs-comment">// is not the dial owner.</span>
+	DeleteDial(ctx context.Context, id <span class="hljs-keyword">int</span>) error
+&#125;</code></pre>
+
+<p>现在，领域包（<code>wtf</code>）不仅指定了数据结构，还指定了层次之间如何通信的接口约定。使包层次结构扁平化，所有包现在都依赖于领域包。使得我们能够打破包之间的直接依赖关系，而且能够引入诸如 <code>mock</code> 包之类的替代实现。</p>
+<p><img src="/images/packages-as-layers-not-groups-cn/E1B5DA68-F665-4427-A355-9CF8A7DB32A4.svg" alt="E1B5DA68-F665-4427-A355-9CF8A7DB32A4.svg+xml"></p>
+<h4 id="重新组包"><a href="#重新组包" class="headerlink" title="重新组包"></a>重新组包</h4><p>打破包之间的依赖关系可以让我们灵活地使用代码。对于二进制应用程序 <code>wtfd</code>，我们仍然希望 <code>http</code> 依赖于 <code>sqlite</code>（参见 <a target="_blank" rel="noopener" href="https://github.com/benbjohnson/wtf/blob/main/cmd/wtfd/main.go#L180-L205">wtf/main.go</a> )，但是对于测试，我们可以将 <code>http</code> 更改为依赖于新的<code>mock</code> 包（参见<a target="_blank" rel="noopener" href="https://github.com/benbjohnson/wtf/blob/main/http/server_test.go#L22-L59">http/server_test.go</a>):</p>
+<p><img src="/images/packages-as-layers-not-groups-cn/38EFCB27-8A0D-4DE8-86CA-BAD89EAF1030.svg" alt="38EFCB27-8A0D-4DE8-86CA-BAD89EAF1030.svg+xml"></p>
+<p>对我们的小型 web 应用程序 WTF Dial 而言，这可能过于炫技了，但随着代码库的增长，会变得越来越重要。</p>
+<h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>包是 Go 中一个强大的工具，但是如果你把它看作分组而不是层次的话，它会让你感到无尽的沮丧，理解应用程序的逻辑层之后，可以提取业务域的数据类型和接口约定，并将它们移动到根包，作为所有子包的通用域语言。随着时间的推移，定义领域语言对于应用程序的增长至关重要。</p>
+<p>有问题或意见，请在 <a target="_blank" rel="noopener" href="https://github.com/benbjohnson/wtf/discussions">WTF Dial GitHub 讨论板</a> 上创建新帖。</p>
+<p><em>原文：</em><a target="_blank" rel="noopener" href="https://www.gobeyond.dev/packages-as-layers/">https://www.gobeyond.dev/packages-as-layers/</a></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-03-2021/packages-as-layers-not-groups-cn.html">https://www.cyningsun.com/03-03-2021/packages-as-layers-not-groups-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/03-12-2021/oop-in-go.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/02-18-2021/high-concurrency-cache-design.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深度探索 Go 对象模型</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-01-12 00:00:00 +0800"/>
+<meta property="og:url" content="/01-12-2020/inside-the-go-object-model.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="了解一门语言的高级特性，仅仅从浮于表面，是无法把握住语言的精髓的。学习过 C++ 的高阶开发者，一定读过神书《Inside The C++ Object Model》，本文的目标是一样的：通过对象模型，掌握 Go 语言的底层机制，从更深层次解释语言特性。 编译与执行众所周知，Go 源码并不能直接运行，所有代码必须一行行，通过“编译”——“汇编”——“链接” ">
+
+<meta name="keywords" content="Object model,Reflect,反射,多态,底层,interface,golang">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深度探索 Go 对象模型</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BC%96%E8%AF%91%E4%B8%8E%E6%89%A7%E8%A1%8C"><span class="toc-text">编译与执行</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B%EF%BC%9F"><span class="toc-text">什么是对象模型？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Struct-%E8%AF%AD%E6%84%8F%E5%AD%A6"><span class="toc-text">Struct 语意学</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%88%90%E5%91%98%E5%8F%98%E9%87%8F"><span class="toc-text">成员变量</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80"><span class="toc-text">内存布局</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%8F%98%E9%87%8F%E5%AD%98%E5%8F%96"><span class="toc-text">变量存取</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%87%BD%E6%95%B0%E8%B0%83%E7%94%A8"><span class="toc-text">函数调用</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Interface-%E8%AF%AD%E6%84%8F%E5%AD%A6"><span class="toc-text">Interface 语意学</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#interface-%E5%BA%95%E5%B1%82"><span class="toc-text">interface 底层</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%90%86%E8%AE%BA%E9%AA%8C%E8%AF%81"><span class="toc-text">理论验证</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%BC%E8%BF%B0"><span class="toc-text">综述</span></a></li></ol>
+ 
+        <p>了解一门语言的高级特性，仅仅从浮于表面，是无法把握住语言的精髓的。学习过 C++ 的高阶开发者，一定读过神书《Inside The C++ Object Model》，本文的目标是一样的：通过对象模型，掌握 Go 语言的底层机制，从更深层次解释语言特性。</p>
+<h3 id="编译与执行"><a href="#编译与执行" class="headerlink" title="编译与执行"></a>编译与执行</h3><p>众所周知，Go 源码并不能直接运行，所有代码必须一行行，通过“编译”——“汇编”——“链接” 阶段 转化为低级的机器语言指令，即可执行程序。</p>
+<p><img src="/images/go-object-model/compile.png" alt="compile.png"></p>
+<p>“汇编”和“链接”阶段各种语言并无区别，所以一般通过“编译”和“执行”阶段来支持各种语言特性。对于 Go 语言，执行过程并无法直接修改执行指令，因此所有语言特性都是“编译”相关的。理解这一点很重要，因为下面依赖“编译”的产物 <strong>汇编代码</strong> 来解读对象模型。</p>
+<h3 id="什么是对象模型？"><a href="#什么是对象模型？" class="headerlink" title="什么是对象模型？"></a>什么是对象模型？</h3><p>何为 Go 对象模型？ Go 对象模型可以概括为以下两部分：</p>
+<ol>
+<li>支持面向对象程序设计的部分<blockquote>
+<ul>
+<li>封装</li>
+<li>继承</li>
+<li>多态</li>
+</ul>
+</blockquote>
+</li>
+<li>各种特性的底层实现机制<blockquote>
+<ul>
+<li>反射</li>
+</ul>
+</blockquote>
+</li>
+</ol>
+<p>下面分别从 struct 和 interface 来解释模型如何支持以上两部分。</p>
+<h3 id="Struct-语意学"><a href="#Struct-语意学" class="headerlink" title="Struct 语意学"></a>Struct 语意学</h3><p><img src="/images/go-object-model/struct.png" alt="struct.png"></p>
+<p>面向对象编程，把对象作为程序的基本单元，一个对象包含了数据和操作数据的函数，前者为成员变量，后者为成员函数。所以研究对象需要分别从成员变量和成员函数入手。</p>
+<h4 id="成员变量"><a href="#成员变量" class="headerlink" title="成员变量"></a>成员变量</h4><p>以下有三段程序：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// First: global varible</span>
+<span class="hljs-keyword">var</span> (
+   X,Y,Z <span class="hljs-keyword">float32</span>
+)
+
+<span class="hljs-comment">// Second: simple type</span>
+<span class="hljs-keyword">type</span> point3d <span class="hljs-keyword">struct</span> &#123;
+	X, Y, Z <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-comment">// Third: inherit type</span>
+<span class="hljs-keyword">type</span> point <span class="hljs-keyword">struct</span> &#123;
+	X <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-keyword">type</span> point2d <span class="hljs-keyword">struct</span> &#123;
+	point
+	Y <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-keyword">type</span> point3d <span class="hljs-keyword">struct</span> &#123;
+	point2d
+	Z <span class="hljs-keyword">float32</span>
+&#125;</code></pre>
+<p>从风格来看，三段程序截然不同。有许多令人信服的讨论告诉我们，为什么“数据封装”（Second &amp; Third）要比使用“全局变量”好。但，从程序员的角度看，会有几个疑问：</p>
+<blockquote>
+<ol>
+<li>“数据封装” 之后，内存成本增加了多少？</li>
+<li>“数据封装” 之后，在执行过程中，变量的存储效率是否降低了？</li>
+</ol>
+</blockquote>
+<h5 id="内存布局"><a href="#内存布局" class="headerlink" title="内存布局"></a>内存布局</h5><p>先看内存变化。了解内存变化最好的办法就是通过代码打印对象的内存大小，先看全局变量大小</p>
+<pre><code class="hljs go"><span class="hljs-keyword">var</span> (
+	X, Y, Z <span class="hljs-keyword">float32</span>
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+	fmt.Printf(<span class="hljs-string">&quot;X size:%v, Y size:%v, Z size:%v\n&quot;</span>, unsafe.Sizeof(X), unsafe.Sizeof(Y), unsafe.Sizeof(Z))
+	fmt.Printf(<span class="hljs-string">&quot;X addr:%v, Y addr:%v, Z addr:%v\n&quot;</span>, &amp;X, &amp;Y, &amp;Z)
+&#125;</code></pre>
+<p>执行程序输出为：</p>
+<pre><code class="hljs sh">$ go run variable.go
+X size:4, Y size:4, Z size:4
+X addr:0x118ee88, Y addr:0x118ee8c, Z addr:0x118ee90</code></pre>
+<p>可以看到，X、Y、Z三个字段大小均为4字节，且三个字段内存地址顺序排列。</p>
+<p>再看第二段代码的输出</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestLayout</span><span class="hljs-params">(t *testing.T)</span></span> &#123;
+	p := point3d&#123;X: <span class="hljs-number">1</span>, Y: <span class="hljs-number">2</span>, Z: <span class="hljs-number">3</span>&#125;
+	fmt.Printf(<span class="hljs-string">&quot;point3d size:%v, align:%v\n&quot;</span>, unsafe.Sizeof(p), unsafe.Alignof(p))
+	typ := reflect.TypeOf(p)
+	fmt.Printf(<span class="hljs-string">&quot;Struct:%v is %d bytes long\n&quot;</span>, typ.Name(), typ.Size())
+	fmt.Printf(<span class="hljs-string">&quot;X at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.X), unsafe.Sizeof(p.X))
+	fmt.Printf(<span class="hljs-string">&quot;Y at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.Y), unsafe.Sizeof(p.Y))
+	fmt.Printf(<span class="hljs-string">&quot;Z at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.Z), unsafe.Sizeof(p.Z))
+&#125;</code></pre>
+
+<p>执行程序输出为：</p>
+<pre><code class="hljs sh">$ go <span class="hljs-built_in">test</span> -v -run TestLayout
+=== RUN   TestLayout
+point3d size:12, align:4
+Struct:point3d is 12 bytes long
+X at offset 0, size=4
+Y at offset 4, size=4
+Z at offset 8, size=4</code></pre>
+<p>可以看到，X、Y、Z三个字段大小一样为4字节，内存排列也与上一个版本一样。</p>
+<p>继续，第三段代码</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestLayout</span><span class="hljs-params">(t *testing.T)</span></span> &#123;
+	p := point3d&#123;point2d: point2d&#123;point: point&#123;X: <span class="hljs-number">1</span>&#125;, Y: <span class="hljs-number">2</span>&#125;, Z: <span class="hljs-number">3</span>&#125;
+	fmt.Printf(<span class="hljs-string">&quot;point3d size:%v, align:%v\n&quot;</span>, unsafe.Sizeof(p), unsafe.Alignof(p))
+	typ := reflect.TypeOf(p)
+	fmt.Printf(<span class="hljs-string">&quot;Struct:%v is %d bytes long\n&quot;</span>, typ.Name(), typ.Size())
+	fmt.Printf(<span class="hljs-string">&quot;X at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.X), unsafe.Sizeof(p.X))
+	fmt.Printf(<span class="hljs-string">&quot;Y at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.Y), unsafe.Sizeof(p.Y))
+	fmt.Printf(<span class="hljs-string">&quot;Z at offset %v, size=%d\n&quot;</span>, unsafe.Offsetof(p.Z), unsafe.Sizeof(p.Z))
+&#125;</code></pre>
+
+<p>执行程序输出为：</p>
+<pre><code class="hljs sh">$ go <span class="hljs-built_in">test</span> -v -run TestLayout
+=== RUN   TestLayout
+point3d size:12, align:4
+Struct:point3d is 12 bytes long
+X at offset 0, size=4
+Y at offset 4, size=4
+Z at offset 8, size=4</code></pre>
+<p>可以看到，X、Y、Z三个字段大小一样为4字节，内存排列也与之前两个版本一样。</p>
+<p>综上所述，我们可以看到，无论是否封装，还是多深的继承层次，对成员变量的内存布局都并无影响，均按照字段定义的顺序排列（不考虑内存对齐的情况）。即内存布局类似如下：</p>
+<p><img src="/images/go-object-model/memory-offset.png" alt="memory-offset.png"></p>
+<h5 id="变量存取"><a href="#变量存取" class="headerlink" title="变量存取"></a>变量存取</h5><p>成员变量有两种读取方式，既可以通过对象读取，也可以通过对象的指针读取。两种读取方式与直接变量读取会有什么不同么？使用一段代码再看下：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> point <span class="hljs-keyword">struct</span> &#123;
+	X <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-keyword">type</span> point2d <span class="hljs-keyword">struct</span> &#123;
+	point
+	Y <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-keyword">type</span> point3d <span class="hljs-keyword">struct</span> &#123;
+	point2d
+	Z <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+	<span class="hljs-keyword">var</span> (
+		w <span class="hljs-keyword">float32</span>
+	)
+	point := point3d&#123;point2d: point2d&#123;point: point&#123;X: <span class="hljs-number">1</span>&#125;, Y: <span class="hljs-number">2</span>&#125;, Z: <span class="hljs-number">3</span>&#125; <span class="hljs-comment">// L25</span>
+	p := &amp;point  <span class="hljs-comment">// L26</span>
+	w = point.Y  <span class="hljs-comment">// L27</span>
+	fmt.Printf(<span class="hljs-string">&quot;w:%f\n&quot;</span>, w)
+	w = p.Y     <span class="hljs-comment">// L29</span>
+	fmt.Printf(<span class="hljs-string">&quot;w:%f\n&quot;</span>, w)
+&#125;</code></pre>
+
+<p>还记得之前提过的“编译”阶段么？我们使用 go tool 可以查看源代码汇编之后的代码</p>
+<pre><code class="hljs x86asm"><span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x10948d8</span>	f30f11442444		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x44</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x10948de</span>	f30f11442448		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x48</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x10948e4</span>	f30f1144244c		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x4c</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x10948ea</span>	f30f10055ab50400	<span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.</span>3f800000(SB), X0	
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x10948f2</span>	f30f11442444		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x44</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x10948f8</span>	f30f100550b50400	<span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.40000000</span>(SB), X0	
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x1094900</span>	f30f11442448		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x48</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x1094906</span>	f30f100546b50400	<span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.40400000</span>(SB), X0	
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x109490e</span>	f30f1144244c		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x4c</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">26</span>	<span class="hljs-number">0x1094914</span>	488d442444		LEAQ <span class="hljs-number">0x44</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span>
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">26</span>	<span class="hljs-number">0x1094919</span>	<span class="hljs-number">4889442450</span>		<span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">AX</span>, <span class="hljs-number">0x50</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">27</span>	<span class="hljs-number">0x109491e</span>	f30f10442448		<span class="hljs-keyword">MOVSS</span> <span class="hljs-number">0x48</span>(<span class="hljs-built_in">SP</span>), X0	// 读取 Y 到寄存器 X0
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">27</span>	<span class="hljs-number">0x1094924</span>	f30f11442440		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x40</span>(<span class="hljs-built_in">SP</span>)	// 赋值 寄存器 X0 给 w
+...
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">29</span>	<span class="hljs-number">0x10949c7</span>	488b442450		<span class="hljs-keyword">MOVQ</span> <span class="hljs-number">0x50</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span>	// 读取 对象地址 到寄存器 <span class="hljs-built_in">AX</span> 		
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">29</span>	<span class="hljs-number">0x10949cc</span>	<span class="hljs-number">8400</span>			TESTB <span class="hljs-built_in">AL</span>, <span class="hljs-number">0</span>(<span class="hljs-built_in">AX</span>)	
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">29</span>	<span class="hljs-number">0x10949ce</span>	f30f104004		<span class="hljs-keyword">MOVSS</span> <span class="hljs-number">0x4</span>(<span class="hljs-built_in">AX</span>), X0	// 从对象起始地址偏移<span class="hljs-number">4</span>字节读取数据到寄存器 X0 	
+<span class="hljs-symbol">data_access.go:</span><span class="hljs-number">29</span>	<span class="hljs-number">0x10949d3</span>	f30f11442440		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x40</span>(<span class="hljs-built_in">SP</span>)	// 赋值 寄存器 X0 给 w</code></pre>
+<p>可以看到，每个成员变量的偏移量在编译时即可获知，不管其有多么复杂的继承，都是一样的。通过对象存取一个data member，其效率和存取一个非成员变量是一样的。</p>
+<h4 id="函数调用"><a href="#函数调用" class="headerlink" title="函数调用"></a>函数调用</h4><p>前面的例子提过，对象的总大小刚好等于所有的成员变量之和，也就意味着成员函数并不占用对象的内存大小。那成员函数的调用是怎么实现的呢？我们通过一段代码看下</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> point3d <span class="hljs-keyword">struct</span> &#123;
+	X, Y, Z <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *point3d)</span> <span class="hljs-title">Println</span><span class="hljs-params">()</span></span> &#123;
+	fmt.Printf(<span class="hljs-string">&quot;%v,%v,%v\n&quot;</span>, p.X, p.Y, p.Z)
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+	p := point3d&#123;X: <span class="hljs-number">1</span>, Y: <span class="hljs-number">2</span>, Z: <span class="hljs-number">3</span>&#125; <span class="hljs-comment">// L14</span>
+	p.Println()                   <span class="hljs-comment">// L15</span>
+&#125;</code></pre>
+
+<p>同样使用 go tool获取对应的汇编代码</p>
+<pre><code class="hljs x86asm"><span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094a7d</span>	0f57c0			<span class="hljs-keyword">XORPS</span> X0, X0	
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094a80</span>	f30f1144240c		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0xc</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094a86</span>	f30f11442410		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x10</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094a8c</span>	f30f11442414		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x14</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094a92</span>	f30f100592b30400	<span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.</span>3f800000(SB), X0	
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094a9a</span>	f30f1144240c		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0xc</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094aa0</span>	f30f100588b30400	<span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.40000000</span>(SB), X0	
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094aa8</span>	f30f11442410		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x10</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094aae</span>	f30f10057eb30400	<span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.40400000</span>(SB), X0	
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">14</span>	<span class="hljs-number">0x1094ab6</span>	f30f11442414		<span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x14</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">15</span>	<span class="hljs-number">0x1094abc</span>	488d44240c		LEAQ <span class="hljs-number">0xc</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span> //将对象 q 的起始地址保存到寄存器<span class="hljs-built_in">AX</span>
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">15</span>	<span class="hljs-number">0x1094ac1</span>	<span class="hljs-number">48890424</span>		<span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">AX</span>, <span class="hljs-number">0</span>(<span class="hljs-built_in">SP</span>)	  //将对象 q 的起始地址 压栈
+<span class="hljs-symbol">call.go:</span><span class="hljs-number">15</span>	<span class="hljs-number">0x1094ac5</span>	e8d6fdffff		<span class="hljs-keyword">CALL</span> main.(*point3d).Println(SB)	  // 调用 struct point 的 Println() 函数</code></pre>
+<p>可以看到成员函数的调用都是先把参数压栈，然后调用对应的的函数。可见，成员函数与普通的函数调用并无不同。那么函数的内存在哪里呢？</p>
+<p>还记得进程的内存分布么？</p>
+<p><img src="/images/go-object-model/process-memory.png" alt="process-memory.png"></p>
+<p>没错，所有的函数都在进程的代码段（Text Segment）</p>
+<h3 id="Interface-语意学"><a href="#Interface-语意学" class="headerlink" title="Interface 语意学"></a>Interface 语意学</h3><p>第一部分讲了，封装和继承的影响，剩下这部分会讲清楚 Go 如何使用 interface 实现<code>多态</code>和<code>反射</code>。其中interface又有两种形式，一种是有函数的非空interface，一种是空的interface（interface{}）。话不多说，直接上代码，看下这两种类型的interface的变量在内存大小上有何区别：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Point <span class="hljs-keyword">interface</span> &#123;
+	Println()
+&#125;
+
+<span class="hljs-keyword">type</span> point <span class="hljs-keyword">struct</span> &#123;
+	X <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-keyword">type</span> point2d <span class="hljs-keyword">struct</span> &#123;
+	point
+	Y <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-keyword">type</span> point3d <span class="hljs-keyword">struct</span> &#123;
+	point2d
+	Z <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestPolymorphism</span><span class="hljs-params">(t *testing.T)</span></span> &#123;
+	<span class="hljs-keyword">var</span> (
+		p Point
+	)
+	p = &amp;point&#123;X: <span class="hljs-number">1</span>&#125;
+	fmt.Printf(<span class="hljs-string">&quot;point size:%v\n\n&quot;</span>, unsafe.Sizeof(p))
+
+	p = &amp;point2d&#123;point: point&#123;X: <span class="hljs-number">1</span>&#125;, Y: <span class="hljs-number">2</span>&#125;
+	fmt.Printf(<span class="hljs-string">&quot;point2d size:%v\n\n&quot;</span>, unsafe.Sizeof(p))
+
+	p = &amp;point3d&#123;point2d: point2d&#123;point: point&#123;X: <span class="hljs-number">1</span>&#125;, Y: <span class="hljs-number">2</span>&#125;, Z: <span class="hljs-number">3</span>&#125;
+	fmt.Printf(<span class="hljs-string">&quot;point3d size:%v\n\n&quot;</span>, unsafe.Sizeof(p))
+&#125;</code></pre>
+
+<p>执行程序输出为：</p>
+<pre><code class="hljs sh">$ go <span class="hljs-built_in">test</span> -v -run TestPolymorphism
+=== RUN   TestPolymorphism
+p size:16, nilP size:16
+p size:16, nilP size:16
+p size:16, nilP size:16</code></pre>
+
+<p>可以看到两种类型的interface 变量大小并无不同，均为16字节。可以明确一点：interface 变量中存储的并非对象的指针，而是特殊的定义类型的变量。那么 interface 是怎么支持<code>多态</code>和<code>反射</code>的呢？</p>
+<p>通过 <code>reflect</code> 包，我们找到了答案。原来，针对以上两种类型的interface， Go 语言底层定义了两个结构分别为 iface 和 eface。两者实现是类似的，以下我们仅针对非空interface进行分析</p>
+<h4 id="interface-底层"><a href="#interface-底层" class="headerlink" title="interface 底层"></a>interface 底层</h4><pre><code class="hljs go"><span class="hljs-keyword">type</span> iface <span class="hljs-keyword">struct</span> &#123;
+    tab  *itab          <span class="hljs-comment">// 类型信息</span>
+    data unsafe.Pointer  <span class="hljs-comment">// 接口指向对象的指针</span>
+&#125;
+
+<span class="hljs-comment">// 类型信息</span>
+<span class="hljs-keyword">type</span> itab <span class="hljs-keyword">struct</span> &#123;
+    inter  *interfacetype    <span class="hljs-comment">// 接口的类型信息</span>
+    _type  *_type           <span class="hljs-comment">// 接口指向对象的类型信息</span>
+	hash  <span class="hljs-keyword">uint32</span> <span class="hljs-comment">// copy of _type.hash. Used for type switches.</span>
+	_     [<span class="hljs-number">4</span>]<span class="hljs-keyword">byte</span>
+    fun    [<span class="hljs-number">1</span>]<span class="hljs-keyword">uintptr</span>       <span class="hljs-comment">// 接口方法实现列表，即函数地址列表，按字典序排序</span>
+&#125;
+
+<span class="hljs-comment">// 接口类型信息</span>
+<span class="hljs-keyword">type</span> interfacetype <span class="hljs-keyword">struct</span> &#123;
+   typ     _type
+   pkgpath name
+   mhdr    []imethod      <span class="hljs-comment">// 接口方法声明列表，按字典序排序</span>
+&#125;</code></pre>
+<p>通过代码，可以看到，iface 类型包含两个指针，刚好为16字节（64位机器）。iface 不但包含了<code>指向对象</code>、<code>指向对象的类型</code>，还包含了<code>接口类型</code>。如此</p>
+<ol>
+<li>iface 就可以在其中扮演粘结剂的角色，通过 reflect 包在对象、接口、类型之间进行转换了。</li>
+<li>iface 的变量可以在<code>编译</code>阶段，在变量赋值处，增加拷贝指向对象（父类或者子类）的类型信息的指令，就可以在运行期完成多态的支持了</li>
+</ol>
+<p><img src="/images/go-object-model/interface.png" alt="interface.png"></p>
+<h4 id="理论验证"><a href="#理论验证" class="headerlink" title="理论验证"></a>理论验证</h4><p>下面我们还是通过测试代码来验证我们的理论，我们自己定义底层的相关类型，然后通过强制类型转换，来尝试解析interface变量中的数据：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Iface <span class="hljs-keyword">struct</span> &#123;
+	Tab *Itab
+	Data unsafe.Pointer
+&#125;
+
+<span class="hljs-keyword">type</span> Itab <span class="hljs-keyword">struct</span> &#123;
+	Inter <span class="hljs-keyword">uintptr</span>
+	Type <span class="hljs-keyword">uintptr</span>
+	Hash <span class="hljs-keyword">uint32</span>
+	_ [<span class="hljs-number">4</span>]<span class="hljs-keyword">byte</span>
+	Fun [<span class="hljs-number">1</span>]<span class="hljs-keyword">uintptr</span>
+&#125;
+
+<span class="hljs-keyword">type</span> Eface <span class="hljs-keyword">struct</span> &#123;
+	Type <span class="hljs-keyword">uintptr</span>
+	Data unsafe.Pointer
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestInterface</span><span class="hljs-params">(t *testing.T)</span></span> &#123;
+	<span class="hljs-keyword">var</span> (
+		p    Point
+		nilP <span class="hljs-keyword">interface</span>&#123;&#125;
+	)
+	point := &amp;point3d&#123;X: <span class="hljs-number">1</span>, Y: <span class="hljs-number">2</span>, Z: <span class="hljs-number">3</span>&#125;
+	nilP = point
+	fmt.Printf(<span class="hljs-string">&quot;eface size:%v\n&quot;</span>, unsafe.Sizeof(nilP))
+	eface := (*face.Eface)(unsafe.Pointer(&amp;nilP))
+	spew.Dump(eface.Type)
+	spew.Dump(eface.Data)
+	fmt.Printf(<span class="hljs-string">&quot;eface offset: eface._type = %v, eface.data = %v\n\n&quot;</span>,
+		unsafe.Offsetof(eface.Type), unsafe.Offsetof(eface.Data))
+
+	p = point
+	fmt.Printf(<span class="hljs-string">&quot;point size:%v\n&quot;</span>, unsafe.Sizeof(p))
+	iface := (*face.Iface)(unsafe.Pointer(&amp;p))
+	spew.Dump(iface.Tab)
+	spew.Dump(iface.Data)
+	fmt.Printf(<span class="hljs-string">&quot;Iface offset: iface.tab = %v, iface.data = %v\n\n&quot;</span>,
+		unsafe.Offsetof(iface.Tab), unsafe.Offsetof(iface.Data))
+&#125;</code></pre>
+
+<p>执行程序输出为：</p>
+<pre><code class="hljs sh">$ go <span class="hljs-built_in">test</span> -v -run TestInterface
+=== RUN   TestInterface
+eface size:16
+(uintptr) 0x111f2c0
+(unsafe.Pointer) 0xc00008e250
+eface offset: eface._type = 0, eface.data = 8
+
+point size:16
+(*face.Itab)(0x116ec40)(&#123;
+ Inter: (uintptr) 0x1122680,
+ Type: (uintptr) 0x111f2c0,
+ Hash: (uint32) 960374823,
+ _: ([4]uint8) (len=4 <span class="hljs-built_in">cap</span>=4) &#123;
+  00000000  00 00 00 00                                       |....|
+ &#125;,
+ Fun: ([1]uintptr) (len=1 <span class="hljs-built_in">cap</span>=1) &#123;
+  (uintptr) 0x10fce20
+ &#125;
+&#125;)
+(unsafe.Pointer) 0xc00008e250
+Iface offset: iface.tab = 0, iface.data = 8</code></pre>
+
+<p>下面我们再通过汇编代码看下，赋值操作做了什么？</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Point <span class="hljs-keyword">interface</span> &#123;
+	Println()
+&#125;
+
+<span class="hljs-keyword">type</span> point3d <span class="hljs-keyword">struct</span> &#123;
+	X, Y, Z <span class="hljs-keyword">float32</span>
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *point3d)</span> <span class="hljs-title">Println</span><span class="hljs-params">()</span></span> &#123;
+	fmt.Printf(<span class="hljs-string">&quot;%v,%v,%v\n&quot;</span>, p.X, p.Y, p.Z)
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+	point := point3d&#123;X: <span class="hljs-number">1</span>, Y: <span class="hljs-number">2</span>, Z: <span class="hljs-number">3</span>&#125; <span class="hljs-comment">// L18</span>
+	<span class="hljs-keyword">var</span> (
+		nilP <span class="hljs-keyword">interface</span>&#123;&#125;   <span class="hljs-comment">// L20</span>
+		p    Point        <span class="hljs-comment">// L21</span>
+	)
+	nilP = &amp;point         <span class="hljs-comment">// L23</span>
+	p = &amp;point            <span class="hljs-comment">// L24</span>
+	fmt.Println(nilP, p) 
+&#125;</code></pre>
+
+<p>通过 go tool 查看汇编代码如下：</p>
+<pre><code class="hljs x86asm">TEXT main<span class="hljs-number">.</span>main(SB) /Users/cyningsun/Documents/go/src/github<span class="hljs-number">.</span>com/cyningsun/go-<span class="hljs-keyword">test</span>/<span class="hljs-number">20200102</span>-inside-golang-object-model/main/build<span class="hljs-number">.</span>go
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">17</span>	<span class="hljs-number">0x1094de0</span>	65488b0c2530000000      <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">GS</span>:<span class="hljs-number">0x30</span>, <span class="hljs-built_in">CX</span>
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">17</span>	<span class="hljs-number">0x1094de9</span>	488d4424b0              LEAQ -<span class="hljs-number">0x50</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span>
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">17</span>	<span class="hljs-number">0x1094dee</span>	483b4110                CMPQ <span class="hljs-number">0x10</span>(<span class="hljs-built_in">CX</span>), <span class="hljs-built_in">AX</span>
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">17</span>	<span class="hljs-number">0x1094df2</span>	0f86b9010000            <span class="hljs-keyword">JBE</span> <span class="hljs-number">0x1094fb1</span>
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">17</span>	<span class="hljs-number">0x1094df8</span>	4881ecd0000000          SUBQ <span class="hljs-number">$0</span>xd0, <span class="hljs-built_in">SP</span>
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">17</span>	<span class="hljs-number">0x1094dff</span>	4889ac24c8000000        <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">BP</span>, <span class="hljs-number">0xc8</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">17</span>	<span class="hljs-number">0x1094e07</span>	488dac24c8000000        LEAQ <span class="hljs-number">0xc8</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">BP</span>
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e0f</span>	488d05ea1e0200          LEAQ type.*+<span class="hljs-number">137216</span>(SB), <span class="hljs-built_in">AX</span>   // point := point3d&#123;X: <span class="hljs-number">1</span>, Y: <span class="hljs-number">2</span>, Z: <span class="hljs-number">3</span>&#125;
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e16</span>	<span class="hljs-number">48890424</span>                <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">AX</span>, <span class="hljs-number">0</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e1a</span>	e81160f7ff              <span class="hljs-keyword">CALL</span> runtime<span class="hljs-number">.</span>newobject(SB)
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e1f</span>	488b442408              <span class="hljs-keyword">MOVQ</span> <span class="hljs-number">0x8</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span>
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e24</span>	<span class="hljs-number">4889442458</span>              <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">AX</span>, <span class="hljs-number">0x58</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e29</span>	0f57c0                  <span class="hljs-keyword">XORPS</span> X0, X0
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e2c</span>	f30f11442434            <span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x34</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e32</span>	f30f11442438            <span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x38</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e38</span>	f30f1144243c            <span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x3c</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e3e</span>	f30f1005a6b80400        <span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.</span>3f800000(SB), X0
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e46</span>	f30f11442434            <span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0x34</span>(<span class="hljs-built_in">SP</span>)
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e4c</span>	f30f100d9cb80400        <span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.40000000</span>(SB), X1
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e54</span>	f30f114c2438            <span class="hljs-keyword">MOVSS</span> X1, <span class="hljs-number">0x38</span>(<span class="hljs-built_in">SP</span>)	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e5a</span>	f30f101592b80400        <span class="hljs-keyword">MOVSS</span> $f32<span class="hljs-number">.40400000</span>(SB), X2
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e62</span>	f30f1154243c            <span class="hljs-keyword">MOVSS</span> X2, <span class="hljs-number">0x3c</span>(<span class="hljs-built_in">SP</span>)	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e68</span>	488b442458              <span class="hljs-keyword">MOVQ</span> <span class="hljs-number">0x58</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span>	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e6d</span>	f30f1100                <span class="hljs-keyword">MOVSS</span> X0, <span class="hljs-number">0</span>(<span class="hljs-built_in">AX</span>)	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e71</span>	f30f114804              <span class="hljs-keyword">MOVSS</span> X1, <span class="hljs-number">0x4</span>(<span class="hljs-built_in">AX</span>)	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">18</span>	<span class="hljs-number">0x1094e76</span>	f30f115008              <span class="hljs-keyword">MOVSS</span> X2, <span class="hljs-number">0x8</span>(<span class="hljs-built_in">AX</span>)	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">20</span>	<span class="hljs-number">0x1094e7b</span>	0f57c0                  <span class="hljs-keyword">XORPS</span> X0, X0 // nilP interface&#123;&#125;	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">20</span>	<span class="hljs-number">0x1094e7e</span>	0f11442470              <span class="hljs-keyword">MOVUPS</span> X0, <span class="hljs-number">0x70</span>(<span class="hljs-built_in">SP</span>)// nilP 开始地址为<span class="hljs-number">0x70</span>	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">21</span>	<span class="hljs-number">0x1094e83</span>	0f57c0                  <span class="hljs-keyword">XORPS</span> X0, X0 // p Point	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">21</span>	<span class="hljs-number">0x1094e86</span>	0f11442460              <span class="hljs-keyword">MOVUPS</span> X0, <span class="hljs-number">0x60</span>(<span class="hljs-built_in">SP</span>)	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">23</span>	<span class="hljs-number">0x1094e8b</span>	488b442458              <span class="hljs-keyword">MOVQ</span> <span class="hljs-number">0x58</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span>	// nilP = &amp;point  ；<span class="hljs-number">0x58</span>(<span class="hljs-built_in">SP</span>) 为 point 的地址	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">23</span>	<span class="hljs-number">0x1094e90</span>	<span class="hljs-number">4889442448</span>              <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">AX</span>, <span class="hljs-number">0x48</span>(<span class="hljs-built_in">SP</span>) // <span class="hljs-built_in">SP</span> 指向 point 地址	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">23</span>	<span class="hljs-number">0x1094e95</span>	488d0da4860100          LEAQ type.*+<span class="hljs-number">98368</span>(SB), <span class="hljs-built_in">CX</span> // ；从内存加载 Point类型地址 到 <span class="hljs-built_in">CX</span> 寄存器
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">23</span>	<span class="hljs-number">0x1094e9c</span>	48894c2470              <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">CX</span>, <span class="hljs-number">0x70</span>(<span class="hljs-built_in">SP</span>) // ；将 Point类型地址（<span class="hljs-number">8</span>字节） 保存到 <span class="hljs-number">0x70</span>（即eface<span class="hljs-number">.</span>_type）	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">23</span>	<span class="hljs-number">0x1094ea1</span>	<span class="hljs-number">4889442478</span>              <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">AX</span>, <span class="hljs-number">0x78</span>(<span class="hljs-built_in">SP</span>) // ；将 point 对象地址（<span class="hljs-number">8</span>字节） 保存到 <span class="hljs-number">0x78</span>（即eface<span class="hljs-number">.</span>data）
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">24</span>	<span class="hljs-number">0x1094ea6</span>	488b442458              <span class="hljs-keyword">MOVQ</span> <span class="hljs-number">0x58</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span>	// p = &amp;point	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">24</span>	<span class="hljs-number">0x1094eab</span>	<span class="hljs-number">4889442448</span>              <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">AX</span>, <span class="hljs-number">0x48</span>(<span class="hljs-built_in">SP</span>)	// ；<span class="hljs-built_in">SP</span> 指向 point 地址
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">24</span>	<span class="hljs-number">0x1094eb0</span>	488d0d09d50400          LEAQ go<span class="hljs-number">.</span>itab.*main<span class="hljs-number">.</span>point3d,main<span class="hljs-number">.</span>Point(SB), <span class="hljs-built_in">CX</span>	// ；从内存加载 Point类型 itab 地址 到 <span class="hljs-built_in">CX</span> 寄存器
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">24</span>	<span class="hljs-number">0x1094eb7</span>	48894c2460              <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">CX</span>, <span class="hljs-number">0x60</span>(<span class="hljs-built_in">SP</span>)	// ；将 Point类型地址（<span class="hljs-number">8</span>字节） 保存到 <span class="hljs-number">0x70</span>（即iface<span class="hljs-number">.</span>tab）	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">24</span>	<span class="hljs-number">0x1094ebc</span>	<span class="hljs-number">4889442468</span>              <span class="hljs-keyword">MOVQ</span> <span class="hljs-built_in">AX</span>, <span class="hljs-number">0x68</span>(<span class="hljs-built_in">SP</span>)	// ；将 point 对象地址（<span class="hljs-number">8</span>字节） 保存到 <span class="hljs-number">0x78</span>（即iface<span class="hljs-number">.</span>data）	
+<span class="hljs-symbol">  build.go:</span><span class="hljs-number">25</span>	<span class="hljs-number">0x1094ec1</span>	488b442468              <span class="hljs-keyword">MOVQ</span> <span class="hljs-number">0x68</span>(<span class="hljs-built_in">SP</span>), <span class="hljs-built_in">AX</span>	// fmt<span class="hljs-number">.</span>Println(nilP, p)	
+
+  ...</code></pre>
+
+<p>事实正如理论一般，在<code>编译</code>阶段，赋值命令被转化为类型信息和对象指针的拷贝，保存下来执行期转换所需要的一切信息。</p>
+<h3 id="综述"><a href="#综述" class="headerlink" title="综述"></a>综述</h3><p>从底层代码和汇编出发，分析 struct 和 interface 的 对象模型，理清了Go 语言高级特性的底层机制。再去学习反射等表层细节，事半功倍。</p>
+<p>参考链接：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/qcrao-2018/p/11124360.html">https://www.cnblogs.com/qcrao-2018/p/11124360.html</a></li>
+<li><a target="_blank" rel="noopener" href="https://yougg.github.io/2017/03/27/%E7%90%86%E8%A7%A3go%E8%AF%AD%E8%A8%80%E6%A8%A1%E5%9E%8B1interface%E5%BA%95%E5%B1%82%E8%AF%A6%E8%A7%A3/">https://yougg.github.io/2017/03/27/理解go语言模型1interface底层详解/</a></li>
+<li><a target="_blank" rel="noopener" href="https://wudaijun.com/2018/01/go-interface-implement/">https://wudaijun.com/2018/01/go-interface-implement/</a></li>
+<li><a target="_blank" rel="noopener" href="https://chai2010.cn/advanced-go-programming-book/ch3-asm/readme.html">https://chai2010.cn/advanced-go-programming-book/ch3-asm/readme.html</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/lsgxeva/p/8948153.html">https://www.cnblogs.com/lsgxeva/p/8948153.html</a></li>
+</ul>
+<p><em>源代码：<a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test">https://github.com/cyningsun/go-test</a></em></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/01-12-2020/inside-the-go-object-model.html">https://www.cyningsun.com/01-12-2020/inside-the-go-object-model.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/01-22-2020/use-prometheus-for-anomaly-detection.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/12-09-2019/concurrency-is-not-parallelism.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

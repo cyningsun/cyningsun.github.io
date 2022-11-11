@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译 | Stack Traces In Go</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2019-07-05 00:00:00 +0800"/>
+<meta property="og:url" content="/07-05-2019/live-stack-traces-in-go-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="简介在调试Go程序方面有一些基本技能可以为程序员节省大量时间来识别问题。我信奉log尽可能多的信息，但有时panic发生，而log的信息并不够。有时理解stack trace中的信息可能意味着立刻发现错误，抑或需要添加更多日志记录并等待它再次发生。 自从我开始写Go以来，我一直在看stack trace。在某些时候，我们都做了一些愚蠢的事情，导致运行时杀死我">
+
+<meta name="keywords" content="stacktrace">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译 | Stack Traces In Go</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-text">简介</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Functions"><span class="toc-text">Functions</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Methods"><span class="toc-text">Methods</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Packing"><span class="toc-text">Packing</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-text">结论</span></a></li></ol>
+ 
+        <h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p>在调试Go程序方面有一些基本技能可以为程序员节省大量时间来识别问题。我信奉log尽可能多的信息，但有时panic发生，而log的信息并不够。有时理解stack trace中的信息可能意味着立刻发现错误，抑或需要添加更多日志记录并等待它再次发生。</p>
+<p>自从我开始写Go以来，我一直在看stack trace。在某些时候，我们都做了一些愚蠢的事情，导致运行时杀死我们的程序并抛出stack trace。我将向您展示stack trace提供的信息，包括如何识别传递到函数的每个参数的值。</p>
+<h4 id="Functions"><a href="#Functions" class="headerlink" title="Functions"></a>Functions</h4><p>让我们从一小段代码开始，它将产生一个stack trace:</p>
+<pre><code class="hljs go"><span class="hljs-number">01</span> <span class="hljs-keyword">package</span> main
+<span class="hljs-number">02</span>
+<span class="hljs-number">03</span> <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+<span class="hljs-number">04</span>     slice := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">string</span>, <span class="hljs-number">2</span>, <span class="hljs-number">4</span>)
+<span class="hljs-number">05</span>     Example(slice, <span class="hljs-string">&quot;hello&quot;</span>, <span class="hljs-number">10</span>)
+<span class="hljs-number">06</span> &#125;
+<span class="hljs-number">07</span>
+<span class="hljs-number">08</span> <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Example</span><span class="hljs-params">(slice []<span class="hljs-keyword">string</span>, str <span class="hljs-keyword">string</span>, i <span class="hljs-keyword">int</span>)</span></span> &#123;
+<span class="hljs-number">09</span>     <span class="hljs-built_in">panic</span>(<span class="hljs-string">&quot;Want stack trace&quot;</span>)
+<span class="hljs-number">10</span> &#125;</code></pre>
+<p>上述代码展示了一个程序，第05行其main函数调用Example函数。Example函数被声明在第08行，接受三个参数，string slices，字符串和一个整数。Example执行的唯一代码是在第09行调用内置panic函数，它立即生成stack trace：</p>
+<pre><code class="hljs go">Panic: Want stack trace
+
+goroutine <span class="hljs-number">1</span> [running]:
+main.Example(<span class="hljs-number">0x2080c3f50</span>, <span class="hljs-number">0x2</span>, <span class="hljs-number">0x4</span>, <span class="hljs-number">0x425c0</span>, <span class="hljs-number">0x5</span>, <span class="hljs-number">0xa</span>)
+        /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+        temp/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">9</span> +<span class="hljs-number">0x64</span>
+main.main()
+        /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+        temp/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">5</span> +<span class="hljs-number">0x85</span></code></pre>
+<p>上述stack trace显示了panic时的所有goroutine，每个协程的状态以及相应goroutine下的调用堆栈。导致stack trace的运行中goroutine位于顶部。首先我们把重点放在导致panic的goroutine。</p>
+<pre><code class="hljs go"><span class="hljs-number">01</span> goroutine <span class="hljs-number">1</span> [running]:
+<span class="hljs-number">02</span> main.Example(<span class="hljs-number">0x2080c3f50</span>, <span class="hljs-number">0x2</span>, <span class="hljs-number">0x4</span>, <span class="hljs-number">0x425c0</span>, <span class="hljs-number">0x5</span>, <span class="hljs-number">0xa</span>)
+           /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+           temp/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">9</span> +<span class="hljs-number">0x64</span>
+<span class="hljs-number">03</span> main.main()
+           /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+           temp/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">5</span> +<span class="hljs-number">0x85</span></code></pre>
+<p>代码第01行的stack trace 显示在panic之前goroutine 1正在运行中。第02行，我们看到panic的代码位于main包的Example函数中。缩进的行显示了此函数所在的代码文件和路径，以及正在执行的代码行。当时，第09行的代码正在运行，是一个导致panic的调用。</p>
+<p>第03行显示调用Example的函数的名称，main包中的main函数。在函数名称下面，缩进的行显示了对Example进行调用的代码文件，路径和代码行。</p>
+<p>stack trace显示直到panic发生时，该goroutine范围内的函数调用链。现在，我们把重点放在传递给Example函数的每个参数的值：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Declaration</span>
+main.Example(slice []<span class="hljs-keyword">string</span>, str <span class="hljs-keyword">string</span>, i <span class="hljs-keyword">int</span>)
+
+<span class="hljs-comment">// Call to Example by main.</span>
+slice := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">string</span>, <span class="hljs-number">2</span>, <span class="hljs-number">4</span>)
+Example(slice, <span class="hljs-string">&quot;hello&quot;</span>, <span class="hljs-number">10</span>)
+
+<span class="hljs-comment">// Stack trace</span>
+main.Example(<span class="hljs-number">0x2080c3f50</span>, <span class="hljs-number">0x2</span>, <span class="hljs-number">0x4</span>, <span class="hljs-number">0x425c0</span>, <span class="hljs-number">0x5</span>, <span class="hljs-number">0xa</span>)</code></pre>
+<p>上述来自stack trace显示了当main调用时传递给Example函数的值和该函数的声明。将stack trace中的值与函数声明进行比较，似乎不匹配。Example函数的声明接受三个参数，但stack trace显示六个十六进制值。<strong>理解值如何与参数匹配的关键在于需要知道每个参数类型的实现。</strong></p>
+<p>让我们从第一个参数开始，这是一个string slice。<strong>slice</strong>在Go中是引用类型。意味着slice的值是<strong>header value</strong>，带有指向某些基础数据的指针。对于slice，<strong>header value</strong>是三个word大小的结构，其包含指向底层数组的指针，slice的长度和容量。与slice header相关的值由stack trace中的前三个值表示：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Slice parameter value</span>
+slice := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">string</span>, <span class="hljs-number">2</span>, <span class="hljs-number">4</span>)
+
+<span class="hljs-comment">// Slice header values</span>
+Pointer:  <span class="hljs-number">0x2080c3f50</span>
+Length:   <span class="hljs-number">0x2</span>
+Capacity: <span class="hljs-number">0x4</span>
+
+<span class="hljs-comment">// Declaration</span>
+main.Example(<span class="hljs-string">`slice []string`</span>, str <span class="hljs-keyword">string</span>, i <span class="hljs-keyword">int</span>)
+
+<span class="hljs-comment">// Stack trace</span>
+main.Example(<span class="hljs-string">`0x2080c3f50, 0x2, 0x4`</span>, <span class="hljs-number">0x425c0</span>, <span class="hljs-number">0x5</span>, <span class="hljs-number">0xa</span>)</code></pre>
+<p>上述显示了堆栈跟踪中的前三个值如何与slice参数匹配。第一个值表示指向基础字符串数组的指针。用于初始化切片的长度和容量数与第二个和第三个值匹配。这三个值表示切片标头的每个值，即第一个参数。<br><img src="/images/live-stack-traces-in-go-cn/bcaaa65bgy1g4p1x90wb3j20ex07ugmh.jpg" alt="切片"></p>
+<p>现在让我们看看第二个参数，它是一个字符串。字符串也是引用类型，但此它的<strong>header value</strong>是不可变的。字符串的<strong>header value</strong>声明为三个word大小的结构，包含指向底层字节数组的指针和字符串的长度：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// String parameter value</span>
+<span class="hljs-string">&quot;hello&quot;</span>
+
+<span class="hljs-comment">// String header values</span>
+Pointer: <span class="hljs-number">0x425c0</span>
+Length:  <span class="hljs-number">0x5</span>
+
+<span class="hljs-comment">// Declaration</span>
+main.Example(slice []<span class="hljs-keyword">string</span>, <span class="hljs-string">`str string`</span>, i <span class="hljs-keyword">int</span>)
+
+<span class="hljs-comment">// Stack trace</span>
+main.Example(<span class="hljs-number">0x2080c3f50</span>, <span class="hljs-number">0x2</span>, <span class="hljs-string">`0x4, 0x425c0`</span>, <span class="hljs-number">0x5</span>, <span class="hljs-number">0xa</span>)
+</code></pre>
+<p>上述显示了stack trace中的第四、五个值如何匹配string参数。第四个值表示指向底层字节数组的指针，第五个值表示字符串的长度为5.字符串“hello”需要5个字节。这两个值表示字符串（即，第二个参数）header的每个值。<br><img src="/images/live-stack-traces-in-go-cn/bcaaa65bgy1g4p1yddm5cj20ey060gmc.jpg" alt="slice"></p>
+<p>第三个参数是一个整数，它是一个word的值：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Integer parameter value</span>
+<span class="hljs-number">10</span>
+
+<span class="hljs-comment">// Integer value</span>
+Base <span class="hljs-number">16</span>: <span class="hljs-number">0xa</span>
+
+<span class="hljs-comment">// Declaration</span>
+main.Example(slice []<span class="hljs-keyword">string</span>, str <span class="hljs-keyword">string</span>, <span class="hljs-string">`i int`</span>)
+
+<span class="hljs-comment">// Stack trace</span>
+main.Example(<span class="hljs-number">0x2080c3f50</span>, <span class="hljs-number">0x2</span>, <span class="hljs-number">0x4</span>, <span class="hljs-number">0x425c0</span>, <span class="hljs-number">0x5</span>, <span class="hljs-string">`0xa`</span>)</code></pre>
+<p>上述显示了stack trace中的最后一个值如何匹配整数参数。trace中的最后一个值是十六进制数0xa，它是值10.与该参数传递的值相同。该值代表第三个参数。<br><img src="/images/live-stack-traces-in-go-cn/bcaaa65bgy1g4p1yrg3q9j20fi03wq38.jpg" alt="int-var"></p>
+<h4 id="Methods"><a href="#Methods" class="headerlink" title="Methods"></a>Methods</h4><p>我们更改程序，将Example函数改为一个成员函数：</p>
+<pre><code class="hljs go"><span class="hljs-number">01</span> <span class="hljs-keyword">package</span> main
+<span class="hljs-number">02</span>
+<span class="hljs-number">03</span> <span class="hljs-keyword">import</span> <span class="hljs-string">&quot;fmt&quot;</span>
+<span class="hljs-number">04</span>
+<span class="hljs-number">05</span> <span class="hljs-keyword">type</span> trace <span class="hljs-keyword">struct</span>&#123;&#125;
+<span class="hljs-number">06</span>
+<span class="hljs-number">07</span> <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+<span class="hljs-number">08</span>     slice := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">string</span>, <span class="hljs-number">2</span>, <span class="hljs-number">4</span>)
+<span class="hljs-number">09</span>
+<span class="hljs-number">10</span>     <span class="hljs-keyword">var</span> t trace
+<span class="hljs-number">11</span>     t.Example(slice, <span class="hljs-string">&quot;hello&quot;</span>, <span class="hljs-number">10</span>)
+<span class="hljs-number">12</span> &#125;
+<span class="hljs-number">13</span>
+<span class="hljs-number">14</span> <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(t *trace)</span> <span class="hljs-title">Example</span><span class="hljs-params">(slice []<span class="hljs-keyword">string</span>, str <span class="hljs-keyword">string</span>, i <span class="hljs-keyword">int</span>)</span></span> &#123;
+<span class="hljs-number">15</span>     fmt.Printf(<span class="hljs-string">&quot;Receiver Address: %p\n&quot;</span>, t)
+<span class="hljs-number">16</span>     <span class="hljs-built_in">panic</span>(<span class="hljs-string">&quot;Want stack trace&quot;</span>)
+<span class="hljs-number">17</span> &#125;</code></pre>
+<p>第5行通过声明一个新类型trace，改变原始程序，转换Example函数为的第14行的成员函数。转换是通过重新声明函数包含一个trace类型的指针接收器来实现。然后在第10行，声明一个trace类型的t变量，并在第11行使用该变量进行方法调用。</p>
+<p>由于该方法是使用指针接收器声明的，因此Go将获取t变量的地址以支持接收器类型，即使方法调用使用的是值。这次运行程序时，stack trace略有不同</p>
+<pre><code class="hljs go">Receiver Address: <span class="hljs-string">`0x1553a8`</span>
+<span class="hljs-built_in">panic</span>: Want stack trace
+
+<span class="hljs-number">01</span> goroutine <span class="hljs-number">1</span> [running]:
+<span class="hljs-number">02</span> main.(<span class="hljs-string">`*trace`</span>).Example(<span class="hljs-string">`0x1553a8`</span>, <span class="hljs-number">0x2081b7f50</span>, <span class="hljs-number">0x2</span>, <span class="hljs-number">0x4</span>, <span class="hljs-number">0xdc1d0</span>, <span class="hljs-number">0x5</span>, <span class="hljs-number">0xa</span>)
+           /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+           temp/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">16</span> +<span class="hljs-number">0x116</span>
+
+<span class="hljs-number">03</span> main.main()
+           /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+           temp/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">11</span> +<span class="hljs-number">0xae</span></code></pre>
+<p>首先，应该注意的是第02行的stack trace清楚表明这是一个使用指针接收器的方法调用。现在，包含（* trace）的成员函数的名称显示在包名称和方法名称之间。其次，要注意的是值列表现在如何第一个显示接收器的值。成员函数调用实际上是第一个参数是接收器值的函数调用。我们从stack trace中看到了这个实现细节。</p>
+<p>由于声明或调用Example方法没有其他任何更改，因此所有其他值保持不变。调用Example的行号和发生panic的位置发生了变化，并反映了新代码。</p>
+<h4 id="Packing"><a href="#Packing" class="headerlink" title="Packing"></a>Packing</h4><p>如果有多个参数适合放入单个word，那么stack trace中参数的值将打包在一起：</p>
+<pre><code class="hljs go"><span class="hljs-number">01</span> <span class="hljs-keyword">package</span> main
+<span class="hljs-number">02</span>
+<span class="hljs-number">03</span> <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+<span class="hljs-number">04</span>     Example(<span class="hljs-literal">true</span>, <span class="hljs-literal">false</span>, <span class="hljs-literal">true</span>, <span class="hljs-number">25</span>)
+<span class="hljs-number">05</span> &#125;
+<span class="hljs-number">06</span>
+<span class="hljs-number">07</span> <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Example</span><span class="hljs-params">(b1, b2, b3 <span class="hljs-keyword">bool</span>, i <span class="hljs-keyword">uint8</span>)</span></span> &#123;
+<span class="hljs-number">08</span>     <span class="hljs-built_in">panic</span>(<span class="hljs-string">&quot;Want stack trace&quot;</span>)
+<span class="hljs-number">09</span> &#125;</code></pre>
+<p>上述显示了一个新的示例程序，将Example函数更改为接受四个参数。前三个是布尔值，最后一个是八位无符号整数。布尔值也是一个8位值，因此所有四个参数都适合放入32位和64位架构上的单个word。当程序运行时，它会产生一个有趣的stack trace：</p>
+<pre><code class="hljs go"><span class="hljs-number">01</span> goroutine <span class="hljs-number">1</span> [running]:
+<span class="hljs-number">02</span> main.Example(<span class="hljs-string">`0x19010001`</span>)
+           /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+           temp/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">8</span> +<span class="hljs-number">0x64</span>
+<span class="hljs-number">03</span> main.main()
+           /Users/bill/Spaces/Go/Projects/src/github.com/goinaction/code/
+           temp/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">4</span> +<span class="hljs-number">0x32</span></code></pre>
+<p>对Example的调用，stack trace中没有四个值，取而代之只有一个值。所有四个独立的8位值都拼凑成一个word：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Parameter values</span>
+<span class="hljs-literal">true</span>, <span class="hljs-literal">false</span>, <span class="hljs-literal">true</span>, <span class="hljs-number">25</span>
+
+<span class="hljs-comment">// Word value</span>
+Bits    Binary      Hex   Value
+<span class="hljs-number">00</span><span class="hljs-number">-07</span>   <span class="hljs-number">0000</span> <span class="hljs-number">0001</span>   <span class="hljs-string">`01`</span>    <span class="hljs-literal">true</span>
+<span class="hljs-number">08</span><span class="hljs-number">-15</span>   <span class="hljs-number">0000</span> <span class="hljs-number">0000</span>   <span class="hljs-string">`00`</span>    <span class="hljs-literal">false</span>
+<span class="hljs-number">16</span><span class="hljs-number">-23</span>   <span class="hljs-number">0000</span> <span class="hljs-number">0001</span>   <span class="hljs-string">`01`</span>    <span class="hljs-literal">true</span>
+<span class="hljs-number">24</span><span class="hljs-number">-31</span>   <span class="hljs-number">0001</span> <span class="hljs-number">1001</span>   <span class="hljs-string">`19`</span>    <span class="hljs-number">25</span>
+
+<span class="hljs-comment">// Declaration</span>
+main.Example(<span class="hljs-string">`b1, b2, b3 bool, i uint8`</span>)
+
+<span class="hljs-comment">// Stack trace</span>
+main.Example(<span class="hljs-string">`0x19010001`</span>)</code></pre>
+<p>上述显示出了在stack trace的值如何匹配传入的四个参数值。true的8位值对应于1的值，false的值对应0值。二进制25的值是11001，十六进制转换为19。现在，当我们查看堆stack trace中表示的十六进制值时，我们会看到它如何表示传入的值。</p>
+<h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>Go runtime提供了大量信息来帮助我们调试程序。在这篇文章中，我们专注于stack trace。解码在整个调用堆栈中传递给每个函数的值的能力是巨大的。它不止一次帮助我快速识别我的bug。既然您已经知道如何读取stack trace，那么希望您可以在下次发生stack trace时可以利用这些知识。</p>
+<p><em>原文：<a target="_blank" rel="noopener" href="https://www.ardanlabs.com/blog/2015/01/stack-traces-in-go.html">stack-traces-in-go</a></em></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-05-2019/live-stack-traces-in-go-cn.html">https://www.cyningsun.com/07-05-2019/live-stack-traces-in-go-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/07-06-2019/chinese-kramdown-typeset.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/03-31-2019/live-streaming-danmaku.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

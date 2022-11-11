@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜There Are No Reference Types in Go</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-08-23 00:00:00 +0800"/>
+<meta property="og:url" content="/08-23-2021/there-are-no-reference-types-in-go-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="有一天，我用谷歌搜索一个 Go 问题，谷歌将我引导到 Go FAQ 页面。问题解决后，我阅读了整个 FAQ。 这是一次很棒的阅读，我从文章中学到了很多。但我注意到一个问题， 为什么数组是值而 map、slice 和 channel 是引用？答复如下： 此话题历史久远。在早期，map 和 channel 都是语法指针，不能声明和使用非指针实例。此外，我们在竭尽">
+
+<meta name="keywords" content="pointer,reference,指针,引用">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜There Are No Reference Types in Go</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    
+ 
+        <p>有一天，我用谷歌搜索一个 Go 问题，谷歌将我引导到 <a target="_blank" rel="noopener" href="https://golang.org/doc/faq">Go FAQ</a> 页面。问题解决后，我阅读了整个 FAQ。</p>
+<p>这是一次很棒的阅读，我从文章中学到了很多。但我注意到一个问题， <a target="_blank" rel="noopener" href="https://golang.org/doc/faq#references">为什么数组是值,而 map、slice 和 channel 是引用</a>？答复如下：</p>
+<blockquote>
+<p>此话题历史久远。在早期，map 和 channel 都是语法指针，不能声明和使用非指针实例。此外，我们在竭尽全力探索数组如何工作。最终，我们认为指针和值的严格分离使语言更难使用。将这些类型更改为对关联的共享数据结构的引用，就解决了这些问题。改变给语言增加了一些令人遗憾的复杂性，但却对可用性产生了很大的影响：Go 一经推出，就成为了一种更高效、更舒服的语言。</p>
+</blockquote>
+<p>令我惊讶的是，Go 官方文档仍在使用<a target="_blank" rel="noopener" href="https://github.com/golang/go/commit/b34f0551387fcf043d65cd7d96a0214956578f94">“引用类型”的概念</a>，因为自 <a target="_blank" rel="noopener" href="https://github.com/golang/go/commit/b34f0551387fcf043d65cd7d96a0214956578f94">2013 年 4 月 3 日以来，“引用类型”的概念已从 Go 规范中完全删除</a>。现在 Go 规范中有 10 个“引用”词，没有一个代表“引用类型”的概念。</p>
+<p>另一个惊喜是这句话：</p>
+<blockquote>
+<p>…指针和值的严格分离使该语言更难使用。…</p>
+</blockquote>
+<p>此答复将指针和值视为两个不兼容的概念。但是，Go 规范将指针视为特殊值，指针被称为“指针值”。值只是类型的实例。显然，Go 规范中“指针”一词的定义很好。我认为如果使用“指针值和非指针值”会更好。</p>
+<p>所以，我认为此答复给 <a target="_blank" rel="noopener" href="https://www.reddit.com/r/golang/comments/4vg7ht/why_are_there_so_many_different_ways_to_pass_by/">Go 社区带来了很多困惑</a>。它与当前 Go 规范冲突，并且打破了概念的一致性。</p>
+<p>谈回第一个惊喜，我认为称呼  map/slice/channel 值为引用值完全没有必要。不仅因为 “reference” 这个词在编程世界中被滥用了，还因为 map/slice/channel 值只是普通的正常值</p>
+<p>以下是 map/slice/channel 类型的内部声明：</p>
+<table>
+<thead>
+<tr>
+<th>Type Family</th>
+<th>Type Declaration</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>map</td>
+<td>struct {<br/> m *internalHashtable <br/>}</td>
+</tr>
+<tr>
+<td>channel</td>
+<td>struct {<br/>  c *internalChannel <br/>}</td>
+</tr>
+<tr>
+<td>slice</td>
+<td>struct {<br/> array *internalArray <br/> len   int <br/> cap   int<br/> }</td>
+</tr>
+</tbody></table>
+<p>请注意，上面的声明可能不完全与官方或非官方的 Go 实现中的声明相同。Go 实现可以直接使用指针表示 map 和 channel 的值，但 Go 规范/编译器永远不会将它们视为指针。因此，你可以放心的将 map/slice/channel 类型视为上面声明的指针包装类型，而不会有任何问题。</p>
+<p>从上面的声明，很容易得出结论：map/slice/channel 只是包含一个非导出指针字段的结构类型。将它们称为引用类型是完全没有必要的。</p>
+<p>Map 和 slice 类型与一般结构类型确实有一个区别。与一般结构类型不同，对于 map 或 slice 类型 T，T{}  不是 T 的零值。但这不是将 map 或 slice 类型拆分为新的引用类型类别的好理由。</p>
+<p>通过理解 Go 的以下两个规则：</p>
+<ul>
+<li>map/slice/channel 值只是普通的指针包装结构的值</li>
+<li>所有赋值，包括参数传递等，都是浅值复制（指针指向的值不会被复制）</li>
+</ul>
+<p>Gopher 应该清楚地理解赋值中的 dest 和 source  map/slice/channel 值将共享被包装的指针所指向的同一底层数据。</p>
+<p>概念是用来帮助程序员理解语言的机制，而不是混淆他们。值、指针值和非指针值的概念足以让 Gopher 理解 Go。</p>
+<p>我希望 Go 文档不会破坏概念定义的一致性。</p>
+<p><em>原文：</em><a target="_blank" rel="noopener" href="https://www.tapirgames.com/blog/golang-has-no-reference-values">https://www.tapirgames.com/blog/golang-has-no-reference-values</a></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-23-2021/there-are-no-reference-types-in-go-cn.html">https://www.cyningsun.com/08-23-2021/there-are-no-reference-types-in-go-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+            <li><span><a href="/07-19-2021/go-higher-order-function.html">Go 函数式编程：Higher-order function</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/09-13-2021/how-to-locate-bug-in-production-env.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

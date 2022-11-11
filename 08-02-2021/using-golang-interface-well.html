@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>如何用好 Go interface</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-08-02 00:00:00 +0800"/>
+<meta property="og:url" content="/08-02-2021/using-golang-interface-well.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="interface 是 Go 语言最精髓的特性之一，一直以来想写一篇关于 interface 的文章，但是一直没敢写。持续几年之久，还是斗胆总结下。 Concrete typesstruct 定义数据的内存布局。一些早期建议将方法包含在 struct 中，但是被放弃了。相反，方法如普通函数一样声明在类型之外。描述 (data) 和行为 (methods) 是">
+
+<meta name="keywords" content="接口,Golang,Go">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>如何用好 Go interface</h1><br/>
+    <h2 id="tagline" class="serif">The bigger the interface, the weaker the abstraction.</h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Concrete-types"><span class="toc-text">Concrete types</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Abstract-types"><span class="toc-text">Abstract types</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#When-amp-How"><span class="toc-text">When &amp; How</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%9A%90%E8%97%8F%E5%AE%9E%E7%8E%B0%E7%BB%86%E8%8A%82"><span class="toc-text">隐藏实现细节</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%8F%90%E4%BE%9B%E6%89%A9%E5%B1%95%E7%82%B9"><span class="toc-text">提供扩展点</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <p><code>interface</code> 是 Go 语言最精髓的特性之一，一直以来想写一篇关于 <code>interface</code> 的文章，但是一直没敢写。持续几年之久，还是斗胆总结下。</p>
+<h3 id="Concrete-types"><a href="#Concrete-types" class="headerlink" title="Concrete types"></a>Concrete types</h3><p>struct 定义数据的内存布局。一些早期建议将方法包含在 struct 中，但是被放弃了。相反，方法如普通函数一样声明在类型之外。描述 (data) 和行为 (methods) 是独立且正交的。</p>
+<p>一方面，方法只是一个带有 “receiver” 参数的函数。</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Point <span class="hljs-keyword">struct</span> &#123; x, y float &#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p Point)</span> <span class="hljs-title">Abs</span><span class="hljs-params">()</span> <span class="hljs-title">float</span></span> &#123;
+    <span class="hljs-keyword">return</span> math.Sqrt(p.x*p.x + p.y*p.y)
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Abs</span><span class="hljs-params">(p Point)</span> <span class="hljs-title">float</span></span> &#123;
+	<span class="hljs-keyword">return</span> math.Sqrt(p.x*p.x + p.y*p.y)
+&#125;</code></pre>
+<p><code>Abs</code> 编写为一个常规函数，功能没有变化。</p>
+<blockquote>
+<p>什么时候应该使用方法，什么时候应该使用函数呢？如果方法不依赖类型的状态，则应该将其定义为函数。</p>
+</blockquote>
+<p>另一方面，方法在定义其行为时，使用了类型的值时，与所附加的类型紧密关联。方法可以从对应的类型中获取值，如果有指针 “receiver”，还可以操纵其状态。</p>
+<p>“类型” 有时候很有用，有时候又很讨厌。因为类型是对底层内存布局的一个抽象，会让代码关注于非业务逻辑上的东西，然而代码又需要在不同类型的数据间做处理。interface 就是其中一种泛型解决方案。</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Package sort provides primitives for sorting slices and user-defined collections.</span>
+<span class="hljs-keyword">package</span> sort
+
+<span class="hljs-comment">// An implementation of Interface can be sorted by the routines in this package.</span>
+<span class="hljs-comment">// The methods refer to elements of the underlying collection by integer index.</span>
+<span class="hljs-keyword">type</span> Interface <span class="hljs-keyword">interface</span> &#123;
+	<span class="hljs-comment">// Len is the number of elements in the collection.</span>
+	Len() <span class="hljs-keyword">int</span>
+
+	<span class="hljs-comment">// Less reports whether the element with index i</span>
+	<span class="hljs-comment">// must sort before the element with index j.</span>
+	Less(i, j <span class="hljs-keyword">int</span>) <span class="hljs-keyword">bool</span>
+
+	<span class="hljs-comment">// Swap swaps the elements with indexes i and j.</span>
+	Swap(i, j <span class="hljs-keyword">int</span>)
+&#125;
+
+<span class="hljs-comment">// Sort sorts data.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Sort</span><span class="hljs-params">(data Interface)</span></span> &#123;
+    ...
+&#125;</code></pre>
+<h3 id="Abstract-types"><a href="#Abstract-types" class="headerlink" title="Abstract types"></a>Abstract types</h3><p>Go 的 interface 仅仅是函数的集合，也定义了行为。 interface 与类型之间没有显式的关系，类型也可以同时满足多个 interface 的要求。</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Abser <span class="hljs-keyword">interface</span> &#123;
+    Abs() float
+ &#125;
+ 
+ <span class="hljs-keyword">var</span> a Abser
+ a = Point&#123;<span class="hljs-number">3</span>, <span class="hljs-number">4</span>&#125;
+ <span class="hljs-built_in">print</span>(a.Abs())
+ a = Vector&#123;<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>, <span class="hljs-number">4</span>&#125;
+ <span class="hljs-built_in">print</span>(a.Abs())</code></pre>
+<p>Point 和 Vector 满足 Abser 的要求同时，也符合 interface{} 的要求。不同的是，interface{} 没有任何行为（method）。</p>
+<h3 id="When-amp-How"><a href="#When-amp-How" class="headerlink" title="When &amp; How"></a>When &amp; How</h3><p>道理我都懂，但是何时使用，如何使用 interface 呢？</p>
+<p>答案是，当不需要关心实现细节的时候？</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">fn</span><span class="hljs-params">(Parameter)</span> <span class="hljs-title">Result</span></span></code></pre>
+<p>当函数编写者希望隐藏实现细节时，应该把 Result 设定为 interface；当函数编写者希望提供扩展点的时候，应当把 Parameter 设定为 interface；</p>
+<h4 id="隐藏实现细节"><a href="#隐藏实现细节" class="headerlink" title="隐藏实现细节"></a>隐藏实现细节</h4><p>以 CancelCtx 为例:</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Context <span class="hljs-keyword">interface</span> &#123;
+	Deadline() (deadline time.Time, ok <span class="hljs-keyword">bool</span>)
+	Done() &lt;-<span class="hljs-keyword">chan</span> <span class="hljs-keyword">struct</span>&#123;&#125;
+	Err() error
+	Value(key <span class="hljs-keyword">interface</span>&#123;&#125;) <span class="hljs-keyword">interface</span>&#123;&#125;
+&#125;
+
+<span class="hljs-comment">// newCancelCtx returns an initialized cancelCtx.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">newCancelCtx</span><span class="hljs-params">(parent Context)</span> <span class="hljs-title">cancelCtx</span></span> &#123;
+	<span class="hljs-keyword">return</span> cancelCtx&#123;Context: parent&#125;
+&#125;
+
+<span class="hljs-keyword">type</span> cancelCtx <span class="hljs-keyword">struct</span> &#123;
+	...
+&#125;</code></pre>
+<p>newCancelCtx 返回值为 <code>cancelCtx</code>。注意到 cancelCtx 是没有导出的，意味着使用者只能使用 Context 的变量来接收 newCancelCtx 返回值，从而达到隐藏实现的目的。cancelCtx 是否还有其他方法，以及具体如何实现，使用者并无感知。</p>
+<h4 id="提供扩展点"><a href="#提供扩展点" class="headerlink" title="提供扩展点"></a>提供扩展点</h4><p>当我们需要将文档持久化</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Document <span class="hljs-keyword">struct</span> &#123;
+    ...
+&#125;
+
+<span class="hljs-comment">// Save writes the contents of the Document to the file f.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *Document)</span> <span class="hljs-title">Save</span><span class="hljs-params">(f *os.File)</span> <span class="hljs-title">error</span></span></code></pre>
+<p>假如实现如上，Save 方法将 *os.File 作为写入的目标。但是此实现存在一些问题：</p>
+<ol>
+<li>该实现排除了将数据写入网络位置的选项。假设网络存储成为需求，则此函数的签名必须更改，从而影响其所有调用者。</li>
+<li>该实现很难测试。为了验证其操作，测试必须在写入文件后读取文件的内容。还必须确保 f 被写入到临时位置，并始终在之后删除。</li>
+<li>*os.File 暴露了许多与 Save 无关的方法，比如读取目录和检查路径是否为符号链接。</li>
+</ol>
+<p>可以使用接口隔离原则重新定义该方法，优化实现为：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of d to the supplied ReadWriterCloser.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *Document)</span> <span class="hljs-title">Save</span><span class="hljs-params">(rwc io.ReadWriteCloser)</span> <span class="hljs-title">error</span></span></code></pre>
+
+<p>然而，此方法仍然违反单一职责原则，它同时负责读取和验证写入的内容。将此部分责任拆分走，继续优化为：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of d to the supplied WriteCloser.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *Document)</span> <span class="hljs-title">Save</span><span class="hljs-params">(wc io.WriteCloser)</span> <span class="hljs-title">error</span></span></code></pre>
+<p>然而，wc 会在什么情况下关闭。可能 Save 将无条件调用 Close，或者在成功的情况下调用 Close，以上都不是一个好的选择。因此再次优化</p>
+<pre><code class="hljs go"><span class="hljs-comment">// WriteTo writes the contents of d to the supplied Writer.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *Document)</span> <span class="hljs-title">WriteTo</span><span class="hljs-params">(w io.Writer)</span> <span class="hljs-title">error</span></span></code></pre>
+
+<p>接口声明了调用方需要的行为，而不是类型将提供的行为。行为的提供方具有高度的扩展空间，例如：装饰器模式扩展该行为。</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> LogWriter <span class="hljs-keyword">struct</span> &#123;
+    w  io.Writer
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(l *LogWriter)</span><span class="hljs-title">Write</span><span class="hljs-params">(p []<span class="hljs-keyword">byte</span>)</span> <span class="hljs-params">(n <span class="hljs-keyword">int</span>, err error)</span></span> &#123;
+    fmt.Printf(<span class="hljs-string">&quot;write len:%v&quot;</span>, <span class="hljs-built_in">len</span>(p))
+    <span class="hljs-keyword">return</span> l.w.Write(r)
+&#125;</code></pre>
+
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>关于 interface，很喜欢以下两句箴言：</p>
+<blockquote>
+<p> Program to an ‘interface’, not an ‘implementation’ —— GoF<br> Be conservative in what you do, be liberal in what you accept from others —— Robustness Principle</p>
+</blockquote>
+<p>而不是</p>
+<blockquote>
+<p>Return concrete types, receive interfaces as parameter<br>（由 cancelCtx 的例子可知，如果其类型是导出的 CancelCtx，返回 concrete types 与以上箴言是有出入的）</p>
+</blockquote>
+<p>高级语言赋予了开发者高级的能力，让开发者不要关注具体值、类型，集中精力去处理业务逻辑（行为，method），interface 提供的就是这种能力。除了 interface，其他问题处理也是基于类似的思路：</p>
+<blockquote>
+<p><a href="/09-09-2019/dont-just-check-errors-handle-them-gracefully-cn.html">Don’t just check errors, handle them gracefully</a><br>基于行为处理错误，而不是基于值或类型</p>
+</blockquote>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-02-2021/using-golang-interface-well.html">https://www.cyningsun.com/08-02-2021/using-golang-interface-well.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+            <li><span><a href="/07-19-2021/go-higher-order-function.html">Go 函数式编程：Higher-order function</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/08-08-2021/go-accept-interfaces-return-structs.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/07-26-2021/go-a-graceful-lru-implement.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

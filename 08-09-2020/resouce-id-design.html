@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>如何设计资源标识符？</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-08-09 00:00:00 +0800"/>
+<meta property="og:url" content="/08-09-2020/resouce-id-design.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="在 如何设计 RPC 接口 中讲到一个观点： 资源在用户侧以 hyper media 存在；资源流到服务中以对象来组织；资源落到存储里就变成了id + content。索引 content 的 id，一般又以 单个 和 集合 的形态存在，具体到数据库中，id 以 聚簇索引存在，content 以聚簇索引叶节点存在 越来越多的产品按照先获取 id 再读取 co">
+
+<meta name="keywords" content="资源标志符,API Design,ID">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>如何设计资源标识符？</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <p>在 <a href="/07-27-2020/how-to-write-rpc-interface.html#认识资源">如何设计 RPC 接口</a> 中讲到一个观点：</p>
+<blockquote>
+<p>资源在用户侧以 <a href="/06-29-2020/how-to-write-restful-api.html">hyper media</a> 存在；资源流到服务中以对象来组织；资源落到存储里就变成了<code>id</code> + <code>content</code>。索引 <code>content</code> 的 id，一般又以 <code>单个</code> 和 <code>集合</code> 的形态存在，具体到数据库中，id 以 聚簇索引存在，content 以聚簇索引叶节点存在</p>
+<p>越来越多的产品按照先获取 <code>id</code> 再读取 <code>content</code> 来访问资源</p>
+</blockquote>
+<p>在REST论文中也有类似的描述：</p>
+<blockquote>
+<p>REST 对于信息的核心抽象是<em>资源*。任何能够被命名的信息都能够作为一个资源。资源 *R</em> 是一个随时间变化的成员函数 <em>M<strong>R</strong>(t)*，该函数将时间 *t</em> 映射到等价的一个实体或值的集合，集合中的值可能是<em>资源的表述</em> 和/或 <em>资源的标识符</em>。</p>
+</blockquote>
+<p><img src="/images/Data=ID+Content.png" alt="Data=ID+Content"></p>
+<p>其中包含了以下层面的意思：</p>
+<ol>
+<li>服务是围绕资源建立的，服务存在的价值是对资源更新和组织</li>
+<li>每种资源必须依靠 id 标志，内容本身只是为了最终呈现，作为资源的识别， id 才至关重要</li>
+<li>ID 又以  <code>单个</code> 和 <code>集合</code> 形态存在，“集合” 是一种特殊的资源，包含相同类型的子资源列表</li>
+</ol>
+<p>一般的应用中，通常使用资源唯一 ID 标识资源。ID 生成一般依赖数据库递增，或者 <a href="/12-26-2018/id-generator.html">分布式ID生成服务</a>。但在大型系统中，一般有很多资源，在使用资源ID标识资源时，通常需要使用特定于资源的元组来标识资源，例如：&lt;群ID、消息ID&gt; 或&lt;公众号ID，消息ID，文章位置&gt;。这会带来以下问题：</p>
+<ul>
+<li>使用者必须记忆匿名元组、顺序</li>
+<li>元组通常难以传递</li>
+<li>通用服务不理解专用的元组</li>
+<li>专用元组限制了 API 设计的灵活性</li>
+</ul>
+<p>针对以上问题，一般来说可以将元组利用一定的机制进行拼接组装，生成一个唯一的ID。最常见的例子是微信公众平台的OpenID：</p>
+<blockquote>
+<p>OpenID = WechatID (用户微信号) &amp; APPID (公众平台ID)（两个数据加密得到的字符串）</p>
+</blockquote>
+<p>然而特定的拼接方式仍然没有解决理解、通用性问题</p>
+<p>理解和通用性问题，其实有比较通用的解决方案。既以<code>名称-值</code> 对的形式，建立自描述（self-descriptive）的标识符。语言描述可能比较难以理解，那么还是以微信公众平台OpenID为例，如果标志符以下面形式组织将会更容易理解：</p>
+<blockquote>
+<p>wechatid=XXX&amp;appid=XXX（加密得到的字符串）</p>
+</blockquote>
+<p>但是以上组织方式引入了一个新的问题，到底该把哪些数据作为生成标识符的一部分呢？答案就是：集合（依据就是开头的片段）。资源可以由 <code>集合 ID</code> 和 <code>资源 ID</code> 组成；如果资源包含子资源，则子资源可以由 <code>父资源</code> 后跟 <code>子资源的 ID</code>。</p>
+<p>示例 1：存储服务具有一组 <code>buckets</code>，其中每个存储分区都有一组 <code>objects</code>：</p>
+<table>
+<thead>
+<tr>
+<th>API 服务名称</th>
+<th>集合 ID</th>
+<th>资源 ID</th>
+<th>集合 ID</th>
+<th>资源 ID</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>//storage.googleapis.com</td>
+<td>/buckets</td>
+<td>/bucket-id</td>
+<td>/objects</td>
+<td>/object-id</td>
+</tr>
+</tbody></table>
+<p>示例 2：电子邮件服务具有一组 <code>users</code>。每个用户都有一个 <code>settings</code> 子资源，而 <code>settings</code> 子资源拥有包括 <code>customFrom</code> 在内的许多其他子资源：</p>
+<table>
+<thead>
+<tr>
+<th>API 服务名称</th>
+<th>集合 ID</th>
+<th>资源 ID</th>
+<th>资源 ID</th>
+<th>资源 ID</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>//mail.googleapis.com</td>
+<td>/users</td>
+<td>/name@example.com</td>
+<td>/settings</td>
+<td>/customFrom</td>
+</tr>
+</tbody></table>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-09-2020/resouce-id-design.html">https://www.cyningsun.com/08-09-2020/resouce-id-design.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#API Design" rel="category"># API Design</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/07-27-2020/how-to-write-rpc-interface.html">如何设计 RPC 接口</a></span></li>
+          
+            <li><span><a href="/06-29-2020/how-to-write-restful-api.html">REST API 设计规范</a></span></li>
+          
+            <li><span><a href="/12-26-2018/id-generator.html">如何选择合适的分布式ID生成方案？</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/08-18-2020/first-lesson-of-database.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-02-2020/release-checklist.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

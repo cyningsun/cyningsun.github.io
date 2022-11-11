@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>B+树 —— 数据库的灵魂</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-08-25 00:00:00 +0800"/>
+<meta property="og:url" content="/08-25-2020/mysql-bplustree.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景虽然 Nosql 风生水起，关系型数据库在当前的开发中仍然扮演着不可或缺的角色。因此在面试中也会被时常问到，很多问题即使是工作多年的同学仍然会磨棱两可，例如： 为什么使用B+树，而不是B树作为底层数据结构？ 最左前缀匹配原则 为什么跟索引中字段顺序相关，而与查询中字段顺序无关？ Like 查询能够使用索引吗？ 主键为什么最好选择递增的字段？ 很多人把原因">
+
+<meta name="keywords" content="B+树,最左匹配,递增主键,like查询">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>B+树 —— 数据库的灵魂</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#B-%E6%A0%91"><span class="toc-text">B+ 树</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%AE%9A%E4%B9%89"><span class="toc-text">定义</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%AE%97%E6%B3%95"><span class="toc-text">算法</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%9F%A5%E6%89%BE"><span class="toc-text">查找</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%8F%92%E5%85%A5"><span class="toc-text">插入</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%88%A0%E9%99%A4"><span class="toc-text">删除</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E5%90%88%E7%B4%A2%E5%BC%95"><span class="toc-text">复合索引</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%81%9A%E7%B0%87%E7%B4%A2%E5%BC%95"><span class="toc-text">聚簇索引</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>虽然 <code>Nosql</code> 风生水起，关系型数据库在当前的开发中仍然扮演着不可或缺的角色。因此在面试中也会被时常问到，很多问题即使是工作多年的同学仍然会磨棱两可，例如：</p>
+<ol>
+<li>为什么使用B+树，而不是B树作为底层数据结构？</li>
+<li><strong>最左前缀匹配原则</strong> 为什么跟索引中字段顺序相关，而与查询中字段顺序无关？</li>
+<li>Like 查询能够使用索引吗？</li>
+<li>主键为什么最好选择递增的字段？</li>
+</ol>
+<p>很多人把原因归结于没有认真准备。靠记忆死记硬背终归落了下乘，归根结底还是没有把握住<strong>本质</strong>。MySQL的本质是什么？当然是其存储引擎。要想对数据库有本质的认识，了解存储引擎底层的数据结构 B+树 是一堂必修课。</p>
+<h3 id="B-树"><a href="#B-树" class="headerlink" title="B+ 树"></a>B+ 树</h3><h4 id="定义"><a href="#定义" class="headerlink" title="定义"></a>定义</h4><p>如果此B+树的阶数是 m+1，则：</p>
+<ul>
+<li>每个节点最多有 m 个 Key 及 m+1 个子节点</li>
+<li>除根节点外，所有节点必须半满（Half-full）</li>
+<li>如果 m 是 偶数，且 m = 2d<ul>
+<li>叶节点半满：至少有 d 个Key</li>
+<li>非叶节点半满：至少有 d 个Key</li>
+</ul>
+</li>
+<li>如果 m 是奇数，且 m = 2d+1<ul>
+<li>叶节点半满：至少有 d+1 个 Key</li>
+<li>非叶节点半满：至少有 d 个Key</li>
+</ul>
+</li>
+</ul>
+<h4 id="算法"><a href="#算法" class="headerlink" title="算法"></a>算法</h4><h5 id="查找"><a href="#查找" class="headerlink" title="查找"></a>查找</h5><p>从根节点开始，检查非叶子节点的索引项，可以使用二分（或线性）搜索进行查找，以找到对应的子节点。沿着树向下遍历，直到到达叶节点</p>
+<blockquote>
+<p><img src="/images/bplustree/bplustree-search.png" alt="bplustree-search"></p>
+<p>根据以上方法查找 15*，可知它不在该树上</p>
+</blockquote>
+<h5 id="插入"><a href="#插入" class="headerlink" title="插入"></a>插入</h5><ol>
+<li><p>首先，查找要插入的 <code>叶节点 L</code></p>
+</li>
+<li><p>接着把数据项插入这个节点中</p>
+<ul>
+<li>如果没有节点处于违规状态，则处理结束</li>
+<li>否则，均匀的拆分 L 为两个节点（ L和 新节点 L2），使得每个都有最小数目的元素<ul>
+<li>将索引项中间的 key 复制到父节点<strong>（Copy up）</strong></li>
+<li>将指向 L2 的索引项插入到 L 的父节点</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>沿树递归向上，继续这个处理直到到达根节点</p>
+<ul>
+<li><p>若要拆分索引节点，需均匀地拆分索引条目，将中间的 key 移动到父节点<strong>（Push up）</strong></p>
+<blockquote>
+<p>与叶节点拆分对比操作不同</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>如果根节点被分裂，则创建一个新根节点。</p>
+</li>
+</ol>
+<blockquote>
+<p>假设，将  8* 插入到上述 B+ 树，观察在叶节点和非叶节点拆分中如何保证半满的。并注意 Copy up 和 Push up 之间的区别，确保理解其中的原因。</p>
+<p>a) 首先找到的 叶节点 L，并拆分</p>
+<ul>
+<li>将 索引项的 key 5 Copy up</li>
+<li>将 指向 L2 的 索引项指针添加到 L 的 父节点</li>
+</ul>
+<p><img src="/images/bplustree/bplustree-leaf-split.png" alt="bplustree-leaf-split"></p>
+<p>b) key 5 Copy up 到父节点子后，导致非叶节点拆分：</p>
+<ul>
+<li>17 Push up 到 父节点</li>
+</ul>
+<p><img src="/images/bplustree/bplustree-nonleaf-split.png" alt="bplustree-nonleaf-split"></p>
+<p>c）最终根节点被拆分，并导致树高度增加，得到以下B+树</p>
+<p><img src="/images/bplustree/bplustree-insert-end.png" alt="bplustree-insert-end"></p>
+</blockquote>
+<h5 id="删除"><a href="#删除" class="headerlink" title="删除"></a>删除</h5><ol>
+<li>从根节点开始，查找该项归属的 叶节点 L</li>
+<li>删除该项<ul>
+<li>如果叶节点L 多于半满，则处理结束</li>
+<li>如果叶节点L 不足半满的索引项<ul>
+<li>尝试从兄弟节点（与L具有相同父级的相邻节点）借索引项，重新分配。</li>
+<li>如果重新分配失败，则合并 L 和 兄弟节点</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>如果发生合并，则必须从L的父索引项中删除索引项（指向L或兄弟节点的）</li>
+<li>递归此处理直到节点是合法状态，或者到达根节点。</li>
+</ol>
+<blockquote>
+<p>假设，对上述B+树，依次删除 19*、20*、24*</p>
+<p>a) 删除 19*，较为简单，得到</p>
+<p><img src="/images/bplustree/bplustree-delete-leaf.png" alt="bplustree-delete-leaf"></p>
+<p>b) 删除 20*，是通过重新分配完成的。注意中间的 key 是如何 Copy up 的</p>
+<p><img src="/images/bplustree/bplustree-leaf-redistribute.png" alt="bplustree-leaf-redistribute"></p>
+<p>c) 删除 24*，导致与右侧索引项的合并。</p>
+<p><img src="/images/bplustree/bplustree-leaf-must-merge.png" alt="bplustree-leaf-must-merge"></p>
+<p>然后，沿树向上，父节点同样需要与左侧兄弟节点合并，导致根节点的 “pull down” </p>
+<p><img src="/images/bplustree/bplustree-root-pull-down.png" alt="bplustree-root-pull-down"></p>
+</blockquote>
+<h3 id="复合索引"><a href="#复合索引" class="headerlink" title="复合索引"></a>复合索引</h3><p>复合索引的B+树上的键值，就像单key的索引一样。和按字母顺序排列一个句子一样，复合索引中各个字段的顺序很重要。例如，下图为复合索引  (branch_name, balance) 的 B+树</p>
+<blockquote>
+<p><img src="/images/bplustree/bplustree-composite-key-index.jpg" alt="bplustree-composite-key-index"></p>
+<ol>
+<li><p>例如，(Bournemouth, 1000)  小于等于 (Bournemouth, 1000) ，因此它出现在第一个叶节点中； (Bournemouth, 7500) 大于 (Bournemouth, 1000) ，因此它出现在第二个叶节上</p>
+</li>
+<li><p>例如，尽管 (Armagh, 1500) 第二个字段的值大于(Bournemouth, 1000)对应字段的值。字段的顺序意味着 (Bournemouth, 1000) 小于 (Bournemouth, 1000)</p>
+</li>
+</ol>
+</blockquote>
+<p>因此，上面的B+树可以用来搜索 (branch_name) 或 (branch_name, balance) ，而不能搜索 (balance)。例如，balance=2000 出现在B+树的两个路径中。</p>
+<h3 id="聚簇索引"><a href="#聚簇索引" class="headerlink" title="聚簇索引"></a>聚簇索引</h3><p>由B+树的结构可知，数据记录本身被存于叶子节点上。<strong>就要求同一个叶子节点内（大小为一个内存页或磁盘页）的各条数据记录按主键顺序存放</strong>，因此每当有一条新的记录插入时，B+树会根据其主键将其插入适当的节点和位置</p>
+<ol>
+<li><p>如果使用递增的字段作为主键，新增记录就会添加到当前索引节点的后面。<strong>不需要因为插入移动已有数据，因此写入效率很高</strong></p>
+</li>
+<li><p>如果使用随机的字段作为主键，新增记录需要插入到索引的中间位置 。<strong>为了将新记录插到合适位置而移动已经存在的数据。同时频繁的移动、分页操作造成了大量的碎片，降低磁盘读写速度</strong></p>
+</li>
+</ol>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><ol>
+<li><p>为什么使用B+树，而不是B树作为底层数据结构？</p>
+<blockquote>
+<ol>
+<li>树高较低，磁盘IO次数少</li>
+<li>有利于范围、排序、分组等查询</li>
+</ol>
+</blockquote>
+</li>
+<li><p><strong>最左前缀匹配原则</strong> 为什么跟索引中字段顺序相关，而与查询中字段顺序无关？</p>
+<blockquote>
+<ol>
+<li>因为索引中字段的顺序决定了建立一颗怎样的索引树</li>
+<li>能否使用索引的本质在于，查询语句能否沿树游走</li>
+</ol>
+</blockquote>
+</li>
+<li><p>like 查询能够使用索引吗？</p>
+<blockquote>
+<ol>
+<li>见 <code>问题2</code></li>
+<li><code>%</code> 开头的like语句无法沿树游走，因此无法使用索引</li>
+</ol>
+</blockquote>
+</li>
+<li><p>主键为什么最好选择递增的字段？</p>
+<blockquote>
+<p>详见：<code>聚簇索引</code></p>
+</blockquote>
+</li>
+</ol>
+<p>很多的知识都是串起来的，摸清了B+树，那么对于MySQL的 <a href="/12-02-2015/mysql-index-optimize.html">Explain工具</a> 也就自然能够做到胸有成竹，基本的索引优化自然也就手到擒来。</p>
+<p><strong>参考</strong></p>
+<ol>
+<li><a target="_blank" rel="noopener" href="https://web.stanford.edu/class/cs346/2015/">https://web.stanford.edu/class/cs346/2015/</a></li>
+<li><a target="_blank" rel="noopener" href="https://pdfs.semanticscholar.org/0d7b/8b9172a69fa069c9c38b5f01bd37a498563c.pdf">https://pdfs.semanticscholar.org/0d7b/8b9172a69fa069c9c38b5f01bd37a498563c.pdf</a></li>
+</ol>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-25-2020/mysql-bplustree.html">https://www.cyningsun.com/08-25-2020/mysql-bplustree.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/06-06-2021/mysql-design-guide.html">MySQL 设计与查询规范</a></span></li>
+          
+            <li><span><a href="/09-06-2020/redis-migrate-key-lost.html">记一次 Redis 迁移 —— Key 丢失问题排查</a></span></li>
+          
+            <li><span><a href="/08-18-2020/first-lesson-of-database.html">数据库常识课</a></span></li>
+          
+            <li><span><a href="/12-02-2015/mysql-index-optimize.html">当谈SQL优化时谈些什么</a></span></li>
+          
+            <li><span><a href="/09-07-2014/performance-optimization-on-mysql.html">MySQL性能优化小结</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/09-06-2020/redis-migrate-key-lost.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-18-2020/first-lesson-of-database.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

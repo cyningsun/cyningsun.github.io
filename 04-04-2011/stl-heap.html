@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>SGI-STL源码剖析之Heap</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2011-04-04 00:00:00 +0800"/>
+<meta property="og:url" content="/04-04-2011/stl-heap.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="binary heap 是一种 Complete binary tree 也就是，整棵 binary tree 除叶子节点之外，是填满的，而最底层的叶节点由左至右又不得有空隙。 heap 的实现假设动用 一 个小技巧 3 ，将 array 的 #0 元素保留（或设为无限大值或无限小值），那么当 complete binary tree 中 的某个节点位 于 ">
+
+<meta name="keywords" content="heap,STL">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>SGI-STL源码剖析之Heap</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#heap-%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="toc-text">heap 的实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#heap-%E7%9A%84%E5%88%86%E7%B1%BB"><span class="toc-text">heap 的分类</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#heap-%E7%AE%97%E6%B3%95%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB"><span class="toc-text">heap 算法依赖关系</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#push-heap-%E7%AE%97%E6%B3%95"><span class="toc-text">push_heap 算法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#pop-heap-%E7%AE%97%E6%B3%95"><span class="toc-text">pop_heap 算法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#sort-heap-%E7%AE%97%E6%B3%95"><span class="toc-text">sort_heap 算法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#make-heap-%E7%AE%97%E6%B3%95"><span class="toc-text">make_heap 算法</span></a></li></ol></li></ol>
+ 
+        <p>binary heap 是一种 Complete binary tree, 也就是，整棵 binary tree 除叶子节点之外，是填满的，而最底层的叶节点由左至右又不得有空隙。<br><img src="/images/stl-heap/1.gif" alt="stl-heap-1.png"></p>
+<h3 id="heap-的实现"><a href="#heap-的实现" class="headerlink" title="heap 的实现"></a>heap 的实现</h3><p>假设动用 一 个小技巧 3 ，将 array 的 #0 元素保留（或设为无限大值或无限小值），那么当 complete binary tree 中 的某个节点位 于 array 的i 处，其左子节点必位于 array 的2i 处，其右子节点必位于 array 的2i+1 处，其父节点必位于「i/2 」处 （此处的「」权且代表高斯符号，取其整数）。通过这么简单的位置规则，array 可以轻易实作出 complete binary tree 。这种以array 表述 tree 的方式，我们称为隐式表述法（implicit representation ）。</p>
+<p>注意： STL 中并未使用此技巧，此点需要特别注意，后面的所有的下标都与此有关。 </p>
+<h3 id="heap-的分类"><a href="#heap-的分类" class="headerlink" title="heap 的分类"></a>heap 的分类</h3><p>根据元素排列方式， heap 可分为 max-heap 和min-heap 两种，前者每个节点的键值（ key ）都大于或等于其子节点键值，后者的每个节点键值（ key ）都小于或等于其子节点键值。因此， max-heap 的最大值在根节点，并总是位于底层 array 或 vector 的 起 头 处 ； min-heap 的 最 小 值 在 根 节 点 ， 亦 总 是 位 于 底 层 array 或 vector 的起头处。</p>
+<p>注意： STL 提供的是 max-heap </p>
+<h3 id="heap-算法依赖关系"><a href="#heap-算法依赖关系" class="headerlink" title="heap 算法依赖关系"></a>heap 算法依赖关系</h3><p><img src="/images/stl-heap/2.gif" alt="stl-heap-2.png"></p>
+<h4 id="push-heap-算法"><a href="#push-heap-算法" class="headerlink" title="push_heap 算法"></a>push_heap 算法</h4><p>为了满足 complete binary tree 的条件，新加入的元素 ㆒ 定要放在最 下一 层做为叶节点，并填补在由左至右的第 一 个空格，也就是把新元素安插在底层 vector 的 end() 处。新元素是否适合于其现有位置呢？为满足 max-heap 的条件（每个节点的键值都大于或等于其子节点键值），我们执行 一 个所谓的 percolate up （ 上 溯）程序：将新节点拿来与其父节点比较，如果其键值（ key ）比父节点大，就父子对换位置。如此 一 直 上 溯，直到不需对换或直到根节点为止。</p>
+<pre><code class="hljs c++"><span class="hljs-comment">//first: 底层容器的起始位置 iterator</span>
+<span class="hljs-comment">//holeIndex: 新值将被置于的位置</span>
+<span class="hljs-comment">//topIndex: 根节点在容器中的索引</span>
+<span class="hljs-comment">//value: 新值的值</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Distance</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>&gt;</span>
+<span class="hljs-keyword">void</span> __push_heap (RandomAccessIterator first, Distance holeIndex,
+    Distance topIndex, T value) &#123;
+    Distance parent = (holeIndex - <span class="hljs-number">1</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">// 找出父节点</span>
+    <span class="hljs-keyword">while</span> (holeIndex &gt; topIndex &amp;&amp; *(first + parent) &lt; value) &#123;
+        <span class="hljs-comment">// 当尚未到达顶端，且父节点小于新值（于是不符合 heap 的次序特性）</span>
+        <span class="hljs-comment">// 由于以 上 使用 operator&lt; ，可知 STL heap 是 ㆒ 种 max-heap （大者为父）。</span>
+        *(first + holeIndex) = *(first + parent); <span class="hljs-comment">// 令洞值为父值</span>
+        holeIndex = parent; <span class="hljs-comment">// percolate up ：调整洞号，向 上 提升至父节点。</span>
+        parent = (holeIndex - <span class="hljs-number">1</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">// 新洞的父节点</span>
+    &#125; <span class="hljs-comment">// 持续至顶端，或满足 heap 的次序特性为止。</span>
+
+    *(first + holeIndex) = value; <span class="hljs-comment">// 令洞值为新值，完成安插动作。</span>
+&#125;</code></pre>
+
+<h4 id="pop-heap-算法"><a href="#pop-heap-算法" class="headerlink" title="pop_heap 算法"></a>pop_heap 算法</h4><p>pop 动作取走根节点（其实是移至底部容器 vector 的最后一个元素）之后，为了满足 complete binary tree 的条件，必须割舍最下层最右边的叶节点，并将其值安插至 max_heap （安插时用到 __push_heap ）。（取走根节点后）为满足 max-heap 的条件（每个节点的键值都大于或等于其子节点键值），我们执行一个所谓的 percolate down （下溯）程序：将根节点取走（最大值被取走后，形成一个「 hole 」），然后比较其两个子节点键值（ key ），并与较大子节点对调位置。如此一直下放，直到这个「 hole 」的键值大于左右两个子节点，或直到下放至叶节点为止。</p>
+<pre><code class="hljs c++"><span class="hljs-comment">//first: 底层容器的起始位置 iterator</span>
+<span class="hljs-comment">//holeIndex: 被取走的根植形成 hole 位置的索引</span>
+<span class="hljs-comment">//len: 指定了排序的区域大小</span>
+<span class="hljs-comment">//value: 割舍之叶节点之值</span>
+<span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Distance</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>&gt;</span>
+<span class="hljs-keyword">void</span> __adjust_heap (RandomAccessIterator first, Distance holeIndex,
+    Distance len, T value) &#123;
+
+    Distance topIndex = holeIndex;
+    Distance secondChild = <span class="hljs-number">2</span> * holeIndex + <span class="hljs-number">2</span>; <span class="hljs-comment">// 洞节点之右子节点</span>
+    <span class="hljs-comment">// 注意以下的比较，仅仅是左右子节点的比较，并且以两者较大者填充 hole ，然后查找新的 hole ，直至将 hole 下放到 // 叶节点。如果在此过程中割舍点的值同时大于左右两个节点，则不满足 max_heap ，这是最后需要执行一次 //__push_heap 的原因所在，所以 __push_heap 必不可少</span>
+    <span class="hljs-keyword">while</span> (secondChild &lt; len) &#123;
+    <span class="hljs-comment">// 比较洞节点之左右两个子值，然后以 secondChild 代表较大子节点。</span>
+    <span class="hljs-keyword">if</span> (*(first + secondChild) &lt; *(first + (secondChild - <span class="hljs-number">1</span>)))
+        secondChild--;
+        <span class="hljs-comment">// Percolate down ：令较大子值为洞值，再令洞号 下 移至较大子节点处。</span>
+        *(first + holeIndex) = *(first + secondChild);
+        holeIndex = secondChild;
+        <span class="hljs-comment">// 找出新洞节点的右子节点</span>
+        secondChild = <span class="hljs-number">2</span> * (secondChild + <span class="hljs-number">1</span>);
+    &#125;
+    <span class="hljs-keyword">if</span> (secondChild == len) &#123; <span class="hljs-comment">// 没有右子节点，只有左子节点</span>
+        <span class="hljs-comment">// Percolate down ：令左子值为洞值，再令洞号 下 移至左子节点处。</span>
+        *(first + holeIndex) = *(first + (secondChild - <span class="hljs-number">1</span>));
+        holeIndex = secondChild - <span class="hljs-number">1</span>;
+    &#125;
+    __push_heap (first, holeIndex, topIndex, value);
+&#125;</code></pre>
+<h4 id="sort-heap-算法"><a href="#sort-heap-算法" class="headerlink" title="sort_heap 算法"></a>sort_heap 算法</h4><p>既然每次 pop_heap 可获得 heap 之 中 键值最大的元素，如果持续对整个 heap 做pop_heap 动作，每次将操作范围从后向前缩减 一 个元素（因为 pop_heap 会把键值最大的元素放在底部容器的最尾端），当整个程序执行完毕，我们便有了㆒个递增序列。</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>&gt;</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sort_heap</span> <span class="hljs-params">(RandomAccessIterator first,</span></span>
+<span class="hljs-params"><span class="hljs-function">    RandomAccessIterator last)</span> </span>&#123;
+    <span class="hljs-comment">// 以 下 ，每执行 一 次 pop_heap() ，极值（在 STL heap 中 为极大值）即被放在尾端。</span>
+    <span class="hljs-comment">// 扣除尾端再执行 一 次 pop_heap() ，次极值又被放在新尾端。 一 直 下 去，最后即得</span>
+    <span class="hljs-comment">// 排序结果。</span>
+    <span class="hljs-keyword">while</span> (last - first &gt; <span class="hljs-number">1</span>)
+        <span class="hljs-built_in">pop_heap</span> (first, last--); <span class="hljs-comment">// 每执行 pop_heap() 一 次，操作范围即退缩 一 格。</span>
+&#125;</code></pre>
+
+<h4 id="make-heap-算法"><a href="#make-heap-算法" class="headerlink" title="make_heap 算法"></a>make_heap 算法</h4><p>这个算法用来将一段现有的数据转化为一个heap 。其主要依据就是 complete binary tree 的隐式表述（ implicit representation ）。</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">T</span>, <span class="hljs-keyword">class</span> <span class="hljs-title">Distance</span>&gt;</span>
+<span class="hljs-keyword">void</span> __make_heap (RandomAccessIterator first,
+    RandomAccessIterator last, T*,
+    Distance*) &#123;
+    <span class="hljs-keyword">if</span> (last - first &lt; <span class="hljs-number">2</span>) <span class="hljs-keyword">return</span>; <span class="hljs-comment">// 如果长度为 0 或 1 ，不必重新排列。</span>
+    
+    Distance len = last - first;
+    <span class="hljs-comment">// 找出第一个需要重排的子树头部，以 parent 标示出。由于任何叶节点都不需执行</span>
+    <span class="hljs-comment">// perlocate down ，所以有以下计算。 parent 命名不佳，名为 holeIndex 更好。</span>
+    Distance parent = (len - <span class="hljs-number">2</span>)/<span class="hljs-number">2</span>;
+    <span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) &#123;
+        <span class="hljs-comment">// 重排以 parent 为首的子树。 len 是为了让 __adjust_heap() 判断操作范围</span>
+        <span class="hljs-comment">// 再次分析一下 __adjust_heap 的作用：每次 while 循环 确保且仅仅确保 了 first 到 parent 之间的数据满足 heap 。</span>
+        <span class="hljs-comment">//__adjust_heap 下溯的 while 循环确保了其下溯路线上的节点都大于和其共父节点的节点， //__adjust_heap 上溯的 __push_heap 确保了上述下溯路线上节点父节点大于子节点</span>
+        <span class="hljs-comment">// 综上所诉， __adjust_heap 确保了且仅仅确保了 first 到 parent 之间的数据满足 heap 。</span>
+        __adjust_heap (first, parent, len, <span class="hljs-built_in">T</span>(*(first + parent)));
+
+        <span class="hljs-keyword">if</span> (parent == <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span>;
+        
+        parent--;
+        <span class="hljs-comment">// 走完根节点，就结束。</span>
+        <span class="hljs-comment">// （即将重排之子树的）头部向前一个节点</span>
+    &#125;
+&#125;</code></pre>
+
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-04-2011/stl-heap.html">https://www.cyningsun.com/04-04-2011/stl-heap.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#STL" rel="category"># STL</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/05-08-2012/stl-shuffle.html">STL算法我实现之随机洗牌</a></span></li>
+          
+            <li><span><a href="/05-07-2012/stl-permutation.html">STL算法我实现之排列</a></span></li>
+          
+            <li><span><a href="/04-25-2011/stl-rotate.html">STL算法我实现之rotate</a></span></li>
+          
+            <li><span><a href="/04-09-2011/stl-introsort.html">SGI-STL源码剖析之IntroSort</a></span></li>
+          
+            <li><span><a href="/04-08-2011/stl-list-sort.html">SGI-STL源码剖析之list::sort()</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-08-2011/stl-list-sort.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-04-2011/stl-rbtree.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

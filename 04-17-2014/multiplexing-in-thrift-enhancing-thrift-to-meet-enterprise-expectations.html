@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Thrift多路复用:增强Thrift以满足企业期望</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2014-04-17 00:00:00 +0800"/>
+<meta property="og:url" content="/04-17-2014/multiplexing-in-thrift-enhancing-thrift-to-meet-enterprise-expectations.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="Thrift是一个加快高效、可扩展后端服务开发和实现的开源库，它轻量级框架和对跨语言通信的支持，使得它的许多操作比其他类似SOA（REST/SOAP）的RPC框架更强大、高效。然而，Thrift的能力倍受新兴企业解决方案的挑战，例如，大数据方面，由于一个端口绑定一个服务的局限性，增加了绑定多种业务的企业网络的可维护性和管理的成本。本文针对这一挑战，详细介绍了">
+
+<meta name="keywords" content="Thrift,RPC,多路复用">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Thrift多路复用:增强Thrift以满足企业期望</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%8B%E7%BB%8D"><span class="toc-text">介绍</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Thrift%E6%9C%89%E4%BD%95%E7%89%B9%E5%88%AB%E4%B9%8B%E5%A4%84%EF%BC%9F"><span class="toc-text">Thrift有何特别之处？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Thrift%E5%8A%9F%E8%83%BD%E5%BC%BA%E5%A4%A7%EF%BC%8C%E4%BD%86%E5%B0%9A%E7%BC%BA%E5%B0%91%E5%8A%9F%E8%83%BD"><span class="toc-text">Thrift功能强大，但尚缺少功能</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%9A%E8%BF%87%E5%A4%8D%E7%94%A8%E4%B8%BA%E4%BC%98%E7%A7%80%E7%9A%84API%E5%A2%9E%E5%8A%A0%E9%AD%85%E5%8A%9B"><span class="toc-text">通过复用为优秀的API增加魅力</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%96%B9%E6%A1%88"><span class="toc-text">方案</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BB%84%E4%BB%B6"><span class="toc-text">组件</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#Multiplexer"><span class="toc-text">Multiplexer</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#Protocol"><span class="toc-text">Protocol</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#Registry-and-Lookup"><span class="toc-text">Registry and Lookup</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#Service-Information"><span class="toc-text">Service Information</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#Server"><span class="toc-text">Server</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#Source-Code"><span class="toc-text">Source Code</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%8E%E6%A0%B7%E4%BD%BF%E7%94%A8Thrift-Multiplexing%EF%BC%9F"><span class="toc-text">怎样使用Thrift Multiplexing？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%98%8E%E6%99%BA%E7%9A%84%E6%8A%95%E8%B5%84%E5%88%A9%E6%B6%A6%E4%B8%B0%E5%8E%9A"><span class="toc-text">明智的投资利润丰厚</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%82%E8%80%83%EF%BC%9A"><span class="toc-text">参考：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%8B%B1%E6%96%87%E5%8E%9F%E6%96%87%EF%BC%9A"><span class="toc-text">英文原文：</span></a></li></ol>
+ 
+        <p>Thrift是一个加快高效、可扩展后端服务开发和实现的开源库，它轻量级框架和对跨语言通信的支持，使得它的许多操作比其他类似SOA（REST/SOAP）的RPC框架更强大、高效。然而，Thrift的能力倍受新兴企业解决方案的挑战，例如，大数据方面，由于一个端口绑定一个服务的局限性，增加了绑定多种业务的企业网络的可维护性和管理的成本。本文针对这一挑战，详细介绍了增强Thrift能力的实现方法，使其能满足企业的期望。</p>
+<h3 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h3><p>Thrift是一个非常轻量的用于开发和获取远程服务的框架，它在跨语言通信方面，可靠，扩展性好、高效。Thrift API 被各企业广泛用于创建如搜索，日志记录，移动广告等类似服务和开发者平台。HBase、Hive、Cassandra等大数据开源项目的服务都承载于Thrift。简单，版本控制支持，开发高效和可扩展性使其成为SOA市场的有力竞争者，帮助它在与多数已有集成方法和产品的竞争中取得成功。<br>Thrift具有支持大量的功能，服务的跨语言沟通能力。这种能力可以通过扩展Thrift支持在每个服务器上绑定多个services得到进一步加强。在本白皮书中，我们将讨论如何提高Thrift的能力，以善用企业资源。基于标准的环境，我们还提出了一个框架，可以支持服务器绑定多个services的创建，服务的注册和服务的查询。</p>
+<h3 id="Thrift有何特别之处？"><a href="#Thrift有何特别之处？" class="headerlink" title="Thrift有何特别之处？"></a>Thrift有何特别之处？</h3><p>在开源舞台上有多种类型的RPC实现，包括Thrift、Avro、MessagePack、Protocol Buffers、BSON等等。每一个RPC实现库都有自己的优点和缺点。理想情况下，我们应该根据项目特定的企业解决方案的需求选择RPC库。<br>所有RPC实现追求的特性：</p>
+<blockquote>
+<p>1.跨平台通信<br>2.多种编程语言<br>3.支持快速协议（本地，二进制，压缩等）<br>4.支持多种传输<br>5.灵活的服务器（配置无阻塞，多线程等）<br>6.标准的服务器和客户端实现<br>7.与其他的RPC库的兼容性<br>8.支持不同的数据类型和容器<br>9.支持异步通信<br>10.支持动态类型（无架构编译）<br>11.快速序列化 </p>
+</blockquote>
+<p>与其他RPC实现，Thrift、Avro、MessagePack是顶级竞争者，满足以上列出的大多数需求。Avro的实现中，低频会话时服务器和客户端的带外模式会成为过度之举。同时，MessagePack本质上基于JSON并且无scheme的类型检查，由于数据类型容器的缺乏，比Thrift要弱。另一方面，支持各种协议和传输，可配置的服务器，简单标准化的IDL，和久经实战集成于大数据NoSQL数据存储，如Cassandra，使Thrift成为一个强大的竞争者和企业解决方案的首选RPC实现。</p>
+<h3 id="Thrift功能强大，但尚缺少功能"><a href="#Thrift功能强大，但尚缺少功能" class="headerlink" title="Thrift功能强大，但尚缺少功能"></a>Thrift功能强大，但尚缺少功能</h3><p>尽管是一个强大、高效率的跨语言通讯的工具，Thrift的services倍受高管理和维护成本的挑战。实际上，每一个Thrift服务器能够在同一时间公开唯一一个service。为了绑定多种功能，Thrift为企业提供以下两个选项：</p>
+<blockquote>
+<p> 1.写一个唯一、笨拙的实现并丙丁它作为单一服务<br> 2.绑定多个小服务到一系列端口  </p>
+</blockquote>
+<p><img src="/images/thrift/thrift1.jpg" alt="thrift1"><br>如果企业做选择第一种选项：那么，唯一、笨重的实现增加了解决方案的开发成本。该解决方案的复杂性将随着每个新服务的增加而增长。投资回报率（ROI）将由于高昂的维护成本受到不利影响。<br><img src="/images/thrift/thrift2.jpg" alt="thrift2"><br>如果企业选择第二种选项，绑定多个服务消耗的端口数量会很高，由于端口是一种有限的企业资源，需要谨慎使用，这是一个严重的问题。此选择倍受高管理和维护成本的挑战。此外，为防止与每个调用连接建立的相关成本，客户端的必须保持很多的链接（至少有一个到每一个端口）。每增加一个新的service，必须在防火墙上打开新的端口。Thrift的灵活设计在解决方案的优势备受高管理成本的挑战。</p>
+<h3 id="通过复用为优秀的API增加魅力"><a href="#通过复用为优秀的API增加魅力" class="headerlink" title="通过复用为优秀的API增加魅力"></a>通过复用为优秀的API增加魅力</h3><p>需要一个小时以实现和利用Thrift API的潜力，克服每个服务器绑定唯一service的局限。这份白皮书提出的解决方案是试图建立一个框架，可以使Java开发人员能够在每个服务器上创建和绑定多个services。该解决方案还提供了一个查询的框架，任何Java客户机/服务器可以快捷方便的查找和使用每个服务器上所托管的services，</p>
+<h4 id="方案"><a href="#方案" class="headerlink" title="方案"></a>方案</h4><p>基本的方法是分配一个本文称作“service context”的符号给每个服务。这将帮助我们绑定多个services到一个服务器上，每一个service可以被各自的service context识别。使用查找服务的客户端应该能够获取合适的service context，并引导服务调用到各自的服务者。</p>
+<h4 id="组件"><a href="#组件" class="headerlink" title="组件"></a>组件</h4><p>该解决方案扩展了Thrift API引进一些如下提到的新的组件（图1.3红色边界高亮）：<br><img src="/images/thrift/thrift3.jpg" alt="thrift3"></p>
+<h5 id="Multiplexer"><a href="#Multiplexer" class="headerlink" title="Multiplexer"></a>Multiplexer</h5><p>复用器（Multiplexer）是Processor，是本方案的核心。该组件作为服务器端请求代理并负责根据由客户端传输的service context识别客户端请求。此组件保持service context和service之间的映射。在处理任何请求时，它读取来自底层协议的service context，并根据该映射，将请求定向到适当的service。</p>
+<h5 id="Protocol"><a href="#Protocol" class="headerlink" title="Protocol"></a>Protocol</h5><p>在我们的方法中，我们使我们的解决方案transport和protocol无关。我们创建了一层底层协议（协议的任何实例）的封装，客户端侧把service context嵌入消息，并在服务端侧查找它。因此，我们增加了一个新的类TMultiplexProtocol包装现有的TProtocol，它重写writeMessageBegin (TMessage)和readMessageBegin()方法的行为。所有与TMultiplexer进行通信的客户端需要使用TMultiplexProtocol实例来包装底层协议。</p>
+<h5 id="Registry-and-Lookup"><a href="#Registry-and-Lookup" class="headerlink" title="Registry and Lookup"></a>Registry and Lookup</h5><p>为了减少与手动管理service context相关的开销，我们在此解决方案中创建了一个registry组件，负责管理托管在特定服务器上的所有service。该组件托管为底层复用器上的一个service，客户端可以通过在TMultiplexerConstants.LOOKUP_CONTEXT查询绑定service的相关信息进行查询。TRegistry是基本的用于查询lookup registry的客户端侧API接口。它提供了多种查询方法查询registry，如基于service context、服务名称、正则表达式。这也方便了用户使用registry检查任何service context的存在，以及列出所有可用的服务上下文。TRegistryHelper是服务端侧的API接口，它使用lookup registry用于绑定，重新绑定和解除绑定service context。我们已经提供了registry API的基本实现，执行service context内存管理的TRegistryBase。基于特定的需求，该组件可以通过覆盖默认方法进行扩展，并且可以与工厂类一起使用。TRegistryClientFactory是用于创建registry client的工厂类，便于远程查找registry。</p>
+<h5 id="Service-Information"><a href="#Service-Information" class="headerlink" title="Service Information"></a>Service Information</h5><p>本解决方案采用了URIContext类体现/代表绑定在特定服务器上的services的信息。这个对象能够在网络中传输;，因此客户端可以远程访问。service context、服务名称和描述由目前的解决方案代表作为该信息的一部分。</p>
+<p>#####Multiplexer-extension for lookup<br>就其本身而言，Multiplexer能够绑定多个service。然而，管理服务信息是客户端和服务端管理者的成本。为了减少这方面的成本，我们引入了registry组件，能够管理服务信息。为了充分利用在单处理器的Multiplexer和registry组件的能力，我们引入了新的processor TLookupMultiplexer，能够使用一个额外的基于registry的查找服务承载多个service。因此，处理器创建一个拥有所有service信息的registry的实例，并将其公开为一项额外的服务给客户。使得客户端能够使用Registry API，并使用查询后所得到的service context访问底层服务。</p>
+<h5 id="Server"><a href="#Server" class="headerlink" title="Server"></a>Server</h5><p>我们提出了一个新的抽象server，TMultiplexingServer，它可以使用TLookupMultiplexer绑定任何server信息到任何transport和任何protocol。该类抽象了对象创建的底层复杂性，并公开两个抽象方法，getServer和configureMultiplexer，用来被任何继承该类的类实现。该类使得用户可以在创建server对象时识别出server transport、protocol，因此提供了额外的灵活性，当涉及到将不同的transport和protocol的多个service绑定到同一server，而无需额外的编码工作。</p>
+<h5 id="Source-Code"><a href="#Source-Code" class="headerlink" title="Source Code"></a>Source Code</h5><p>我们扩展了Thrift Java库【version 0.9.0】，并增加了一个以ext命名的源文件夹，包含multiplexing组件的底层实现。此外，build.xml已被修改以先后和扩展的源代码。该方案的兼容性已经过测试与目前稳定版本0.8.0 Thrift无缝继承。为了使用Thrift的multiplexing功能，你需要从git-hub download/pull扩展的Thrift库源代码，然后在下载的Thrift Java库上运行ant命令。这将在build文件夹中生成libthrift-xxx.jar，可以被开发人员用于创建自己的企业解决方案。</p>
+<h3 id="怎样使用Thrift-Multiplexing？"><a href="#怎样使用Thrift-Multiplexing？" class="headerlink" title="怎样使用Thrift Multiplexing？"></a>怎样使用Thrift Multiplexing？</h3><p>multiplexing server可以通过扩展org.apache.thrift.server.TMultiplexingServer类，并通过实现抽象方法configureMultiplexer()和getServer(TServerTransportserverTransport，TProtocolFactoryprotFactory，TProcessor processor)来创建。示例代码提供如下：<br>第一步：继承TMultiplexingServer类创建server类。</p>
+<pre><code class="hljs java"><span class="hljs-keyword">public</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Server1</span>&lt;<span class="hljs-title">T</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">TServerTransport</span>, <span class="hljs-title">F</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">TProtocolFactory</span>&gt;</span>
+<span class="hljs-class"><span class="hljs-keyword">extends</span> <span class="hljs-title">TMultiplexingServer</span>&lt;<span class="hljs-title">T</span>, <span class="hljs-title">F</span>&gt;</span></code></pre>
+<p>第二步：有选择的重载默认的构造函数以接收server transport和protocol。</p>
+<pre><code class="hljs java"><span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-title">Server1</span><span class="hljs-params">(T serverTransport, F protFactory)</span> </span>&#123;
+<span class="hljs-keyword">super</span>(serverTransport, protFactory);
+&#125;</code></pre>
+<p>第三步：实现configureMultiplexer()方法以配置lookup multiplexer。作为配置的一部分，你需要创建包含绑定到server上所有service以及相应的service information详细信息列表的MultiplexerArgs。示例如下，我们已经绑定HR和Finance service到Server1  </p>
+<pre><code class="hljs java"><span class="hljs-meta">@Override</span>
+<span class="hljs-keyword">protected</span> List&lt;MultiplexerArgs&lt;URIContext, TProcessor&gt;&gt; configureMultiplexer() &#123;
+<span class="hljs-comment">// list of multiplexer arguments</span>
+List&lt;MultiplexerArgs&lt;URIContext, TProcessor&gt;&gt; args = <span class="hljs-keyword">new</span> ArrayList&lt;MultiplexerArgs&lt;URIContext, TProcessor&gt;&gt;();
+<span class="hljs-comment">// configuring HR service context</span>
+TProcessor processor = <span class="hljs-keyword">new</span> HRService.Processor&lt;HRServiceImpl&gt;(
+<span class="hljs-keyword">new</span> HRServiceImpl());
+URIContext context = <span class="hljs-keyword">new</span> URIContext(Constants.HR_CONTEXT,
+<span class="hljs-string">&quot;HumanResource_Service&quot;</span>);
+MultiplexerArgs&lt;URIContext, TProcessor&gt; arg = <span class="hljs-keyword">new</span> MultiplexerArgs&lt;URIContext, TProcessor&gt;(
+processor, context);
+args.add(arg);
+<span class="hljs-comment">// configuring FIN service context</span>
+processor = <span class="hljs-keyword">new</span> FinanceService.Processor&lt;FinanceServiceImpl&gt;(
+<span class="hljs-keyword">new</span> FinanceServiceImpl());
+context = <span class="hljs-keyword">new</span> URIContext(Constants.FIN_CONTEXT, <span class="hljs-string">&quot;Finance_Service&quot;</span>);
+arg = <span class="hljs-keyword">new</span> MultiplexerArgs&lt;URIContext, TProcessor&gt;(processor, context);
+args.add(arg);
+<span class="hljs-keyword">return</span> args;
+&#125;</code></pre>
+<p>第四步：实现getServer(…)方法以创建目的Server的实例。在下面的示例中，我们使用参数创建了一个ThreadProolServer的实例。  </p>
+<pre><code class="hljs java"><span class="hljs-meta">@Override</span>
+<span class="hljs-function"><span class="hljs-keyword">protected</span> TServer <span class="hljs-title">getServer</span> <span class="hljs-params">(TServerTransport serverTransport, TProtocolFactory protFactory, TProcessor processor)</span> </span>&#123;
+<span class="hljs-comment">//creating server args</span>
+Args serverArgs= <span class="hljs-keyword">new</span> Args(serverTransport);
+serverArgs.protocolFactory(protFactory);
+serverArgs.transportFactory(<span class="hljs-keyword">new</span> TTransportFactory());
+serverArgs.processor(processor);
+serverArgs.minWorkerThreads=<span class="hljs-number">1</span>; 
+serverArgs.maxWorkerThreads=<span class="hljs-number">5</span>;
+<span class="hljs-comment">//creating server instance</span>
+<span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> TThreadPoolServer(serverArgs);
+&#125;</code></pre>
+<p>第五步：使用何时的transport和protocol创建server类的实例，并启动server </p>
+<pre><code class="hljs java"><span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">(String[] args)</span> </span>&#123;
+<span class="hljs-comment">//identifying server transport</span>
+TServerSocket SERVER1_TRANSPORT = <span class="hljs-keyword">new</span> TServerSocket(Constants.SERVICE1_PORT);
+<span class="hljs-comment">//identifying server protocol</span>
+Factory SERVER1_FACTORY = <span class="hljs-keyword">new</span> TBinaryProtocol.Factory();
+<span class="hljs-comment">//creating server instances for specific transport and protocol</span>
+Server1&lt;TServerSocket, TBinaryProtocol.Factory&gt; server1 = <span class="hljs-keyword">new</span> Server1&lt;TServerSocket, TBinaryProtocol.Factory&gt;(SERVER1_TRANSPORT, SERVER1_FACTORY);
+<span class="hljs-comment">//starting server</span>
+server1.start();
+&#125;</code></pre>
+<p>创建一个客户端查询registry并使用service context   </p>
+<p>一个来查询multiplexing server registry的客户端可以从org.apache.thrift.registry.TRegistryClientFactory类获得。class.TRegistryClientFactory是便利类，它提供multiplexing客户端的实例。在客户端侧，你可以使用工厂的静态方法getClient（..）以获取registry客户端。它可以进一步用来查询registry和确定合适的server处理该请求。下面提供的示例代码是关于客户端使用的finance service检索雇员的税务细节的客户端：</p>
+<pre><code class="hljs java"><span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">double</span> <span class="hljs-title">getTaxDetails</span><span class="hljs-params">(intempId)</span></span>&#123;
+TTransport transport = <span class="hljs-keyword">null</span>;
+TProtocol protocol = <span class="hljs-keyword">null</span>;
+<span class="hljs-keyword">try</span> &#123;
+<span class="hljs-comment">//transport</span>
+transport = <span class="hljs-keyword">new</span> TSocket(Constants.SERVICE_IP, 
+Constants.SERVICE1_PORT, <span class="hljs-number">60</span>);
+<span class="hljs-comment">//Multiplexing protocol</span>
+protocol = Factory.getProtocol(<span class="hljs-keyword">new</span> TBinaryProtocol(transport), 
+TConstants.LOOKUP_CONTEXT);
+<span class="hljs-comment">//Procuring Registry client</span>
+TRegistry client = TRegistryFactory.getClient(protocol);
+<span class="hljs-comment">//opening transport</span>
+transport.open();
+<span class="hljs-comment">//querying registry to get context</span>
+Set&lt;URIContext&gt; contexts = client.lookupByName(<span class="hljs-string">&quot;Finance_Service&quot;</span>);
+<span class="hljs-comment">//executing the request on appropriate service using the context</span>
+<span class="hljs-keyword">if</span>(contexts.size()==<span class="hljs-number">1</span>)&#123;
+URIContext uricontext = contexts.iterator().next();
+protocol = 
+newTMultiplexProtocol(newTBinaryProtocol(transport),uricontext.getContext())
+;
+com.service.FinanceService.Client finService = <span class="hljs-keyword">new</span>
+com.service.FinanceService.Client(protocol);
+<span class="hljs-keyword">return</span> finService.getTaxDeductedTillDate(empId);
+&#125;
+&#125;<span class="hljs-keyword">finally</span> &#123;
+<span class="hljs-keyword">if</span>(transport!=<span class="hljs-keyword">null</span>)
+<span class="hljs-comment">//closing transport</span>
+transport.close();
+&#125;
+&#125;</code></pre>
+
+<h3 id="明智的投资利润丰厚"><a href="#明智的投资利润丰厚" class="headerlink" title="明智的投资利润丰厚"></a>明智的投资利润丰厚</h3><p>Thrift在当今的企业环境中有巨大优势，因为它通过有效的方式解决了所有大数据解决方案带来的挑战，并提供了一个公开为整个网络提供服务的解决方案。大多数企业，特别是在生产环境中，具有有限的端口，打开新的端口将引入相关的成本。使用Thrift作为解决方案的RPC机制是考虑到端口的有限。此外，像Hadoop、Hive、HBase、Cassandra、NoSQL数据存储等等，以及其他企业软件，如Web服务器、应用服务器和ESBs已经使用了多个端口。在成本和资源方面，如果企业将服务公开到网络上，然后为每个服务打开额外的端口是低效的。这一企业问题，可以通过Thrift multiplexing的帮助，减少端口数为一个，用很小的开发和管理开支绑定所有的服务。</p>
+<p>一个组织投资于这项技术肯定会收获快速的周转时间和开发成本低的好处。此外，从长远来看，对复用做扩展，减少了企业的维护和管理费用，使得这项投资的利润丰厚。随着复用，多个services可以绑定在一个Thrift服务器上，从而降低维护成本。服务的模块化设计可以使用复用减少服务未来发展的成本，引入新的服务/功能或修改现有服务。因此，复用以其简单的实现，不仅使投资划算，而且使业务增值。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>因为可靠和高效的方式跨编程语言通信，近来Thrift已经成为一项强大的技术。企业应对大数据等先进技术，可以使用Thrift解决方案通过有效地利用企业资源以低维护成本，来绑定多个服务到网络。</p>
+<h3 id="参考："><a href="#参考：" class="headerlink" title="参考："></a>参考：</h3><p>[1] <a target="_blank" rel="noopener" href="http://thrift.apache.org/">http://thrift.apache.org/</a><br>[2] <a target="_blank" rel="noopener" href="http://avro.apache.org/">http://avro.apache.org/</a><br>[3] <a target="_blank" rel="noopener" href="http://msgpack.org/">http://msgpack.org/</a><br>[4] <a target="_blank" rel="noopener" href="http://code.google.com/p/protobuf/">http://code.google.com/p/protobuf/</a><br>[5] <a target="_blank" rel="noopener" href="http://bsonspec.org/">http://bsonspec.org/</a><br>[6] <a target="_blank" rel="noopener" href="http://hbase.apache.org/">http://hbase.apache.org/</a><br>[7] <a target="_blank" rel="noopener" href="http://hive.apache.org/">http://hive.apache.org/</a><br>[8] <a target="_blank" rel="noopener" href="http://cassandra.apache.org/">http://cassandra.apache.org/</a><br>[9] git://github.com/impetus-opensource/thrift.git       </p>
+<h3 id="英文原文："><a href="#英文原文：" class="headerlink" title="英文原文："></a>英文原文：</h3><iframe src="http://www.slideshare.net/slideshow/embed_code/33628708" width="700" height="500" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC; border-width:1px 1px 0; margin-bottom:5px; max-width: 100%;" allowfullscreen> </iframe>
+
+
+
+<p>(完)</p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-17-2014/multiplexing-in-thrift-enhancing-thrift-to-meet-enterprise-expectations.html">https://www.cyningsun.com/04-17-2014/multiplexing-in-thrift-enhancing-thrift-to-meet-enterprise-expectations.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-18-2014/css-standard-one.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-13-2014/web-security.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

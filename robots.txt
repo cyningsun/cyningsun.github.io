@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Allow: /archives/
+Allow: /subjects/
+Allow: /about/
+Allow: /links/

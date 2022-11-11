@@ -1,0 +1,1122 @@
+@charset "utf-8";
+@import url("https://fonts.googleapis.com/css?family=Open+Sans");
+/* 防止用户自定义背景颜色对网页的影响，添加让用户可以自定义字体 */
+html {
+  color: #333;
+  background: #fff;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-rendering: optimizelegibility;
+}
+/* 如果你的项目仅支持 IE9+ | Chrome | Firefox 等，推荐在 <html> 中添加 .borderbox 这个 class */
+html.borderbox *,
+html.borderbox *:before,
+html.borderbox *:after {
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+/* 内外边距通常让各个浏览器样式的表现位置不同 */
+body,
+dl,
+dt,
+dd,
+ul,
+ol,
+li,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+pre,
+code,
+form,
+fieldset,
+legend,
+input,
+textarea,
+p,
+blockquote,
+th,
+td,
+hr,
+button,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+menu,
+nav,
+section {
+  margin: 0;
+  padding: 0;
+}
+/* 重设 HTML5 标签, IE 需要在 js 中 createElement(TAG) */
+article,
+aside,
+details,
+figcaption,
+figure,
+footer,
+header,
+menu,
+nav,
+section {
+  display: block;
+}
+/* HTML5 媒体文件跟 img 保持一致 */
+audio,
+canvas,
+video {
+  display: inline-block;
+}
+/* 要注意表单元素并不继承父级 font 的问题 */
+body,
+button,
+input,
+select,
+textarea {
+  font: 300 1em/1.8 PingFang SC, Lantinghei SC, Microsoft Yahei, Hiragino Sans GB, Microsoft Sans Serif, WenQuanYi Micro Hei, sans-serif;
+}
+button::-moz-focus-inner,
+input::-moz-focus-inner {
+  padding: 0;
+  border: 0;
+}
+/* 去掉各Table cell 的边距并让其边重合 */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+/* 去除默认边框 */
+fieldset,
+img {
+  border: 0;
+}
+/* 块/段落引用 */
+blockquote {
+  position: relative;
+  color: #999;
+  font-weight: 400;
+  border-left: 1px solid #1abc9c;
+  padding-left: 1em;
+  margin: 1em 3em 1em 2em;
+}
+@media only screen and (max-width: 640px) {
+  blockquote {
+    margin: 1em 0;
+  }
+}
+/* Firefox 以外，元素没有下划线，需添加 */
+acronym,
+abbr {
+  border-bottom: 1px dotted;
+  font-variant: normal;
+  text-decoration: none;
+}
+/* 添加鼠标问号，进一步确保应用的语义是正确的（要知道，交互他们也有洁癖，如果你不去掉，那得多花点口舌） */
+abbr {
+  cursor: help;
+}
+/* 一致的 del 样式 */
+del {
+  text-decoration: line-through;
+}
+address,
+caption,
+cite,
+code,
+dfn,
+th,
+var {
+  font-style: normal;
+  font-weight: 400;
+}
+/* 去掉列表前的标识, li 会继承，大部分网站通常用列表来很多内容，所以应该当去 */
+ul,
+ol {
+  list-style: none;
+}
+/* 对齐是排版最重要的因素, 别让什么都居中 */
+caption,
+th {
+  text-align: left;
+}
+q:before,
+q:after {
+  content: '';
+}
+/* 统一上标和下标 */
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+}
+:root sub,
+:root sup {
+  vertical-align: baseline; /* for ie9 and other modern browsers */
+}
+sup {
+  top: -0.5em;
+}
+sub {
+  bottom: -0.25em;
+}
+/* 让链接在 hover 状态下显示下划线 */
+a {
+  color: #1abc9c;
+}
+a:hover {
+  text-decoration: underline;
+}
+.typo a {
+  border-bottom: 1px solid #1abc9c;
+}
+.typo a:hover {
+  border-bottom-color: #555;
+  color: #555;
+  text-decoration: none;
+}
+/* 着重号，只能在少量（少于100个字符）且全是全角字符的情况下使用 */
+.typo-em {
+  position: relative;
+  color: #555;
+}
+.typo-em:after {
+  position: absolute;
+  top: 0.65em;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  content: "・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・";
+}
+/* 默认不显示下划线，保持页面简洁 */
+ins,
+a {
+  text-decoration: none;
+}
+/* 专名号：虽然 u 已经重回 html5 Draft，但在所有浏览器中都是可以使用的，
+ * 要做到更好，向后兼容的话，添加 class="typo-u" 来显示专名号
+ * 关于 <u> 标签：http://www.whatwg.org/specs/web-apps/current-work/multipage/text-level-semantics.html#the-u-element
+ * 被放弃的是 4，之前一直搞错 http://www.w3.org/TR/html401/appendix/changes.html#idx-deprecated
+ * 一篇关于 <u> 标签的很好文章：http://html5doctor.com/u-element/
+ */
+u,
+.typo-u {
+  text-decoration: underline;
+}
+/* 标记，类似于手写的荧光笔的作用 */
+mark {
+  background: #fffdd1;
+  border-bottom: 1px solid #ffedce;
+  padding: 2px;
+  margin: 0 5px;
+}
+/* 代码片断 */
+pre,
+code,
+pre tt {
+  font-family: Courier, 'Courier New', monospace;
+}
+pre {
+  background: #f8f8f8;
+  border: 1px solid #ddd;
+  padding: 1em 1.5em;
+  display: block;
+  -webkit-overflow-scrolling: touch;
+}
+/* 一致化 horizontal rule */
+hr {
+  border: none;
+  border-bottom: 1px solid #cfcfcf;
+  margin-bottom: 0.8em;
+  height: 10px;
+}
+/* 底部印刷体、版本等标记 */
+small,
+.typo-small,
+figcaption {
+  font-size: 0.9em;
+  color: #888;
+}
+strong,
+b {
+  font-weight: bold;
+  color: #000;
+}
+/* 可拖动文件添加拖动手势 */
+[draggable] {
+  cursor: move;
+}
+.clearfix:before,
+.clearfix:after {
+  content: "";
+  display: table;
+}
+.clearfix:after {
+  clear: both;
+}
+.clearfix {
+  zoom: 1;
+}
+/* 强制文本换行 */
+.textwrap,
+.textwrap td,
+.textwrap th {
+  word-wrap: break-word;
+  word-break: break-all;
+}
+.textwrap-table {
+  table-layout: fixed;
+}
+/* 提供 serif 版本的字体设置: iOS 下中文自动 fallback 到 sans-serif */
+em {
+  font-family: Palatino, Optima, Georgia, serif;
+}
+/* 保证块/段落之间的空白隔行 */
+.typo p,
+.typo pre,
+.typo ul,
+.typo ol,
+.typo dl,
+.typo form,
+.typo hr,
+.typo table,
+.typo-p,
+.typo-pre,
+.typo-ul,
+.typo-ol,
+.typo-dl,
+.typo-form,
+.typo-hr,
+.typo-table,
+blockquote {
+  margin-bottom: 1.2em;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: PingFang SC, Verdana, Helvetica Neue, Microsoft Yahei, Hiragino Sans GB, Microsoft Sans Serif, WenQuanYi Micro Hei, sans-serif;
+  font-weight: 100;
+  color: #000;
+  line-height: 1.35;
+}
+/* 标题应该更贴紧内容，并与其他块区分，margin 值要相应做优化 */
+.typo h1,
+.typo h2,
+.typo h3,
+.typo h4,
+.typo h5,
+.typo h6,
+.typo-h1,
+.typo-h2,
+.typo-h3,
+.typo-h4,
+.typo-h5,
+.typo-h6 {
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+  line-height: 1.35;
+}
+.typo h1,
+.typo-h1 {
+  font-size: 2em;
+}
+.typo h2,
+.typo-h2 {
+  font-size: 1.8em;
+}
+.typo h3,
+.typo-h3 {
+  font-size: 1.6em;
+}
+.typo h4,
+.typo-h4 {
+  font-size: 1.4em;
+}
+.typo h5,
+.typo h6,
+.typo-h5,
+.typo-h6 {
+  font-size: 1.2em;
+}
+/* 在文章中，应该还原 ul 和 ol 的样式 */
+.typo ul,
+.typo-ul {
+  margin-left: 1.3em;
+  list-style: disc;
+}
+.typo ol,
+.typo-ol {
+  list-style: decimal;
+  margin-left: 1.9em;
+}
+.typo li ul,
+.typo li ol,
+.typo-ul ul,
+.typo-ul ol,
+.typo-ol ul,
+.typo-ol ol {
+  margin-bottom: 0.8em;
+  margin-left: 2em;
+}
+.typo li ul,
+.typo-ul ul,
+.typo-ol ul {
+  list-style: circle;
+}
+/* 同 ul/ol，在文章中应用 table 基本格式 */
+.typo table th,
+.typo table td,
+.typo-table th,
+.typo-table td,
+.typo table caption {
+  border: 1px solid #ddd;
+  padding: 0.5em 1em;
+  color: #666;
+}
+.typo table th,
+.typo-table th {
+  background: #fbfbfb;
+}
+.typo table thead th,
+.typo-table thead th {
+  background: #f1f1f1;
+}
+.typo table caption {
+  border-bottom: none;
+}
+/* 去除 webkit 中 input 和 textarea 的默认样式  */
+.typo-input,
+.typo-textarea {
+  -webkit-appearance: none;
+  border-radius: 0;
+}
+/* 着重号，只能在少量（少于100个字符）且全是全角字符的情况下使用 */
+.typo-em {
+  position: relative;
+}
+.typo-em:after {
+  position: absolute;
+  top: 0.65em;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  content: "・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・";
+}
+/* Responsive images */
+.typo img {
+  max-width: 100%;
+}
+/*---------------------------*/
+body {
+  color: #2c3e50;
+  background-color: #f0f0f0;
+  width: 100%;
+  border-top: solid #d90006;
+  border-width: 4px;
+}
+#wrapper {
+  padding-left: 250px;
+  transition: all 0.5s ease 0;
+  display: block;
+}
+.container {
+  width: 70%;
+  padding-right: 0px;
+  padding-top: 30px;
+  padding-left: 15px;
+  margin-right: auto;
+  margin-left: auto;
+}
+.container a {
+  border-bottom: 1px #8a8a8a dotted;
+  text-decoration: none;
+}
+time {
+  color: #c9c9c9;
+  font-family: "Helvetica Neue", helvetica, "Open Sans", sans-serif;
+  font-weight: 100;
+  text-shadow: 1px 1px #fff;
+}
+.recent-posts {
+  background-color: #fff;
+  color: #4d4d4d;
+  box-shadow: 1px 1px 0 1px #fafafa;
+  padding: 10% 10%;
+}
+.recent-posts h1 {
+  padding-bottom: 10px;
+  font-size: 2em;
+  line-height: 1.35;
+}
+.recent-posts h3 {
+  line-height: 2;
+}
+.badge {
+  display: inline-block;
+  min-width: 10px;
+  padding: 3px 7px;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  background-color: #999;
+  border-radius: 10px;
+}
+#comment,
+#related-posts {
+  padding: 1% 10%;
+  margin: 10px 0;
+  position: relative;
+  background: #fff;
+}
+/*------------------------------------*/
+.subject {
+  font-family: PingFang SC, Verdana, Helvetica Neue, Microsoft Yahei, Hiragino Sans GB, Microsoft Sans Serif, WenQuanYi Micro Hei, sans-serif;
+  font-weight: 100;
+  color: #000;
+  line-height: 1.35;
+  display: block;
+  font-size: 1.5em;
+  margin-block-start: 0.83em;
+  margin-block-end: 0.83em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  margin: 0;
+  padding: 0;
+}
+/*------------------------------------*/
+#sidebar-wrapper {
+  margin-left: -250px;
+  left: 250px;
+  width: 250px;
+  background: #f8f8f8;
+  position: fixed;
+  height: 100%;
+  overflow-y: auto;
+  z-index: 1000;
+  border-top: solid #d90006;
+  transition: all 0.4s ease 0;
+  margin-top: -4px;
+  border-width: 4px;
+  padding-top: 100px;
+  display: block;
+}
+.sidebar-nav {
+  position: absolute;
+  top: 0;
+  width: 250px;
+  list-style: none;
+  margin: 0;
+  padding: 30px 0 0;
+}
+.sidebar-nav li {
+  line-height: 30px;
+  text-indent: 40px;
+  font-family: "Helvetica Neue", helvetica, "Open Sans", sans-serif;
+  font-weight: 200;
+  color: #9c9c9c;
+  text-shadow: 1px 1px #fff;
+}
+.sidebar-nav li a {
+  color: #999;
+  display: block;
+  text-decoration: none;
+}
+.sidebar-nav li a:hover {
+  color: #000;
+  background: #fff;
+  text-decoration: none;
+  transition: all 0.2s ease 0;
+}
+.sidebar-nav li a:active,
+.sidebar-nav li a:focus {
+  text-decoration: none;
+}
+.sidebar-nav > .sidebar-brand {
+  font-size: 20px;
+}
+.sidebar-nav > .sidebar-brand > a > .brand {
+  font-family: PingFang SC, Verdana, Helvetica Neue, Microsoft Yahei, Hiragino Sans GB, Microsoft Sans Serif, WenQuanYi Micro Hei, sans-serif;
+  font-weight: 100;
+  color: #000;
+  line-height: 1.35;
+  margin: 0;
+  padding: 0;
+  font-size: 2em;
+  margin-block-start: 0.67em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+}
+.sidebar-nav > .sidebar-brand > div {
+  font-family: PingFang SC, Verdana, Helvetica Neue, Microsoft Yahei, Hiragino Sans GB, Microsoft Sans Serif, WenQuanYi Micro Hei, sans-serif;
+  font-size: 15px;
+  font-weight: 100;
+  color: #5d5f67;
+}
+/*--------------------*/
+*,
+*:before,
+*:after {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+/* box-sizing: border-box; */
+}
+.navbar {
+  display: none;
+}
+.navbar a {
+  text-decoration: none;
+  border-bottom: 1px #b1b1b1 solid;
+}
+.nav-toggle {
+  display: none;
+  color: #d90006;
+  padding-left: 10px;
+  padding-top: 10px;
+}
+/*--------------------*/
+#social-wrapper {
+  color: #5c646f;
+  padding: 10px 0;
+}
+#social-wrapper a {
+  font-size: 15px;
+  text-indent: 40px;
+}
+#social-wrapper li {
+  font-size: 15px;
+  text-indent: 0;
+}
+#social-wrapper a:hover {
+  color: #2d1e18;
+  transition: all 0.3s ease 0;
+}
+/*---------*/
+.post-subject {
+  margin-top: 40px;
+  text-align: center;
+}
+.post-subject a {
+  display: inline-block;
+  margin-right: 10px;
+  font-size: 13px;
+  border-bottom: 1px solid #1abc9c;
+}
+/*---------*/
+.typo .pager {
+  margin-left: 0px;
+  padding-left: 0;
+  margin: 20px 0px;
+  text-align: center;
+  list-style: none;
+  display: block;
+  font-size: 14px;
+}
+.pager:before,
+.pager:after {
+  display: table;
+  content: " ";
+}
+.pager:after {
+  clear: both;
+}
+.pager li {
+  display: inline;
+}
+.pager .previous>a,
+.pager .previous>span {
+  float: left;
+}
+.pager .next>a,
+.pager .next>span {
+  float: right;
+}
+.pager li>a,
+.pager li>span {
+  display: inline-block;
+  padding: 5px 14px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 0.5em;
+}
+/*------------*/
+@media (max-width: 767px) {
+  #wrapper {
+    padding-left: 0;
+    padding-top: 20px;
+  }
+  #sidebar-wrapper {
+    border-right: 4px solid #d90006;
+    border-top: none;
+    left: 0px;
+  }
+  #wrapper.active {
+    position: relative;
+    left: 250px;
+  }
+  #wrapper.active #sidebar-wrapper {
+    left: 250px;
+    width: 250px;
+    transition: all 0.7s ease 0s;
+  }
+  .inset {
+    padding: 15px;
+  }
+  .navbar {
+    display: inherit;
+    background-color: #ededed;
+    margin-top: -20px;
+  }
+}
+@media screen and (max-width: 500px) {
+  #welcome-greeting h2 {
+    font-size: 15px;
+    transition: all 0.2s ease 0s;
+    font-weight: 200;
+    line-height: 30px;
+  }
+  .container {
+    width: 100%;
+    margin: 0 0 0 0;
+    padding: 15px 15px 0 15px;
+  }
+  #article {
+    padding: 0 10px 0 10px;
+  }
+  .showcase-wrapper {
+    width: 100%;
+    height: 50%;
+    font-size: small;
+  }
+}
+/*--links-------------*/
+.label {
+  display: inline;
+  padding: 0.2em 0.6em 0.3em;
+  font-size: 75%;
+  font-weight: bold;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25em;
+}
+.label-danger {
+  background-color: #697b7b;
+  font-weight: 300;
+/* border-radius:.2em; */
+  font-size: 120%;
+}
+.label-danger:hover {
+  background-color: #2d4440;
+  transition: all 0.4s ease 0;
+}
+.fashion {
+  border-left: solid 2px #bc0005;
+}
+.fashion-button {
+  background-color: #bc0005;
+}
+.fashion:hover {
+  border-left: solid 2px #f40006;
+}
+.fashion-button:hover {
+  background-color: #f40006;
+}
+.programming {
+  border-left: solid 2px #7dbcb2;
+}
+.programming-button {
+  background-color: #7dbcb2;
+}
+.programming:hover {
+  border-left: solid 2px #bbe9e2;
+}
+.programming-button:hover {
+  background-color: #bbe9e2;
+}
+.tech {
+  border-left: solid 2px #644539;
+}
+.tech-button {
+  background-color: #644539;
+}
+.tech:hover {
+  border-left: solid 2px #f4a273;
+}
+.tech-button:hover {
+  background-color: #f4a273;
+}
+.misc {
+  border-left: solid 2px #9e9599;
+}
+.misc-button {
+  background-color: #9e9599;
+}
+.misc:hover {
+  border-left: solid 2px #cfe0ea;
+}
+.misc-button:hover {
+  background-color: #cfe0ea;
+}
+.podcasts {
+  border-left: solid 2px #387b94;
+}
+.podcasts-button {
+  background-color: #387b94;
+}
+.podcasts:hover {
+  border-left: solid 2px #2fd0ef;
+}
+.podcasts-button:hover {
+  background-color: #2fd0ef;
+}
+.table td,
+.table th {
+  background-color: #fff !important;
+}
+.table {
+  border-collapse: collapse !important;
+}
+.table>thead>tr>th,
+.table>tbody>tr>th,
+.table>tfoot>tr>th,
+.table>thead>tr>td,
+.table>tbody>tr>td,
+.table>tfoot>tr>td {
+  padding: 8px;
+  line-height: 1.428571429;
+  vertical-align: top;
+  border-top: 1px solid #ddd;
+}
+.table>thead>tr>th {
+  vertical-align: bottom;
+  border-bottom: 2px solid #ddd;
+}
+.table>caption+thead>tr:first-child>th,
+.table>colgroup+thead>tr:first-child>th,
+.table>thead:first-child>tr:first-child>th,
+.table>caption+thead>tr:first-child>td,
+.table>colgroup+thead>tr:first-child>td,
+.table>thead:first-child>tr:first-child>td {
+  border-top: 0;
+}
+.table>tbody+tbody {
+  border-top: 2px solid #ddd;
+}
+.table .table {
+  background-color: #fff;
+}
+.table-bordered th,
+.table-bordered td {
+  border: 1px solid #ddd !important;
+}
+.table>thead>tr>td.active,
+.table>tbody>tr>td.active,
+.table>tfoot>tr>td.active,
+.table>thead>tr>th.active,
+.table>tbody>tr>th.active,
+.table>tfoot>tr>th.active,
+.table>thead>tr.active>td,
+.table>tbody>tr.active>td,
+.table>tfoot>tr.active>td,
+.table>thead>tr.active>th,
+.table>tbody>tr.active>th,
+.table>tfoot>tr.active>th {
+  background-color: #f5f5f5;
+}
+.table>thead>tr>td.success,
+.table>tbody>tr>td.success,
+.table>tfoot>tr>td.success,
+.table>thead>tr>th.success,
+.table>tbody>tr>th.success,
+.table>tfoot>tr>th.success,
+.table>thead>tr.success>td,
+.table>tbody>tr.success>td,
+.table>tfoot>tr.success>td,
+.table>thead>tr.success>th,
+.table>tbody>tr.success>th,
+.table>tfoot>tr.success>th {
+  background-color: #dff0d8;
+}
+.table-hover>tbody>tr>td.success:hover,
+.table-hover>tbody>tr>th.success:hover,
+.table-hover>tbody>tr.success:hover>td,
+.table-hover>tbody>tr.success:hover>th {
+  background-color: #d0e9c6;
+}
+.table>thead>tr>td.danger,
+.table>tbody>tr>td.danger,
+.table>tfoot>tr>td.danger,
+.table>thead>tr>th.danger,
+.table>tbody>tr>th.danger,
+.table>tfoot>tr>th.danger,
+.table>thead>tr.danger>td,
+.table>tbody>tr.danger>td,
+.table>tfoot>tr.danger>td,
+.table>thead>tr.danger>th,
+.table>tbody>tr.danger>th,
+.table>tfoot>tr.danger>th {
+  background-color: #f2dede;
+}
+.table-hover>tbody>tr>td.danger:hover,
+.table-hover>tbody>tr>th.danger:hover,
+.table-hover>tbody>tr.danger:hover>td,
+.table-hover>tbody>tr.danger:hover>th {
+  background-color: #ebcccc;
+}
+.table>thead>tr>td.warning,
+.table>tbody>tr>td.warning,
+.table>tfoot>tr>td.warning,
+.table>thead>tr>th.warning,
+.table>tbody>tr>th.warning,
+.table>tfoot>tr>th.warning,
+.table>thead>tr.warning>td,
+.table>tbody>tr.warning>td,
+.table>tfoot>tr.warning>td,
+.table>thead>tr.warning>th,
+.table>tbody>tr.warning>th,
+.table>tfoot>tr.warning>th {
+  background-color: #fcf8e3;
+}
+.table-hover>tbody>tr>td.warning:hover,
+.table-hover>tbody>tr>th.warning:hover,
+.table-hover>tbody>tr.warning:hover>td,
+.table-hover>tbody>tr.warning:hover>th {
+  background-color: #faf2cc;
+}
+/*-----Intro-------------------------*/
+#aboutme-cyningsun div,
+#aboutme-cyningsun span,
+#aboutme-cyningsun img {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  vertical-align: baseline;
+  text-align: left;
+  background: none;
+}
+/* reset for aboutme-default */
+.aboutme-default#aboutme-cyningsun div,
+.aboutme-default#aboutme-cyningsun p,
+.aboutme-default#aboutme-cyningsun img,
+.aboutme-default#aboutme-cyningsun ol,
+.aboutme-default#aboutme-cyningsun ul,
+.aboutme-default#aboutme-cyningsun li {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun span,
+.aboutme-default#aboutme-cyningsun a,
+.aboutme-default#aboutme-cyningsun sub,
+.aboutme-default#aboutme-cyningsun sup {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun b,
+.aboutme-default#aboutme-cyningsun strong {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: bold;
+  font-style: inherit;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+.aboutme-default#aboutme-cyningsun em,
+.aboutme-default#aboutme-cyningsun i {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font-weight: inherit;
+  font-style: italic;
+  font-size: 100%;
+  font-family: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-shadow: none;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+/* base styles for aboutme-embed */
+.aboutme-embed#aboutme-cyningsun {
+  margin: 10px 0;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-img img {
+  display: block;
+  border: 0;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-name {
+  font-size: 140%;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-headline {
+  font-size: 120%;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-bio {
+  margin-bottom: 15px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-bio p {
+  margin: 0;
+  margin-bottom: 8px;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a {
+  border: 0 !important;
+  display: inline-block !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 2px 5px 0 !important;
+  padding: 0 !important;
+  text-decoration: none !important;
+  background-repeat: no-repeat !important;
+  background-position: left top !important;
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-github {
+  background-image: url("/public/images/github@32x32.png");
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-sinaWeibo {
+  background-image: url("/public/images/sinaWeibo@32x32.png");
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-gmail {
+  background-image: url("/public/images/gmail@32x32.png");
+}
+.aboutme-embed#aboutme-cyningsun .aboutme-apps a.app-douban {
+  background-image: url("/public/images/douban@32x32.jpg");
+}
+/* styles for horizontal layout */
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-content {
+  display: table;
+  width: 100%;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-img {
+  display: table-cell;
+  vertical-align: top;
+  padding-right: 15px;
+  margin-bottom: 0;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-img img {
+  margin-bottom: 0;
+}
+.aboutme-layout-horizontal#aboutme-cyningsun .aboutme-text {
+  display: table-cell;
+  vertical-align: top;
+}
+/* styles for aboutme-default */
+.aboutme-default#aboutme-cyningsun {
+  line-height: 1.4;
+  color: #333;
+  background-color: #fff;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-color: rgba(0,0,0,0.2);
+  -webkit-box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+  box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+  border-radius: 2px;
+  margin: 10px 0;
+}
+.aboutme-default#aboutme-cyningsun a {
+  color: #2b82ad;
+  text-decoration: none;
+}
+.aboutme-default#aboutme-cyningsun a:hover {
+  color: #3aa9e9;
+  text-decoration: none;
+}
+.aboutme-default#aboutme-cyningsun p,
+.aboutme-default#aboutme-cyningsun ol,
+.aboutme-default#aboutme-cyningsun ul {
+  margin-bottom: 0.75em !important;
+}
+.aboutme-default#aboutme-cyningsun .aboutme-img img {
+  border: 1px solid;
+  border-color: #999;
+  border-color: rgba(0,0,0,0.5);
+}
+.aboutme-default#aboutme-cyningsun .aboutme-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.aboutme-default#aboutme-cyningsun .aboutme-headline {
+  margin-bottom: 8px;
+}
+.aboutme-default#aboutme-cyningsun ul {
+  list-style: disc;
+}
+.aboutme-default#aboutme-cyningsun ol {
+  list-style: decimal;
+}
+.aboutme-default#aboutme-cyningsun ul,
+.aboutme-default#aboutme-cyningsun ol {
+  list-style-position: outside;
+  padding-left: 2em;
+}
+.aboutme-default#aboutme-cyningsun ul li,
+.aboutme-default#aboutme-cyningsun ol li {
+  display: list-item;
+  padding: 0;
+  margin: 0;
+}

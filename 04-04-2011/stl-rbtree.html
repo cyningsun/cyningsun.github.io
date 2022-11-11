@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>SGI-STL源码剖析之RB-tree</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2011-04-04 00:00:00 +0800"/>
+<meta property="og:url" content="/04-04-2011/stl-rbtree.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="二叉搜索树二叉搜索树 (binary search tree) ，可提供对数时间 (10garithmictime)3 的元素插入和访问。二叉搜索树的节点放置规则是：任何节点的键值一定大干其左子树中的每一个节点的键值，并小于其右子树中的每一个节点的键值。因此，从根节点一直往左走，直至无左路可走，即得最小元素：从根节点一直往右走，直至无右路可走，即得最大元素。">
+
+<meta name="keywords" content="RB-tree,STL,红黑树">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>SGI-STL源码剖析之RB-tree</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BA%8C%E5%8F%89%E6%90%9C%E7%B4%A2%E6%A0%91"><span class="toc-text">二叉搜索树</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B9%B3%E8%A1%A1%E4%BA%8C%E5%8F%89%E6%90%9C%E7%B4%A2%E6%A0%91"><span class="toc-text">平衡二叉搜索树</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AVL-tree-Adelson-Velskii-Landistree"><span class="toc-text">AVL tree(Adelson-Velskii-Landistree)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RB-tree-%E7%BA%A2%E9%BB%91%E6%A0%91"><span class="toc-text">RB tree( 红黑树 )</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#RB-tree-%E8%BF%AD%E4%BB%A3%E5%99%A8"><span class="toc-text">RB-tree 迭代器</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#RB-tree-%E7%9A%84%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-text">RB-tree 的数据结构</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B0%83%E6%95%B4-RB-tree"><span class="toc-text">调整 RB-tree</span></a></li></ol></li></ol>
+ 
+        <h3 id="二叉搜索树"><a href="#二叉搜索树" class="headerlink" title="二叉搜索树"></a>二叉搜索树</h3><p>二叉搜索树 (binary search tree) ，可提供对数时间 (10garithmictime)3 的元素插入和访问。二叉搜索树的节点放置规则是：任何节点的键值一定大干其左子树中的每一个节点的键值，并小于其右子树中的每一个节点的键值。因此，从根节点一直往左走，直至无左路可走，即得最小元素：从根节点一直往右走，直至无右路可走，即得最大元素。</p>
+<p>查找<br>要在一棵二叉搜索树中找出最大元素或最小元素，是一件极简单的事：就像上述所言，一直往左走或一直往右走即是。</p>
+<p>插入<br>插人新元素时，可从根节点开始，遇键值较大者就向左，遇键值较小者就向右，一直到尾端，即为插人点。</p>
+<p>删除<br>欲删除旧节点A，情况可分两种。如果 A 只有一个子节点，我们就直接将 A 的子节点连至 A 的父节点，并将 A 删除。如果 A 有两个子节点，我们就以右子树内的最小节点取代 A 。注意，右子树的最小节点极易获得：从右子节点开始 ( 视为右子树的根节点 ) ，一直向左走至底即是。</p>
+<h3 id="平衡二叉搜索树"><a href="#平衡二叉搜索树" class="headerlink" title="平衡二叉搜索树"></a>平衡二叉搜索树</h3><p>所谓树形平衡与否，并没有一个绝对的测量标准。“平衡”的大致意义是：没有任何一个节点过深 ( 深度过大 ) 。<strong>不同的平衡条件，造就出不同酌效率表现，以及不同的实现复杂度。</strong> （每一种平衡树都有不同于其他平衡树的平衡条件，但是所有的平衡树都满足二叉搜索树的条件） 。</p>
+<h3 id="AVL-tree-Adelson-Velskii-Landistree"><a href="#AVL-tree-Adelson-Velskii-Landistree" class="headerlink" title="AVL tree(Adelson-Velskii-Landistree)"></a>AVL tree(Adelson-Velskii-Landistree)</h3><p>AVL tree是一个“加上了额外平衡条件”的二叉搜索树。其平衡条件的建立是为了确保整棵树的深度为O（logN） 。直观上的最佳平衡条件是每个节点的左右子树有着相同的高度，但这未免太过严苛。 AVL tree 于是退而求其次，其平衡条件为：<strong>任何节点的左右子树高度相差最多</strong> <strong>1</strong> 。这是一个较弱的条件，但仍能够保证“对数深度 (logarithmic depth) ”平衡状态。</p>
+<p>由于只有“插入点至根节点”路径上的各节点可能改变平衡状态，因此，只要调整其中最深的那个节点，便可使整棵树重新获得平衡</p>
+<p>假设该最深节点为X ，由于节点最多拥有两个子节点，而所谓“平衡被破坏”意味着 X 的左右两棵子树的高度相差 2 ，因此我们可以轻易将情况分为四种：</p>
+<p>1．插人点位于 X 的左子节点的左子树——左左。<br>2．插入点位于 X 的左子节点的右子树——左右。<br>3．插入点位于 X 的右子节点的左子树——右左。<br>4．插入点位于 X 的右子节点的右子树——右右。</p>
+<p>情况1， 4 彼此对称，称为外侧 (outside) 插入，可以采用单旋转操作 (singlerotation) 调整解决。情况 2 ， 3 彼此对称，称为内侧 (inside) 插入，可以采用双旋转操作 (doublerotation) 调整解决。</p>
+<p><img src="/images/stl-rbtree/1.gif" alt="stl-rbtree-1.png"></p>
+<h3 id="RB-tree-红黑树"><a href="#RB-tree-红黑树" class="headerlink" title="RB tree( 红黑树 )"></a>RB tree( 红黑树 )</h3><p>RB— tree 不仅是一个二叉搜索树，而且必须满足以下规则 ( 即平衡条件 ) ：<br>1．  每个节点不是红色就是黑色<br>2 ．根节点为黑色。<br>3 ．如果节点为红，其子节点必须为黑。<br>4．任一节点至 NULL( 树尾端 ) 的任何路径，所含之黑节点数必须相同。</p>
+<p>根据规则 4 ，新增节点必须为红：根据规则 3 ，新增节点之父节点必须为黑。当新节点根据二叉搜索树的规则到达其插入点，却未能符合上述条件时，就必须调整颜色并旋转树形。</p>
+<p>假设新节点为X ，其父节点为P ，祖父节点为 G ，伯父节点 ( 父节点之兄弟节点 ) 为 S ，曾祖父节点为 GG 。现在，<strong>根据二叉搜索树的规则，新节点 X 必为叶节点。根据红黑树规则 4 ， X 必为红。所以，所有需要调整树形（或者颜色）的情况中， P 必定为红 (如此违反了规则 3 ，才会调整树形)。根据规则 3 可知父子节点不能同时为红，所以 G必为黑 (因为未插入新节点 X之前该树为 RB — tree，必须遵循规则 3)。</strong> 需要调整树形的情况仅仅与 X 的插入位置及外围节点 (S 和 GG) 的颜色有关 ( 由，前面可知 X,P,G 的颜色已经推定 ) ，故有以下四种考虑：</p>
+<p><strong>状况 1:</strong> S 为黑且 X 为外侧插入。对此情况，我们先对 P,G 做一次单旋转再更改 P,G 颜色，即可重新满足红黑树的规则 3 。如图：<br><img src="/images/stl-rbtree/2.gif" alt="stl-rbtree-2.png"></p>
+<p><strong>注意</strong>，此时可能产生不乎衡状态(高度相差l 以上 ) 。例如图中的 A 和 B 为 null ， D 或 E 不为 null 。这倒没关系，因为 RB — tree 的平衡性本来就比 AVL — tree 弱。然而 RB — tree 通常能够导致良好的平衡状态：是的，经验告诉我们， RB — tree 的搜寻平均效率和 AVL — tree 几乎相等。</p>
+<p><strong>状况 2：</strong> S为黑且 X 为内侧插入。对此情况，我们必须先对 P ， X 做一次单旋转并更改 G ， x 颜色，再将结果对 G 做一次单旋转，即可再次满足红黑树规则 3 。<br><img src="/images/stl-rbtree/3.gif" alt="stl-rbtree-3.png"></p>
+<p><strong>《 STL 源码剖析》原文中的状况 3,4 **<br>**状况 3：</strong> S为红且 X 为外侧插入。对此情况，先对 P 和 G 做一次单旋转，并改变 X 的颜色：此时如果 GG 为黑，一切搞定。如下图，但如果 GG 为红，则问题就比较大些，见状况 4 ．<br><img src="/images/stl-rbtree/4.gif" alt="stl-rbtree-4.png"></p>
+<p><strong>状况 4：</strong> S 为红且 X 为外侧插入。对此情况，先对 P 和 G 做一次单旋转，并改变 X 的颜色、此时如果 GG 亦为红，还得持续往上做，直到不再有父子连续为红的情况。<br><img src="/images/stl-rbtree/5.gif" alt="stl-rbtree-5.png"></p>
+<p>备注：状况 3 和 4 为 STL 源码剖析原文中给出的情况。观察源码便知，此处与源码不符。参考《勘误 &lt;STL 源码剖析 &gt; 》，作者做出的解释十分牵强，并不具有任何说服力。</p>
+<p><strong>自己理解的状况 3,4 **<br>**状况 3：</strong> S 为红且 X 为外侧插入，或者为内侧插入。对此情况，改变 P,G,S 颜色，此时如果 GG 为黑，一切搞定。如果 GG 为红，见状况 4 。<br><img src="/images/stl-rbtree/6.gif" alt="stl-rbtree-6.png"></p>
+<p><strong>状况 4：</strong> S 为红且 X 为外侧插入，或者为内侧插入。对此情况，改变 P,G,S 颜色，此时如果 GG 为红持续往上做，直到不再有父子连续为红的情况。<br><img src="/images/stl-rbtree/7.gif" alt="stl-rbtree-7.png"></p>
+<h4 id="RB-tree-迭代器"><a href="#RB-tree-迭代器" class="headerlink" title="RB-tree 迭代器"></a>RB-tree 迭代器</h4><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">increment</span> <span class="hljs-params">()</span></span>
+<span class="hljs-function"></span>&#123;
+    <span class="hljs-keyword">if</span> (node—&gt;right!=<span class="hljs-number">0</span>)       <span class="hljs-comment">// 如果有右子节点。 状况 &lt;A&gt;</span>
+    &#123;
+        node=node—&gt;right ；    <span class="hljs-comment">// 就向右走</span>
+            <span class="hljs-keyword">while</span>(node—&gt;left! ； )<span class="hljs-comment">// 然后一直往左子树走到底</span>
+                node=node—&gt;left ； <span class="hljs-comment">// 即是解答</span>
+    &#125;<span class="hljs-keyword">else</span> &#123;                       <span class="hljs-comment">// 没有右子节点。 状况 &lt;B&gt;</span>
+        base_ptr y=node—&gt;parent ； <span class="hljs-comment">// 找出父节点</span>
+            <span class="hljs-keyword">while</span> (node==y—&gt;right)&#123;   <span class="hljs-comment">// 如果现行节点本身是个右子节点</span>
+                node=y ；            <span class="hljs-comment">// 就一直上溯，直到不为右子节点为止</span>
+                y=y-&gt;parent ；
+            &#125;
+            <span class="hljs-keyword">if</span> (node—&gt;right!=y)        <span class="hljs-comment">// 若此时的右子节点不等于此时的父节点</span>
+                node=y ；              <span class="hljs-comment">// 状况 &lt;C&gt; 此时的父节点即为解答</span>
+                                      <span class="hljs-comment">// 否则此时的 node 为解答 状况 &lt;D&gt;</span>
+    &#125;
+    <span class="hljs-comment">// 注意，以上判断 “ 若此时的右子节点不等于此时的父节点 ” ，是为了应付一种</span>
+    <span class="hljs-comment">// 特殊情况：我们欲寻找根节点的下一节点，而恰巧根节点无右子节点</span>
+    <span class="hljs-comment">// 当然，以上特殊做法必须配合 RB—tree 根节点与特殊之 header 之间的</span>
+    <span class="hljs-comment">// 特殊关系</span>
+&#125;
+
+<span class="hljs-keyword">void</span> <span class="hljs-built_in">decrement</span> ()
+&#123;
+    <span class="hljs-keyword">if</span> (node—&gt;color==_rbtree_red&amp;&amp;          <span class="hljs-comment">// 如果是红节点，且</span>
+        node—&gt;parent—&gt;parent==node)      <span class="hljs-comment">// 父节点的父节点等于自己，</span>
+        node=node—&gt;right ；               <span class="hljs-comment">// 状况 &lt;A&gt; 右子节点即为解答</span>
+        <span class="hljs-comment">// 以上情况发生于 node 为 header 时亦即 node 为 end() 时 )</span>
+        <span class="hljs-comment">// 注意， header 之右子节点即 most right ，指向整棵树的 max 节点</span>
+    <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (node—&gt;left!=<span class="hljs-number">0</span>)&#123;          <span class="hljs-comment">// 如果有左子节点。 状况 &lt;B&gt;</span>
+        base_ptry=node—&gt;left ；     <span class="hljs-comment">// 令 y 指向左子节点</span>
+            <span class="hljs-keyword">while</span> (y—&gt;right!=<span class="hljs-number">0</span>)     <span class="hljs-comment">// 当 y 有右子节点时</span>
+                y=y—&gt;right ；      <span class="hljs-comment">// 一直往右子节点走到底</span>
+                node=y ；         <span class="hljs-comment">// 最后即为答案</span>
+    &#125; <span class="hljs-keyword">else</span> &#123;     <span class="hljs-comment">// 既非根节点，亦无左子节点</span>
+        base_ptry=node—&gt;parent ；          <span class="hljs-comment">// 找出父节点 状况 &lt;C&gt;</span>
+            <span class="hljs-keyword">while</span> (node 二二 y—&gt;left)&#123;       <span class="hljs-comment">// 当现行节点身为左子节点</span>
+                node=y ；                 <span class="hljs-comment">// 一直交替往上走，直到现行节点</span>
+                y=y—&gt;parent ；            <span class="hljs-comment">// 不为左子节点</span>
+            &#125;
+            node=y ； <span class="hljs-comment">// 此时之父节点即为答案</span>
+    &#125;
+&#125;</code></pre>
+
+<p>increment() 和 decrement() 两函数中，较为令人费解的是前者的状况&lt; D &gt;和后者的状况&lt; A &gt;，他们分别发生在下图所展示的状态下：<br><img src="/images/stl-rbtree/8.gif" alt="stl-rbtree-8.png"></p>
+<h4 id="RB-tree-的数据结构"><a href="#RB-tree-的数据结构" class="headerlink" title="RB-tree 的数据结构"></a>RB-tree 的数据结构</h4><p>树状结构的各种操作，最需要关注的就是边界情况的发生，也就是走到根节点时要有特殊的处理。为了简化处理，SGI STL 特别为根节点再设计一个父节点，名为header ，并令其初始状态如下图所示：<br><img src="/images/stl-rbtree/9.gif" alt="stl-rbtree-9.png"></p>
+<h4 id="调整-RB-tree"><a href="#调整-RB-tree" class="headerlink" title="调整 RB-tree"></a>调整 RB-tree</h4><pre><code class="hljs c++"><span class="hljs-comment">// 重新令树形平衡（改变颜色及旋转树形）</span>
+<span class="hljs-comment">// 参数一为新增节点，参数二为 root</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span>
+__rb_tree_rebalance (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root )
+&#123;
+  x-&gt;color = __rb_tree_red;         <span class="hljs-comment">// 新节点必为红</span>
+  <span class="hljs-keyword">while</span> (x != root &amp;&amp; x-&gt;parent-&gt;color == __rb_tree_red) &#123; <span class="hljs-comment">// 父节点为红</span>
+    <span class="hljs-comment">// 父节点 P 为祖父节点 G 的左子节点 , 以下将进行已分析的四种状况。</span>
+    <span class="hljs-keyword">if</span> (x-&gt;parent == x-&gt;parent-&gt;parent-&gt;left) &#123; <span class="hljs-comment">// 父节点为祖父节点之左子节点</span>
+      __rb_tree_node_base* y = x-&gt;parent-&gt;parent-&gt;right;     <span class="hljs-comment">// 令 y 为伯父节点</span>
+      <span class="hljs-comment">// 状态 3 ：父节点为祖父节点之左节点，伯父节点存在且为红，下面的操作仅仅改变颜色，</span>
+      <span class="hljs-comment">// 可以证明《 STL 源码剖析》状况 3 有错</span>
+      <span class="hljs-keyword">if</span> (y &amp;&amp; y-&gt;color == __rb_tree_red) &#123;     <span class="hljs-comment">// 伯父节点存在，且为红</span>
+        x-&gt;parent-&gt;color = __rb_tree_black;      <span class="hljs-comment">// 更改父节点为黑</span>
+        y-&gt;color = __rb_tree_black;               <span class="hljs-comment">// 更改伯父节点为黑</span>
+        x-&gt;parent-&gt;parent-&gt;color = __rb_tree_red;    <span class="hljs-comment">// 更改祖父节点为红</span>
+        <span class="hljs-comment">// 状态 4 ：准备继续向上检查，即为状态 4 做检查准备工作 , 看到外层的 while 循环了吗？</span>
+        x = x-&gt;parent-&gt;parent;              
+      &#125;
+      <span class="hljs-keyword">else</span> &#123;     <span class="hljs-comment">// 无伯父节点，或伯父节点为黑</span>
+        <span class="hljs-comment">// 状态 2 ：无伯父节点，或伯父节点为黑， X 为父节点 P 的右子节点，即内侧插入，所以需要右旋转，</span>
+        <span class="hljs-comment">// 然后继续向下完成左旋转</span>
+        <span class="hljs-keyword">if</span> (x == x-&gt;parent-&gt;right) &#123; <span class="hljs-comment">// 如果新节点为父节点之右子节点</span>
+          x = x-&gt;parent;
+          __rb_tree_rotate_left (x, root); <span class="hljs-comment">// 第一参数为左旋点</span>
+        &#125;
+
+        <span class="hljs-comment">// 状态 1 ：无伯父节点，或伯父节点为黑， X 为父节点 P 的左子节点，即外侧插入，仅仅需要左旋转。</span>
+        <span class="hljs-comment">// 状态 2 的左旋转同样在此完成</span>
+        x-&gt;parent-&gt;color = __rb_tree_black;   <span class="hljs-comment">// 改变颜色</span>
+        x-&gt;parent-&gt;parent-&gt;color = __rb_tree_red;
+        __rb_tree_rotate_right (x-&gt;parent-&gt;parent, root); <span class="hljs-comment">// 第一参数为右旋点</span>
+      &#125;
+    &#125;
+    <span class="hljs-comment">// 父节点 P 为祖父节点 G 的左子节点 , 类似上述四种状况。</span>
+    <span class="hljs-keyword">else</span> &#123;   <span class="hljs-comment">// 父节点为祖父节点之右子节点</span>
+      __rb_tree_node_base* y = x-&gt;parent-&gt;parent-&gt;left; <span class="hljs-comment">// 令 y 为伯父节点</span>
+      <span class="hljs-keyword">if</span> (y &amp;&amp; y-&gt;color == __rb_tree_red) &#123;      <span class="hljs-comment">// 有伯父节点，且为红</span>
+        x-&gt;parent-&gt;color = __rb_tree_black;       <span class="hljs-comment">// 更改父节点为黑</span>
+        y-&gt;color = __rb_tree_black;              <span class="hljs-comment">// 更改伯父节点为黑</span>
+        x-&gt;parent-&gt;parent-&gt;color = __rb_tree_red;    <span class="hljs-comment">// 更改祖父节点为红</span>
+        x = x-&gt;parent-&gt;parent;    <span class="hljs-comment">// 准备继续往上层检查 ...</span>
+      &#125;
+      <span class="hljs-keyword">else</span> &#123;     <span class="hljs-comment">// 无伯父节点，或伯父节点为黑</span>
+        <span class="hljs-keyword">if</span> (x == x-&gt;parent-&gt;left) &#123;   <span class="hljs-comment">// 如果新节点为父节点之左子节点</span>
+          x = x-&gt;parent;
+          __rb_tree_rotate_right (x, root);    <span class="hljs-comment">// 第一参数为右旋点</span>
+        &#125;
+        x-&gt;parent-&gt;color = __rb_tree_black;   <span class="hljs-comment">// 改变颜色</span>
+        x-&gt;parent-&gt;parent-&gt;color = __rb_tree_red;
+        __rb_tree_rotate_left (x-&gt;parent-&gt;parent, root); <span class="hljs-comment">// 第一参数为左旋点</span>
+      &#125;
+    &#125;
+  &#125;     <span class="hljs-comment">// while 结束</span>
+  root-&gt;color = __rb_tree_black;    <span class="hljs-comment">// 修正根节点，根节点永远为黑</span>
+&#125;
+
+<span class="hljs-comment">// 新节点必为红节点。如果安插处之父节点亦为红节点，就违反红黑树规则，此时必须</span>
+<span class="hljs-comment">// 做树形旋转（及颜色改变，在程序它处）。</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span>
+__rb_tree_rotate_left (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root )
+&#123;
+  <span class="hljs-comment">// x 为旋转点</span>
+  __rb_tree_node_base* y = x-&gt;right;    <span class="hljs-comment">// 令 y 为旋转点的右子节点</span>
+  x-&gt;right = y-&gt;left;
+  <span class="hljs-keyword">if</span> (y-&gt;left !=<span class="hljs-number">0</span>)
+    y-&gt;left-&gt;parent = x;         <span class="hljs-comment">// 别忘了回马枪设定父节点</span>
+  y-&gt;parent = x-&gt;parent;
+  <span class="hljs-comment">// 令 y 完全顶替 x 的地位（必须将 x 对其父节点的关系完全接收过来）</span>
+  <span class="hljs-keyword">if</span> (x == root)                    <span class="hljs-comment">// x 为根节点</span>
+    root = y;
+  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (x == x-&gt;parent-&gt;left)    <span class="hljs-comment">// x 为其父节点的左子节点</span>
+    x-&gt;parent-&gt;left = y;
+  <span class="hljs-keyword">else</span>                          <span class="hljs-comment">// x 为其父节点的右子节点</span>
+    x-&gt;parent-&gt;right = y;  
+         
+  y-&gt;left = x;
+  x-&gt;parent = y;
+&#125;
+
+<span class="hljs-comment">// 新节点必为红节点。如果安插处之父节点亦为红节点，就违反红黑树规则，此时必须</span>
+<span class="hljs-comment">// 做树形旋转（及颜色改变，在程序它处）。</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span>
+__rb_tree_rotate_right (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root )
+&#123;
+  <span class="hljs-comment">// x 为旋转点</span>
+  __rb_tree_node_base* y = x-&gt;left;     <span class="hljs-comment">// y 为旋转点的左子节点</span>
+  x-&gt;left = y-&gt;right;
+  <span class="hljs-keyword">if</span> (y-&gt;right != <span class="hljs-number">0</span>)
+    y-&gt;right-&gt;parent = x;   <span class="hljs-comment">// 别忘了回马枪设定父节点</span>
+  y-&gt;parent = x-&gt;parent;
+
+  <span class="hljs-comment">// 令 y 完全顶替 x 的地位（必须将 x 对其父节点的关系完全接收过来）</span>
+  <span class="hljs-keyword">if</span> (x == root)                    <span class="hljs-comment">// x 为根节点</span>
+    root = y;
+  <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (x == x-&gt;parent-&gt;right)   <span class="hljs-comment">// x 为其父节点的右子节点</span>
+    x-&gt;parent-&gt;right = y;
+  <span class="hljs-keyword">else</span>                          <span class="hljs-comment">// x 为其父节点的左子节点</span>
+    x-&gt;parent-&gt;left = y;
+
+  y-&gt;right = x;
+  x-&gt;parent = y;
+&#125;</code></pre>
+
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-04-2011/stl-rbtree.html">https://www.cyningsun.com/04-04-2011/stl-rbtree.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#STL" rel="category"># STL</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/05-08-2012/stl-shuffle.html">STL算法我实现之随机洗牌</a></span></li>
+          
+            <li><span><a href="/05-07-2012/stl-permutation.html">STL算法我实现之排列</a></span></li>
+          
+            <li><span><a href="/04-25-2011/stl-rotate.html">STL算法我实现之rotate</a></span></li>
+          
+            <li><span><a href="/04-09-2011/stl-introsort.html">SGI-STL源码剖析之IntroSort</a></span></li>
+          
+            <li><span><a href="/04-08-2011/stl-list-sort.html">SGI-STL源码剖析之list::sort()</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-04-2011/stl-heap.html">Newer &rarr;</a></li>
+    
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

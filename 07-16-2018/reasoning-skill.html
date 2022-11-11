@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>理解推理行为</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2018-07-16 00:00:00 +0800"/>
+<meta property="og:url" content="/07-16-2018/reasoning-skill.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="人类的推理行为大致分为两种模式：经验模式（归纳）和认知模式（演绎）。经验模式另外更通俗的说法叫做：“直觉”（或“因果判定”）。 从进化来看，经验模式已经内嵌在人类的基因之中，最符合生存的需要，除却生死，皆为闲事。谈虎色变，望风而逃，依靠历史经验，既有模式，才能让人类在进化中更大程度的存活下来。生死之间，没有从容不迫，推理演绎的空间。 从心理学来看，人类不仅喜">
+
+<meta name="keywords" content="推理,三门问题">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>理解推理行为</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    
+ 
+        <p>人类的推理行为大致分为两种模式：经验模式（归纳）和认知模式（演绎）。经验模式另外更通俗的说法叫做：“直觉”（或“因果判定”）。</p>
+<p>从进化来看，经验模式已经内嵌在人类的基因之中，最符合生存的需要，除却生死，皆为闲事。谈虎色变，望风而逃，依靠历史经验，既有模式，才能让人类在进化中更大程度的存活下来。生死之间，没有从容不迫，推理演绎的空间。</p>
+<p>从心理学来看，人类不仅喜欢对已发生的事实因果归纳，对未发生的事也有难以抑制的归因冲动。简化背景过程，寻找模式，降低复杂性，减轻了我们的记忆负担；秩序、控制感、确定性，极大的满足了我们的“安全”诉求。</p>
+<p>然而，直觉模式大多数情况下显得并不是多么可靠。 </p>
+<p>其一，与人类早期的面临的环境截然不同，当前发生的事件，依赖自身已有的知识或者已知的信息，已经不足以有效完成因果判定。要想得出正确的结论，往往需要强大的专业知识。</p>
+<p><img src="/images/reasoning-skill/p52266017.webp" alt="登月"><br>美国阿波罗登月:伟大创举or惊世骗局? </p>
+<p>其二，美化的东西和柏拉图式的简化东西天生容易被看见，我们喜欢已知的模式和有条理的知识。对已有知识的信念，甚至让我们对现实正在发生的事物达到视而不见的程度。<br>其三，信息妨碍知识，对于经验、现实的细节了解的越多，看到的噪点就越多，也就可能把信息错当成真实信息。<br>其四，对于很多复杂系统涌现的特征，甚至无法使用科学的方法进行合理的解释。</p>
+<p>1990 年，《展示杂志》（Parade Magazine）的专栏作家莎凡特（Marilyn vos Savant）曾撰文叙述三门问题：</p>
+<blockquote>
+<p>假设你正在参加一个游戏节目，你被要求在三扇门中选择一扇：其中一扇后面有一辆车，其余两扇后面则是山羊。你最初选择了一道门，假设是一号门，然后知道所有门后面有什么的主持人，开启了另一扇后面有山羊的门，假设是三号门。他然后问你：“你想选择二号门吗？”你想想：转换你之前的选择对你得到车有帮助吗？</p>
+</blockquote>
+<p><img src="/images/reasoning-skill/p52266016.webp" alt="三门问题"></p>
+<p>并给出了她的答案：改变初选会更有好处。<br>在所有认为该换和不该换的争论中，正反两方形成了两种对立的观点。</p>
+<blockquote>
+<p>一种是认为不换的中奖几率是1/3，换的话将有2/3的几率中奖，因此当然应该换<br>另外一种观点认为现在只有一辆车一只羊分别在两个门里，换不换当然都一样，几率都是50% （大脑直觉）</p>
+</blockquote>
+<p>大脑的直觉认为：主持人选择的是山羊的门已经发生的确定的事情。殊不知，如此确定的事情其实发生的时间并不是“在找的时刻”，而是在判断和决策之后。</p>
+<p>上面故事的意义在于说明：</p>
+<ol>
+<li>当新的信息产生，当我们依赖的信息已经过时，那么我们当初做的选择是不是还足够可靠。我们的决策都是基于判断的基础之上的，而每一个判断大都是基于贝叶斯的后验概率。</li>
+<li>对于已知的东西，直觉模式（方法论）才有用。不变的事物似乎会有专家，新生的事物面前，通常是没有专家的。能做的就是保持开放的心态，保持信念，不断探索试错，才能对新生事物有更加深入的认知。**</li>
+</ol>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-16-2018/reasoning-skill.html">https://www.cyningsun.com/07-16-2018/reasoning-skill.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#软技能" rel="category"># 软技能</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/01-02-2019/iterative-reading.html">快速迭代阅读法</a></span></li>
+          
+            <li><span><a href="/07-27-2018/leaning-skill.html">学习方法论小结</a></span></li>
+          
+            <li><span><a href="/02-26-2017/how-to-reading.html">如何系统性的阅读</a></span></li>
+          
+            <li><span><a href="/11-08-2016/emotion.html">如何理解和控制情绪</a></span></li>
+          
+            <li><span><a href="/08-26-2016/how-to-learn.html">学习学习再学习</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/07-27-2018/leaning-skill.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/07-07-2018/memory-allocator-contrasts.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

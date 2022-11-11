@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜Errors are values</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2019-08-19 00:00:00 +0800"/>
+<meta property="og:url" content="/08-19-2019/errors-are-values-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="Go程序员，尤其是那些刚接触语言的人，常见的讨论点是如何处理错误。 谈话经常变成对以下代码段出现次数的失望 if err != nil &amp;#123; return err &amp;#125; 我们最近扫描了我们可以找到的所有开源项目，发现这个代码段每一页或每两页只发生一次，比你们想象的更少。 尽管如此，如果必须总是写 if err != nuil 的感觉持续存在 ">
+
+<meta name="keywords" content="error handling">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜Errors are values</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    
+ 
+        <p>Go程序员，尤其是那些刚接触语言的人，常见的讨论点是如何处理错误。 谈话经常变成对以下代码段出现次数的失望</p>
+<pre><code class="hljs go"><span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+    <span class="hljs-keyword">return</span> err
+&#125;</code></pre>
+<p>我们最近扫描了我们可以找到的所有开源项目，发现这个代码段每一页或每两页只发生一次，比你们想象的更少。 尽管如此，如果必须总是写</p>
+<pre><code class="hljs go"><span class="hljs-keyword">if</span> err != nuil</code></pre>
+<p>的感觉持续存在, 一定是出了什么问题，明显的目标就是 <code>Go</code> 本身。</p>
+<p>这是令人遗憾和误导性的，而且很容易纠正。事实可能正是<code>Go</code> 新程序员想问的：“如何处理错误？”，他们碰到这种模式，然后停在那里。在其他语言中，可以使用 <code>try-catch</code> 块或其他此类机制来处理错误。因此，程序员认为，当我使用旧语言的 <code>try-catch</code> 时，在 <code>Go</code> 中我只需输入 <code>if err != nil</code>。随着时间的推移，<code>Go</code> 代码汇集了许多这样的片段，结果显得很笨拙。</p>
+<p>先不管这种解释是否合适，很明显这些 <code>Go</code> 程序员缺少关于错误的一个根本点： <code>Errors are values</code>。</p>
+<p>值可以编程，既然错误是值，因此错误也可以编程。</p>
+<p>当然，涉及错误值的常见语句是检测它是否为nil，但是还有无数其他可以用错误值做的事情，并且应用其中的一些东西可以使您的程序变得更好，从而消除大量如果机械的使用if语句检查每个错误会出现的样板。</p>
+<p>以下是 <code>bufio</code> 包 <a target="_blank" rel="noopener" href="https://golang.org/pkg/bufio/#Scanner"><code>Scanner</code></a> 类型的一个简单示例。它的 <a target="_blank" rel="noopener" href="https://golang.org/pkg/bufio/#Scanner.Scan"><code>Scan</code></a> 方法执行底层 <code>I/O</code>，这当然会导致错误。然而，该 <code>Scan</code> 方法根本不暴露错误。相反，它返回一个布尔值和一个单独的方法，在扫描结束时运行，报告是否发生了错误。客户端代码如下所示：</p>
+<pre><code class="hljs go">scanner := bufio.NewScanner(input)
+<span class="hljs-keyword">for</span> scanner.Scan() &#123;
+    token := scanner.Text()
+    <span class="hljs-comment">// process token</span>
+&#125;
+<span class="hljs-keyword">if</span> err := scanner.Err(); err != <span class="hljs-literal">nil</span> &#123;
+    <span class="hljs-comment">// process the error</span>
+&#125;</code></pre>
+
+<p>当然，有出现错误的空值检查，但它只出现并执行一次。 可以将 <code>Scan</code> 方法定义为</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(s *Scanner)</span> <span class="hljs-title">Scan</span><span class="hljs-params">()</span> <span class="hljs-params">(token []<span class="hljs-keyword">byte</span>, error)</span></span></code></pre>
+<p>然后示例用户代码可能是（取决于如何取回 token），</p>
+<pre><code class="hljs go">scanner := bufio.NewScanner(input)
+<span class="hljs-keyword">for</span> &#123;
+    token, err := scanner.Scan()
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+        <span class="hljs-keyword">return</span> err <span class="hljs-comment">// or maybe break</span>
+    &#125;
+    <span class="hljs-comment">// process token</span>
+&#125;</code></pre>
+
+<p>并没有太大的不同，但有一个重要的区别。 在此代码中，客户端必须在每次迭代时检查错误，但在真正的 <code>Scanner</code> API 中，错误处理从关键 API 元素抽象出来，而关键 API 元素正在迭代 token。 使用真正的 API，客户端的代码更自然：循环直到完成，最后进行错误处理。错误处理不会掩盖控制流。</p>
+<p>当然，幕后是，只要 <code>Scan</code> 遇到 I/O 错误，它就会记录它并返回 false。 一个单独的 <a target="_blank" rel="noopener" href="https://golang.org/pkg/bufio/#Scanner.Err"><code>Err</code></a> 方法 在客户端调用时报告错误值。 虽然很微不足道，但它与到处敲</p>
+<pre><code class="hljs go"><span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span></code></pre>
+<p>或要求客户端在每个 token 之后检查错误不同。它正在用错误值编程。简洁的编程，对，仍还是编程。</p>
+<p>值得强调的是，无论设计如何，程序检查错误都是至关重要的。这里的讨论不是关于如何避免检查错误，而是关于使用语言，优雅的处理错误。</p>
+<p>当我参加2014年秋季东京的 GoCon 时，出现了重复性错误检查代码的主题。一位热心的Gopher，Twitter上称呼为 <a target="_blank" rel="noopener" href="https://twitter.com/jxck_"><em>@jxck_</em></a>，响应了我们熟悉的关于错误检查的失望。他有一些代码看起来像这样：</p>
+<pre><code class="hljs go">_, err = fd.Write(p0[a:b])
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+    <span class="hljs-keyword">return</span> err
+&#125;
+_, err = fd.Write(p1[c:d])
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+    <span class="hljs-keyword">return</span> err
+&#125;
+_, err = fd.Write(p2[e:f])
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+    <span class="hljs-keyword">return</span> err
+&#125;
+<span class="hljs-comment">// and so on</span></code></pre>
+
+<p>代码重复性很高。 在实际代码中，会更长，还有更多内容，因此使用 helper 函数重构它并不容易，但在如此理想化的情况下，封装错误变量的函数字面值会有用：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">var</span> err error
+write := <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(buf []<span class="hljs-keyword">byte</span>)</span></span> &#123;
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+        <span class="hljs-keyword">return</span>
+    &#125;
+    _, err = w.Write(buf)
+&#125;
+write(p0[a:b])
+write(p1[c:d])
+write(p2[e:f])
+<span class="hljs-comment">// and so on</span>
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+    <span class="hljs-keyword">return</span> err
+&#125;</code></pre>
+<p>该模式很有效，但每个执行写操作的函数都需要一个闭包; 单独的 helper 函数使用起来比较笨拙，因为 err 变量需要跨调用维护（试试看）。</p>
+<p>通过借鉴上述 <code>Scan</code> 方法的想法，我们可以使代码更清洁，更通用和可重复使用 。我在讨论中提到过这种技术，但 <em>@jxck</em> 没有明白如何应用它。经过长时间的交流，受到语言障碍的阻碍，我问我是否可以借用他的笔记本电脑，通过写一些代码给他看。</p>
+<p>我定义了一个名为 <code>errWriter</code> 的对象，如下所示：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> errWriter <span class="hljs-keyword">struct</span> &#123;
+    w   io.Writer
+    err error
+&#125;</code></pre>
+
+<p>并给它一种方法，<code>write</code>。小写部分是为了突出区别, 它不需要有标准的 <code>Write</code> 签名。该 <code>write</code> 方法调用底层 <code>Writer</code> 的 <code>Write</code> 方法 并记录第一个错误以供将来引用：</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(ew *errWriter)</span> <span class="hljs-title">write</span><span class="hljs-params">(buf []<span class="hljs-keyword">byte</span>)</span></span> &#123;
+    <span class="hljs-keyword">if</span> ew.err != <span class="hljs-literal">nil</span> &#123;
+        <span class="hljs-keyword">return</span>
+    &#125;
+    _, ew.err = ew.w.Write(buf)
+&#125;</code></pre>
+<p>一旦发生错误，<code>write</code> 方法就会变为无操作，但会保存错误值。</p>
+<p>有了 <code>errWriter</code> 类型及其 <code>write</code> 方法，可以重构上面的代码如下：</p>
+<pre><code class="hljs go">ew := &amp;errWriter&#123;w: fd&#125;
+ew.write(p0[a:b])
+ew.write(p1[c:d])
+ew.write(p2[e:f])
+<span class="hljs-comment">// and so on</span>
+<span class="hljs-keyword">if</span> ew.err != <span class="hljs-literal">nil</span> &#123;
+    <span class="hljs-keyword">return</span> ew.err
+&#125;</code></pre>
+
+<p>现在甚至比之前使用闭包还要清晰，并且更容易看到纸上实际的写入顺序。 再没有杂乱。 使用错误值（和接口）进行编程使代码更好。</p>
+<p>可能同一包中其他地方的代码也可以使用这种思想，甚至可以直接使用 <code>errWriter</code>。</p>
+<p>此外，一旦 <code>errWriter</code> 存在，它可以做更多事情，尤其是在更实用的例子中。 它可以累积字节数。 它可以将写入合并到一个缓冲区中，然后可以原子的传输。 等等。</p>
+<p>实际上，这种模式经常出现在标准库中。 <a target="_blank" rel="noopener" href="https://golang.org/pkg/archive/zip/"><code>archive/zip</code></a> 和 <a target="_blank" rel="noopener" href="https://golang.org/pkg/net/http/"><code>net/http</code></a> 包在使用。该讨论最显著的是， <a target="_blank" rel="noopener" href="https://golang.org/pkg/bufio/"><code>bufio</code> 包的 <code>Writer</code></a> 实际上是 <code>errWriter</code> 想法的实现。 尽管 <code>bufio.Writer.Write</code> 返回错误，但主要是在于实现 <a target="_blank" rel="noopener" href="https://golang.org/pkg/io/#Writer"><code>io.Writer</code></a> 接口。 <code>bufio.Writer</code> 的 <code>Write</code> 方法就像我们上面的 <code>errWriter.write</code> 方法一样， <code>Flush</code> 报告错误，因此我们的示例可以像这样编写：</p>
+<pre><code class="hljs go">b := bufio.NewWriter(fd)
+b.Write(p0[a:b])
+b.Write(p1[c:d])
+b.Write(p2[e:f])
+<span class="hljs-comment">// and so on</span>
+<span class="hljs-keyword">if</span> b.Flush() != <span class="hljs-literal">nil</span> &#123;
+    <span class="hljs-keyword">return</span> b.Flush()
+&#125;</code></pre>
+
+<p>至少对于某些应用程序， 这种方法有一个明显的缺点：在错误发生之前无法知道完成了多少处理。 如果该信息很重要，则需要采用更细粒度的方法。 但是，通常，最后全有或全无检查就足够了。</p>
+<p>我们只研究了一种避免重复错误处理代码的技术。 请记住，使用 <code>errWriter</code> 或 <code>bufio.Writer</code> 并不是简化错误处理的唯一方法，并且这种方法并不适合所有情况。 然而，关键的一课是 <code>errors are values</code>，并且Go编程语言的全部功能可用于处理它们。</p>
+<p>使用语言简化错误处理。</p>
+<p>但请记住：无论你怎么做，一定要检查自己的错误！</p>
+<p>最后，关于我与 <em>@jxck</em> 互动的完整故事，包括他录制的一个小视频，请访问他的<a target="_blank" rel="noopener" href="http://jxck.hatenablog.com/entry/golang-error-handling-lesson-by-rob-pike">博客</a> 。</p>
+<p><em>原文：<a target="_blank" rel="noopener" href="https://blog.golang.org/errors-are-values">Errors are values</a></em></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-19-2019/errors-are-values-cn.html">https://www.cyningsun.com/08-19-2019/errors-are-values-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Error handling" rel="category"># Error handling</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/06-07-2020/unified-error-handling.html">跨服务错误处理</a></span></li>
+          
+            <li><span><a href="/09-09-2019/dont-just-check-errors-handle-them-gracefully-cn.html">译｜Don’t just check errors, handle them gracefully</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/09-07-2019/package-management.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-03-2019/solid-go-design-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>内存管理基础概念总述</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-12-02 00:00:00 +0800"/>
+<meta property="og:url" content="/12-02-2020/memory-management-summary.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景本文主要思考的问题如下： 内存管理的复杂的根源是什么？ 分段 地址是怎么产生的？ 逻辑地址 vs 虚拟地址 vs 物理地址 页 vs 页框 为什么使用映射表做地址转换？ 内存共享操作系统允许多个程序并发（或并行）的访问内存的前提下，有以下几种使用内存的方案 内存分割： 将内存进行分割成若干块，每个进程占用一部分内存。缺点： 需要事先确定分割块数 内存使用">
+
+<meta name="keywords" content="内存管理,分段、分页,地址重定位,逻辑地址、虚拟地址、物理地址">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>内存管理基础概念总述</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%86%85%E5%AD%98%E5%85%B1%E4%BA%AB"><span class="toc-text">内存共享</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%86%E6%AE%B5"><span class="toc-text">分段</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%AF%AF%E8%A7%A3%E4%B8%80%EF%BC%9A%E5%86%85%E5%AD%98%E5%88%86%E6%AE%B5-vs-%E9%93%BE%E6%8E%A5%E5%99%A8%E5%88%86%E6%AE%B5"><span class="toc-text">误解一：内存分段 vs 链接器分段</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%AF%AF%E8%A7%A3%E4%BA%8C%EF%BC%9A%E7%89%A9%E7%90%86%E5%9C%B0%E5%9D%80%E5%88%86%E6%AE%B5-vs-%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E5%88%86%E6%AE%B5"><span class="toc-text">误解二：物理地址分段 vs 虚拟地址分段</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%89%A9%E7%90%86%E5%9C%B0%E5%9D%80%E5%88%86%E6%AE%B5"><span class="toc-text">物理地址分段</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%99%9A%E6%8B%9F%E5%9C%B0%E5%9D%80%E5%88%86%E6%AE%B5"><span class="toc-text">虚拟地址分段</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E9%A1%B5"><span class="toc-text">分页</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E9%A1%B5-vs-%E9%A1%B5%E6%A1%86"><span class="toc-text">页 vs 页框</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9C%B0%E5%9D%80%E7%9A%84%E4%BA%A7%E7%94%9F"><span class="toc-text">地址的产生</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9C%B0%E5%9D%80%E6%98%A0%E5%B0%84"><span class="toc-text">地址映射</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>本文主要思考的问题如下：</p>
+<ol>
+<li>内存管理的复杂的根源是什么？<ul>
+<li>分段</li>
+</ul>
+</li>
+<li>地址是怎么产生的？<ul>
+<li>逻辑地址 vs 虚拟地址 vs 物理地址</li>
+<li>页 vs 页框</li>
+</ul>
+</li>
+<li>为什么使用映射表做地址转换？</li>
+</ol>
+<h3 id="内存共享"><a href="#内存共享" class="headerlink" title="内存共享"></a>内存共享</h3><p>操作系统允许多个程序并发（或并行）的访问内存的前提下，有以下几种使用内存的方案</p>
+<ul>
+<li>内存分割：<blockquote>
+<p>将内存进行分割成若干块，每个进程占用一部分内存。<br>缺点：</p>
+<ol>
+<li>需要事先确定分割块数</li>
+<li>内存使用率不高，资源浪费</li>
+</ol>
+</blockquote>
+</li>
+<li>内存独占：<blockquote>
+<p>运行中的进程独占内存，等待运行的进程换出到磁盘<br>缺点：</p>
+<ol>
+<li>内存换入换出，性能差</li>
+<li>内存使用率不高</li>
+<li>无法支持多核并行</li>
+</ol>
+</blockquote>
+</li>
+<li>内存共享：<blockquote>
+<p>多个进程共享内<br>缺点：</p>
+<ol>
+<li>复杂度高：需要解决好以下问题<blockquote>
+<ol>
+<li>如何管理内存空间（尤其是应用程序）</li>
+<li>如何保证内存隔离，避免进程间互相破坏，进程破坏操作系统</li>
+<li>如何保证内存共享不会大幅影响CPU和内存的性能</li>
+</ol>
+</blockquote>
+</li>
+</ol>
+</blockquote>
+</li>
+</ul>
+<p>在1940 ~ 1950年代，所有较大的程序都必须包含管理内存和二级存储的逻辑，例如<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Overlay_(programming)">overlaying</a>。为了允许多程序和多任务，许多早期系统在多个程序之间划分内存，例如：早期模型 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/PDP-10">PDP-10</a> 。</p>
+<p>有一种经不起推敲的说法，虚拟内存的概念的来源是德国物理学家弗里茨·鲁道夫·居特施于1956年在柏林理工大学发表的博士论文《Logical Design of a Digital Computer with Multiple Asynchronous Rotating Drums and Automatic High Speed Memory Operation》。后续虚拟内存的概念不断发展壮大。</p>
+<h3 id="分段"><a href="#分段" class="headerlink" title="分段"></a>分段</h3><p>如果要分割内存，总要寻找一种内存分割的方式。与分页相比，分段存在太多太多的误解。</p>
+<h4 id="误解一：内存分段-vs-链接器分段"><a href="#误解一：内存分段-vs-链接器分段" class="headerlink" title="误解一：内存分段 vs 链接器分段"></a>误解一：内存分段 vs 链接器分段</h4><p>“内存分段”表明这是一个内存寻址问题。了解ELF格式的人都知道，段寄存器对像“代码段”（在对象文件中）这样的东西并没有任何用处。 那么计算机是如何利用代码段/文本段呢？</p>
+<ul>
+<li>一方面，对于 链接器段 和 CPU 段 具有同样的模糊性</li>
+<li>另一方面，段寄存器的信息通常来自 “.text” ，因此 “代码段”（CPU）通常意味着“文本段”（linker）</li>
+</ul>
+<p><img src="/images/memory-management-summary/p2-overview.jpg" alt="p2-overview.jpg"></p>
+<p>在 objdump 的文档中，类似的部分 被称为节（section），而不是段（segment）</p>
+<h4 id="误解二：物理地址分段-vs-虚拟地址分段"><a href="#误解二：物理地址分段-vs-虚拟地址分段" class="headerlink" title="误解二：物理地址分段 vs 虚拟地址分段"></a>误解二：物理地址分段 vs 虚拟地址分段</h4><p>虽然分段倍定位为“将计算机的内存分割成若干段”，然而物理内存的分段和虚拟内存的分段并非同一回事，因此不应混为一谈。</p>
+<h5 id="物理地址分段"><a href="#物理地址分段" class="headerlink" title="物理地址分段"></a>物理地址分段</h5><p>物理地址分段实际上是在讨论如何将“计算机的内存分成若干段”，实际上说的段是指：Intel 8086机器的偏移寻址方案，使用20位物理（线性）地址，将16位段寄存器向左移4位并添加16位偏移寄存器。这是一种扩展可寻址内存空间（尽管只有20位）的方法，而不必为获得32位地址空间组合两个寄存器。</p>
+<h5 id="虚拟地址分段"><a href="#虚拟地址分段" class="headerlink" title="虚拟地址分段"></a>虚拟地址分段</h5><p>物理地址分段实际上是在讨论如何将进程的虚拟地址空间划分为逻辑段，因为它的主要优点是允许在时间域和空间域中分别加载不同的段，从而允许灵活地加载进程，还允许进程之间共享段。</p>
+<p>前者被称为 <code>实模式</code>，以兼容x86处理器；后者被称为<code>保护模式</code>，或许是因为虚拟空间下已经完整实现了内存保护和隔离。前者已经被历史所淘汰，后者在虚拟内存得到应用。</p>
+<h4 id="分页"><a href="#分页" class="headerlink" title="分页"></a>分页</h4><p>对于虚拟内存管理，仅仅有分段还不够，因为段不够标准（大小不同）。要把虚拟内存<strong>自由</strong>映射到物理内存，就需要引入页的概念。</p>
+<h5 id="页-vs-页框"><a href="#页-vs-页框" class="headerlink" title="页 vs 页框"></a>页 vs 页框</h5><p>然而，页并不真实存在，它只是一块标准大小的数据，实际存放数据的页框才是真正标准大小的物理内存。</p>
+<h3 id="地址的产生"><a href="#地址的产生" class="headerlink" title="地址的产生"></a>地址的产生</h3><p>程序如何生成指令和数据地址？</p>
+<ul>
+<li>编译：源代码经编译、链接后得到程序。由于无法预先知道程序装入内存的具体位置，因此不可能直接使用内存地址。因此编译器需要一种特定的地址来生成程序。</li>
+<li>加载：程序在加载时，操作系统需要确定进程的地址，由于虚拟内存的原因，此时操作系统分配地址也不能是实际的物理地址。因此操作系统需要一种特定的地址用来加载程序。</li>
+<li>执行：无论是编译时产生的地址，还是操作系统加载程序时的地址，到最后都需要实际落地到物理内存中特定位置。因此，访问物理内存需要第三种地址。</li>
+</ul>
+<p>三种依次被称作：逻辑地址、虚拟地址、物理地址。</p>
+<ul>
+<li>逻辑地址：每个逻辑地址都由一个段（segment）和段内偏移量（offset）组成。编译器将程序数据分为若干段。</li>
+<li>虚拟地址：操作系统抽象出来的地址为虚拟地址，由两部分组成：页和页内偏移量。</li>
+<li>物理地址：内存中实际存储单元的地址称为物理地址由于每个内存单元都有唯一的内存地址编号，因此物理地址空间是一个一维的线性空间。</li>
+</ul>
+<p>要使装入内存的程序后能够正常运行，就必须将逻辑地址转换为虚拟地址，最后再转换为物理地址，如下图所示：</p>
+<p><img src="/images/memory-management-summary/20117114nSfPg83s0J.png" alt="20117114nSfPg83s0J.png"></p>
+<h3 id="地址映射"><a href="#地址映射" class="headerlink" title="地址映射"></a>地址映射</h3><p>通俗来看，用两种方式可以实现地址映射：</p>
+<ul>
+<li>固定映射：即按照固定的偏移量，将地址直接映射到特定的位置。<blockquote>
+<p>优点：简单<br>缺点：僵硬</p>
+<ol>
+<li>需要修改程序代码，多份代码拷贝无法共享</li>
+<li>加载完成，无法移动修改</li>
+</ol>
+</blockquote>
+</li>
+<li>动态映射：即建立映射表，在每次访问时根据映射表确定映射的位置。<blockquote>
+<p>缺点：复杂</p>
+<ol>
+<li>有一定空间和性能消耗</li>
+</ol>
+<p>优点：灵活</p>
+</blockquote>
+</li>
+</ul>
+<p>地址映射在操作系统层面有特定的称呼：地址重定位。前者称为静态重定位，后者称为动态重定位。看起来前者明明更简单好用，现在操作系统却没有使用前者作为地址重定位的方案。</p>
+<p>如果考虑到内存共享的两大根本：</p>
+<blockquote>
+<ol>
+<li>换入换出</li>
+<li>局部性原理</li>
+</ol>
+</blockquote>
+<p>内存换入换出使得静态重定位不再简单好用。如果再加上内存移动，那么静态重定位将直接无法使用。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>很多人觉得内存管理就是完整的一块，然而事实并非如此。内存管理包括：物理内存管理、虚拟内存管理（内核管理）、进程内存管理、内存映射等。理解这些的基础是，了解清楚很多模糊的概念，从设计的角度出发理解内存管理要实现的能力。</p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-02-2020/memory-management-summary.html">https://www.cyningsun.com/12-02-2020/memory-management-summary.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Linux" rel="category"># Linux</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/06-15-2021/memory-management-physical-memory.html">内存管理 - 物理内存</a></span></li>
+          
+            <li><span><a href="/09-18-2020/learn-virtual-filesystem-from-lsof.html">从 lsof 开始，深入理解虚拟文件系统</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/12-15-2020/system-design-concept-and-relation.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

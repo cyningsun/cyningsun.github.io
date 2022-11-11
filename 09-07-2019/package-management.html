@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>一张图看懂Go包管理历史</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2019-09-07 00:00:00 +0800"/>
+<meta property="og:url" content="/09-07-2019/package-management.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="时间线 2012年3月 Go 1 发布，此时没有版本的概念 2013年 Golang 团队在 FAQ 中提议开发者保证相同 import path 的兼容性，后来成为一纸空文 2013年10月 Godep 2014年7月 glide 2014年 有人提出 external packages 的概念，在项目的目录下增加一个 vendor 目录来存放外部的包 2">
+
+<meta name="keywords" content="Package Management">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>一张图看懂Go包管理历史</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%97%B6%E9%97%B4%E7%BA%BF"><span class="toc-text">时间线</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%B7%B7%E6%B2%8C%E5%88%9D%E5%BC%80"><span class="toc-text">混沌初开</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%85%AB%E9%BE%99%E6%B2%BB%E6%B0%B4"><span class="toc-text">八龙治水</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B9%BE%E5%9D%A4%E5%A7%8B%E5%A5%A0"><span class="toc-text">乾坤始奠</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BB%A7%E5%BE%80%E5%BC%80%E6%9D%A5"><span class="toc-text">继往开来</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8F%82%E8%80%83"><span class="toc-text">参考</span></a></li></ol>
+ 
+        <p><img src="/images/go-package-management/package-management.png" alt="package-management"></p>
+<h4 id="时间线"><a href="#时间线" class="headerlink" title="时间线"></a>时间线</h4><ul>
+<li>2012年3月 Go 1 发布，此时没有版本的概念</li>
+<li>2013年 Golang 团队在 FAQ 中提议开发者保证相同 <code>import path</code> 的兼容性，后来成为一纸空文</li>
+<li>2013年10月 <a target="_blank" rel="noopener" href="https://github.com/tools/godep">Godep</a></li>
+<li>2014年7月 <a target="_blank" rel="noopener" href="https://github.com/Masterminds/glide">glide</a></li>
+<li>2014年 有人提出 <code>external packages</code> 的概念，在项目的目录下增加一个 vendor 目录来存放外部的包</li>
+<li>2015年8月  Go 1.5 实验性质加入 vendor 机制</li>
+<li>2015年 有人提出了采用语义化版本的草案</li>
+<li>2016年2月 Go 1.6 vendor 机制 默认开启</li>
+<li>2016年5月 Go 团队的 Peter Bourgon 建立委员会，讨论依赖管理工具，也就是后面的 dep</li>
+<li>2016年8月 Go 1.7: vendor 目录永远启用</li>
+<li>2017年1月 Go 团队发布 <a target="_blank" rel="noopener" href="https://github.com/golang/dep">Dep</a>，作为准官方试验</li>
+<li>2018年8月 Go 1.11发布 <a target="_blank" rel="noopener" href="https://golang.org/doc/go1.11#modules">Modules</a> 作为官方试验</li>
+<li>2019年2月 Go 1.12发布 <a target="_blank" rel="noopener" href="https://golang.org/doc/go1.12#modules">Modules</a> 默认为 auto</li>
+</ul>
+<h4 id="混沌初开"><a href="#混沌初开" class="headerlink" title="混沌初开"></a>混沌初开</h4><p>Go 从 Google 走出来，内部使用 blaze 系统，所以项目的源代码公用一个 repo, 任何修改都要跑 test 保证整个 repo 不出问题。因此 go get仅仅支持获取 master branch 上的 latest 代码，没有指定 version、branch 或 revision 的能力。</p>
+<p>对应的开源的方案就是一个 $GOPATH 走天下，并没有关心依赖问题。如此做法会给gopher带来不便：依赖的第三方包总是在变。一旦第三方包提交了无法正常build或接口不兼容的代码，依赖方立即就会受到影响，但开源社区是无穷多个小 repo 的合集，像 go get 直接拉个最新的 master 版本带来了隐患：依赖一更新，已有代码就可能编译不过。</p>
+<blockquote>
+<p>“If you’re using an externally supplied package and worry that it might change in unexpected ways, the simplest solution is to copy it to your local repository. (This is the approach Google takes internally.) Store the copy under a new import path that identifies it as a local copy. For example, you might copy <code>original.com/pkg</code> to <code>you.com/external/original.com/pkg</code>.” - <a target="_blank" rel="noopener" href="https://golang.org/doc/faq#get_version">Go FAQ</a></p>
+</blockquote>
+<h4 id="八龙治水"><a href="#八龙治水" class="headerlink" title="八龙治水"></a>八龙治水</h4><p>第一个主要的社区工具是 <a target="_blank" rel="noopener" href="https://github.com/tools/godep">Godep</a>。早期它提供了一种方法来快照您在您使用的VCS修订版GOPATH，然后将其恢复到GOPATH。这为不同的应用程序提供了一种使用相同依赖项的不同修订版的方法。</p>
+<p>Godep 确实有一些在应用程序之间切换时必须执行的手动步骤。例如，您需要将该应用程序的依赖项修订版还原到GOPATH。但是，它可以与Google工作流程一起工作，因此它可以工作。</p>
+<p>大约在同一时间，社区自发形成了其他各式各样的包管理工具，仅<a target="_blank" rel="noopener" href="https://github.com/golang/go/wiki/PackageManagementTools">官方推荐的包管理工具</a>总数就有15种之多，大部分工具都解决了差不多的问题，只是使用上有些许的区别。这些眼花缭乱工具，对选择困难症来说，不是什么好事情。</p>
+<h4 id="乾坤始奠"><a href="#乾坤始奠" class="headerlink" title="乾坤始奠"></a>乾坤始奠</h4><p>时间走到了 2015 年，Golang 官方终于看不下去了，在推出 go1.5 版本的同时，首次实验性质的加入了 vendor 机制 功能。vendor 标准化了项目依赖的第三方库的存放位置（不再需要Godeps/_workspace了），同时也无需对GOPATH环境变量进行“偷梁换柱”了，go compiler原生优先感知和使用vendor下缓存的第三方包。</p>
+<p>只是有了 vendor，就有了官方的正名！项目的形态也跟以前的统一起来了，好处显而易见。但即便有了vendor的支持，vendor内第三方依赖包的代码的管理依旧是不规范的，要么是手动的，要么是借助godep这样的第三方包管理工具。 Go 项目自身对 vendor 中代码的管理方式也是手动更新，Go自身并未使用任何第三方的包管理工具。</p>
+<p>从Go官方角度出发，官方go包依赖的解决方案的下一步就应该是解决对vendor下的第三方包如何进行管理的问题：依赖包的分析、记录和获取等，进而实现项目的reproducible build。</p>
+<h4 id="继往开来"><a href="#继往开来" class="headerlink" title="继往开来"></a>继往开来</h4><p>2018年初，Go team 的技术 Leader，<a target="_blank" rel="noopener" href="https://research.swtch.com/">Russ Cox</a> 在<a target="_blank" rel="noopener" href="https://research.swtch.com/">博客</a>上连续发表<a target="_blank" rel="noopener" href="https://research.swtch.com/vgo">七篇文章</a>，系统阐述了 Go team “包依赖管理”方案: <a target="_blank" rel="noopener" href="https://github.com/golang/vgo">vgo</a>。vgo 主要思路包括：<a target="_blank" rel="noopener" href="https://research.swtch.com/vgo-import">Semantic Import Versioning</a>、<a target="_blank" rel="noopener" href="https://research.swtch.com/vgo-mvs">Minimal Version Selection</a>、<a target="_blank" rel="noopener" href="https://research.swtch.com/vgo-module">引入Go module</a>等。文章引发了Go社区激烈地争论，让很多 Go 包管理工具的维护者“不满”，其中包括“准官方工具”：<a target="_blank" rel="noopener" href="https://github.com/golang/dep">dep</a>。vgo方案的提出也意味着dep项目等一系列包管理工具的生命周期即将进入尾声。</p>
+<p>2018年5月，Russ Cox的 <a target="_blank" rel="noopener" href="https://github.com/golang/go/issues/24301">Proposal “cmd/go: add package version support to Go toolchain”</a> 被 accepted，此后 vgo 代码 merge 到 Go 主干，并正式命名为“modules”。后续Go modules机制将直接在Go主干上继续演化。</p>
+<h4 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h4><ul>
+<li><a target="_blank" rel="noopener" href="https://xuanwo.io/2019/05/27/go-modules/">https://xuanwo.io/2019/05/27/go-modules/</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.lab99.org/post/golang-2017-10-09-video-the-new-era-of-go-package-management.html">https://blog.lab99.org/post/golang-2017-10-09-video-the-new-era-of-go-package-management.html</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.zhihu.com/question/52177662">https://www.zhihu.com/question/52177662</a></li>
+<li><a target="_blank" rel="noopener" href="https://dave.cheney.net/tag/dependency-management">https://dave.cheney.net/tag/dependency-management</a></li>
+<li><a target="_blank" rel="noopener" href="https://juejin.im/entry/5b04fb8c51882542ac7d99e5">https://juejin.im/entry/5b04fb8c51882542ac7d99e5</a></li>
+<li><a target="_blank" rel="noopener" href="https://nathany.com/go-packages/">https://nathany.com/go-packages/</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.ardanlabs.com/blog/2013/10/manage-dependencies-with-godep.html">https://www.ardanlabs.com/blog/2013/10/manage-dependencies-with-godep.html</a></li>
+<li><a target="_blank" rel="noopener" href="https://golang.org/doc/devel/release.html">https://golang.org/doc/devel/release.html</a></li>
+<li><a target="_blank" rel="noopener" href="https://tonybai.com/2018/07/15/hello-go-module/">https://tonybai.com/2018/07/15/hello-go-module/</a></li>
+</ul>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-07-2019/package-management.html">https://www.cyningsun.com/09-07-2019/package-management.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/09-09-2019/dont-just-check-errors-handle-them-gracefully-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-19-2019/errors-are-values-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

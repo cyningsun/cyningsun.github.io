@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>弹幕系统设计实践</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2019-03-31 00:00:00 +0800"/>
+<meta property="og:url" content="/03-31-2019/live-streaming-danmaku.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景为了更好的支持东南亚直播业务，产品设计为直播业务增加了弹幕。第一期弹幕使用腾讯云支持，效果并不理想，经常出现卡顿、弹幕偏少等问题。最终促使我们开发自己的弹幕系统。性能要求是需要支持，单房间百万用户同时在线。 问题分析按照背景来分析，系统将主要面临以下问题： 带宽压力 假如说每3秒促达用户一次，那么每次内容至少需要有15条才能做到视觉无卡顿。15条弹幕+h">
+
+<meta name="keywords" content="弹幕,直播,架构设计">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>弹幕系统设计实践</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90"><span class="toc-text">问题分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B8%A6%E5%AE%BD%E4%BC%98%E5%8C%96"><span class="toc-text">带宽优化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BC%B9%E5%B9%95%E5%8D%A1%E9%A1%BF%E3%80%81%E4%B8%A2%E5%A4%B1%E5%88%86%E6%9E%90"><span class="toc-text">弹幕卡顿、丢失分析</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Long-Polling-via-AJAX"><span class="toc-text">Long Polling via AJAX</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#WebSockets"><span class="toc-text">WebSockets</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Long-Polling-vs-Websockets"><span class="toc-text">Long Polling vs Websockets</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%AF%E9%9D%A0%E4%B8%8E%E6%80%A7%E8%83%BD"><span class="toc-text">可靠与性能</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>为了更好的支持东南亚直播业务，产品设计为直播业务增加了弹幕。第一期弹幕使用腾讯云支持，效果并不理想，经常出现卡顿、弹幕偏少等问题。最终促使我们开发自己的弹幕系统。性能要求是需要支持，单房间百万用户同时在线。</p>
+<h3 id="问题分析"><a href="#问题分析" class="headerlink" title="问题分析"></a>问题分析</h3><p>按照背景来分析，系统将主要面临以下问题：</p>
+<ol>
+<li>带宽压力<blockquote>
+<p>假如说每3秒促达用户一次，那么每次内容至少需要有15条才能做到视觉无卡顿。15条弹幕+http包头的大小将超过3k，那么每秒的数据大小约为8Gbps，而运维同学通知我们所有服务的可用带宽仅为10Gbps。</p>
+</blockquote>
+</li>
+<li>弱网导致的弹幕卡顿、丢失<blockquote>
+<p>该问题已在线上环境</p>
+</blockquote>
+</li>
+<li>性能与可靠性<blockquote>
+<p>百万用户同时在线，按照上文的推算，具体QPS将超过30w QPS。如何保证在双十一等重要活动中不出问题，至关重要。性能也是另外一个需要着重考虑的点。</p>
+</blockquote>
+</li>
+</ol>
+<h3 id="带宽优化"><a href="#带宽优化" class="headerlink" title="带宽优化"></a>带宽优化</h3><p>为了降低带宽压力，我们主要采用了以下方案：</p>
+<ol>
+<li>启用Http压缩<blockquote>
+<p>通过查阅资料，http gzip压缩比率可以达到40%以上（gzip比deflate要高出4%~5%）。</p>
+</blockquote>
+</li>
+<li>Response结构简化<br><img src="/images/live-streaming-danmaku/resp.jpg" alt="request response"></li>
+<li>内容排列顺序优化<blockquote>
+<p>根据gzip的压缩的压缩原理可以知道，重复度越高，压缩比越高，因此可以将字符串和数字内容放在一起摆放</p>
+</blockquote>
+</li>
+<li>频率控制<blockquote>
+<ul>
+<li>带宽控制：通过添加请求间隔参数（下次请求时间），保证客户端的请求频率服务端可控。以应对突发的流量增长问题，提供有损的服务。</li>
+<li>稀疏控制：在弹幕稀疏和空洞的时间段，通过控制下次请求时间，避免客户端的无效请求。</li>
+</ul>
+</blockquote>
+</li>
+</ol>
+<h3 id="弹幕卡顿、丢失分析"><a href="#弹幕卡顿、丢失分析" class="headerlink" title="弹幕卡顿、丢失分析"></a>弹幕卡顿、丢失分析</h3><p>在开发弹幕系统的的时候，最常见的问题是该怎么选择促达机制，推送 vs 拉取 ？</p>
+<h4 id="Long-Polling-via-AJAX"><a href="#Long-Polling-via-AJAX" class="headerlink" title="Long Polling via AJAX"></a>Long Polling via AJAX</h4><p>客户端打开一个到服务器端的 AJAX 请求，然后等待响应，服务器端需要一些特定的功能来允许请求被挂起，只要一有事件发生，服务器端就会在挂起的请求中送回响应。如果打开Http的Keepalived开关，还可以节约握手的时间。</p>
+<p><img src="/images/live-streaming-danmaku/polling-ajax.jpg" alt="polling-ajax"></p>
+<p>优点：减少轮询次数，低延迟，浏览器兼容性较好。<br>缺点：服务器需要保持大量连接。</p>
+<h4 id="WebSockets"><a href="#WebSockets" class="headerlink" title="WebSockets"></a>WebSockets</h4><p>长轮询虽然省去了大量无效请求，减少了服务器压力和一定的网络带宽的占用，但是还是需要保持大量的连接。那么人们就在考虑了，有没有这样一个完美的方案，即能双向通信，又可以节约请求的 header 网络开销，并且有更强的扩展性，最好还可以支持二进制帧，压缩等特性呢？于是人们就发明了这样一个目前看似“完美”的解决方案 —— WebSocket。它的最大特点就是，服务器可以主动向客户端推送信息，客户端也可以主动向服务器发送信息，是真正的双向平等对话。</p>
+<p><img src="/images/live-streaming-danmaku/websockets.jpg" alt="websockets"></p>
+<p>优点：<br>较少的控制开销，在连接创建后，服务器和客户端之间交换数据时，用于协议控制的数据包头部相对较小。在不包含扩展的情况下，对于服务器到客户端的内容，此头部大小只有2至10字节（和数据包长度有关）；对于客户端到服务器的内容，此头部还需要加上额外的4字节的掩码。相对于 HTTP 请求每次都要携带完整的头部，此项开销显著减少了。<br>更强的实时性，由于协议是全双工的，所以服务器可以随时主动给客户端下发数据。相对于HTTP请求需要等待客户端发起请求服务端才能响应，延迟明显更少；即使是和Comet等类似的长轮询比较，其也能在短时间内更多次地传递数据。<br>长连接，保持连接状态。</p>
+<h4 id="Long-Polling-vs-Websockets"><a href="#Long-Polling-vs-Websockets" class="headerlink" title="Long Polling vs Websockets"></a>Long Polling vs Websockets</h4><p>无论是以上哪种方式，都使用到TCP长连接，那么TCP的长连接是如何发现连接已经断开了呢？</p>
+<p>TCP Keepalived会进行连接状态探测，探测间隔主要由三个配置控制。</p>
+<blockquote>
+<p>keepalive_probes：探测次数（默认：7次）<br/><br>keepalive_time   探测的超时（默认：2小时）<br/><br>keepalive_intvl 探测间隔(默认：75s)<br/></p>
+</blockquote>
+<p>但是由于在东南亚的弱网情况下，TCP长连接会经常性的断开:</p>
+<blockquote>
+<p>Long Polling 能发现连接异常的最短间隔为：min(keepalive_intvl, polling_interval)<br/><br>Websockets能发现连接异常的最短间隔为：Websockets: min(keepalive_intvl, client_sending_interval)<br/></p>
+</blockquote>
+<p>如果下次发送数据包的时候可能连接已经断开了，所以使用TCP长连接对于两者均意义不大。并且弱网情况下Websockets其实已经不能作为一个候选项了</p>
+<ul>
+<li>即使Websockets服务端已经发现连接断开，仍然没有办法推送数据，只能被动等待客户端重新建立好连接才能推送，在此之前数据将可能会被采取丢弃的措施处理掉。</li>
+<li>在每次断开后均需要再次发送应用层的协议进行连接建立。</li>
+</ul>
+<p>根据了解腾讯云的弹幕系统，在300人以下使用的是推送模式，300人以上则是采用的轮训模式。但是考虑到资源消耗情况，他们可能使用的是Websocket来实现的弹幕系统，所以才会出现弹幕卡顿、丢失的情况。综上所述，Long Polling和Websockets都不适用我们面临的环境，所以我们最终采取了<strong>短轮训</strong>的方案来实现弹幕促达<br><img src="/images/live-streaming-danmaku/polling.jpg" alt="polling"></p>
+<h3 id="可靠与性能"><a href="#可靠与性能" class="headerlink" title="可靠与性能"></a>可靠与性能</h3><p>为了保证服务的稳定性我们对服务进行了拆分，将复杂的逻辑收拢到发送弹幕的一端。同时，将逻辑较为复杂、调用较少的发送弹幕业务与逻辑简单、调用量高的弹幕拉取服务拆分开来。服务拆分主要考虑因素是为了不让服务间相互影响，对于这种系统服务，不同服务的QPS往往是不对等的，例如像拉取弹幕的服务的请求频率和负载通常会比发送弹幕服务高1到2个数量级，在这种情况下不能让拉弹幕服务把发弹幕服务搞垮，反之亦然，最⼤度地保证系统的可用性，同时也更更加方便对各个服务做Scale-Up和Scale-Out。服务拆分也划清了业务边界，方便协同开发。</p>
+<p><strong>在拉取弹幕服务的一端</strong>，引入了本地缓存。数据更新的策略是服务会定期发起RPC调⽤从弹幕服务拉取数据，拉取到的弹幕缓存到内存中，这样后续的请求过来时便能直接⾛走本地内存的读取，⼤大幅降低了调用时延。这样做还有另外一个好处就是缩短调⽤链路，把数据放到离⽤户最近的地⽅，同时还能降低外部依赖的服务故障对业务的影响，</p>
+<p><img src="/images/live-streaming-danmaku/buffer-ring.jpg" alt="ring-buffer"></p>
+<p>为了数据拉取方便，我们将数据按照时间进行分片，将时间作为数据切割的单位，按照时间存储、拉取、缓存数据（RingBuffer），简化了数据处理流程。与传统的Ring Buffer不一样的是，我们只保留了尾指针，它随着时间向前移动，每⼀秒向前移动一格，把时间戳和对应弹幕列表并写到一个区块当中，因此最多保留60秒的数据。同时，如果此时来了一个读请求，那么缓冲环会根据客户端传入的时间戳计算出指针的索引位置，并从尾指针的副本区域往回遍历直至跟索引重叠，收集到一定数量的弹幕列表返回，这种机制保证了缓冲区的区块是整体有序的，因此在读取的时候只需要简单地遍历一遍即可，加上使用的是数组作为存储结构，带来的读效率是相当高的。</p>
+<p>再来考虑可能出现数据竞争的情况。先来说写操作，由于在这个场景下，写操作是单线程的，因此⼤可不必关心并发写带来的数据一致性问题。再来说读操作，由图可知写的方向是从尾指针以顺时针⽅向移动，⽽读⽅向是从尾指针以逆时针方向移动，⽽决定读和写的位置是否出现重叠取决于index的位置，由于我们保证了读操作最多只能读到30秒内的数据，因此缓冲环完全可以做到无锁读写</p>
+<p><strong>在发送弹幕的一端</strong>，因为用户一定时间能看得过来弹幕总量是有限的，所以可以对弹幕进行限流，有选择的丢弃多余的弹幕。同时，采用柔性的处理方式，拉取用户头像、敏感词过滤等分支在调用失败的情况下，仍然能保证服务的核心流程不受影响，即弹幕能够正常发送和接收，提供有损的服务。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p><img src="/images/live-streaming-danmaku/architecture.jpg" alt="danmaku architecture"></p>
+<p>最终该服务在双十二活动中，在Redis出现短暂故障的背景下，高效且稳定的支撑了70w用户在线，成功完成了既定的目标</p>
+<p>参考链接：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://halfrost.com/websocket/">https://halfrost.com/websocket/</a></li>
+<li><a target="_blank" rel="noopener" href="https://shopee-sz.github.io/2019/02/27/livechat/">https://shopee-sz.github.io/2019/02/27/livechat/</a></li>
+</ul>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-31-2019/live-streaming-danmaku.html">https://www.cyningsun.com/03-31-2019/live-streaming-danmaku.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/07-05-2019/live-stack-traces-in-go-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/03-12-2019/why-okr.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

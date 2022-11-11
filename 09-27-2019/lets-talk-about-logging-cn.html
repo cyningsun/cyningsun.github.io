@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜Let’s talk about logging</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2019-09-27 00:00:00 +0800"/>
+<meta property="og:url" content="/09-27-2019/lets-talk-about-logging-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="本文受 Nate Finch started on the Go Forum 的一个话题启发。本文专注于 Go，但是如果你能看透，我认为这里提出的想法是广泛适用的。 Why no love ?Go 的 log package 没有日志级别，你必须自己手动添加 debug、info、warn 和 error 等前缀。另外，Go 的 日志类型无法以包为基础打开或">
+
+<meta name="keywords" content="日志 logging,错误 error">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜Let’s talk about logging</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Why-no-love"><span class="toc-text">Why no love ?</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Let%E2%80%99s-talk-about-warnings"><span class="toc-text">Let’s talk about warnings</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Let%E2%80%99s-talk-about-fatal"><span class="toc-text">Let’s talk about fatal</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Let%E2%80%99s-talk-about-error"><span class="toc-text">Let’s talk about error</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#What%E2%80%99s-left"><span class="toc-text">What’s left ?</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Wrapping-up"><span class="toc-text">Wrapping up</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Notes"><span class="toc-text">Notes</span></a></li></ol>
+ 
+        <p>本文受 <a target="_blank" rel="noopener" href="https://forum.golangbridge.org/t/whats-so-bad-about-the-stdlibs-log-package/1435/">Nate Finch started on the Go Forum</a> 的一个话题启发。本文专注于 Go，但是如果你能看透，我认为这里提出的想法是广泛适用的。</p>
+<h3 id="Why-no-love"><a href="#Why-no-love" class="headerlink" title="Why no love ?"></a>Why no love ?</h3><p>Go 的 <a target="_blank" rel="noopener" href="https://golang.org/pkg/log/">log package</a> 没有日志级别，你必须自己手动添加 debug、info、warn 和 error 等前缀。另外，Go 的 日志类型无法以包为基础打开或者关闭这些不同级别。通过比较，让我们看一些第三方的替代品：</p>
+<p>Google 的 <a target="_blank" rel="noopener" href="https://godoc.org/github.com/golang/glog">glog</a> 提供以下级别：</p>
+<ul>
+<li>Info</li>
+<li>Warning</li>
+<li>Error</li>
+<li>Fatal (终止程序)</li>
+</ul>
+<p>看看另外一个库， 我们为 Juju 开发的 <a target="_blank" rel="noopener" href="https://godoc.org/github.com/juju/loggo">loggo</a>，提供以下级别：</p>
+<ul>
+<li>Trace</li>
+<li>Debug</li>
+<li>Info</li>
+<li>Warning</li>
+<li>Error</li>
+<li>Critical</li>
+</ul>
+<p>Loggo 还提供了根据每个包调整日志的详细程度的功能。</p>
+<p>因此，以上两个示例显然受到其他语言的其他日志库的影响。实际上，它们的命令行可以追溯到 syslog(3)，甚至更早。我认为他们是错的。</p>
+<p>我站相反的立场。我认为_所有_日志库都不好，因为它提供了_太多_的功能。一系列令人困惑的选择，使程序员必须清楚地思考如何与未来的读者沟通，而读者将要使用他们的日志。</p>
+<p>我认为成功的日志包需要的功能要少得多，当然需要的级别也更少。</p>
+<h3 id="Let’s-talk-about-warnings"><a href="#Let’s-talk-about-warnings" class="headerlink" title="Let’s talk about warnings"></a>Let’s talk about warnings</h3><p>我们从最简单的一个开始。没有人需要 warning 的日志级别。</p>
+<p>没有人阅读 warning，因为按照定义，没有出错。也许将来会出问题，但这听起来像是别人的问题。</p>
+<p>此外，如果你在使用某种分级日志，那么为什么将级别设置为 warning? 你可以将级别设置为 info 或 error。将级别设置为 warning 是承认你可能正在以 warninng 级别打印错误日志</p>
+<p>消除 warning 级别，因为它既可能是信息性的消息，也可能是错误的情况。（潜台词：语义不明确）</p>
+<h3 id="Let’s-talk-about-fatal"><a href="#Let’s-talk-about-fatal" class="headerlink" title="Let’s talk about fatal"></a>Let’s talk about fatal</h3><p>Fatal 级别，有效打印消息日志，然后调用 <code>os.Exit(1)</code>。原则上，这意味着：</p>
+<ul>
+<li>其他goroutines中的defer语句不会运行。</li>
+<li>缓冲区不刷新。</li>
+<li>临时文件和目录不会被删除。</li>
+</ul>
+<p>实际上，<code>log.Fatal</code> 的详细程度要比 <code>panic</code> 少，但在语义上却等同于它。</p>
+<p>普遍认为，库不应该使用 panic<sup>1</sup>，但是如果调用 log.Fatal<sup>2</sup> 具有相同的效果，那么当然也应该将其定为非法。</p>
+<p>解决此清理问题的建议是，可以通过在日志系统中注册 shutdown handler，但如此导致日志系统与发生清理操作的每个位置之间紧密耦合。它也违反了关注点分离。</p>
+<p>不要以 <code>Fatal</code> 级别写日志，而要将错误返回给调用方。如果错误一直冒泡到 <code>main.main</code>, 那么退出之前，是处理所有清理操作的正确位置。</p>
+<h3 id="Let’s-talk-about-error"><a href="#Let’s-talk-about-error" class="headerlink" title="Let’s talk about error"></a>Let’s talk about error</h3><p>错误处理和日志密切相关，因此从表面上看，以 error 级别进行日志打印应该很容易解释。但，我不同意。</p>
+<p>在 Go 中，如果函数或方法调用返回错误值，实际上您有两个选择：</p>
+<ul>
+<li>处理错误</li>
+<li>将错误返回给您的呼叫者（您可以选择包装错误，但这对于本次讨论并不重要）</li>
+</ul>
+<p>如果您选择通过打印日志来处理错误，那么按照定义，你已经处理了它，错误就不存在了。打印错误处理错误的行为，意味着不再适合将其打印为错误日志。</p>
+<p>让我尝试用以下代码片段说服您：</p>
+<pre><code class="hljs go">err := somethingHard()
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+        log.Error(<span class="hljs-string">&quot;oops, something was too hard&quot;</span>, err)
+        <span class="hljs-keyword">return</span> err <span class="hljs-comment">// what is this, Java ?</span>
+&#125;</code></pre>
+
+<p>您永远不应该在 error 级别打印任何内容的日志，因为您应该处理错误，或者将其传递回调用方。</p>
+<p>准确地说，我并不是说您不应该将发生的情况打印日志</p>
+<pre><code class="hljs code">if err := planA(); err != nil &#123;
+        log.Infof(&quot;could&#x27;t open the foo file, continuing with plan b: %v&quot;, err)
+        planB()
+&#125;</code></pre>
+
+<p>但实际上 <code>log.Info</code> 和 <code>log.Error</code> 有异曲同工之妙。</p>
+<p>我并不是说不要打印错误日志！相反，问题是，最小的日志API是什么？当提到错误时，我相信绝大多数打印日志为 error 级别的项目，都是通过这种简单地方式完成的，因为它们与错误相关。实际上，它们只是提供信息，意味着可以从API中删除以 error 级别打印日志。</p>
+<h3 id="What’s-left"><a href="#What’s-left" class="headerlink" title="What’s left ?"></a>What’s left ?</h3><p>我们已经排除了 warning，认为不应该以 error 级别打印任何内容的日志，并且表明只有应用程序的顶层应该具有某种 <code>log.Fatal</code> 行为。还剩什么 ？</p>
+<p>我认为只有两种东西您应该打印日志：</p>
+<ol>
+<li>开发人员在开发或调试软件时会关心的东西。</li>
+<li>用户在使用您的软件时关心的东西。</li>
+</ol>
+<p>显然，分别是 debug 和 info 级别。</p>
+<p><code>log.Info</code> 应该简单地将该行写入日志输出。不应有将其关闭的选项，因为仅应告知用户对他们有用的事情。如果发生<em>无法_处理的错误，它将冒泡到 <code>main.main</code>， 程序终止的地方。必须在最后一条日志消息前面插入 _FATAL</em> 前缀，或直接用 <code>fmt.Fprintf</code> 写入 <code>os.Stderr</code> 所带来的小小不便，不足以解释日志包需要添加 <code>log.Fatal</code> 方法。</p>
+<p><code>log.Debug</code>，则完全不同。由开发人员或支持工程师控制。在开发过程中，调试语句应足够多，而不必求助于 trace 或 debug<sup>2</sup> 级别。日志包应支持细粒度的控制，以启用或禁用调试，并且仅在该包或可能更精细的范围内的语句调试。</p>
+<h3 id="Wrapping-up"><a href="#Wrapping-up" class="headerlink" title="Wrapping up"></a>Wrapping up</h3><p>如果这是推特民意调查，请您选择</p>
+<ul>
+<li>打印日志很重要</li>
+<li>打印日志很难</li>
+</ul>
+<p>但是事实是，打印日志是两者兼而有之。解决这个问题的方法_必须_是解构和残酷地消除不必要的干扰。</p>
+<p>你怎么看？这仅仅是疯狂到足以工作，还是纯粹是疯狂的？</p>
+<h3 id="Notes"><a href="#Notes" class="headerlink" title="Notes"></a>Notes</h3><ol>
+<li>一些库可能使用 <code>panic</code>/<code>recover</code> 作为内部控制流机制，但最重要的原则是它们一定不能让这些控制流操作泄漏到程序包边界之外。</li>
+<li>具有讽刺意味的是，尽管缺少 debug 级别的输出，但 Go 标准日志包同时具有 <code>Fatal</code> 和 <code>Panic</code> 功能。在此程序包中，导致程序突然退出的功能数量超过了没有退出功能的数量。</li>
+</ol>
+<p><em>原文：<a target="_blank" rel="noopener" href="https://dave.cheney.net/2015/11/05/lets-talk-about-logging">https://dave.cheney.net/2015/11/05/lets-talk-about-logging</a></em></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-27-2019/lets-talk-about-logging-cn.html">https://www.cyningsun.com/09-27-2019/lets-talk-about-logging-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/09-29-2019/share-memory-by-communicating-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/09-15-2019/micro-service-monitor-prometheus-client.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

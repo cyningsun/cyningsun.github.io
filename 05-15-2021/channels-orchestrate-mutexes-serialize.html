@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Golang channel 的本质</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-05-15 00:00:00 +0800"/>
+<meta property="og:url" content="/05-15-2021/channels-orchestrate-mutexes-serialize.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="channel 是 Go 语言独有的一个特性，相比 goroutine 更加抽象，也更加难以理解。毕竟后者可以类比线程、进程。《Go channels are bad and you should feel bad》 提及在使用 channel 和 mutex 时的困惑。其中提到过一个简单的程序，可以保存一场游戏的各个选手中的最高分。作者分别使用 chann">
+
+<meta name="keywords" content="Channel,Channels orchestrate; mutexes serialize">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Golang channel 的本质</h1><br/>
+    <h2 id="tagline" class="serif">诠释 Channels orchestrate; mutexes serialize</h2>
+    <div class="post">
+        
+        <p>channel 是 Go 语言独有的一个特性，相比 goroutine 更加抽象，也更加难以理解。毕竟后者可以类比线程、进程。<a target="_blank" rel="noopener" href="https://www.jtolio.com/2016/03/go-channels-are-bad-and-you-should-feel-bad/">《Go channels are bad and you should feel bad》</a> 提及在使用 channel 和 mutex 时的困惑。其中提到过一个简单的程序，可以保存一场游戏的各个选手中的最高分。作者分别使用 <code>channel</code> 和 <code>mutex</code> 来实现该功能。</p>
+<h3 id="channel-版"><a href="#channel-版" class="headerlink" title="channel 版"></a>channel 版</h3><p>首先定义 <code>Game</code> 结构体：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Game <span class="hljs-keyword">struct</span> &#123;
+  bestScore <span class="hljs-keyword">int</span>
+  scores    <span class="hljs-keyword">chan</span> <span class="hljs-keyword">int</span>
+&#125;</code></pre>
+
+<p>bestScore 不会使用 mutex 保护，而是使用一个独立的 goroutine 从 channel 接收数据，然后更新其状态。</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Game)</span> <span class="hljs-title">run</span><span class="hljs-params">()</span></span> &#123;
+  <span class="hljs-keyword">for</span> score := <span class="hljs-keyword">range</span> g.scores &#123;
+    <span class="hljs-keyword">if</span> g.bestScore &lt; score &#123;
+      g.bestScore = score
+    &#125;
+  &#125;
+&#125;</code></pre>
+
+<p>然后定义构造函数来开始一场游戏</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewGame</span><span class="hljs-params">()</span> <span class="hljs-params">(g *Game)</span></span> &#123;
+  g = &amp;Game&#123;
+    bestScore: <span class="hljs-number">0</span>,
+    scores:    <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-keyword">int</span>),
+  &#125;
+  <span class="hljs-keyword">go</span> g.run()
+  <span class="hljs-keyword">return</span> g
+&#125;</code></pre>
+
+<p>紧接着，定义 <code>Player</code> 接口返回该选手的分数，同时返回 error 用以表示 选手放弃比赛等异常情况。</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Player <span class="hljs-keyword">interface</span> &#123;
+  NextScore() (score <span class="hljs-keyword">int</span>, err error)
+&#125;</code></pre>
+
+<p>游戏通过 channel 接收所有选手的分数</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Game)</span> <span class="hljs-title">HandlePlayer</span><span class="hljs-params">(p Player)</span> <span class="hljs-title">error</span></span> &#123;
+  <span class="hljs-keyword">for</span> &#123;
+    score, err := p.NextScore()
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+      <span class="hljs-keyword">return</span> err
+    &#125;
+    g.scores &lt;- score
+  &#125;
+&#125;</code></pre>
+
+<p>最终，<code>Game</code> 得以实现线程安全的记录选手的最高分，一切都很完美。</p>
+<p>该实现大为成功，游戏服务同时创建了很多的游戏。不久，你发现有选手偶尔会停止游戏，很多游戏也不再有选手玩了，但是却没有什么机制停止游戏循环。你正被废弃的  <code>(*Game).run</code> goroutine 压垮。</p>
+<h3 id="mutex-版"><a href="#mutex-版" class="headerlink" title="mutex 版"></a>mutex 版</h3><p>然而，请注意使用 mutex 的解决方案的简单性，它甚至不存在以上问题：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> Game <span class="hljs-keyword">struct</span> &#123;
+  mtx sync.Mutex
+  bestScore <span class="hljs-keyword">int</span>
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewGame</span><span class="hljs-params">()</span> *<span class="hljs-title">Game</span></span> &#123;
+  <span class="hljs-keyword">return</span> &amp;Game&#123;&#125;
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Game)</span> <span class="hljs-title">HandlePlayer</span><span class="hljs-params">(p Player)</span> <span class="hljs-title">error</span></span> &#123;
+  <span class="hljs-keyword">for</span> &#123;
+    score, err := p.NextScore()
+    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+      <span class="hljs-keyword">return</span> err
+    &#125;
+    g.mtx.Lock()
+    <span class="hljs-keyword">if</span> g.bestScore &lt; score &#123;
+      g.bestScore = score
+    &#125;
+    g.mtx.Unlock()
+  &#125;
+&#125;</code></pre>
+
+<h3 id="channel-用以编排，mutex-用以串行"><a href="#channel-用以编排，mutex-用以串行" class="headerlink" title="channel 用以编排，mutex 用以串行"></a>channel 用以编排，mutex 用以串行</h3><p>如果是你来实现，你更愿意使用 <code>channel</code> 还是 <code>mutex</code> ？<br>按照目前提供的信息，毫无疑问，我会选择后者。</p>
+<p>那 channel 和 mutex 有什么区别呢？在什么场景下该使用 channel ？</p>
+<p>其实 <code>Rob Pike</code> 在 <a target="_blank" rel="noopener" href="https://go-proverbs.github.io/">Go Proverbs</a> 中总结为：</p>
+<blockquote>
+<p>Channels orchestrate; mutexes serialize.</p>
+</blockquote>
+<p>翻译就是</p>
+<blockquote>
+<p>channel 用以编排，mutex 用以串行</p>
+</blockquote>
+<p>此句话很简单，但也很抽象。究竟该怎样理解呢？</p>
+<h4 id="channel-vs-mutex"><a href="#channel-vs-mutex" class="headerlink" title="channel vs mutex"></a>channel vs mutex</h4><p><code>Rob Pike</code> 在讲述《Concurrency is not Parallelism》中开篇，即提到：</p>
+<ol>
+<li>世界万物是并行的，但是当前的编程语言却是面向对象的</li>
+<li>Golang 希望通过 <code>goroutine</code>（并发执行）、<code>channel</code>（同步和数据传递）、<code>select</code>（多路并发控制）来实现并行</li>
+</ol>
+<p>在之前的文章中，我提到过</p>
+<blockquote>
+<p>对于其他语言的使用者，对于他们而言，程序中的流程控制一般意味着：</p>
+<blockquote>
+<ul>
+<li>if/else</li>
+<li>for loop</li>
+</ul>
+</blockquote>
+<p>在 Go 中，类似的理解仅仅对了一小半。因为 channel 和 select 才是流程控制的重点。<br>channel 提供了强大能力，帮助数据从一个 goroutine 流转到另一个 goroutine。也意味着，channel 对程序的 <strong>数据流</strong> 和 <strong>控制流</strong> 同时存在影响。</p>
+</blockquote>
+<p><code>channel</code> 只是 Go 语言并行化工具集的一部分，其同时肩负了 <strong>数据流</strong> 和 <strong>控制流</strong> 的职责，它是程序结构的组织者。对比来看，<code>mutex</code> 则只关注数据，保障数据串行访问</p>
+<h4 id="编排"><a href="#编排" class="headerlink" title="编排"></a>编排</h4><p>再谈 channel 的编排，可以看下 《Go Concurrency Patterns》中搜索举例：</p>
+<pre><code class="hljs go"><span class="hljs-comment">/*</span>
+<span class="hljs-comment">Example: Google Search 3.0</span>
+<span class="hljs-comment">Given a query, return a page of search results (and some ads).</span>
+<span class="hljs-comment">Send the query to web search, image search, YouTube, Maps, News, etc. then mix the results.</span>
+<span class="hljs-comment">*/</span>
+c := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> Result)
+<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123; c &lt;- First(query, Web1, Web2) &#125; ()
+<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123; c &lt;- First(query, Image1, Image2) &#125; ()
+<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123; c &lt;- First(query, Video1, Video2) &#125; ()
+timeout := time.After(<span class="hljs-number">80</span> * time.Millisecond)
+<span class="hljs-keyword">for</span> i := <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">3</span>; i++ &#123;
+    <span class="hljs-keyword">select</span> &#123;
+    <span class="hljs-keyword">case</span> result := &lt;-c:
+        results = <span class="hljs-built_in">append</span>(results, result)
+    <span class="hljs-keyword">case</span> &lt;-timeout:
+        fmt.Println(<span class="hljs-string">&quot;timed out&quot;</span>)
+        <span class="hljs-keyword">return</span>
+    &#125;
+&#125;</code></pre>
+
+<p>无论程序执行在几个核心的机器上，程序的并行结构都没有任何变化，如下：</p>
+<p><img src="/images/channels-orchestrate-mutexes-serialize/orchestrate.png" alt="orchestrate.png"></p>
+<p>讲到程序结构的编排，可以跟服务编排的 Kubernetes 类比。 如果说 goroutine 是 K8S 的容器，channel 就是 K8S 的网络（如，overlay）。Kubernetes 使用户能够以任何规模部署和扩展其微服务应用程序，Golang 使程序能够在任何数量 CPU 的机器上执行和和扩展进行充分的并行。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>就像《Concurrency is not Parallelism》说明的那样，目前 channel很大程度的被误用或滥用了。了解清楚 channel 的本质，才能使用正确的工具做对的事。</p>
+<blockquote>
+<p>Goroutines and channels are big ideas. They’re tools for program construction.<br>But sometimes all you need is a reference counter.<br>Go has “sync” and “sync/atomic” packages that provide mutexes, condition variables, etc. They provide tools for smaller problems.<br>Often, these things will work together to solve a bigger problem.<br>Always use the right tool for the job.</p>
+</blockquote>
+<p><em>本文涉及源代码</em> ：<a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test/tree/master/20210509-go-channel-vs-mutex">go-test: 《go-channel-vs-mutex》</a></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-15-2021/channels-orchestrate-mutexes-serialize.html">https://www.cyningsun.com/05-15-2021/channels-orchestrate-mutexes-serialize.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/06-02-2021/high-performance-server-architecture-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/05-05-2021/my-philosophy-on-alerting-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

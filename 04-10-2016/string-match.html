@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>字符串匹配查找算法总结</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2016-04-10 00:00:00 +0800"/>
+<meta property="og:url" content="/04-10-2016/string-match.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="描述字符串匹配查找常见的算法或数据结构有：暴力搜索、KMP算法(Extend-KMP、BM算法、Sunday算法)、AC自动机、前缀树(Double Array Trie)、后缀树（后缀数组）。以下汇总它们的算法比较，以及关键点： 关键点描述KMP算法模式串需要移动的距离＝模式串已匹配的字符长度－（模式串已匹配字符串）前缀后缀最长公长度 next数组（前缀后">
+
+<meta name="keywords" content="字符串,匹配,查找">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>字符串匹配查找算法总结</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8F%8F%E8%BF%B0"><span class="toc-text">描述</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E7%82%B9%E6%8F%8F%E8%BF%B0"><span class="toc-text">关键点描述</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#KMP%E7%AE%97%E6%B3%95"><span class="toc-text">KMP算法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#AC%E8%87%AA%E5%8A%A8%E6%9C%BA"><span class="toc-text">AC自动机</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#Ukkonen%E5%90%8E%E7%BC%80%E6%A0%91%E7%AE%97%E6%B3%95"><span class="toc-text">Ukkonen后缀树算法</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0"><span class="toc-text">代码实现</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E6%A1%A3"><span class="toc-text">参考文档</span></a></li></ol></li></ol>
+ 
+        <h3 id="描述"><a href="#描述" class="headerlink" title="描述"></a>描述</h3><p>字符串匹配查找常见的算法或数据结构有：暴力搜索、KMP算法(Extend-KMP、BM算法、Sunday算法)、AC自动机、前缀树(Double Array Trie)、后缀树（后缀数组）。以下汇总它们的算法比较，以及关键点：<br><img src="/images/algorithm/string-match.png" alt="string match"></p>
+<h3 id="关键点描述"><a href="#关键点描述" class="headerlink" title="关键点描述"></a>关键点描述</h3><h4 id="KMP算法"><a href="#KMP算法" class="headerlink" title="KMP算法"></a>KMP算法</h4><p>模式串需要移动的距离＝模式串已匹配的字符长度－（模式串已匹配字符串）前缀后缀最长公长度</p>
+<p>next数组（前缀后缀最长公长度）求解：N为next数组，i为数组位置，P为模式串</p>
+<ul>
+<li>1、当i＝0，N［0］＝0</li>
+<li>2、当i＝1，如果P［1］＝P［0］，N［1］＝N［0］＋1；否则N［1］＝N［0］</li>
+<li>3、当i＝j，如果P［j］＝P［N［j－1］］，N［j］＝N［j－1］＋1；<pre><code>否则，i＝N［j－1］，如果i&gt;0，重复上述计算，否则，N［j］＝0</code></pre></li>
+</ul>
+<h4 id="AC自动机"><a href="#AC自动机" class="headerlink" title="AC自动机"></a>AC自动机</h4><ul>
+<li>1、为模式串建立Trie（标志模式串的节点特殊标记，用于匹配时确认匹配成功）</li>
+<li>2、为Trie建立Fail（失败）指针（在匹配路径上失败的时，跳转到合适的位置进行下次匹配）</li>
+<li>3、对字符串进行匹配（遍历Trie，进行匹配）</li>
+</ul>
+<p>Fail指针的建立：对于一个节点C，标识字符a，顺着C的父亲节点的失配指针走，走到第一个有儿子也是a的节点D，那么C的失配指针就指向D的标识a的儿子节点（假设为E，从根节点到E节点表示的模式串P2是从根节点到C节点的字符串的后缀P1的后缀，当模式串P1匹配失败时，尝试匹配模式串P2，这是Fail 指针的本质作用）。如果找不到这个节点，那么失配指针指向Root</p>
+<h5 id="Ukkonen后缀树算法"><a href="#Ukkonen后缀树算法" class="headerlink" title="Ukkonen后缀树算法"></a>Ukkonen后缀树算法</h5><p><strong>活动节点：</strong>是用于查找一个后缀是否已经存在这棵树里，即查找的时候从活动节点的子节点开始查找，同时当需要插入边的时候也是插入到该节点下；</p>
+<p><strong>活动边：</strong>是每次需要进行分割的边，即成为活动边就意味着需要被分割；而 活动长度 则是指明从活动边的哪个位置开始分割。</p>
+<p><strong>剩余后缀数：</strong>是我们需要插入的后缀的数量，说明程序员点就是缓存的数量，因为每次如果要插入的后缀存在，则缓存起来。</p>
+<p><strong>活动点(active point) ：</strong>三元组（活动节点，活动边，活动长度）</p>
+<p><strong>后缀连接：</strong>如果一个步骤插入（Insert）两个以上新的节点，如果该新节点不是当前步骤中创建的第一个节点，则将先前插入的节点与该新节点通过一个特殊的指针连接，称为后缀连接（Suffix Link）。后缀连接通过一条虚线来表示，连接由前一个节点指向后一个节点。从根节点到达后缀连接指向节点的字符串，是从根节点到达后缀连接源节点的字符串的后缀。所以后缀连接的前一个节点需要分割时，需要同时分割后缀连接指向的节点。</p>
+<h4 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h4><p>(未完待续)</p>
+<h4 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h4><p>后缀树: <a target="_blank" rel="noopener" href="http://www.cnblogs.com/gaochundong/p/suffix_tree.html">http://www.cnblogs.com/gaochundong/p/suffix_tree.html</a><br/><br>Ukkonen 的后缀树算法的清晰解释: <a target="_blank" rel="noopener" href="http://www.oschina.net/translate/ukkonens-suffix-tree-algorithm-in-plain-english">http://www.oschina.net/translate/ukkonens-suffix-tree-algorithm-in-plain-english</a><br/><br>Aho-Corasick自动机浅析: <a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000000484127">https://segmentfault.com/a/1190000000484127</a><br/><br>AC自动机算法: <a target="_blank" rel="noopener" href="http://m.blog.csdn.net/article/details?id=7002823">http://m.blog.csdn.net/article/details?id=7002823</a><br/><br>从头到尾彻底理解KMP算法: <a target="_blank" rel="noopener" href="http://www.ruanyifeng.com/blog/2013/05/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm.html">http://www.ruanyifeng.com/blog/2013/05/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm.html</a><br/><br>从头到尾彻底理解KMP算法: <a target="_blank" rel="noopener" href="http://blog.csdn.net/v_july_v/article/details/7041827">http://blog.csdn.net/v_july_v/article/details/7041827</a><br/></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-10-2016/string-match.html">https://www.cyningsun.com/04-10-2016/string-match.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-13-2016/recent-blog.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-04-2016/kmp.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜Eventually Consistent</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-06-26 00:00:00 +0800"/>
+<meta property="og:url" content="/06-26-2021/eventually-consistent-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="一年前，我写过一致性模型的文章的第一个版本。因为当时写的很匆忙，而且这个主题非常重要，值得更缜密的对待，所以我并不是很满意。ACM Queue 为将其发布到自己觉得杂志上，所以请我仔细推敲。我得以借此机会改进这篇文章。本文就是最新的版本。 最终一致性 - 在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。亚马逊云计算的基础是诸如 S3（Sim">
+
+<meta name="keywords" content="强一致性,弱一致性,最终一致性">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜Eventually Consistent</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9C%80%E7%BB%88%E4%B8%80%E8%87%B4%E6%80%A7-%E5%9C%A8%E5%85%A8%E7%90%83%E8%8C%83%E5%9B%B4%E5%86%85%E6%9E%84%E5%BB%BA%E5%8F%AF%E9%9D%A0%E7%9A%84%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F%E9%9C%80%E8%A6%81%E5%9C%A8%E4%B8%80%E8%87%B4%E6%80%A7%E5%92%8C%E5%8F%AF%E7%94%A8%E6%80%A7%E4%B9%8B%E9%97%B4%E8%BF%9B%E8%A1%8C%E6%9D%83%E8%A1%A1%E3%80%82"><span class="toc-text">最终一致性 - 在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8E%86%E5%8F%B2%E8%A7%86%E8%A7%92"><span class="toc-text">历史视角</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%80%E8%87%B4%E6%80%A7-%E2%80%94%E2%80%94-%E5%AE%A2%E6%88%B7%E7%AB%AF%E5%92%8C%E6%9C%8D%E5%8A%A1%E5%99%A8"><span class="toc-text">一致性 —— 客户端和服务器</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF%E4%B8%80%E8%87%B4%E6%80%A7"><span class="toc-text">客户端一致性</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%AB%AF%E4%B8%80%E8%87%B4%E6%80%A7"><span class="toc-text">服务器端一致性</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BA%9A%E9%A9%AC%E9%80%8A-Dynamo"><span class="toc-text">亚马逊 Dynamo</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="toc-text">参考文献</span></a></li></ol>
+ 
+        <p>一年前，我写过一致性模型的文章的<a target="_blank" rel="noopener" href="http://www.allthingsdistributed.com/2007/12/eventually_consistent.html">第一个版本</a>。因为当时写的很匆忙，而且这个主题非常重要，值得更缜密的对待，所以我并不是很满意。ACM Queue 为将其发布到自己觉得杂志上，所以请我仔细推敲。我得以借此机会改进这篇文章。本文就是最新的版本。</p>
+<h3 id="最终一致性-在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。"><a href="#最终一致性-在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。" class="headerlink" title="最终一致性 - 在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。"></a>最终一致性 - 在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。</h3><p>亚马逊云计算的基础是诸如 S3（Simple Storage Service）、SimpleDB、EC2（Elastic Compute Cloud）等基础设施，为构建互联网规模级别计算平台和种类繁多的应用提供了资源。这些基础设施服务的要求非常严格，需要在安全性、可扩展性、可用性、性能和成本效益方面获得高分，与此同时还要持续为全球数以百万计的客户提供服务。</p>
+<p>在这些服务幕后，是全球范围内运行的大规模分布式系统。这种规模带来了额外的挑战。因为当系统处理数以万亿计的请求时，通常情况下发生概率较低的的事件会必然发生，需要在系统设计和架构中预先考虑。鉴于这些系统遍及全球范围，我们通常使用复制技术来保证一致性的性能和高可用性。尽管复制使我们更接近目标，却不能以完全透明的方式实现这些目标。在许多情况下，这些服务的客户将面临服务内部使用复制技术的后果。</p>
+<p>其中一种表现方式是提供的数据一致性的类型，特别是底层分布式系统为数据复制提供最终一致性模型时。在亚马逊设计这些大规模系统时，使用了一套与大规模数据复制相关的指导原则和抽象方法，并专注于高可用性和数据一致性之间的平衡。在本文中，我介绍了一些相关的背景知识，包含了我们交付需要在全球范围内运行的可靠分布式系统的方法。本文的<a target="_blank" rel="noopener" href="http://www.allthingsdistributed.com/2007/12/eventually_consistent.html">早期版本</a>于 2007 年 12 月在 All Things Distributed 博客上发表，在读者的帮助下得到了极大的改进。</p>
+<h3 id="历史视角"><a href="#历史视角" class="headerlink" title="历史视角"></a>历史视角</h3><p>在理想世界里，只有一种一致性模型：当更新发生时，所有观察者都能看到那个更新。该模型第一次出现难以实现的情况是在70年代末的数据库系统中。关于该主题最好的“时期作品”是 <a target="_blank" rel="noopener" href="http://acmqueue.com/modules.php?name=Content&pa=showpage&pid=233">Bruce Lindsay 等人的</a>”分布式数据库笔记”。 它阐述了数据库复制的基础性原则，并讨论了许多处理实现一致性的技术。其中许多技术都试图实现分发透明性——即对系统用户来说，似乎只有一个系统而不是多个协作系统。在此期间，许多系统采取的做法是倾向于让整个系统失败，而非破坏其透明度。</p>
+<p>在90年代中期，随着大型互联网系统的兴起，这些做法被重新审视。当时的人们开始考虑可用性可能是这些系统最重要的属性的想法，但他们正在为拿什么权衡而苦苦挣扎。加州大学伯克利分校系统教授、当时的 Inktomi 负责人 <a target="_blank" rel="noopener" href="http://www.cs.berkeley.edu/~brewer/">Eric Brewer</a> 在 2000 年 PODC（分布式计算原理）会议上的<a target="_blank" rel="noopener" href="http://www.cs.berkeley.edu/~brewer/cs262b-2004/PODC-keynote.pdf">主题演讲</a>中将不同的权衡结合在一起。他提出了 CAP 定理，该定理指出共享数据系统的三个属性——数据一致性、系统可用性和对网络分区的容忍度——在任何给定时间只能实现两个。更正式的认定可以在 <a target="_blank" rel="noopener" href="http://portal.acm.org/citation.cfm?doid=564585.564601">Seth Gilbert 和 Nancy Lynch</a> 2002 年的一篇论文中找到。</p>
+<p>一个不容忍网络分区的系统可以实现数据的一致性和可用性，通常通过使用事务协议来实现。要实现这一点，客户端和存储系统必须是同一环境的一部分；在某些情况下，它们作为一个整体失败，因此，客户端无法观察到分区。一个重要的观察结果是，在较大的分布式系统中，网络分区是给定的；因此，一致性和可用性无法同时实现。这意味着对于要删除的内容有两种选择：放宽一致性将允许系统在可分区条件下保持高可用性，而将一致性作为优先级意味着在某些条件下系统将不可用。</p>
+<p>两种选项都要求客户端开发者了解系统提供的内容。如果系统强调一致性，开发者需要处理系统可能不可用的事实，例如：写入。如果因为系统不可用写操作失败，那么开发者不得不处理如何处置要写入的数据。如果系统强调可用性，那么总能接受写操作，但是在某些情况下，读操作不会反映最近完成的写入的结果。然后，开发人员必须决定客户端是否需要始终访问绝对最新的更新。大量的应用程序可以处理稍微陈旧的数据，并且在此模型下可以很好地提供服务。</p>
+<p>原则上，<a target="_blank" rel="noopener" href="http://en.wikipedia.org/wiki/ACID">ACID</a> 属性（原子性、一致性、隔离性、持久性）中定义的事务系统的一致性属性是一种不同的一致性保证。在 ACID 中，一致性是指当事务完成时，数据库处于一致状态的保证；例如，当从一个账户向另一个账户转账时，两个账户中持有的总金额不应改变。在基于 ACID 的系统中，这种一致性通常是编写事务的开发人员的责任，但可以由数据库管理完整性约束来辅助。</p>
+<h3 id="一致性-——-客户端和服务器"><a href="#一致性-——-客户端和服务器" class="headerlink" title="一致性 —— 客户端和服务器"></a>一致性 —— 客户端和服务器</h3><p>有两种看待一致性的方法。一种是从开发人员/客户的角度来看：他们如何观察数据更新。第二种方式来自服务器端：更新如何流经系统以及系统可以为更新提供什么保证。</p>
+<h4 id="客户端一致性"><a href="#客户端一致性" class="headerlink" title="客户端一致性"></a>客户端一致性</h4><p>客户端具有以下组件：</p>
+<ul>
+<li><p><strong>一个存储系统。</strong> 目前我们将其视为一个黑匣子，但人们应该假设在它幕后是大规模和高度分布式的，并且构建它是为了保证持久性和可用性。</p>
+</li>
+<li><p><strong>进程A。</strong> 这是一个对存储系统进行写入和读取的进程。</p>
+</li>
+<li><p><strong>进程B和C。</strong> 这两个进程独立于进程A，对存储系统进行读写操作。它们是真正的进程还是同一进程中的线程无关紧要；重要的是它们是独立的，共享信息需要通信。</p>
+</li>
+</ul>
+<p>客户端一致性与观察者（在本例中为进程 A、B 或 C）如何以及何时查看对存储系统中的数据对象所做的更新有关。在以下说明不同类型一致性的示例中，进程 A 对数据对象进行了更新：</p>
+<ul>
+<li><p><strong>强一致性（Strong consistency）。</strong> 更新完成后，任何后续访问（通过 A、B 或 C）都将返回更新后的值。</p>
+</li>
+<li><p><strong>弱一致性（Weak consistency）。</strong> 系统不保证后续访问将返回更新后的值。在返回值之前需要满足许多条件。更新和保证任何观察者总是看到更新值之间的时间段被称为不一致窗口。</p>
+</li>
+<li><p><strong>最终一致性（Eventual consistency）。</strong> 弱一致性的一种特殊形式；存储系统保证如果没有对对象进行新的更新，最终所有访问都将返回最后更新的值。如果没有发生故障，则可以根据通信延迟、系统负载以及复制方案中涉及的副本数量等因素确定不一致窗口的最大大小。最流行的实现最终一致性的系统是 DNS（域名系统）。名称的更新根据配置的模式并结合时间控制的缓存进行分发；最终，所有客户端都会看到更新。</p>
+</li>
+</ul>
+<p>最终一致性模型有许多需要考虑的重要变种：</p>
+<ul>
+<li><p><strong>因果一致性（Causal consistency）。</strong> 如果进程 A 通知进程 B 已更新数据项，则进程 B 的后续访问将返回更新后的值，并且保证写入会取代较早的写入。与进程 A 没有因果关系的进程 C 的访问遵循正常的最终一致性规则。</p>
+</li>
+<li><p><strong>读写一致性（Read-your-writes consistency）。</strong> 这是一种重要的模型，其中进程 A 在更新数据项后，始终访问更新的值并且永远不会看到旧值。这是因果一致性模型的一个特例。</p>
+</li>
+<li><p><strong>会话一致性（Session consistency）.</strong> 这是前一模型的实用版本，其中进程在会话上下文中访问存储系统。只要会话存在，系统就保证读写一致性。如果会话由于某种故障场景而终止，则需要创建新会话，并且保证会话之间不会重叠。</p>
+</li>
+<li><p><strong>单调读一致性（Monotonic read consistency）.</strong> 如果进程看到了对象的特定值，则任何后续访问都将永远不会返回任何先前的值。</p>
+</li>
+<li><p><strong>单调写一致性（Monotonic write consistency）.</strong> 在这种情况下，系统保证通过同一进程串行化写入。不保证这种一致性级别的系统是出了名的难以编程。</p>
+</li>
+</ul>
+<p>上述特性可以组合。例如，可以将单调读与会话一致性相结合。 从实践的角度来看，这两个特性（单调读取和读取你的写入）在最终一致性系统中是最可取的，但并非总是必需的。开发者使用这两个特性可以更加简单的构建应用程序，同时允许存储系统放宽一致性并提供高可用性。</p>
+<p>正如您从这些变种中看到的那样，可能存在多种不同的情况。是否可以处理后果取决于特定的应用程序。</p>
+<p>最终一致性并不是极致分布式系统的某些深奥特性。许多提供主备可靠性的现代 RDBMS（关系数据库管理系统）以同步和异步模式实现复制技术。在同步模式下，副本更新是事务的一部分。在异步模式下，更新延迟到达备份，通常是通过日志传送。在后一种模式下，如果主服务器在日志发送之前发生故障，从提升为主的副本中读取，将出现旧的、不一致的值。同样为了支持更好的可扩展读取性能，RDBMS 已经开始提供从备份读取的能力，这是提供最终一致性保证的经典案例，其中不一致窗口取决于日志传送的周期。</p>
+<h4 id="服务器端一致性"><a href="#服务器端一致性" class="headerlink" title="服务器端一致性"></a>服务器端一致性</h4><p>在服务器端，我们需要更深入地了解更新如何流经系统，以了解是什么使得系统的开发人员可以感受到不同的模式。在开始之前，让我们先建立一些定义：</p>
+<p>N = 存储数据副本的节点数<br>W = 更新完成前需要确认收到更新的副本数<br>R = 通过读取操作访问数据对象时联系的副本数</p>
+<p>如果 W + R &gt; N，那么写集和读集始终存在重叠，可以保证强一致性。在实现同步复制技术的主备 RDBMS 场景中：N=2、W=2、R=1，无论客户端从哪个副本读取，总能得到一致的结果。在启用了从备份读取的异步复制中，N=2、W=1、R=1。这种情况下 R + W = N，无法保证一致性。</p>
+<p>这些基本仲裁协议（quorum protocols）配置存在的问题是，当系统由于故障而无法写入 W 节点时，写入操作必须失败，这标志着系统不可用。当 N = 3 和 W = 3 且只有两个节点可用时，系统不得不使写入失败。</p>
+<p>在高性能和高可用性的分布式存储系统中，副本的数量通常大于 2。仅关注容错的系统通常使用 N = 3（W = 2、R = 2）的配置。需要提供非常高的读取负载服务的系统，通常会复制超出容错所需的数据；N 可以是数十甚至数百节点，R 配置为 1，这样单次读取就能返回结果。关注一致性的系统设置为 W = N 以应对更新，这可能会降低写入成功的概率。对于关注容错但不关注一致性的系统，常见配置是以 W = 1 运行，以获得最小的更新持久性，然后依靠延迟（传播）技术来更新其他副本。</p>
+<p>如何配置 N、W 和 R 取决于具体情况以及需要优化的性能路径。在 R = 1 和 N = W 中，我们针对读取情况进行了优化，在 W = 1 和 R = N 中，我们针对快速写入进行了优化。当然，在后一种情况下，出现故障时无法保证持久性，如果 W &lt; (N + 1) / 2，当写集不重叠时，存在冲突写入的可能性。</p>
+<p>当 W+R &lt;= N 时出现弱/最终一致性，这意味着读写集有可能不会重叠。如果这是一个经过深思熟虑的配置，而不是基于失败案例，那么将 R 设置为 1 以外的任何值几乎没有意义。这发生在两种非常常见的情况下：第一种是前面提到的用于读扩展的大规模复制；第二种是数据访问更复杂的地方。在简单的键值模型中，比较版本以确定写入系统的最新值很容易，但在返回对象集的系统中，确定正确的最新集更困难。在大多数写入集小于副本集的系统中，有一种机制以延迟方式将更新应用于副本集中的其余节点。在所有副本都被更新之前的时间段是前面讨论的不一致窗口。如果 W+R &lt;= N，则系统容易从尚未收到更新的节点读取数据。</p>
+<p>读写一致性、会话一致性和单调一致性能否实现，通常取决于客户端对与执行分布式协议服务器的“粘性”。如果每次都是同一台服务器，那么就比较容易保证读写和单调读写。同一台服务器使得管理负载平衡和容错稍微困难一些，却是一个简单的解决方案。使用具有粘性的会话易于理解，并提供客户可以推理的暴露级别。</p>
+<p>有时客户端实现读写和单调读取。通过在写入时添加版本，客户端会丢弃对上次看到的版本之前版本的读取。</p>
+<p>当系统中的某些节点无法连接到其他节点，但客户端组可以访问这两个节点集合时，就会发生分区。如果您使用经典的多数仲裁方法，则在另一个分区变得不可用时，具有复制集的 W 个节点的分区可以继续进行更新。读取集也是如此。假设这两个集合重叠，根据定义，少数集合将变得不可用。分区不经常发生，但它们确实发生在数据中心之间以及数据中心内部。</p>
+<p>在某些应用程序中，任何分区的不可用都是不可接受的，重要的是可以让访问该分区的客户端继续运行。在这种情况下，双方分配一组新的存储节点来接收数据，并在分区愈合时执行合并操作。例如，在亚马逊内部，购物车使用一种永远写入的系统；在分区的情况下，即使原始购物车位于其他分区上，客户也可以继续将商品放入购物车。一旦分区恢复，购物车应用程序将协助存储系统合并购物车。</p>
+<h3 id="亚马逊-Dynamo"><a href="#亚马逊-Dynamo" class="headerlink" title="亚马逊 Dynamo"></a>亚马逊 Dynamo</h3><p>亚马逊的 <a target="_blank" rel="noopener" href="http://www.allthingsdistributed.com/2007/10/amazons_dynamo.html">Dynamo</a> 就是这样一个系统，将所有这些特性都置于应用程序体系结构的显式控制之下。它是一个键值存储系统，跟 AWS（Amazon’s Web Service）一样，在亚马逊电子商务平台的服务内部广泛使用。Dynamo 的设计目标之一是允许应用程序的所有者、创建 Dynamo 存储系统实例者，在一致性、持久性、可用性和性能之间进行权衡，而 Dynamo 存储系统通常跨越多个数据中心。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>在大规模可靠的分布式系统中，有两个必须容忍数据不一致的原因：在高并发条件下改善读写性能；以及处理大多数模型会导致部分系统不可用的分区情况，即使节点已启动并正在运行。</p>
+<p>不一致性是否可接受取决于客户端应用程序。在所有情况下，开发人员都需要意识到，一致性保证是由存储系统提供的，在开发应用程序时需要加以考虑。最终一致性模型有许多实际的改进，例如会话一致性和单调读，它们给开发人员提供了更好的工具。很多时候，应用程序能够毫无问题地处理存储系统的最终一致性保证。一个特别流行的例子是一个网站，在这个网站中我们可以有用户感知一致性的概念。在这种情况下，不一致窗口需要小于客户加载下一个页面的预期时间。使得在预期下一次读取之前，将更新传播到整个系统。</p>
+<p>本文的目标是提高对工程系统复杂性的认识，这些系统需要在全球范围内运行，并且需要仔细调优，以确保它们能够提供应用程序所需的持久性、可用性和性能。系统设计者拥有的工具之一就是一致性窗口的长度，在此期间，系统的客户端可能会接触到大规模系统工程的实相。</p>
+<h3 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h3><ol>
+<li>Brewer, E. A. 2000. <a target="_blank" rel="noopener" href="http://www.cs.berkeley.edu/~brewer/cs262b-2004/PODC-keynote.pdf">Towards robust distributed systems (abstract)</a>. In <em>Proceedings of the 19th Annual ACM Symposium on Principles of Distributed Computing</em> (July 16-19, Portland, Oregon): 7</li>
+<li><a target="_blank" rel="noopener" href="http://acmqueue.com/modules.php?name=Content&pa=showpage&pid=233">A Conversation with Bruce Lindsay.</a> 2004. ACM Queue 2(8): 22-33.</li>
+<li>DeCandia, G., Hastorun, D., Jampani, M., Kakulapati, G., Lakshman, A., Pilchin, A., Sivasubramanian, S., Vosshall, P., Vogels, W. 2007. <a target="_blank" rel="noopener" href="http://www.allthingsdistributed.com/2007/10/amazons_dynamo.html">Dynamo: Amazon’s highly available key-value store</a>. In Proceedings of the 21st ACM <em>Symposium on Operating Systems Principles</em> (Stevenson, Washington, October).</li>
+<li>Gilbert , S., Lynch, N. 2002. <a target="_blank" rel="noopener" href="http://portal.acm.org/citation.cfm?doid=564585.564601">Brewer’s conjecture and the feasibility of consistent, available, partition-tolerant Web services</a>. ACM SIGACT News 33(2).</li>
+<li>Lindsay, B. G., Selinger, P. G., et al. 1980. Notes on distributed databases. In <em>Distributed Data Bases, ed. I</em>. W. Draffan and F. Poole, 247-284. Cambridge: Cambridge University Press. Also available as IBM Research Report RJ2517, San Jose, California (July 1979).</li>
+</ol>
+<p>原文链接：<a target="_blank" rel="noopener" href="http://www.allthingsdistributed.com/2008/12/eventually_consistent.html">http://www.allthingsdistributed.com/2008/12/eventually_consistent.html</a></p>
+<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-26-2021/eventually-consistent-cn.html">https://www.cyningsun.com/06-26-2021/eventually-consistent-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/07-19-2021/go-higher-order-function.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/06-15-2021/memory-management-physical-memory.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>
