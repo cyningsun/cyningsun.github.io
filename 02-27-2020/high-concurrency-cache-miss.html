@@ -194,7 +194,7 @@ gtag('config', 'UA-156665333-1');
 </ol>
 <p>缓存命中（Cache Hit），符合我们预期，喜闻乐见；缓存未命中（Cache Miss），就很有可能要了老命。各种称谓也很繁杂</p>
 <blockquote>
-<p>国内按照场景分称为：缓存击穿、缓存穿透、缓存雪崩<br>国外使用不同词汇表达同一含义：<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Thundering_Herd">Thundering Herd</a>、<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Cache_stampede">Cache stampede</a>、<a target="_blank" rel="noopener" href="https://books.google.com/books?id=daDAnXPnRkcC&pg=PA353">Dog-Pile Effect</a></p>
+<p>国内按照场景分称为：缓存击穿、缓存穿透、缓存雪崩<br>国外使用不同词汇表达同一含义：<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Thundering_Herd">Thundering Herd</a>、<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Cache_stampede">Cache stampede</a>、<a target="_blank" rel="noopener" href="https://books.google.com/books?id=daDAnXPnRkcC&amp;pg=PA353">Dog-Pile Effect</a></p>
 </blockquote>
 <p>以下的篇幅分场景来讲下缓存不命中的场景和常见的解决方案</p>
 <h3 id="数据不在缓存"><a href="#数据不在缓存" class="headerlink" title="数据不在缓存"></a>数据不在缓存</h3><h4 id="Cold-cache"><a href="#Cold-cache" class="headerlink" title="Cold cache"></a>Cold cache</h4><p>缓存最好是使用渐进式策略进行warmup，要做到业务无感就需要引入中间组件，例如Facebook使用 mcrouter 来预热新机群</p>
@@ -213,19 +213,13 @@ gtag('config', 'UA-156665333-1');
 <li>Facebook：使用 <a target="_blank" rel="noopener" href="https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final170_update.pdf">Leases</a> 机制，保证同一时间只有第一个访问到不在缓存的请求可以访问下游，并将其添加到缓存；其他请求则返回未命中，然后等待一段时间再次尝试访问缓存。</li>
 </ul>
 <h3 id="数据不存在"><a href="#数据不存在" class="headerlink" title="数据不存在"></a>数据不存在</h3><p>对于数据不存在的情况，尽量通过参数校验的情况予以拦截。拿公众号文章的链接举例:</p>
-<p><strong>早期</strong></p>
-<pre><code class="hljs go">http:<span class="hljs-comment">//mp.weixin.qq.com/s?__biz=MzAwNTMxMzg1MA==&amp;mid=2654067776&amp;idx=1&amp;sn=b4c1261a785a59dd6268142b0b358b50&amp;scene=4#wechat_redirect</span></code></pre>
-<p>可以看到该链接中几个关键的请求参数：</p>
+<p><strong>早期</strong><br><pre><code class="hljs go">http:<span class="hljs-comment">//mp.weixin.qq.com/s?__biz=MzAwNTMxMzg1MA==&amp;mid=2654067776&amp;idx=1&amp;sn=b4c1261a785a59dd6268142b0b358b50&amp;scene=4#wechat_redirect</span></code></pre><br>可以看到该链接中几个关键的请求参数：</p>
 <blockquote>
 <p>__biz=MzAwNTMxMzg1MA== // 公众号ID base64<br>mid=2654067776        // 推送ID<br>idx=1                // 消息位置（每次推送有多篇文章）</p>
 </blockquote>
 <p>有这些参数，完全可以随意拼接参数，伪造URL爬取微信公众号的数据。如果URL并没有对应的数据，那么微信就会遇到数据不存在穿透到下层存储的问题。</p>
-<p><strong>中期</strong></p>
-<pre><code class="hljs go">http:<span class="hljs-comment">//mp.weixin.qq.com/s?timestamp=1469352451&amp;src=3&amp;ver=1&amp;signature=56kgMk71dIMM59VsUWlueRZ1ljkNODBEgrW78vmgXfJs82nkMESO8W*7EXf2ylOyamiUvL0zQ5OAfVraI8tPp-Hhdzv5WRQKSPa-MF6hiFMZf7rqxmZRvsYsd-7WSsy5qiafAQNfxBSkWzSulgB575CWRYnn6QZTRJ4NdR*gs0s=</span></code></pre>
-<p>唔，带上时间戳了，不太好搞了，但是如果知道签名策略，仍然可以解出来必需的访问参数</p>
-<p><strong>最新</strong></p>
-<pre><code class="hljs go">https:<span class="hljs-comment">//mp.weixin.qq.com/s/zCyzv_DRzLSUjhs5E9gZtQ</span></code></pre>
-<p>最新版就丧心病狂了，直接转成了短链接，外部人员丝毫没有办法，完美解决了问题。</p>
+<p><strong>中期</strong><br><pre><code class="hljs go">http:<span class="hljs-comment">//mp.weixin.qq.com/s?timestamp=1469352451&amp;src=3&amp;ver=1&amp;signature=56kgMk71dIMM59VsUWlueRZ1ljkNODBEgrW78vmgXfJs82nkMESO8W*7EXf2ylOyamiUvL0zQ5OAfVraI8tPp-Hhdzv5WRQKSPa-MF6hiFMZf7rqxmZRvsYsd-7WSsy5qiafAQNfxBSkWzSulgB575CWRYnn6QZTRJ4NdR*gs0s=</span></code></pre><br>唔，带上时间戳了，不太好搞了，但是如果知道签名策略，仍然可以解出来必需的访问参数</p>
+<p><strong>最新</strong><br><pre><code class="hljs go">https:<span class="hljs-comment">//mp.weixin.qq.com/s/zCyzv_DRzLSUjhs5E9gZtQ</span></code></pre><br>最新版就丧心病狂了，直接转成了短链接，外部人员丝毫没有办法，完美解决了问题。</p>
 <p>对于无法通过数据拦截的，则需要根据依赖额外的过滤器来进行甄别，例如：<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Bloom_filter">Bloom filter</a>、<a target="_blank" rel="noopener" href="https://coolshell.cn/articles/17225.html">Cuckoo filter</a> 等。以容忍误报置换空间，节约存储资源</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>除了以上常规且通用的处理方案，业界还有各种贴合业务场景的方案，在此不过多涉及。</p>
 <blockquote>
@@ -236,15 +230,14 @@ gtag('config', 'UA-156665333-1');
 <li>Randomize TTL values</li>
 </ul>
 </blockquote>
-<br/>
-
+<p><br/></p>
 <p>参考链接 </p>
 <ol>
 <li><a target="_blank" rel="noopener" href="https://engineering.fb.com/web/introducing-mcrouter-a-memcached-protocol-router-for-scaling-memcached-deployments/">https://engineering.fb.com/web/introducing-mcrouter-a-memcached-protocol-router-for-scaling-memcached-deployments/</a></li>
 <li><a target="_blank" rel="noopener" href="https://github.com/leafney/wxSpider/blob/master/GETCONTENT.md">https://github.com/leafney/wxSpider/blob/master/GETCONTENT.md</a></li>
 <li><a target="_blank" rel="noopener" href="https://instagram-engineering.com/thundering-herds-promises-82191c8af57d">https://instagram-engineering.com/thundering-herds-promises-82191c8af57d</a></li>
 </ol>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/02-27-2020/high-concurrency-cache-miss.html">https://www.cyningsun.com/02-27-2020/high-concurrency-cache-miss.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/02-27-2020/high-concurrency-cache-miss.html">https://www.cyningsun.com/02-27-2020/high-concurrency-cache-miss.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -296,7 +289,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

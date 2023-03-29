@@ -199,9 +199,9 @@ gtag('config', 'UA-156665333-1');
 <p>3.select count(*)要比select count(primary key)快速，前者会优先选择使用辅助索引(size小)而不是聚集索引(size大)。因为减少I/O，所以速度更快。    </p>
 <p>熟悉索引类型，BTree索引(聚簇索引、非聚簇索引)、Hash索引、全文索引。更深入的了解Innodb，才能更好的使用它，扩展资料：<br>Innodb文件格式：<a target="_blank" rel="noopener" href="http://www.slideshare.net/mysqlops/innodb-internal-9032556">http://www.slideshare.net/mysqlops/innodb-internal-9032556</a><br>Innodb源码实现分析：<a target="_blank" rel="noopener" href="http://www.slideshare.net/frogd/my-sql-innodb">http://www.slideshare.net/frogd/my-sql-innodb</a></p>
 <h3 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h3><p>1.区分状态数据的业务含义与物理含义<br>2.查询条件语句不是越多越好，只留下使用索引和必需的条件即可<br>3.尽量为所有查询设计索引，使用explain语句验证所有的语句使用了索引。更快的读，更慢的写。数据量达到50万级别时，全量搜索将不可用(0.9s左右)。<br>4.设计接口时，所有不走索引的接口都应该从业务角度来考量，寻找替代的解决方案<br>5.数据分页排序一定要使用索引分页排序，即一定要有唯一主键，而非联合主键。<br>6.MySQL不适合大数据量的模糊搜索，如果需要模糊查找的字段过多，sphinx应该是个不错的替代方案</p>
-<h3 id="更新日记"><a href="#更新日记" class="headerlink" title="更新日记"></a>更新日记</h3><p>2014-09-09 ———-创建文档<br>2015-11-10 ———-新增分页排序、模糊查找相关内容</p>
+<h3 id="更新日记"><a href="#更新日记" class="headerlink" title="更新日记"></a>更新日记</h3><p>2014-09-09 —————创建文档<br>2015-11-10 —————新增分页排序、模糊查找相关内容</p>
 <p>(完)</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-09-2014/data-persistence.html">https://www.cyningsun.com/09-09-2014/data-persistence.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-09-2014/data-persistence.html">https://www.cyningsun.com/09-09-2014/data-persistence.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -240,7 +240,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

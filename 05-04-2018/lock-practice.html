@@ -190,12 +190,12 @@ gtag('config', 'UA-156665333-1');
         <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>随着内部重点服务接入的内容越来越多，维护各种内容的动态信息(例如：播放量，删除状态等)的成本越来越高。独立出一个内容服务成为很自然的选择。</p>
 <blockquote>
 <p>内容提供方按照调用快慢依次：</p>
-</blockquote>
 <ul>
 <li>NoSQL数据库：耗时5ms以下</li>
 <li>BG内部服务：耗时10~20ms左右</li>
 <li>外BG服务：耗时50ms+</li>
 </ul>
+</blockquote>
 <p>由于内容经常会出现下线，而下线的内容一般在推荐结果中的位于头部，较大可能逃脱推荐服务的若干次截断，如果只在最终返回给用户的时候再进行过滤，就会出现部分类目的内容空白或者缺失。考虑到后端接口的性能，内容服务使用了二次过滤的方式来保证，因此服务提供了两个接口：</p>
 <blockquote>
 <p>前置接口：粗粒度的状态过滤<br>后置接口：内容获取与状态再过滤</p>
@@ -232,7 +232,7 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <p>而且对象的拷贝发生在临界区内，直接影响了持有锁的时间，而这些拷贝都可以通过share_ptr来避免，而过期对象的析构也可以通过异步处理来优化，这样大大减少了持有锁的时间，明显降低了锁冲突的概率。</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>通过以上优化服务的并发成倍提升，耗时降低为第一版的一半，相同QPS CPU消耗降低三分之一，锁优化为缓存强依赖的服务带来明显收益。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-04-2018/lock-practice.html">https://www.cyningsun.com/05-04-2018/lock-practice.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-04-2018/lock-practice.html">https://www.cyningsun.com/05-04-2018/lock-practice.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -271,7 +271,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>TCP/IP 网络设备与基础概念</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-03-19 00:00:00 +0800"/>
+<meta property="og:url" content="/03-19-2023/network-device-and-concept.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="作者序 本文目的在于按照自己的理解，解释清楚网络中的一些基本概念，以及支撑概念落地的网络设备的工作原理。从而解决网络联通性问题，以及为定量分析网络性能问题打基础。如有错漏，欢迎指正： 什么是 WAN vs LAN？ 什么是子网、网关？ LAN vs 子网有什么区别？ 路由器、交换机、集线器 有什么区别？ LAN vs VLAN ？ L2 交换机 vs L3 ">
+
+<meta name="keywords" content="网络设备、概念、路由器、交换机,网络拓扑、数据传输、网络性能、网络架构">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>TCP/IP 网络设备与基础概念</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%8F%E8%AE%AE%E6%A0%88"><span class="toc-text">协议栈</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87"><span class="toc-text">网络设备</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B7%AF%E7%94%B1%E5%99%A8"><span class="toc-text">路由器</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B7%AF%E7%94%B1%E9%80%89%E6%8B%A9"><span class="toc-text">路由选择</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%88%86%E7%BB%84%E8%BD%AC%E5%8F%91"><span class="toc-text">分组转发</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#TTL"><span class="toc-text">TTL</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BA%A4%E6%8D%A2%E6%9C%BA"><span class="toc-text">交换机</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#VLAN"><span class="toc-text">VLAN</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E4%B8%89%E5%B1%82%E4%BA%A4%E6%8D%A2%E6%9C%BA"><span class="toc-text">三层交换机</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%9B%86%E7%BA%BF%E5%99%A8"><span class="toc-text">集线器</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AE%80%E5%8D%95%E6%B5%8B%E8%AF%95"><span class="toc-text">简单测试</span></a></li></ol>
+ 
+        <blockquote>
+<p><strong>作者序</strong></p>
+<p>本文目的在于按照自己的理解，解释清楚网络中的一些基本概念，以及支撑概念落地的网络设备的工作原理。从而解决网络联通性问题，以及为定量分析网络性能问题打基础。如有错漏，欢迎指正：</p>
+<ol>
+<li>什么是 WAN vs LAN？</li>
+<li>什么是子网、网关？</li>
+<li>LAN vs 子网有什么区别？</li>
+<li>路由器、交换机、集线器 有什么区别？</li>
+<li>LAN vs VLAN ？</li>
+<li>L2 交换机 vs L3</li>
+<li>交换机有什么区别？</li>
+</ol>
+</blockquote>
+<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>网络世界与现实世界在许多方面运作方式相似。就像现实世界中的地址一样，划分国家、省市、街道、小区。邮递员以此高效的将快递正确送达每家每户。在网络世界中，IP 地址是用于唯一标识网络中的设备的，但是当网络规模变得很大时，就需要将 IP 地址进行划分，划分为若干个子网。子网使网络更高效。通过子网划分，网络流量传播距离更短，无需通过不必要的路由器即可到达目的地。</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131221.png" alt=""></p>
+<p>子网划分的过程需要在网络层上进行，可以通过在 IP 地址中使用子网掩码（Subnet Mask）来划分子网。子网掩码是一个 32 位的二进制数，与 IP 地址进行逻辑运算，可以将网络号和主机号进行区分。</p>
+<blockquote>
+<p>例如，如果将 IP 地址（192.168.1.0）分成 4 个子网，可以使用 255.255.255.192 的子网掩码进行划分，得到四个子网：</p>
+<ul>
+<li>192.168.1.0/26</li>
+<li>192.168.1.64/26</li>
+<li>192.168.1.128/26</li>
+<li>192.168.1.192/26</li>
+</ul>
+</blockquote>
+<p>不难看出，网络世界的运作很类似“分治策略”，可以将以上网络模型简化为 “子问题”（广域网 WAN） + 初始值（局域网 LAN）</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131221-1.png" alt=""></p>
+<p>局域网（LAN, Local Area Network）是指在较小的地理范围内，由计算机、打印机、服务器等设备组成的局域网，它们可以通过物理链路或者无线信号相互连接，形成一个逻辑上的网络。在 LAN 中，所有设备可以直接通信，不需要经过路由器进行 IP 路由，因此都处于同一个广播域内。</p>
+<p>广域网（WAN, Wide Area Network）是一种大型计算机网络，用于远距离连接不同的计算机组。大型企业通常使用 WAN 来连接其办公网络；每一办事处通常有自己的局域网（或 LAN），这些 LAN 通过 WAN 相连。</p>
+<p>在此模型下，首先回顾下协议栈的分层；然后，再来认识网络设备是如何落地协议栈，并完成工作的。</p>
+<h3 id="协议栈"><a href="#协议栈" class="headerlink" title="协议栈"></a>协议栈</h3><p>TCP/IP 包含如下两个头部。</p>
+<ul>
+<li>MAC 头部（以太网协议）</li>
+<li>IP 头部（IP 协议）</li>
+</ul>
+<blockquote>
+<p>协议栈分层中 IP 和 Ethernet 分开的目的在于支撑除了以太网在内的各种通信技术，例如无线局域网、ADSL、FTTH 等。它们都可以替代以太网的角色帮助 IP 协议来传输网络包。</p>
+</blockquote>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222.png" alt=""><br>两个头部分别具有不同的作用。首先，发送方将包的目的地，也就是要访问的服务器的 IP 地址写入 IP 头部中。如此就知道这个包应该发往哪里，IP 协议就可以根据这一地址查找包的传输方向，从而找到下一个路由器的位置。接下来，IP 协议会委托以太网协议将包传输过去。IP 协议会查找下一个路由器的以太网地址（MAC 地址），将包将地址写入 MAC 头部中。如此，以太网协议就知道要将这个包发到哪一个路由器。</p>
+<p>同时，也意味着，经过每一跳的网络设备都会经过“解包”和“封包”，最核心的变化是 MAC 地址会被更新为下一跳的网络设备的地址（IP 地址保持不变）</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222-1.png" alt=""></p>
+<h3 id="网络设备"><a href="#网络设备" class="headerlink" title="网络设备"></a>网络设备</h3><p>现如今，网络设备的集成度越来越高，像上图这样使用独立设备的情况很少见。例如家用路由器，集成了集线器和交换机的功能。</p>
+<p>不过，把每个功能独立出来更容易理解，而且理解了这种模式之后，也就能理解集成多种功能的设备，因此下面将所有功能独立出来，逐个来进行探索。</p>
+<ul>
+<li>三层网络设备，支持物理层, 数据链路层及网络层协议，例如：路由器</li>
+<li>二层网络设备，支持物理层和数据链路层协议，例如：以太网交换机</li>
+<li>一层网络设备，只支持物理层协议，例如：HUB</li>
+</ul>
+<h4 id="路由器"><a href="#路由器" class="headerlink" title="路由器"></a>路由器</h4><p>路由器作为三层网络设备的代表，在其中扮演着非常重要的角色。路由器先构建路由表，以确定如何将数据包从一个网络转发到另外一个网络。</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222-2.png" alt=""></p>
+<p>路由的核心功能可以分为两个部分，“<strong>路由选择</strong>”（确定通过网络的最佳路径的任务） 和 <strong>“分组转发</strong>”（将数据包从一个接口移动到另一个接口的任务）。就像计算机一样，通过更换网卡（NIC），路由器不仅可以支持以太网，也可以支持无线局域网。</p>
+<h5 id="路由选择"><a href="#路由选择" class="headerlink" title="路由选择"></a>路由选择</h5><p>路由表是路由器中的一个表格，包含着可用的路由信息，包括目标网络地址和下一跳路由器的地址。当路由器接收到一个数据包时，会将数据包的目标 IP 地址与每一条路由表项的目的 IP 地址进行匹配。如果有多条匹配的路由表项，则选择最长的前缀匹配，并将数据包转发到该前缀所对应的网络。</p>
+<blockquote>
+<p>最长的前缀匹配指的是，路由表项中目的 IP 地址的子网掩码位数最长的项。例如，路由表中有以下三条路由表项：</p>
+<ul>
+<li>10.0.0.0/8</li>
+<li>10.1.0.0/16</li>
+<li>0.0.0.0/0</li>
+</ul>
+<p>当路由器收到一个目标 IP 地址为 10.1.2.3 的数据包时，会先与第二个路由表项（10.1.0.0/16）进行匹配，因为它的前缀长度更长（16 位）比第一个路由表项（8 位）更精确。因此，路由器会将数据包转发到与第二个路由表项对应的下一跳路由器。</p>
+</blockquote>
+<p>路由器拥有内网的 IP 路由表，同时还拥有一条神奇的路由 0.0.0.0/0。0.0.0.0/0 路由是一种默认路由，也称为默认网关或缺省路由。它指示路由器在找不到更具体的路由表项来匹配目标 IP 地址时，将数据包发送到默认网关，最终到达核心网。</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222-3.png" alt=""></p>
+<p>路由器有一个非常独立的控制体系。先有控制层面，再有数据层面。先有控制层面，才会知道一个一个网络怎么走，知道网络怎么走之后，再基于数据层面，接收数据，查读路由表，来进行数据转发。路由表的构建方式有以下几种方式：</p>
+<ol>
+<li>直连路由：路由器会扫描每个接口，确定网络地址和掩码，并将其添加到路由表中。</li>
+<li>静态路由：管理员可以手动配置静态路由信息，包括目标网络地址和下一跳路由器的地址。</li>
+<li>动态路由协议：路由器可以使用动态路由协议来动态学习路由信息。常见的动态路由协议包括 OSPF、BGP、RIP 等。</li>
+</ol>
+<h5 id="分组转发"><a href="#分组转发" class="headerlink" title="分组转发"></a>分组转发</h5><p><strong>接收到的数据包由链路层协议控制器</strong>处理，该控制器处理物理链路（电缆）上使用的链路层协议，会检查接收到的帧的完整性（大小、校验和、地址等）。有效帧通过去除链路层报头（解封）转换为数据包，并在接收队列中排队。这通常是一个先进先出 (FIFO) 队列，通常采用内存缓冲区环的形式。</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222-4.png" alt=""></p>
+<p>每个传出数据包都需要添加一个新的链路层协议报头（封装），并将目标地址设置为下一个接收数据包的系统。链路协议控制器还维护与接口相关的 <strong>硬件地址表。</strong> 通常涉及使用地址解析协议 ( ARP) 找出直接连接到同一电缆（或 LAN ）的其他计算机或路由器的硬件（MAC 地址).  数据包最终使用媒体接口发送，硬件地址设置为下一跳系统。</p>
+<h5 id="TTL"><a href="#TTL" class="headerlink" title="TTL"></a>TTL</h5><p>为了确保 IP 数据包在网络上具有有限的生存期，所有 IP 数据包都有一个 8 位的 TTL（IPv4）或 Hop Limit（IPv6）报头字段和值，当一个路由器接收到一个数据包时，它会将 TTL 或 Hop Limit 减 1，然后再将数据包转发到下一个路由器。如果 TTL 或 Hop Limit 的值减少到 0，路由器将丢弃数据包并向源主机发送 ICMP 错误消息，通知它数据包已经超时。</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222-5.png" alt=""></p>
+<h4 id="交换机"><a href="#交换机" class="headerlink" title="交换机"></a>交换机</h4><p>MAC 地址是硬件地址，与设备的网卡绑定，二层交换机通过学习连接的每个终端的 MAC 地址，将数据发送给对应的目 的终端上，避免将数据发送到无关端口，提供了网络利用率。下次再遇到相同的 MAC 地址时，可以直接从缓存中获取对应的端口信息。</p>
+<p>另外一种情况，由于广播域（二层互通）的存在，每个设备都能够直接访问到同一广播域内的所有其他设备。如果是没有学习到的 MAC 地址，或者想跟网段内所有终端进行通信，交换机会使用广播方式，将数据帧进行泛洪，无需对目标设备进行地址解析和寻址，可以更快速地定位和转发数据包。然后只有相应的接收者才接收包，而其他设备则会忽略这个包。</p>
+<blockquote>
+<p>举例，有三台电脑连接同一台交换机，计算机的 MAC 地址简化为 AAA、BBB 和 CCC。现在，假设计算机 A 要向计算机 B 发送一些信息：</p>
+<p>交换机将建立一个 MAC 地址表，并且只从源 MAC 地址中学习。此时，它刚刚得知计算机 A 的 MAC 地址在接口 1 上。它现在将在其 MAC 地址表中添加此信息。但交换机目前没有计算机 B 所在位置的信息。因此只能将此帧从其所有除来源之外的接口中洪泛出来。计算机 B 和计算机 C 将接收该以太网帧。</p>
+<p>由于计算机 B 将其 MAC 地址视为该以太网帧的目的地，它知道它是为他准备的，计算机 C 将丢弃它。计算机 B 将响应计算机 A，构建一个以太网帧并将其发送给交换机。此时，交换机将学习计算机 B 的 MAC 地址。</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230319232033.png" alt=""></p>
+</blockquote>
+<h5 id="VLAN"><a href="#VLAN" class="headerlink" title="VLAN"></a>VLAN</h5><p>当同一个交换机下主机越来越多，网络规模越大，广播域就越大，泛洪流量也越来越大，降低通信效率。在一个广播域内的任意两台主机之间可以任意通信，通信数据有被窃取的风险。</p>
+<p>有两种方案可以解决这个问题：</p>
+<ol>
+<li>物理隔离：使用更多的交换机，配置为不同的子网</li>
+<li>逻辑隔离：即，VLAN，使用交换机虚拟出来多个子网</li>
+</ol>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222-7.png" alt=""></p>
+<p>对于分布在不同交换机之下同一个 VLAN 的主机如何互达呢？对于支持 VLAN 的交换机，有一种口叫作 Trunk 口。它可以转发属于任何 VLAN 的口。交换机之间可以通过这种口相互连接，即可保证同一个 VLAN 互达。</p>
+<h5 id="三层交换机"><a href="#三层交换机" class="headerlink" title="三层交换机"></a>三层交换机</h5><p>二层交换机通过使用 VLAN 分隔广播域，位于同一个 VLAN 下的终端才能进 行数据帧交互。对于不同 VLAN 的终端有通信需求时，就必须使用路由功能， 也就是需要额外添加路由器。二层交换机和路由器组合使用，才能完成跨 VLAN 的通信。基于类似的需求，三层交换机应运而生。使用三层交换机就不需要其它网络设备，能够直接完成不同 VLAN 之间的通信。</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222-8.png" alt=""></p>
+<h4 id="集线器"><a href="#集线器" class="headerlink" title="集线器"></a>集线器</h4><p>集线器工作在物理层，以太网 LAN 的一种中继器形式，具有多个端口（它们有时也称为“多端口中继器”或“活动星形网络”）。</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308131222-9.png" alt=""></p>
+<p>每个端口（或接口）允许一台设备连接到集线器。通过端口 F 连接的系统正在向端口 C 连接的系统发送一帧数据。集线器由于工作于物理层，无法识别帧头中的地址，因此无法识别要发送到哪个端口到。因此，采用“广播模式”，每一帧都被发送到每个输出端口，然后让主机来判断是否需要。</p>
+<h3 id="简单测试"><a href="#简单测试" class="headerlink" title="简单测试"></a>简单测试</h3><blockquote>
+<p>举例来源：《Wireshark 网络分析就这么简单》</p>
+</blockquote>
+<p>两台服务器 A 和 B 的网络配置如下图，B 的子网掩码本应该是 255.255.255.0，被不小心配成了 255.255.255.224。它们还能正常通信吗？</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308150939.png" alt=""></p>
+<ul>
+<li>答案 1：“A 和 B 不能通信，因为……如果这样都行的话，子网掩码还有什么用？”（这位的反证法听上去很有道理！）</li>
+<li>答案 2：“A 和 B 能通信，因为它们可以通过 ARP 广播获得对方的 MAC 地址。”（那子网掩码还有什么用？楼上的反证法用来反驳这位正好。）</li>
+<li>答案 3：“A 和 B 能通信，但所有包都要通过默认网关 192.168.26.2 转发。”（请问这么复杂的结果你是怎么想到的？）</li>
+<li>答案 4：“A 和 B 不能通信，因为 ARP 不能跨子网。”（这个答案听上去真像是经过认真思考的。）</li>
+</ul>
+<p>以上哪个答案是正确的？还是都不正确？如果这是你第一次听到这道题，不妨停下来思考一下。</p>
+<p>答案揭晓：B 先把请求交给默认网关，默认网关再转发给 A。而 A 收到请求后直接回复给 B，形成如下所示的三角形环路。不知道你答对了吗？</p>
+<p><img src="/images/network-device-and-concept/TCP%20IP%20网络基础概念-20230308151529.png" alt=""></p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-19-2023/network-device-and-concept.html">https://www.cyningsun.com/03-19-2023/network-device-and-concept.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Network" rel="category"># Network</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/03-30-2023/network-transmission.html">TCP/IP 网络传输</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/03-30-2023/network-transmission.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/03-12-2023/how-to-store-objects-in-redis.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

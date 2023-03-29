@@ -242,7 +242,7 @@ fmt.Printf(<span class="hljs-string">&quot;%v\n&quot;</span>, resp.StatusCode)</
 <span class="hljs-keyword">import</span> <span class="hljs-string">&quot;fmt&quot;</span>
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
-    ch := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-keyword">bool</span>, <span class="hljs-number">2</span>)
+    ch := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-type">bool</span>, <span class="hljs-number">2</span>)
     ch &lt;- <span class="hljs-literal">true</span>
     ch &lt;- <span class="hljs-literal">true</span>
     <span class="hljs-built_in">close</span>(ch)
@@ -254,22 +254,20 @@ fmt.Printf(<span class="hljs-string">&quot;%v\n&quot;</span>, resp.StatusCode)</
 <li>nil 的 channel 总是阻塞<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
-    <span class="hljs-keyword">var</span> ch <span class="hljs-keyword">chan</span> <span class="hljs-keyword">bool</span>
+    <span class="hljs-keyword">var</span> ch <span class="hljs-keyword">chan</span> <span class="hljs-type">bool</span>
     ch &lt;- <span class="hljs-literal">true</span> <span class="hljs-comment">// blocks forever</span>
 &#125;</code></pre></li>
 <li>buffered/unbuffered channel 介于两者之间，会因为 channel 是否可以读写阻塞</li>
 </ul>
 </blockquote>
-<p>那么究竟如何判断 channel 能否读写呢？答案就是 select。</p>
-<pre><code class="hljs go"><span class="hljs-keyword">select</span>&#123;
+<p>那么究竟如何判断 channel 能否读写呢？答案就是 select。<br><pre><code class="hljs go"><span class="hljs-keyword">select</span>&#123;
 <span class="hljs-keyword">case</span> channel_send_or_receive:
     <span class="hljs-comment">//Dosomething</span>
 <span class="hljs-keyword">case</span> channel_send_or_receive:
     <span class="hljs-comment">//Dosomething</span>
 <span class="hljs-keyword">default</span>:
     <span class="hljs-comment">//Dosomething</span>
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <h3 id="协程退出"><a href="#协程退出" class="headerlink" title="协程退出"></a>协程退出</h3><p>说了这么多，协程怎么退出呢？相信通过以上部分很容易得到结论：</p>
 <ul>
 <li>超时返回</li>
@@ -298,16 +296,15 @@ fmt.Printf(<span class="hljs-string">&quot;%v\n&quot;</span>, resp.StatusCode)</
 <li>获取协程最终返回的错误</li>
 </ul>
 <blockquote>
-<p>举个例子：errgroup</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span> <span class="hljs-title">Wait</span><span class="hljs-params">()</span> <span class="hljs-title">error</span></span> &#123;
+<p>举个例子：errgroup<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> Wait() <span class="hljs-type">error</span> &#123;
     g.wg.Wait()
     <span class="hljs-keyword">if</span> g.cancel != <span class="hljs-literal">nil</span> &#123;
         g.cancel()
     &#125;
     <span class="hljs-keyword">return</span> g.err
-&#125;</code></pre>
+&#125;</code></pre></p>
 </blockquote>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/01-31-2021/go-concurrency-goroutine-exit.html">https://www.cyningsun.com/01-31-2021/go-concurrency-goroutine-exit.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/01-31-2021/go-concurrency-goroutine-exit.html">https://www.cyningsun.com/01-31-2021/go-concurrency-goroutine-exit.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -363,7 +360,7 @@ fmt.Printf(<span class="hljs-string">&quot;%v\n&quot;</span>, resp.StatusCode)</
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

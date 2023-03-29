@@ -202,7 +202,7 @@ gtag('config', 'UA-156665333-1');
 <p>想必不会。</p>
 <h3 id="Good-design"><a href="#Good-design" class="headerlink" title="Good design"></a>Good design</h3><p>但这是一个进步，现在我们可以说“我不喜欢它，因为它太难修改”，或“我不喜欢它，因为我不知道代码试图做什么”，但如何正向引导呢？</p>
 <p>如果有一些方法可以描述糟糕的设计，以及优秀设计的特征，并且能够以客观的方式做到这一点，那不是很好吗？</p>
-<h4 id="SOLID"><a href="#SOLID" class="headerlink" title="SOLID"></a>SOLID</h4><p>2002年，Robert Martin 出版了他的书 <a target="_blank" rel="noopener" href="https://www.amazon.co.uk/dp/0135974445/ref=pd_lpo_sbs_dp_ss_2/253-1946330-6751666?pf_rd_m=A3P5ROKL5A1OLE&pf_rd_s=lpo-top-stripe&pf_rd_r=23C4AHYV7EXGYHKD6G8Q&pf_rd_t=201&pf_rd_p=569136327&pf_rd_i=0132760584"><em>Agile Software Development, Principles, Patterns, and Practices</em></a> 其中描述了可重用软件设计的五个原则，并称之为 <a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/SOLID_(%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1)"><code>SOLID</code></a>（英文首字母缩写）原则:</p>
+<h4 id="SOLID"><a href="#SOLID" class="headerlink" title="SOLID"></a>SOLID</h4><p>2002年，Robert Martin 出版了他的书 <a target="_blank" rel="noopener" href="https://www.amazon.co.uk/dp/0135974445/ref=pd_lpo_sbs_dp_ss_2/253-1946330-6751666?pf_rd_m=A3P5ROKL5A1OLE&amp;pf_rd_s=lpo-top-stripe&amp;pf_rd_r=23C4AHYV7EXGYHKD6G8Q&amp;pf_rd_t=201&amp;pf_rd_p=569136327&amp;pf_rd_i=0132760584"><em>Agile Software Development, Principles, Patterns, and Practices</em></a> 其中描述了可重用软件设计的五个原则，并称之为 <a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/SOLID_(%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1"><code>SOLID</code></a>)（英文首字母缩写）原则:</p>
 <ul>
 <li>单一职责原则（Single Responsibility Principle）</li>
 <li>开放/封闭原则（Open / Closed Principle）</li>
@@ -248,20 +248,19 @@ gtag('config', 'UA-156665333-1');
 <blockquote>
 <p>Software entities should be open for extension, but closed for modification. <code>– Bertrand Meyer, Object-Oriented Software Construction</code></p>
 </blockquote>
-<p>该建议如何适用于21年后写的语言？</p>
-<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+<p>该建议如何适用于21年后写的语言？<br><pre><code class="hljs go"><span class="hljs-keyword">package</span> main
 
 <span class="hljs-keyword">type</span> A <span class="hljs-keyword">struct</span> &#123;
-        year <span class="hljs-keyword">int</span>
+        year <span class="hljs-type">int</span>
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(a A)</span> <span class="hljs-title">Greet</span><span class="hljs-params">()</span></span> &#123; fmt.Println(<span class="hljs-string">&quot;Hello GolangUK&quot;</span>, a.year) &#125;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(a A)</span></span> Greet() &#123; fmt.Println(<span class="hljs-string">&quot;Hello GolangUK&quot;</span>, a.year) &#125;
 
 <span class="hljs-keyword">type</span> B <span class="hljs-keyword">struct</span> &#123;
         A
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(b B)</span> <span class="hljs-title">Greet</span><span class="hljs-params">()</span></span> &#123; fmt.Println(<span class="hljs-string">&quot;Welcome to GolangUK&quot;</span>, b.year) &#125;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(b B)</span></span> Greet() &#123; fmt.Println(<span class="hljs-string">&quot;Welcome to GolangUK&quot;</span>, b.year) &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
         <span class="hljs-keyword">var</span> a A
@@ -270,20 +269,19 @@ gtag('config', 'UA-156665333-1');
         b.year = <span class="hljs-number">2016</span>
         a.Greet() <span class="hljs-comment">// Hello GolangUK 2016</span>
         b.Greet() <span class="hljs-comment">// Welcome to GolangUK 2016</span>
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p>我们有一个类型 A ，有一个字段 year 和一个方法 Greet。我们有第二种类型，B 它嵌入了一个 A，因为 A 嵌入，因此调用者看到 B 的方法覆盖了 A 的方法。因为A作为字段嵌入B ，B可以提供自己的 Greet 方法，掩盖了 A 的 Greet 方法。</p>
 <p>但嵌入不仅适用于方法，还可以访问嵌入类型的字段。如您所见，因为A和B都在同一个包中定义，所以 B 可以访问 A 的私有 year 字段，就像在 B 中声明一样。</p>
 <p>因此嵌入是一个强大的工具，允许 Go 的类型对扩展开放。</p>
 <pre><code class="hljs go"><span class="hljs-keyword">package</span> main
 
 <span class="hljs-keyword">type</span> Cat <span class="hljs-keyword">struct</span> &#123;
-        Name <span class="hljs-keyword">string</span>
+        Name <span class="hljs-type">string</span>
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span> <span class="hljs-title">Legs</span><span class="hljs-params">()</span> <span class="hljs-title">int</span></span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-number">4</span> &#125;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span></span> Legs() <span class="hljs-type">int</span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-number">4</span> &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span> <span class="hljs-title">PrintLegs</span><span class="hljs-params">()</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span></span> PrintLegs() &#123;
         fmt.Printf(<span class="hljs-string">&quot;I have %d legs\n&quot;</span>, c.Legs())
 &#125;
 
@@ -291,7 +289,7 @@ gtag('config', 'UA-156665333-1');
         Cat
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(o OctoCat)</span> <span class="hljs-title">Legs</span><span class="hljs-params">()</span> <span class="hljs-title">int</span></span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-number">5</span> &#125;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(o OctoCat)</span></span> Legs() <span class="hljs-type">int</span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-number">5</span> &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
         <span class="hljs-keyword">var</span> octo OctoCat
@@ -302,14 +300,13 @@ gtag('config', 'UA-156665333-1');
 <p>这是因为 PrintLegs 是在 Cat 类型上定义的。 它需要 Cat 作为它的接收器，因此它会发送到 Cat 的 Legs 方法。Cat 不知道它嵌入的类型，因此嵌入时不能改变其方法集。</p>
 <p>因此，我们可以说 Go 的类型虽然对扩展开放，但对修改是封闭的。</p>
 <p>事实上，Go 中的方法只不过是围绕在具有预先声明形式参数（即接收器）的函数的语法糖。</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span> <span class="hljs-title">PrintLegs</span><span class="hljs-params">()</span></span> &#123;
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c Cat)</span></span> PrintLegs() &#123;
         fmt.Printf(<span class="hljs-string">&quot;I have %d legs\n&quot;</span>, c.Legs())
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">PrintLegs</span><span class="hljs-params">(c Cat)</span></span> &#123;
         fmt.Printf(<span class="hljs-string">&quot;I have %d legs\n&quot;</span>, c.Legs())
 &#125;</code></pre>
-
 <p>接收器正是你传入它的函数，函数的第一个参数，并且因为Go不支持函数重载，OctoCat不能替代普通的Cat 。 这让我想到了下一个原则。</p>
 <h5 id="里氏替换原则（Liskov-Substitution-Principle）"><a href="#里氏替换原则（Liskov-Substitution-Principle）" class="headerlink" title="里氏替换原则（Liskov Substitution Principle）"></a>里氏替换原则（Liskov Substitution Principle）</h5><p>由Barbara Liskov 提出的里氏替换原则粗略地指出，如果两种类型表现出的行为使得调用者无法区分，则这两种类型是可替代的。</p>
 <p>在基于类的语言中，里氏替换原则通常被解释为，具有各种具体子类型的抽象基类的规范。 但是Go没有类或继承，因此无法根据抽象类层次结构实现替换。</p>
@@ -318,9 +315,8 @@ gtag('config', 'UA-156665333-1');
 <p>设计良好的接口更可能是小型接口; 流行的做法是一个接口只包含一个方法。从逻辑上讲，小接口使实现变得简单，反之则很难。因此形成了由普通行为的简单实现组成的 package。</p>
 <h6 id="io-Reader"><a href="#io-Reader" class="headerlink" title="io.Reader"></a>io.Reader</h6><pre><code class="hljs go"><span class="hljs-keyword">type</span> Reader <span class="hljs-keyword">interface</span> &#123;
         <span class="hljs-comment">// Read reads up to len(buf) bytes into buf.</span>
-        Read(buf []<span class="hljs-keyword">byte</span>) (n <span class="hljs-keyword">int</span>, err error)
+        Read(buf []<span class="hljs-type">byte</span>) (n <span class="hljs-type">int</span>, err <span class="hljs-type">error</span>)
 &#125;</code></pre>
-
 <p>这令我很容易想到了我最喜欢的 Go 接口 <code>io.Reader</code>。</p>
 <p> <code>io.Reader</code> 接口非常简单; <code>Read</code> 将数据读入提供的缓冲区，并将读取的字节数和读取期间遇到的任何错误返回给调用者。看起来很简单，但非常强大。</p>
 <p>因为 <code>io.Reader</code> 可以处理任何表示为字节流的东西，所以我们几乎可以在任何东西上创建 <code>Reader</code>; 常量字符串，字节数组，标准输入，网络流，gzip的tar文件，通过ssh远程执行的命令的标准输出。</p>
@@ -336,35 +332,28 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <p>在Go中，接口隔离原则的应用可以指的是，隔离功能完成其工作所需的行为的过程。举一个具体的例子，假设我已经完成了‘编写一个将Document结构保存到磁盘的函数’的任务。</p>
 <pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the file f.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(f *os.File, doc *Document)</span> <span class="hljs-title">error</span></span></code></pre>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(f *os.File, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre>
 <p>我可以定义此函数，让我们称之为 <code>Save</code>，它将给定的 Document 写入到 <code>*os.File</code>。 但是这样做会有一些问题。</p>
 <p>Save的签名排除了将数据写入网络位置的选项。假设网络存储可能以后成为需求，此功能的签名必须改变，并影响其所有调用者。</p>
 <p>由于 <code>Save</code> 直接操作磁盘上的文件，因此测试起来很不方便。要验证其操作，测试必须在写入后读取文件的内容。 此外，测试必须确保将 <code>f</code> 写入临时位置并随后将其删除。</p>
 <p><code>*os.File</code> 还定义了许多与 <code>Save</code> 无关的方法，比如读取目录并检查路径是否是文件链接。 如果 <code>Save</code> 函数的签名能只描述 <code>*os.File</code> 相关的部分，将会很实用。</p>
-<p>我们如何处理这些问题呢？</p>
-<pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied ReadWriterCloser.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(rwc io.ReadWriteCloser, doc *Document)</span> <span class="hljs-title">error</span></span></code></pre>
-
+<p>我们如何处理这些问题呢？<br><pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied ReadWriterCloser.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(rwc io.ReadWriteCloser, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre></p>
 <p>使用 <code>io.ReadWriteCloser</code> 我们可以应用接口隔离原则，使用更通用的文件类型的接口来重新定义 <code>Save</code>。</p>
 <p>通过此更改，任何实现了 <code>io.ReadWriteCloser</code> 接口的类型都可以代替之前的 <code>*os.File</code>。使得 <code>Save</code> 应用程序更广泛，并向 <code>Save</code> 调用者阐明，<code>*os.File</code> 类型的哪些方法与操作相关。</p>
 <p>做为<code>Save</code>的编写者，我不再可以选择调用 <code>*os.File</code> 的那些不相关的方法，因为它隐藏在 <code>io.ReadWriteCloser</code> 接口背后。我们可以进一步采用接口隔离原理。</p>
-<p>首先，如果 <code>Save</code> 遵循单一责任原则，它将不可能读取它刚刚编写的文件来验证其内容 - 这应该是另一段代码的责任。因此，我们可以将我们传递给 <code>Save</code> 的接口的规范缩小，仅写入和关闭。</p>
-<pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied WriteCloser.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(wc io.WriteCloser, doc *Document)</span> <span class="hljs-title">error</span></span></code></pre>
-
+<p>首先，如果 <code>Save</code> 遵循单一责任原则，它将不可能读取它刚刚编写的文件来验证其内容 - 这应该是另一段代码的责任。因此，我们可以将我们传递给 <code>Save</code> 的接口的规范缩小，仅写入和关闭。<br><pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied WriteCloser.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(wc io.WriteCloser, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre></p>
 <p>其次，通过向 <code>Save</code> 提供一个关闭其流的机制，我们继续这种机制以使其看起来像文件类型的东西，这就产生一个问题，<code>wc</code> 会在什么情况下关闭。<code>Save</code> 可能会无条件地调用 <code>Close</code>，抑或在成功的情况下调用 <code>Close</code>。</p>
-<p>这给 <code>Save</code> 的调用者带来了问题，因为它可能希望在写入文档之后将其他数据写入流。</p>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> NopCloser <span class="hljs-keyword">struct</span> &#123;
+<p>这给 <code>Save</code> 的调用者带来了问题，因为它可能希望在写入文档之后将其他数据写入流。<br><pre><code class="hljs go"><span class="hljs-keyword">type</span> NopCloser <span class="hljs-keyword">struct</span> &#123;
         io.Writer
 &#125;
 
 <span class="hljs-comment">// Close has no effect on the underlying writer.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c *NopCloser)</span> <span class="hljs-title">Close</span><span class="hljs-params">()</span> <span class="hljs-title">error</span></span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span> &#125;</code></pre>
-<p>一个粗略的解决方案是定义一个新类型，它嵌入一个 <code>io.Writer</code> 并覆盖 <code>Close</code> 方法，以阻止<code>Save</code>方法关闭底层数据流。</p>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c *NopCloser)</span></span> Close() <span class="hljs-type">error</span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span> &#125;</code></pre><br>一个粗略的解决方案是定义一个新类型，它嵌入一个 <code>io.Writer</code> 并覆盖 <code>Close</code> 方法，以阻止<code>Save</code>方法关闭底层数据流。</p>
 <p>但这样可能会违反里氏替换原则，因为NopCloser实际上并没有关闭任何东西。</p>
 <pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied Writer.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(w io.Writer, doc *Document)</span> <span class="hljs-title">error</span></span></code></pre>
-
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(w io.Writer, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre>
 <p>一个更好的解决方案是重新定义 <code>Save</code> 只接收 <code>io.Writer</code>，完全剥离它除了将数据写入流之外做任何事情的责任。</p>
 <p>通过应用接口隔离原则，我们的Save功能，同时得到了一个在需求方面最具体的函数 - 它只需要一个可写的参数 - 并且具有最通用的功能，现在我们可以使用 <code>Save</code> 保存我们的数据到任何一个实现 <code>io.Writer</code> 的地方。</p>
 <blockquote>
@@ -423,7 +412,7 @@ gtag('config', 'UA-156665333-1');
 <p>因为通过做这些事情，我们可以建立一种Go开发人员的文化，他们关心设计用于持久的程序。</p>
 <p>谢谢。</p>
 <p><em>原文：<a target="_blank" rel="noopener" href="https://dave.cheney.net/2016/08/20/solid-go-design">SOLID Go Design</a></em></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-03-2019/solid-go-design-cn.html">https://www.cyningsun.com/08-03-2019/solid-go-design-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-03-2019/solid-go-design-cn.html">https://www.cyningsun.com/08-03-2019/solid-go-design-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -479,7 +468,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

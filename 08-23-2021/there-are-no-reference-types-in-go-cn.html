@@ -201,6 +201,7 @@ gtag('config', 'UA-156665333-1');
 <p>所以，我认为此答复给 <a target="_blank" rel="noopener" href="https://www.reddit.com/r/golang/comments/4vg7ht/why_are_there_so_many_different_ways_to_pass_by/">Go 社区带来了很多困惑</a>。它与当前 Go 规范冲突，并且打破了概念的一致性。</p>
 <p>谈回第一个惊喜，我认为称呼  map/slice/channel 值为引用值完全没有必要。不仅因为 “reference” 这个词在编程世界中被滥用了，还因为 map/slice/channel 值只是普通的正常值</p>
 <p>以下是 map/slice/channel 类型的内部声明：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -208,7 +209,8 @@ gtag('config', 'UA-156665333-1');
 <th>Type Declaration</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td>map</td>
 <td>struct {<br/> m *internalHashtable <br/>}</td>
 </tr>
@@ -220,7 +222,9 @@ gtag('config', 'UA-156665333-1');
 <td>slice</td>
 <td>struct {<br/> array *internalArray <br/> len   int <br/> cap   int<br/> }</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p>请注意，上面的声明可能不完全与官方或非官方的 Go 实现中的声明相同。Go 实现可以直接使用指针表示 map 和 channel 的值，但 Go 规范/编译器永远不会将它们视为指针。因此，你可以放心的将 map/slice/channel 类型视为上面声明的指针包装类型，而不会有任何问题。</p>
 <p>从上面的声明，很容易得出结论：map/slice/channel 只是包含一个非导出指针字段的结构类型。将它们称为引用类型是完全没有必要的。</p>
 <p>Map 和 slice 类型与一般结构类型确实有一个区别。与一般结构类型不同，对于 map 或 slice 类型 T，T{}  不是 T 的零值。但这不是将 map 或 slice 类型拆分为新的引用类型类别的好理由。</p>
@@ -233,7 +237,7 @@ gtag('config', 'UA-156665333-1');
 <p>概念是用来帮助程序员理解语言的机制，而不是混淆他们。值、指针值和非指针值的概念足以让 Gopher 理解 Go。</p>
 <p>我希望 Go 文档不会破坏概念定义的一致性。</p>
 <p><em>原文：</em><a target="_blank" rel="noopener" href="https://www.tapirgames.com/blog/golang-has-no-reference-values">https://www.tapirgames.com/blog/golang-has-no-reference-values</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-23-2021/there-are-no-reference-types-in-go-cn.html">https://www.cyningsun.com/08-23-2021/there-are-no-reference-types-in-go-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-23-2021/there-are-no-reference-types-in-go-cn.html">https://www.cyningsun.com/08-23-2021/there-are-no-reference-types-in-go-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -289,7 +293,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

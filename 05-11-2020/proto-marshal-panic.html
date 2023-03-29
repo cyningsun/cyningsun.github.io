@@ -189,7 +189,7 @@ gtag('config', 'UA-156665333-1');
  
         <h3 id="背景介绍"><a href="#背景介绍" class="headerlink" title="背景介绍"></a>背景介绍</h3><p>在斋月节大促压测期间，有一个业务压测发现，有一个RPC调用，在高并发的情况下出现panic，而panic的位置是在微服务框架序列化的位置(proto.Marshal)。但是由于框架在近期没有做什么变更，而且业务最近也没上线什么新的需求。所有的Panic仅在并发量较高的时候偶然出现，并且被框架的recover捕获，因此判定此问题已经在线上很久，只是由于出现的概率较低没有被发现。</p>
 <p>示例代码：</p>
-<pre><code class="hljs go"><span class="hljs-number">2020</span>/<span class="hljs-number">05</span>/<span class="hljs-number">11</span> <span class="hljs-number">19</span>:<span class="hljs-number">56</span>:<span class="hljs-number">32</span> http: <span class="hljs-built_in">panic</span> serving <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>:<span class="hljs-number">59816</span>: runtime error: index out of <span class="hljs-keyword">range</span>
+<pre><code class="hljs go"><span class="hljs-number">2020</span>/<span class="hljs-number">05</span>/<span class="hljs-number">11</span> <span class="hljs-number">19</span>:<span class="hljs-number">56</span>:<span class="hljs-number">32</span> http: <span class="hljs-built_in">panic</span> serving <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>:<span class="hljs-number">59816</span>: runtime <span class="hljs-type">error</span>: index out of <span class="hljs-keyword">range</span>
 goroutine <span class="hljs-number">20</span> [running]:
 net/http.(*conn).serve.func1(<span class="hljs-number">0xc00015e0a0</span>)
 	/usr/local/Cellar/<span class="hljs-keyword">go</span>@<span class="hljs-number">1.12</span>/<span class="hljs-number">1.12</span><span class="hljs-number">.13</span>/libexec/src/net/http/server.<span class="hljs-keyword">go</span>:<span class="hljs-number">1769</span> +<span class="hljs-number">0x139</span>
@@ -206,13 +206,11 @@ github.com/gogo/protobuf/proto.Marshal(<span class="hljs-number">0x14af2e0</span
 		...
 		
 	/usr/local/Cellar/<span class="hljs-keyword">go</span>@<span class="hljs-number">1.12</span>/<span class="hljs-number">1.12</span><span class="hljs-number">.13</span>/libexec/src/net/http/server.<span class="hljs-keyword">go</span>:<span class="hljs-number">2884</span> +<span class="hljs-number">0x2f4</span></code></pre>
-
 <p>由于报错的结构体是业务最常用的一个，且报错的接口逻辑较深，通读代码也没有发现明显的点（其实是代码量太大了，很难关注的到）。报错又出现在框架层，panic 调用栈并没有提供任何有效信息。</p>
 <h3 id="问题排查"><a href="#问题排查" class="headerlink" title="问题排查"></a>问题排查</h3><p>经过背景的一系列分析之后，所有的排查思路都被打断了。好在我们发现报错的错误类型是<code>index out of range</code>，通过阅读proto.Marshal的代码之后发现，此函数分为三步：</p>
 <pre><code class="hljs go">siz := info.Size(pb)
-b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</span>, <span class="hljs-number">0</span>, siz)
+b := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</span>, <span class="hljs-number">0</span>, siz)
 <span class="hljs-keyword">return</span> info.Marshal(b, pb, <span class="hljs-literal">false</span>)</code></pre>
-
 <ol>
 <li>先获取结构体 Size</li>
 <li>然后按照 Size 创建字节数组</li>
@@ -222,19 +220,19 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</
 <h3 id="问题反思"><a href="#问题反思" class="headerlink" title="问题反思"></a>问题反思</h3><p>修复完问题之后，促使我们反思，难道排查类似的问题一定要如此艰难么，有没有什么通用的方案来排查类似的问题呢。从问题源头出发，该问题本质来说还是数据的协程并发访问题，有了这个结论再看我们手头的已有工具，golang race 工具 出现在眼前。</p>
 <p>理论上讲，可以在非生产环境打开 race 参数，辅助定位问题。说做就做，按照问题的原因，编写测试复现的test case</p>
 <p><strong>进程缓存</strong></p>
-<pre><code class="hljs go"><span class="hljs-keyword">const</span> Max = <span class="hljs-keyword">uint64</span>(<span class="hljs-number">1</span>)
+<pre><code class="hljs go"><span class="hljs-keyword">const</span> Max = <span class="hljs-type">uint64</span>(<span class="hljs-number">1</span>)
 <span class="hljs-keyword">type</span> PersonCache <span class="hljs-keyword">struct</span> &#123;
 	c *gocache.Cache
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewPersonCache</span><span class="hljs-params">()</span> *<span class="hljs-title">PersonCache</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewPersonCache</span><span class="hljs-params">()</span></span> *PersonCache &#123;
 	one := &amp;PersonCache&#123;c:gocache.New(time.Minute, time.Hour)&#125;
 	<span class="hljs-keyword">go</span> one.load()
 	<span class="hljs-keyword">return</span> one
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *PersonCache)</span> <span class="hljs-title">load</span><span class="hljs-params">()</span></span> &#123;
-	<span class="hljs-keyword">for</span> i:=<span class="hljs-keyword">uint64</span>(<span class="hljs-number">0</span>); i &lt; Max; i++&#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *PersonCache)</span></span> load() &#123;
+	<span class="hljs-keyword">for</span> i:=<span class="hljs-type">uint64</span>(<span class="hljs-number">0</span>); i &lt; Max; i++&#123;
 		r :=  i % <span class="hljs-number">100</span>
 		key := strconv.FormatUint(r,<span class="hljs-number">10</span>)
 		newOne := &amp;pb.Person&#123;
@@ -247,16 +245,13 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</
 	&#125;
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *PersonCache)</span> <span class="hljs-title">Get</span><span class="hljs-params">(key <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(*pb.Person,<span class="hljs-keyword">bool</span>)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *PersonCache)</span></span> Get(key <span class="hljs-type">string</span>) (*pb.Person,<span class="hljs-type">bool</span>) &#123;
 	ret, ok := p.c.Get(key)
 	<span class="hljs-keyword">if</span> !ok &#123;
 		<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, <span class="hljs-literal">false</span>
 	&#125;
 	<span class="hljs-keyword">return</span> ret.(*pb.Person),<span class="hljs-literal">true</span>
 &#125;</code></pre>
-
-
-
 <p><strong>并发访问</strong></p>
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> letterBytes = <span class="hljs-string">&quot;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;</span>
 <span class="hljs-keyword">const</span> letterLength = <span class="hljs-built_in">len</span>(letterBytes)
@@ -265,12 +260,12 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</
 	c = cache.NewPersonCache()
 )
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">randString</span><span class="hljs-params">(n <span class="hljs-keyword">int</span>)</span> <span class="hljs-title">string</span></span> &#123;
-	b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</span>, n)
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">randString</span><span class="hljs-params">(n <span class="hljs-type">int</span>)</span></span> <span class="hljs-type">string</span> &#123;
+	b := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</span>, n)
 	<span class="hljs-keyword">for</span> i := <span class="hljs-keyword">range</span> b &#123;
 		b[i] = letterBytes[rand.Intn(<span class="hljs-built_in">len</span>(letterBytes))]
 	&#125;
-	<span class="hljs-keyword">return</span> <span class="hljs-keyword">string</span>(b)
+	<span class="hljs-keyword">return</span> <span class="hljs-type">string</span>(b)
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Write</span><span class="hljs-params">(w http.ResponseWriter, req *http.Request)</span></span> &#123;
@@ -302,22 +297,16 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">byte</
 	fmt.Println(<span class="hljs-string">&quot;server is listening on 8080&quot;</span>)
 	http.ListenAndServe(<span class="hljs-string">&quot;:8080&quot;</span>, <span class="hljs-literal">nil</span>)
 &#125;</code></pre>
-
-
-
 <p><strong>压测脚本</strong></p>
-<pre><code class="hljs make">run:
+<pre><code class="hljs make"><span class="hljs-section">run:</span>
 	go run main.go &amp;&gt; normal.log
 
-racerun:
+<span class="hljs-section">racerun:</span>
 	go run -race main.go &amp;&gt; race.log 
 
-benchmark:
+<span class="hljs-section">benchmark:</span>
 	wrk -t1 -c2 -d30s http://127.0.0.1:8080/read &amp;
 	wrk -t1 -c2 -d30s http://127.0.0.1:8080/write &amp;</code></pre>
-
-
-
 <p><strong>日志结果</strong></p>
 <pre><code class="hljs go">==================
 WARNING: DATA RACE
@@ -332,12 +321,11 @@ Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <
 
 ...
 </code></pre>
-
 <p>通过日志，可以很轻松的发现问题的原因。</p>
 <h3 id="总结优化"><a href="#总结优化" class="headerlink" title="总结优化"></a>总结优化</h3><p>以上过程促使我们优化非生产环境的运行脚本，通过编译参数控制 -race 参数的开关，当再遇到类似的问题时，可以快速复现、定位、修复。</p>
 <p><em>源码链接:</em></p>
 <p><a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test/tree/master/20200508-go-race">https://github.com/cyningsun/go-test/tree/master/20200508-go-race</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html">https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html">https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -393,7 +381,7 @@ Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

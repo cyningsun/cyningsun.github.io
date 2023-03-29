@@ -225,7 +225,7 @@ gtag('config', 'UA-156665333-1');
 <p>如前所述，如需解决制品构建时间较长的问题，一种更好的方式是使用支持远程缓存的构建系统。此类构建系统会将每个构建生成的制品保存到工程师共享的位置，因此如果开发者依赖其他人最近构建的制品，构建系统会自动下载无需构建。这样做提供了直接依赖于工件做法的所有性能优势，同时仍然确保构建与从同一源构建一样。这是 Google 内部使用的策略，Bazel 支持配置使用远程缓存。</p>
 <h4 id="外部依赖的安全性和可靠性"><a href="#外部依赖的安全性和可靠性" class="headerlink" title="外部依赖的安全性和可靠性"></a>外部依赖的安全性和可靠性</h4><p>依赖于第三方来源的制品本身存在风险。如果第三方源代码（例如：制品库）发生故障，则会有可用性风险，因为如果无法下载外部依赖项，整个构建可能会停止。还有一种安全风险：如果第三方系统遭到攻击者入侵，攻击者可以将引用的制品替换为他们自己的设计之一，从而将任意代码注入到您的 build 中。将依赖的任何制品镜像到受控的服务器，并阻止构建系统访问 Maven Central 等第三方制品库，可以解决这两个问题。需要权衡的是，镜像需要精力和资源维护，因此，是否使用它们通常取决于项目的规模。通过在源存储库中指定每个第三方制品的哈希值，也可以完全防止安全问题，而开销很小，如果制品被篡改，则会导致构建失败。另一种完全回避问题的替代方法是拷贝（vendor）项目的依赖项。当项目拷贝（vendor）其依赖项时，它会将这些依赖项和项目的源代码（源代码或二进制文件）签入源代码控制系统。这实际上意味着，项目的所有外部依赖项都会转换为内部依赖项。Google 在内部使用此方法，将整个 Google 中引用的每个第三方库签入 Google 源代码树根目录下的 third_party 目录。但是，这仅在 Google 有效，因为 Google 的源代码控制系统是为了处理超大单一代码库而专门构建的，因此拷贝可能不适合所有组织。</p>
 <p><em>原文：</em> <a target="_blank" rel="noopener" href="https://bazel.build/basics/dependencies">Dependency Management</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-08-2022/dependency-management-cn.html">https://www.cyningsun.com/06-08-2022/dependency-management-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-08-2022/dependency-management-cn.html">https://www.cyningsun.com/06-08-2022/dependency-management-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -240,6 +240,8 @@ gtag('config', 'UA-156665333-1');
 
     <ul class="pager">
      
+     <li class="next"><a href="/11-13-2022/design-patterns-for-container-based-distributed-systems-cn.html">Newer &rarr;</a></li>
+    
     
     <li class="previous"><a href="/09-13-2021/how-to-locate-bug-in-production-env.html">&larr; Older</a></li>
     
@@ -262,7 +264,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

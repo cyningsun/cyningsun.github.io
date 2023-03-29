@@ -196,7 +196,6 @@ gtag('config', 'UA-156665333-1');
 <p><img src="/images/go-has-no-reference-and-safe-pointer/pointer-memory-multiply.png" alt="pointer-memory-multiply.png"></p>
 <pre><code class="hljs go"><span class="hljs-keyword">var</span> a = <span class="hljs-number">6</span>
 <span class="hljs-keyword">var</span> b = a * <span class="hljs-number">3</span></code></pre>
-
 <h4 id="什么是指针？"><a href="#什么是指针？" class="headerlink" title="什么是指针？"></a>什么是指针？</h4><p>而指针的值是另一个变量的编号。指针指向变量的内存地址，就像变量代表值的内存地址一样。</p>
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
         a := <span class="hljs-number">200</span>
@@ -204,32 +203,29 @@ gtag('config', 'UA-156665333-1');
         *b++
         fmt.Println(a)
 &#125;</code></pre>
-
 <p><img src="/images/go-has-no-reference-and-safe-pointer/pointer-memory-variable.png" alt="pointer-memory-variable.png"></p>
 <h4 id="什么是引用？"><a href="#什么是引用？" class="headerlink" title="什么是引用？"></a>什么是引用？</h4><p>在 C++ 语言中，为现有变量声明别名，称为引用变量。如代码所示，a、b、c 三个变量均共享同一内存地址</p>
-<pre><code class="hljs C++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+<pre><code class="hljs C++"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stdio.h&gt;</span></span>
 
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>&#123;
-        <span class="hljs-keyword">int</span> a = <span class="hljs-number">10</span>;
-        <span class="hljs-keyword">int</span> &amp;b = a;
-        <span class="hljs-keyword">int</span> &amp;c = b;
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>&#123;
+        <span class="hljs-type">int</span> a = <span class="hljs-number">10</span>;
+        <span class="hljs-type">int</span> &amp;b = a;
+        <span class="hljs-type">int</span> &amp;c = b;
 
         <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;%p %p %p\n&quot;</span>, &amp;a, &amp;b, &amp;c); <span class="hljs-comment">// 0x7ffe114f0b14 0x7ffe114f0b14 0x7ffe114f0b14</span>
         <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
 &#125;</code></pre>
-
 <h3 id="Go-语言没有引用类型"><a href="#Go-语言没有引用类型" class="headerlink" title="Go 语言没有引用类型"></a>Go 语言没有引用类型</h3><p>Go 程序可以创建指向统一内存地址的变量，但无法创建共享相同内存地址的两个变量。如代码所示，b 和 c 具有相同的值（a的地址）但是，b 和 c 的内存地址是唯一的。更新 b 的内容对 c 没有影响。</p>
 <pre><code class="hljs go"><span class="hljs-keyword">package</span> main
 
 <span class="hljs-keyword">import</span> <span class="hljs-string">&quot;fmt&quot;</span>
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
-        <span class="hljs-keyword">var</span> a <span class="hljs-keyword">int</span>
+        <span class="hljs-keyword">var</span> a <span class="hljs-type">int</span>
         <span class="hljs-keyword">var</span> b, c = &amp;a, &amp;a
         fmt.Println(b, c)   <span class="hljs-comment">// 0x1040a124 0x1040a124</span>
         fmt.Println(&amp;b, &amp;c) <span class="hljs-comment">// 0x1040c108 0x1040c110</span>
 &#125;</code></pre>
-
 <p><a target="_blank" rel="noopener" href="https://github.com/golang/go/commit/b34f0551387fcf043d65cd7d96a0214956578f94">2013年4月3日，“引用类型”的概念已从 Go 规范中完全删除</a>,现在 Go 规范中的“引用”，没有一个代表“引用类型”的概念。</p>
 <h3 id="指针是类型吗？"><a href="#指针是类型吗？" class="headerlink" title="指针是类型吗？"></a>指针是类型吗？</h3><p>指针是类型吗？这个问题可能在 C 或 C++ 中会有比较大的分歧，但是在 Go 语言中十分明确，毫无疑问：<a target="_blank" rel="noopener" href="https://golang.org/ref/spec#Pointer_types">是的</a>。</p>
 <blockquote>
@@ -240,20 +236,19 @@ gtag('config', 'UA-156665333-1');
 <ol>
 <li>指针值不支持数学运算</li>
 </ol>
-<pre><code class="hljs go"><span class="hljs-keyword">var</span> p *<span class="hljs-keyword">int</span>
+<pre><code class="hljs go"><span class="hljs-keyword">var</span> p *<span class="hljs-type">int</span>
 p++</code></pre>
-
 <p>你不能更改指针指向的位置，除非赋值另外一个地址给它。同时也就不支持 <a target="_blank" rel="noopener" href="https://maryash.github.io/135/slides/7.2%20Arrays%20and%20Pointers.pdf">Array-Pointer Duality</a>。</p>
-<ol start="2">
+<ol>
 <li>base type 不同的指针值，无法直接互相赋值</li>
 </ol>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> MyInt <span class="hljs-keyword">int64</span>
-<span class="hljs-keyword">type</span> Ta    *<span class="hljs-keyword">int64</span>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> MyInt <span class="hljs-type">int64</span>
+<span class="hljs-keyword">type</span> Ta    *<span class="hljs-type">int64</span>
 <span class="hljs-keyword">type</span> Tb    *MyInt
 
 <span class="hljs-comment">// 4 nil pointers of different types.</span>
 <span class="hljs-keyword">var</span> pa0 Ta
-<span class="hljs-keyword">var</span> pa1 *<span class="hljs-keyword">int64</span>
+<span class="hljs-keyword">var</span> pa1 *<span class="hljs-type">int64</span>
 <span class="hljs-keyword">var</span> pb0 Tb
 <span class="hljs-keyword">var</span> pb1 *MyInt
 
@@ -263,28 +258,24 @@ p++</code></pre>
 <span class="hljs-comment">_ = pa1 == pb1</span>
 <span class="hljs-comment">_ = pa0 == Tb(nil)</span>
 <span class="hljs-comment">*/</span></code></pre>
-
-<ol start="3">
+<ol>
 <li>返回局部变量的指针是安全的</li>
 </ol>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">f</span><span class="hljs-params">()</span> *<span class="hljs-title">int</span></span> &#123; 
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">f</span><span class="hljs-params">()</span></span> *<span class="hljs-type">int</span> &#123; 
   i := <span class="hljs-number">1</span>
   <span class="hljs-keyword">return</span> &amp;i
 &#125;</code></pre>
-
 <h3 id="指针总结"><a href="#指针总结" class="headerlink" title="指针总结"></a>指针总结</h3><p>使用过 C/C++ 语言的开发者，习惯使用的不安全的指针是 <code>unsafe.Pointer</code>，而非普通的指针。</p>
-<pre><code class="hljs C++"><span class="hljs-keyword">int</span>* valFirst
-<span class="hljs-keyword">intptr_t</span> valSecond
-<span class="hljs-keyword">void</span>* valThird</code></pre>
-
+<pre><code class="hljs C++"><span class="hljs-type">int</span>* valFirst
+<span class="hljs-type">intptr_t</span> valSecond
+<span class="hljs-type">void</span>* valThird</code></pre>
 <p>vs</p>
-<pre><code class="hljs go"><span class="hljs-keyword">int</span>* valFirst
-<span class="hljs-keyword">type</span> intptr_t *<span class="hljs-keyword">int</span>
+<pre><code class="hljs go"><span class="hljs-type">int</span>* valFirst
+<span class="hljs-keyword">type</span> intptr_t *<span class="hljs-type">int</span>
 intptr_t valSecond
 unsafe.Pointer valThird</code></pre>
-
 <p>对比服用，效果更佳。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-16-2021/go-has-no-reference-and-safe-pointer.html">https://www.cyningsun.com/08-16-2021/go-has-no-reference-and-safe-pointer.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-16-2021/go-has-no-reference-and-safe-pointer.html">https://www.cyningsun.com/08-16-2021/go-has-no-reference-and-safe-pointer.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -340,7 +331,7 @@ unsafe.Pointer valThird</code></pre>
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

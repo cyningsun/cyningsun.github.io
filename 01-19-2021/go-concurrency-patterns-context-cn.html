@@ -189,8 +189,7 @@ gtag('config', 'UA-156665333-1');
  
         <p>在 Go 服务中，每个传入的请求在单独的 <code>goroutine</code> 中处理。请求回调函数通常启动额外的 <code>goroutine</code> 以访问后端，如数据库和RPC服务。处理同一请求的一系列 <code>goroutine</code> 通常需要访问请求相关的值，例如端用户的标识、授权令牌和请求截止时间。当请求被取消或超时，处理该请求的所有 <code>goroutine</code> 都应该快速退出，以便系统可以回收它们正在使用的资源。</p>
 <p>在 Google，我们开发了一个上下文包，可以轻松地跨越 API边界，将请求作用域内的值、取消信号和截止时间传递给所有处理请求的 <code>goroutine</code>。该包的公共可用版本为 <a target="_blank" rel="noopener" href="https://golang.org/pkg/context"><code>context</code></a>。本文描述了如何使用这个包，并提供了一个完整的示例。</p>
-<h3 id="Context"><a href="#Context" class="headerlink" title="Context"></a>Context</h3><p>context 包的核心是 <code>Context</code> 类型：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// A Context carries a deadline, cancelation signal, and request-scoped values</span>
+<h3 id="Context"><a href="#Context" class="headerlink" title="Context"></a>Context</h3><p>context 包的核心是 <code>Context</code> 类型：<br><pre><code class="hljs go"><span class="hljs-comment">// A Context carries a deadline, cancelation signal, and request-scoped values</span>
 <span class="hljs-comment">// across API boundaries. Its methods are safe for simultaneous use by multiple</span>
 <span class="hljs-comment">// goroutines.</span>
 <span class="hljs-keyword">type</span> Context <span class="hljs-keyword">interface</span> &#123;
@@ -200,31 +199,27 @@ gtag('config', 'UA-156665333-1');
 
     <span class="hljs-comment">// Err indicates why this context was canceled, after the Done channel</span>
     <span class="hljs-comment">// is closed.</span>
-    Err() error
+    Err() <span class="hljs-type">error</span>
 
     <span class="hljs-comment">// Deadline returns the time when this Context will be canceled, if any.</span>
-    Deadline() (deadline time.Time, ok <span class="hljs-keyword">bool</span>)
+    Deadline() (deadline time.Time, ok <span class="hljs-type">bool</span>)
 
     <span class="hljs-comment">// Value returns the value associated with key or nil if none.</span>
     Value(key <span class="hljs-keyword">interface</span>&#123;&#125;) <span class="hljs-keyword">interface</span>&#123;&#125;
-&#125;</code></pre>
-<p>（此描述是精简的；<a target="_blank" rel="noopener" href="https://golang.org/pkg/context">godoc</a> 是权威的。）</p>
+&#125;</code></pre><br>（此描述是精简的；<a target="_blank" rel="noopener" href="https://golang.org/pkg/context">godoc</a> 是权威的。）</p>
 <p><code>Done</code> 方法返回一个 channel，充当传递给 <code>Context</code> 下运行的函数的取消信号：当 channel 关闭时，函数应该放弃它们的工作并返回。<code>Err</code> 方法返回一个错误，表明取消 <code>context</code> 的原因。文章 <a target="_blank" rel="noopener" href="https://blog.golang.org/pipelines">Pipelines and Cancelation</a> 更详细地讨论了 <code>Done</code> channel 的习惯用法。</p>
 <p><code>Context</code> 没有 <code>Cancel</code> 方法，原因与 <code>Done</code> channel 是只读的一样：接收取消信号的函数通常不是发送信号的函数。特别是当父操作为子操作启动 <code>goroutine</code> 时，子操作不应该有能力取消父操作。相反，<code>WithCancel</code> 函数（如下所述）提供了一种取消新 <code>Context</code> 值的方法。</p>
 <p><strong>多个 <code>goroutine</code> 同时使用同一 <code>Context</code> 是安全的。代码可以将单个 <code>Context</code> 传递给任意数量的 <code>goroutine</code>，并取消该 <code>Context</code> 以向所有 <code>goroutine</code> 发送信号。</strong></p>
 <p><code>Deadline</code> 方法允许函数决定是否应该开始工作；如果剩下的时间太少，则可能不值得。代码还可以使用截止时间来设置I/O操作超时。</p>
 <p><code>Value</code> 允许 <code>Context</code> 携带请求作用域的数据。为使多个 <code>goroutine</code> 同时使用，这些数据必须是安全的。</p>
 <h3 id="Derived-contexts"><a href="#Derived-contexts" class="headerlink" title="Derived contexts"></a>Derived contexts</h3><p><code>context</code> 包提供了从现有 <code>Context</code> 值派生新 <code>Context</code> 值的函数。这些值形成一个树：当 <code>Context</code> 被取消时，从它派生的所有 <code>Context</code> 也被取消。</p>
-<p><code>Background</code> 是所有 <code>Context</code> 树的根；它永远不会被取消：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// Background returns an empty Context. It is never canceled, has no deadline,</span>
+<p><code>Background</code> 是所有 <code>Context</code> 树的根；它永远不会被取消：<br><pre><code class="hljs go"><span class="hljs-comment">// Background returns an empty Context. It is never canceled, has no deadline,</span>
 <span class="hljs-comment">// and has no values. Background is typically used in main, init, and tests,</span>
 <span class="hljs-comment">// and as the top-level Context for incoming requests.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Background</span><span class="hljs-params">()</span> <span class="hljs-title">Context</span></span></code></pre>
-
-<p><code>WithCancel</code> 和 <code>WithTimeout</code> 返回派生 <code>Context</code> 值，可以比父 <code>Context</code> 更早取消。当请求回调函数返回时，通常会取消与传入请求关联的 <code>Context</code>。<code>WithCancel</code> 还可用于使用多个副本时取消冗余的请求。<code>WithTimeout</code> 用于设置对后端服务器请求的截止时间：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// WithCancel returns a copy of parent whose Done channel is closed as soon as</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Background</span><span class="hljs-params">()</span></span> Context</code></pre></p>
+<p><code>WithCancel</code> 和 <code>WithTimeout</code> 返回派生 <code>Context</code> 值，可以比父 <code>Context</code> 更早取消。当请求回调函数返回时，通常会取消与传入请求关联的 <code>Context</code>。<code>WithCancel</code> 还可用于使用多个副本时取消冗余的请求。<code>WithTimeout</code> 用于设置对后端服务器请求的截止时间：<br><pre><code class="hljs go"><span class="hljs-comment">// WithCancel returns a copy of parent whose Done channel is closed as soon as</span>
 <span class="hljs-comment">// parent.Done is closed or cancel is called.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithCancel</span><span class="hljs-params">(parent Context)</span> <span class="hljs-params">(ctx Context, cancel CancelFunc)</span></span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithCancel</span><span class="hljs-params">(parent Context)</span></span> (ctx Context, cancel CancelFunc)
 
 <span class="hljs-comment">// A CancelFunc cancels a Context.</span>
 <span class="hljs-keyword">type</span> CancelFunc <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span>
@@ -234,21 +229,17 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-comment">// Context&#x27;s Deadline is the sooner of now+timeout and the parent&#x27;s deadline, if</span>
 <span class="hljs-comment">// any. If the timer is still running, the cancel function releases its</span>
 <span class="hljs-comment">// resources.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithTimeout</span><span class="hljs-params">(parent Context, timeout time.Duration)</span> <span class="hljs-params">(Context, CancelFunc)</span></span></code></pre>
-
-<p><code>WithValue</code> 提供了一种将请求作用域的值与 <code>Context</code> 关联的方法：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// WithValue returns a copy of parent whose Value method returns val for key.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithValue</span><span class="hljs-params">(parent Context, key <span class="hljs-keyword">interface</span>&#123;&#125;, val <span class="hljs-keyword">interface</span>&#123;&#125;)</span> <span class="hljs-title">Context</span></span></code></pre>
-<p>通过一个示例了解使用 <code>context</code> 包的最佳方法。</p>
-<h3 id="示例：Google-Web搜索"><a href="#示例：Google-Web搜索" class="headerlink" title="示例：Google Web搜索"></a>示例：Google Web搜索</h3><p>我们的示例是一个 HTTP 服务器，它处理 URL，如 <em>/search?q=golang&amp;timeout=1s_，将查询 “golang” 转发到  _Google Web Search API</em> 并渲染结果。timeout 参数告诉服务器在该延时后取消请求。</p>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithTimeout</span><span class="hljs-params">(parent Context, timeout time.Duration)</span></span> (Context, CancelFunc)</code></pre></p>
+<p><code>WithValue</code> 提供了一种将请求作用域的值与 <code>Context</code> 关联的方法：<br><pre><code class="hljs go"><span class="hljs-comment">// WithValue returns a copy of parent whose Value method returns val for key.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithValue</span><span class="hljs-params">(parent Context, key <span class="hljs-keyword">interface</span>&#123;&#125;, val <span class="hljs-keyword">interface</span>&#123;&#125;)</span></span> Context</code></pre><br>通过一个示例了解使用 <code>context</code> 包的最佳方法。</p>
+<h3 id="示例：Google-Web搜索"><a href="#示例：Google-Web搜索" class="headerlink" title="示例：Google Web搜索"></a>示例：Google Web搜索</h3><p>我们的示例是一个 HTTP 服务器，它处理 URL，如 <em>/search?q=golang&amp;timeout=1s</em>，将查询 “golang” 转发到  <em>Google Web Search API</em> 并渲染结果。timeout 参数告诉服务器在该延时后取消请求。</p>
 <p>代码分为三个包：</p>
 <ul>
 <li><a target="_blank" rel="noopener" href="https://blog.golang.org/context/server/server.go">server</a> 提供了 <em>/search</em> 的 main 函数和请求回调函数。</li>
 <li><a target="_blank" rel="noopener" href="https://blog.golang.org/context/userip/userip.go">userip</a> 提供了从请求中提取用户 IP 地址并将其与 <code>Context</code> 关联的函数。</li>
 <li><a target="_blank" rel="noopener" href="https://blog.golang.org/context/google/google.go">google</a> 提供了向 Google 发送查询的 <em>Search</em> 函数。</li>
 </ul>
-<h4 id="server-程序"><a href="#server-程序" class="headerlink" title="server 程序"></a>server 程序</h4><p><a target="_blank" rel="noopener" href="https://blog.golang.org/context/server/server.go">server</a> 程序处理诸如 <em>/search?q=golang</em> 的请求为 <em>golang</em> 提供 Google 搜索结果。它注册 <em>handleSearch</em> 来处理 <em>/search endpoint_。回调函数创建一个名为 _ctx</em> 的初始 <code>Context</code>，并安排了在回调函数返回时取消它。如果请求包含 <em>timeout</em> URL 参数，则在超时结束时 <code>Context</code> 将自动取消：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">handleSearch</span><span class="hljs-params">(w http.ResponseWriter, req *http.Request)</span></span> &#123;
+<h4 id="server-程序"><a href="#server-程序" class="headerlink" title="server 程序"></a>server 程序</h4><p><a target="_blank" rel="noopener" href="https://blog.golang.org/context/server/server.go">server</a> 程序处理诸如 <em>/search?q=golang</em> 的请求为 <em>golang</em> 提供 Google 搜索结果。它注册 <em>handleSearch</em> 来处理 <em>/search endpoint</em>。回调函数创建一个名为 <em>ctx</em> 的初始 <code>Context</code>，并安排了在回调函数返回时取消它。如果请求包含 <em>timeout</em> URL 参数，则在超时结束时 <code>Context</code> 将自动取消：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">handleSearch</span><span class="hljs-params">(w http.ResponseWriter, req *http.Request)</span></span> &#123;
     <span class="hljs-comment">// ctx is the Context for this handler. Calling cancel closes the</span>
     <span class="hljs-comment">// ctx.Done channel, which is the cancellation signal for requests</span>
     <span class="hljs-comment">// started by this handler.</span>
@@ -264,10 +255,8 @@ gtag('config', 'UA-156665333-1');
     &#125; <span class="hljs-keyword">else</span> &#123;
         ctx, cancel = context.WithCancel(context.Background())
     &#125;
-    <span class="hljs-keyword">defer</span> cancel() <span class="hljs-comment">// Cancel ctx as soon as handleSearch returns.</span></code></pre>
-
-<p>回调函数从请求中提取查询，并通过调用 userip 包提取客户机的 IP 地址。后端请求需要客户端的 IP 地址，因此 <em>handleSearch</em> 将其附加到 _ctx_：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// Check the search query.</span>
+    <span class="hljs-keyword">defer</span> cancel() <span class="hljs-comment">// Cancel ctx as soon as handleSearch returns.</span></code></pre></p>
+<p>回调函数从请求中提取查询，并通过调用 userip 包提取客户机的 IP 地址。后端请求需要客户端的 IP 地址，因此 <em>handleSearch</em> 将其附加到 <em>ctx</em>：<br><pre><code class="hljs go"><span class="hljs-comment">// Check the search query.</span>
    query := req.FormValue(<span class="hljs-string">&quot;q&quot;</span>)
    <span class="hljs-keyword">if</span> query == <span class="hljs-string">&quot;&quot;</span> &#123;
        http.Error(w, <span class="hljs-string">&quot;no query&quot;</span>, http.StatusBadRequest)
@@ -280,16 +269,12 @@ gtag('config', 'UA-156665333-1');
        http.Error(w, err.Error(), http.StatusBadRequest)
        <span class="hljs-keyword">return</span>
    &#125;
-   ctx = userip.NewContext(ctx, userIP)</code></pre>
-
-<p>回调函数使用 <em>ctx</em> 和 <em>query</em> 调用 _google.Search_：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// Run the Google search and print the results.</span>
+   ctx = userip.NewContext(ctx, userIP)</code></pre></p>
+<p>回调函数使用 <em>ctx</em> 和 <em>query</em> 调用 <em>google.Search</em>：<br><pre><code class="hljs go"><span class="hljs-comment">// Run the Google search and print the results.</span>
 start := time.Now()
 results, err := google.Search(ctx, query)
-elapsed := time.Since(start)</code></pre>
-
-<p>如果搜索成功，回调函数渲染结果：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">if</span> err := resultsTemplate.Execute(w, <span class="hljs-keyword">struct</span> &#123;
+elapsed := time.Since(start)</code></pre></p>
+<p>如果搜索成功，回调函数渲染结果：<br><pre><code class="hljs go"><span class="hljs-keyword">if</span> err := resultsTemplate.Execute(w, <span class="hljs-keyword">struct</span> &#123;
        Results          google.Results
        Timeout, Elapsed time.Duration
    &#125;&#123;
@@ -299,42 +284,32 @@ elapsed := time.Since(start)</code></pre>
    &#125;); err != <span class="hljs-literal">nil</span> &#123;
        log.Print(err)
        <span class="hljs-keyword">return</span>
-   &#125;</code></pre>
-
+   &#125;</code></pre></p>
 <h4 id="Package-userip"><a href="#Package-userip" class="headerlink" title="Package userip"></a>Package userip</h4><p><em><a target="_blank" rel="noopener" href="https://blog.golang.org/context/userip/userip.go">userip</a></em> 包提供了从请求中提取用户 IP 地址并将其与 <code>Context</code> 关联的函数。 <code>Context</code> 提供键-值映射，其中键和值都是 <code>interface&#123;&#125;</code> 类型。键类型必须支持相等，且值必须安全地供多个 <code>goroutine</code> 同时使用。像 <em>userip</em> 这样的包隐藏映射的细节，并提供对特定 <code>Context</code> 值的强类型访问。</p>
-<p>为了避免键冲突， <em>userip</em> 定义了一个未导出的类型 _key_，并使用此类型的值作为 <code>Context</code> 键：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// The key type is unexported to prevent collisions with context keys defined in</span>
+<p>为了避免键冲突， <em>userip</em> 定义了一个未导出的类型 <em>key</em>，并使用此类型的值作为 <code>Context</code> 键：<br><pre><code class="hljs go"><span class="hljs-comment">// The key type is unexported to prevent collisions with context keys defined in</span>
 <span class="hljs-comment">// other packages.</span>
-<span class="hljs-keyword">type</span> key <span class="hljs-keyword">int</span>
+<span class="hljs-keyword">type</span> key <span class="hljs-type">int</span>
 
 <span class="hljs-comment">// userIPkey is the context key for the user IP address.  Its value of zero is</span>
 <span class="hljs-comment">// arbitrary.  If this package defined other context keys, they would have</span>
 <span class="hljs-comment">// different integer values.</span>
-<span class="hljs-keyword">const</span> userIPKey key = <span class="hljs-number">0</span></code></pre>
-
-<p><em>FromRequest</em> 从 <em>http.Request</em> 中提取 <em>userIP</em> 的值：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">FromRequest</span><span class="hljs-params">(req *http.Request)</span> <span class="hljs-params">(net.IP, error)</span></span> &#123;
+<span class="hljs-keyword">const</span> userIPKey key = <span class="hljs-number">0</span></code></pre></p>
+<p><em>FromRequest</em> 从 <em>http.Request</em> 中提取 <em>userIP</em> 的值：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">FromRequest</span><span class="hljs-params">(req *http.Request)</span></span> (net.IP, <span class="hljs-type">error</span>) &#123;
     ip, _, err := net.SplitHostPort(req.RemoteAddr)
     <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
         <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, fmt.Errorf(<span class="hljs-string">&quot;userip: %q is not IP:port&quot;</span>, req.RemoteAddr)
-&#125;</code></pre>
-
-<p><em>NewContext</em> 返回一个的携带入参 <em>userIP</em> 值的新 <code>Context</code>：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewContext</span><span class="hljs-params">(ctx context.Context, userIP net.IP)</span> <span class="hljs-title">context</span>.<span class="hljs-title">Context</span></span> &#123;
+&#125;</code></pre></p>
+<p><em>NewContext</em> 返回一个的携带入参 <em>userIP</em> 值的新 <code>Context</code>：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewContext</span><span class="hljs-params">(ctx context.Context, userIP net.IP)</span></span> context.Context &#123;
     <span class="hljs-keyword">return</span> context.WithValue(ctx, userIPKey, userIP)
-&#125;</code></pre>
-
-<p><em>FromContext</em> 从 <em>Context</em> 中提取 <em>userIP</em>:</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">FromContext</span><span class="hljs-params">(ctx context.Context)</span> <span class="hljs-params">(net.IP, <span class="hljs-keyword">bool</span>)</span></span> &#123;
+&#125;</code></pre></p>
+<p><em>FromContext</em> 从 <em>Context</em> 中提取 <em>userIP</em>:<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">FromContext</span><span class="hljs-params">(ctx context.Context)</span></span> (net.IP, <span class="hljs-type">bool</span>) &#123;
     <span class="hljs-comment">// ctx.Value returns nil if ctx has no value for the key;</span>
     <span class="hljs-comment">// the net.IP type assertion returns ok=false for nil.</span>
     userIP, ok := ctx.Value(userIPKey).(net.IP)
     <span class="hljs-keyword">return</span> userIP, ok
-&#125;</code></pre>
-
-<h4 id="Package-google"><a href="#Package-google" class="headerlink" title="Package google"></a>Package google</h4><p>该 <a target="_blank" rel="noopener" href="https://blog.golang.org/context/google/google.go">google.Search</a> 函数向 <em>Google Web Search API</em> 发出 HTTP 请求，并解析 JSON 编码的结果。它接受 <code>Context</code> 参数 <em>ctx_，请求运行时，如果 _ctx.Done</em> 关闭，则立刻返回。</p>
-<p><em>Google Web Search API</em> 请求包括搜索 <em>query</em> 和 <em>user IP</em> 作为查询参数：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Search</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(Results, error)</span></span> &#123;
+&#125;</code></pre></p>
+<h4 id="Package-google"><a href="#Package-google" class="headerlink" title="Package google"></a>Package google</h4><p>该 <a target="_blank" rel="noopener" href="https://blog.golang.org/context/google/google.go">google.Search</a> 函数向 <em>Google Web Search API</em> 发出 HTTP 请求，并解析 JSON 编码的结果。它接受 <code>Context</code> 参数 <em>ctx</em>，请求运行时，如果 <em>ctx.Done</em> 关闭，则立刻返回。</p>
+<p><em>Google Web Search API</em> 请求包括搜索 <em>query</em> 和 <em>user IP</em> 作为查询参数：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Search</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-type">string</span>)</span></span> (Results, <span class="hljs-type">error</span>) &#123;
     <span class="hljs-comment">// Prepare the Google Search API request.</span>
     req, err := http.NewRequest(<span class="hljs-string">&quot;GET&quot;</span>, <span class="hljs-string">&quot;https://ajax.googleapis.com/ajax/services/search/web?v=1.0&quot;</span>, <span class="hljs-literal">nil</span>)
     <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
@@ -349,11 +324,9 @@ elapsed := time.Since(start)</code></pre>
     <span class="hljs-keyword">if</span> userIP, ok := userip.FromContext(ctx); ok &#123;
         q.Set(<span class="hljs-string">&quot;userip&quot;</span>, userIP.String())
     &#125;
-    req.URL.RawQuery = q.Encode()</code></pre>
-
-<p><em>Search</em> 使用一个 helper 函数 <em>httpDo</em> 来发出 HTTP 请求；在处理请求或响应时，如果 <em>ctx.Done</em> 关闭，将取消调用。<em>Search</em> 将闭包传递给 <em>httpDo</em> 处理 HTTP 响应：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">var</span> results Results
-  err = httpDo(ctx, req, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(resp *http.Response, err error)</span> <span class="hljs-title">error</span></span> &#123;
+    req.URL.RawQuery = q.Encode()</code></pre></p>
+<p><em>Search</em> 使用一个 helper 函数 <em>httpDo</em> 来发出 HTTP 请求；在处理请求或响应时，如果 <em>ctx.Done</em> 关闭，将取消调用。<em>Search</em> 将闭包传递给 <em>httpDo</em> 处理 HTTP 响应：<br><pre><code class="hljs go"><span class="hljs-keyword">var</span> results Results
+  err = httpDo(ctx, req, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(resp *http.Response, err <span class="hljs-type">error</span>)</span></span> <span class="hljs-type">error</span> &#123;
       <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
           <span class="hljs-keyword">return</span> err
       &#125;
@@ -364,8 +337,8 @@ elapsed := time.Since(start)</code></pre>
       <span class="hljs-keyword">var</span> data <span class="hljs-keyword">struct</span> &#123;
           ResponseData <span class="hljs-keyword">struct</span> &#123;
               Results []<span class="hljs-keyword">struct</span> &#123;
-                  TitleNoFormatting <span class="hljs-keyword">string</span>
-                  URL               <span class="hljs-keyword">string</span>
+                  TitleNoFormatting <span class="hljs-type">string</span>
+                  URL               <span class="hljs-type">string</span>
               &#125;
           &#125;
       &#125;
@@ -379,12 +352,10 @@ elapsed := time.Since(start)</code></pre>
   &#125;)
   <span class="hljs-comment">// httpDo waits for the closure we provided to return, so it&#x27;s safe to</span>
   <span class="hljs-comment">// read results here.</span>
-  <span class="hljs-keyword">return</span> results, err</code></pre>
-
-<p><em>httpDo</em> 函数运行 HTTP 请求并在新的 <code>goroutine</code> 中处理其响应。如果 <em>ctx.Done</em> 在<code>goroutine</code> 退出之前关闭, 将取消请求：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">httpDo</span><span class="hljs-params">(ctx context.Context, req *http.Request, f <span class="hljs-keyword">func</span>(*http.Response, error)</span> <span class="hljs-title">error</span>) <span class="hljs-title">error</span></span> &#123;
+  <span class="hljs-keyword">return</span> results, err</code></pre></p>
+<p><em>httpDo</em> 函数运行 HTTP 请求并在新的 <code>goroutine</code> 中处理其响应。如果 <em>ctx.Done</em> 在<code>goroutine</code> 退出之前关闭, 将取消请求：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">httpDo</span><span class="hljs-params">(ctx context.Context, req *http.Request, f <span class="hljs-keyword">func</span>(*http.Response, <span class="hljs-type">error</span>)</span></span> <span class="hljs-type">error</span>) <span class="hljs-type">error</span> &#123;
     <span class="hljs-comment">// Run the HTTP request in a goroutine and pass the response to f.</span>
-    c := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> error, <span class="hljs-number">1</span>)
+    c := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-type">error</span>, <span class="hljs-number">1</span>)
     req = req.WithContext(ctx)
     <span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123; c &lt;- f(http.DefaultClient.Do(req)) &#125;()
     <span class="hljs-keyword">select</span> &#123;
@@ -394,15 +365,14 @@ elapsed := time.Since(start)</code></pre>
     <span class="hljs-keyword">case</span> err := &lt;-c:
         <span class="hljs-keyword">return</span> err
     &#125;
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <h3 id="根据-Context-调整代码"><a href="#根据-Context-调整代码" class="headerlink" title="根据 Context 调整代码"></a>根据 Context 调整代码</h3><p>许多服务框架提供了包和类型，用于承载请求作用域的值。我们可以定义 <code>Context</code> 接口的新实现，以便在使用现有框架的代码和需要 <code>Context</code> 参数的代码之间架起桥梁。</p>
 <p>例如，Gorilla 的 <em><a target="_blank" rel="noopener" href="http://www.gorillatoolkit.org/pkg/context">github.com/gorilla/context</a></em> 包允许处理程序通过提供从 HTTP 请求到键值对的映射，将数据与传入请求相关联。在 <a target="_blank" rel="noopener" href="https://blog.golang.org/context/gorilla/gorilla.go">gorilla.go</a>，我们提供了一个 <code>Context</code> 实现，其 <code>Value</code> 方法返回与 Gorilla 包中 HTTP 请求相关联的值。</p>
 <p>其他包提供了类似于 <code>Context</code> 的取消支持。例如，<a target="_blank" rel="noopener" href="https://godoc.org/gopkg.in/tomb.v2">Tomb</a> 提供了一个 <em>Kill</em> 方法，通过关闭一个 <em>Dying</em> channel 发出取消信号。 <em>Tomb</em> 还提供了等待这些 <code>goroutine</code> 退出的方法，类似于 <code>sync.WaitGroup</code>. 在 <a target="_blank" rel="noopener" href="https://blog.golang.org/context/tomb/tomb.go">tomb.go</a>，我们提供了一个 <code>Context</code> 实现，当其父 <code>Context</code> 被取消或提供的 <em>Tomb</em> 被杀死时，该 <code>Context</code> 实现被取消。</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>在 Google，我们要求 Go 程序员将 <code>Context</code> 参数作为第一个参数传递给传入和传出请求之间调用路径上的每个函数。这使得许多不同团队开发的 Go 代码能够很好地互操作。它提供了对超时和取消的简单控制，并确保诸如安全凭据之类的关键值正确地传递到程序中。</p>
 <p>想要基于 <code>Context</code> 构建的服务器框架应该提供 <code>Context</code> 的实现，以便在其包和那些需要上下文参数的包之间架起桥梁。它们的客户端库接受来自调用代码的 <code>Context</code>。通过为请求作用域的数据和取消建立公共接口，<code>Context</code> 使包开发人员更容易共享代码以创建可伸缩的服务。</p>
 <p><em>原文：</em> <a target="_blank" rel="noopener" href="https://blog.golang.org/context">Go Concurrency Patterns: Context</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/01-19-2021/go-concurrency-patterns-context-cn.html">https://www.cyningsun.com/01-19-2021/go-concurrency-patterns-context-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/01-19-2021/go-concurrency-patterns-context-cn.html">https://www.cyningsun.com/01-19-2021/go-concurrency-patterns-context-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -458,7 +428,7 @@ elapsed := time.Since(start)</code></pre>
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

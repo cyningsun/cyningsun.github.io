@@ -187,11 +187,10 @@ gtag('config', 'UA-156665333-1');
         
         <h3 id="Golang-是面向对象的么？"><a href="#Golang-是面向对象的么？" class="headerlink" title="Golang 是面向对象的么？"></a>Golang 是面向对象的么？</h3><p>是，也不是。尽管 Go 有类型和方法，并且允许面向对象风格的编程，但没有类型层次结构。Go 的『接口』概念提供了一种不同的实现方式，在某些方面更通用。同时，缺少类型层次结构使 Go 的『对象』感觉上比 C++ 或 Java 等语言中的『对象』轻很多。本文的目的就是通过示例来说明，如何使用 Golang 进行面向对象编程</p>
 <h3 id="过程化"><a href="#过程化" class="headerlink" title="过程化"></a>过程化</h3><p>以下是一个关于身份证ID的示例，用于从身份证中提取生日。通常的实现版本如下：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Birthday</span><span class="hljs-params">(id <span class="hljs-keyword">string</span>)</span> <span class="hljs-title">string</span></span> &#123;
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Birthday</span><span class="hljs-params">(id <span class="hljs-type">string</span>)</span></span> <span class="hljs-type">string</span> &#123;
 	<span class="hljs-keyword">return</span> id[<span class="hljs-number">6</span>:<span class="hljs-number">14</span>]
 &#125;
 </code></pre>
-
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> (
 	id = <span class="hljs-string">&quot;412717199109031697&quot;</span>
 )
@@ -202,22 +201,20 @@ gtag('config', 'UA-156665333-1');
 		t.Errorf(<span class="hljs-string">&quot;unexpected birthday, wanted:%v, found:%v&quot;</span>, wanted, found)
 	&#125;
 &#125;</code></pre>
-
 <p>简单的数据，如此实现倒也问题不大。但生产环境中往往遇到的都是复杂的多的数据和操作。此时就需要将数据和操作封装在一起</p>
 <h3 id="封装"><a href="#封装" class="headerlink" title="封装"></a>封装</h3><p>Golang 中可以通过 <code>type</code> 关键字创建新的类型，同时使用 <code>NewXXX</code> 的风格创建对象。</p>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> ID <span class="hljs-keyword">string</span>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> ID <span class="hljs-type">string</span>
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewID</span><span class="hljs-params">(id <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(ID, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewID</span><span class="hljs-params">(id <span class="hljs-type">string</span>)</span></span> (ID, <span class="hljs-type">error</span>) &#123;
 	<span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(id) != <span class="hljs-number">18</span> &#123;
 		<span class="hljs-keyword">return</span> <span class="hljs-string">&quot;&quot;</span>, errors.New(fmt.Sprintf(<span class="hljs-string">&quot;error id length:%v&quot;</span>, <span class="hljs-built_in">len</span>(id)))
 	&#125;
 	<span class="hljs-keyword">return</span> ID(id), <span class="hljs-literal">nil</span>
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(i ID)</span> <span class="hljs-title">Birthday</span><span class="hljs-params">()</span> <span class="hljs-title">string</span></span> &#123;
-	<span class="hljs-keyword">return</span> <span class="hljs-keyword">string</span>(i[<span class="hljs-number">6</span>:<span class="hljs-number">14</span>])
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(i ID)</span></span> Birthday() <span class="hljs-type">string</span> &#123;
+	<span class="hljs-keyword">return</span> <span class="hljs-type">string</span>(i[<span class="hljs-number">6</span>:<span class="hljs-number">14</span>])
 &#125;</code></pre>
-
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestID_Birthday</span><span class="hljs-params">(t *testing.T)</span></span> &#123;
 	found := ID(id).Birthday()
 	wanted := <span class="hljs-string">&quot;19910903&quot;</span>
@@ -225,27 +222,25 @@ gtag('config', 'UA-156665333-1');
 		t.Errorf(<span class="hljs-string">&quot;unexpected birthday, wanted:%v, found:%v&quot;</span>, wanted, found)
 	&#125;
 &#125;</code></pre>
-
 <p>当业务变得更加复杂，同一种功能，存在多种实现方式，比如支付方式，微信支付、京东支付、支付宝、银联等不同渠道的大概流程大抵相似，但实现细节有所区别。此时就需要借助多态的动态绑定来进行业务抽象。</p>
 <h3 id="多态"><a href="#多态" class="headerlink" title="多态"></a>多态</h3><p>Golang 中动态绑定方法的唯一方式是通过接口（interface）来实现的。结构或其他具体类型上的方法始终是静态的。</p>
 <pre><code class="hljs go"><span class="hljs-keyword">type</span> ID <span class="hljs-keyword">interface</span> &#123;
-	Birthday() <span class="hljs-keyword">string</span>
+	Birthday() <span class="hljs-type">string</span>
 &#125;
 
-<span class="hljs-keyword">type</span> id <span class="hljs-keyword">string</span>
+<span class="hljs-keyword">type</span> id <span class="hljs-type">string</span>
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewID</span><span class="hljs-params">(i <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(ID, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewID</span><span class="hljs-params">(i <span class="hljs-type">string</span>)</span></span> (ID, <span class="hljs-type">error</span>) &#123;
 	<span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(i) != <span class="hljs-number">18</span> &#123;
 		<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, errors.New(fmt.Sprintf(<span class="hljs-string">&quot;error id length:%v&quot;</span>, <span class="hljs-built_in">len</span>(i)))
 	&#125;
 	<span class="hljs-keyword">return</span> id(i), <span class="hljs-literal">nil</span>
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(i id)</span> <span class="hljs-title">Birthday</span><span class="hljs-params">()</span> <span class="hljs-title">string</span></span> &#123;
-	<span class="hljs-keyword">return</span> <span class="hljs-keyword">string</span>(i[<span class="hljs-number">6</span>:<span class="hljs-number">14</span>])
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(i id)</span></span> Birthday() <span class="hljs-type">string</span> &#123;
+	<span class="hljs-keyword">return</span> <span class="hljs-type">string</span>(i[<span class="hljs-number">6</span>:<span class="hljs-number">14</span>])
 &#125;
 </code></pre>
-
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> (
 	fakeid = <span class="hljs-string">&quot;412717199109031697&quot;</span>
 )
@@ -259,16 +254,15 @@ gtag('config', 'UA-156665333-1');
 		t.Errorf(<span class="hljs-string">&quot;unexpected birthday, wanted:%v, found:%v&quot;</span>, wanted, found)
 	&#125;
 &#125;</code></pre>
-
 <p>除了线性的业务逻辑处理场景，在生产中还会遇到层状的业务流，但是不同层次之间又有很多功能是相通的，此时就需要借助“继承”之类的能力，来实现代码复用。遗憾的是 Golang 中并不存在继承，下面我们介绍它的替代者</p>
 <h3 id="组合"><a href="#组合" class="headerlink" title="组合"></a>组合</h3><p>在最知名的语言中，面向对象编程很多讨论是关于类型之间关系的。Go 采用了不同的实现 —— 隐藏类式的类型依赖。</p>
 <p>在 Go 中，类型会自动满足指定其方法子集的任何接口，无需提前声明两种类型相关联。类型可以一次满足许多接口，而没有传统的多重继承的复杂性。 类型和接口之间没有明确的关系，所以不涉及类型层次结构。类似想法可以用来构造像类型安全的 Unix 管道一样的实现。</p>
 <p>所有的“继承”之类的实现，在 Golang 中都能以组合（或内嵌）的方式来实现，组合和内嵌的对象可以是具体的类型，也可以抽象的接口。以下示例介绍了两种风格的实现：</p>
 <pre><code class="hljs go"><span class="hljs-keyword">type</span> Man <span class="hljs-keyword">interface</span> &#123;
-	Birthday() <span class="hljs-keyword">string</span>
+	Birthday() <span class="hljs-type">string</span>
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewMan</span><span class="hljs-params">(name, id <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(Man, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewMan</span><span class="hljs-params">(name, id <span class="hljs-type">string</span>)</span></span> (Man, <span class="hljs-type">error</span>) &#123;
 	i, err := NewID(id)
 	<span class="hljs-keyword">return</span> &amp;man&#123;
 		id:   i,
@@ -276,7 +270,7 @@ gtag('config', 'UA-156665333-1');
 	&#125;, err
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewManEmbedding</span><span class="hljs-params">(name, id <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(Man, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewManEmbedding</span><span class="hljs-params">(name, id <span class="hljs-type">string</span>)</span></span> (Man, <span class="hljs-type">error</span>) &#123;
 	i, err := NewID(id)
 	<span class="hljs-keyword">return</span> &amp;manEmbedding&#123;
 		ID:   i,
@@ -286,18 +280,17 @@ gtag('config', 'UA-156665333-1');
 
 <span class="hljs-keyword">type</span> man <span class="hljs-keyword">struct</span> &#123;
 	id   ID
-	name <span class="hljs-keyword">string</span>
+	name <span class="hljs-type">string</span>
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(m *man)</span> <span class="hljs-title">Birthday</span><span class="hljs-params">()</span> <span class="hljs-title">string</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(m *man)</span></span> Birthday() <span class="hljs-type">string</span> &#123;
 	<span class="hljs-keyword">return</span> m.id.Birthday()
 &#125;
 
 <span class="hljs-keyword">type</span> manEmbedding <span class="hljs-keyword">struct</span> &#123;
 	ID
-	name <span class="hljs-keyword">string</span>
+	name <span class="hljs-type">string</span>
 &#125;</code></pre>
-
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> (
 	peterid = <span class="hljs-string">&quot;412717199109031697&quot;</span>
 	samid   = <span class="hljs-string">&quot;312717199109036148&quot;</span>
@@ -316,10 +309,9 @@ gtag('config', 'UA-156665333-1');
 	&#125;
 
 &#125;</code></pre>
-
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>Write go in go way. Golang 很多经典的思想都可以通过官方文档获得，例如：<a target="_blank" rel="noopener" href="https://golang.org/doc/faq">FAQ</a>。</p>
 <p><em>源代码：</em><a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test/tree/master/20210311-oop-in-go">https://github.com/cyningsun/go-test/tree/master/20210311-oop-in-go</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-12-2021/oop-in-go.html">https://www.cyningsun.com/03-12-2021/oop-in-go.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-12-2021/oop-in-go.html">https://www.cyningsun.com/03-12-2021/oop-in-go.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -375,7 +367,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

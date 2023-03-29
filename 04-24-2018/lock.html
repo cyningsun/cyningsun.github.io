@@ -190,8 +190,8 @@ gtag('config', 'UA-156665333-1');
         <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>编写并行程序必须要面对的一个难题：如何正确有效的保护共享数据。一些场景必然无法逃避锁的使用，最常见的应用就是：本地缓存。当使用锁的时候我们该注意什么？当锁成为性能瓶颈的时候我们该怎么优化做到有的放矢？</p>
 <h3 id="操作代价"><a href="#操作代价" class="headerlink" title="操作代价"></a>操作代价</h3><p>如果关注性能，自然少不了要理解下，锁使用过程中性能到底消耗在哪里。如果一个锁自始至终只被一个线程使用。或者，一个锁被多个线程使用过，但是在任意时刻，都只有一个线程尝试获取锁，我们将以上两种锁称为非竞争锁，这种情况对性能的影响很小。对性能影响最严重的情况出现在多个线程同时尝试获取锁，即锁竞争。性能影响主要在于上下文切换以及数据的cacheline miss。因此，面对需要使用锁的情况，不要过分担心非竞争锁带来的开销，要关注那些真正发生了锁竞争的临界区中性能的优化。</p>
 <blockquote>
-</blockquote>
 <p>加锁耗时：10ns<br>原子+1：50ns<br>CAS：100ns<br>自旋锁竞争（cacheline miss）：100ns<br>信号量竞争（上下文切换）：1000ns<br>内存访问：100ns<br><a target="_blank" rel="noopener" href="http://yarchive.net/comp/linux/lock_costs.html" title="http://yarchive.net/comp/linux/lock_costs.html">http://yarchive.net/comp/linux/lock_costs.html</a></p>
+</blockquote>
 <p>因此，在保证程序正确性的前提下，解决锁同步带来的性能损失的主要方向应该是降低锁竞争。通常，有以下三类方法：</p>
 <ol>
 <li>减少持有锁的时间</li>
@@ -216,7 +216,7 @@ gtag('config', 'UA-156665333-1');
 </li>
 </ul>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>以上只是一些通用的减少锁竞争的手段，针对不同的业务场景还可以使用其他措施来优化锁竞争，例如：使用自旋锁代替独占锁，批量读取数据，减少锁冲突导致的上下文切换。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-24-2018/lock.html">https://www.cyningsun.com/04-24-2018/lock.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-24-2018/lock.html">https://www.cyningsun.com/04-24-2018/lock.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -255,7 +255,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

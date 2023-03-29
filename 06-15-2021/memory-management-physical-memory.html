@@ -196,7 +196,6 @@ gtag('config', 'UA-156665333-1');
 <h3 id="页框管理"><a href="#页框管理" class="headerlink" title="页框管理"></a>页框管理</h3><p>想要管理内存，首先要知道有哪些内存，并且把内存状态记录下来。物理内存默认以 4k 分割为一个个的单元，每个单元被称为页框（page frame）。内核使用 <code>struct page</code> 数组跟踪内存中每个页框的当前状态。数组的每个元素对应于物理内存中的一个页框，数组定义如下：</p>
 <pre><code class="hljs c"><span class="hljs-comment">// `struct page` 定义在 `linux/mm_types.h`</span>
 <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">page</span> *<span class="hljs-title">mem_map</span>;</span></code></pre>
-
 <p>例如，mem_map[0] 包含内存中第一个页框的信息</p>
 <blockquote>
 <p>名词说明：</p>
@@ -226,7 +225,7 @@ gtag('config', 'UA-156665333-1');
 <p>伙伴系统解决了内存外部碎片问题，而 SLAB 解决了内存的内部碎片问题。所谓外部碎片是指由于频繁地申请和释放页框而导致的某些小的连续页框，而内部碎片就是指被分配出去但是不能被利用的内存。</p>
 <p><img src="/images/memory-management-physical-memory/memory-allocator.png" alt="memory-allocator.png"></p>
 <p>两个系统的细节暂时按下，后续详聊。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-15-2021/memory-management-physical-memory.html">https://www.cyningsun.com/06-15-2021/memory-management-physical-memory.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-15-2021/memory-management-physical-memory.html">https://www.cyningsun.com/06-15-2021/memory-management-physical-memory.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -276,7 +275,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -215,24 +215,23 @@ gtag('config', 'UA-156665333-1');
 <h4 id="隔离您的业务领域"><a href="#隔离您的业务领域" class="headerlink" title="隔离您的业务领域"></a>隔离您的业务领域</h4><p>第一点可以改变的是，将 <em>业务领域</em> 移动到自己的包中。也可以称之为“应用领域”。它是特定于应用程序的数据类型 —— 例如，<code>User</code>, <code>Dial</code>（在 WTF Dial 的例子中）。</p>
 <p>为此，我使用根包（<code>wtf</code>）实现该意图，因为它已经很简便地以应用程序命名，而且根包是新开发人员打开代码库时首先看到的地方。类型现在更好的命名为 <code>wtf.User</code> 以及 <code>wtf.Dial</code>。</p>
 <p><img src="/images/packages-as-layers-not-groups-cn/804113F0-9C8B-4363-BC04-8E9113A84CA7.svg" alt="804113F0-9C8B-4363-BC04-8E9113A84CA7.svg+xml"></p>
-<p>可以看到 <code>wtf.Dial</code> 类型的一个示例：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> Dial <span class="hljs-keyword">struct</span> &#123;
-	ID <span class="hljs-keyword">int</span> <span class="hljs-string">`json:&quot;id&quot;`</span>
+<p>可以看到 <code>wtf.Dial</code> 类型的一个示例：<br><pre><code class="hljs go"><span class="hljs-keyword">type</span> Dial <span class="hljs-keyword">struct</span> &#123;
+	ID <span class="hljs-type">int</span> <span class="hljs-string">`json:&quot;id&quot;`</span>
 
 	<span class="hljs-comment">// Owner of the dial. Only the owner may delete the dial.</span>
-	UserID <span class="hljs-keyword">int</span>   <span class="hljs-string">`json:&quot;userID&quot;`</span>
+	UserID <span class="hljs-type">int</span>   <span class="hljs-string">`json:&quot;userID&quot;`</span>
 	User   *User <span class="hljs-string">`json:&quot;user&quot;`</span>
 
 	<span class="hljs-comment">// Human-readable name of the dial.</span>
-	Name <span class="hljs-keyword">string</span> <span class="hljs-string">`json:&quot;name&quot;`</span>
+	Name <span class="hljs-type">string</span> <span class="hljs-string">`json:&quot;name&quot;`</span>
 
 	<span class="hljs-comment">// Code used to share the dial with other users.</span>
 	<span class="hljs-comment">// It allows the creation of a shareable link without</span>
 	<span class="hljs-comment">// explicitly inviting users.</span>
-	InviteCode <span class="hljs-keyword">string</span> <span class="hljs-string">`json:&quot;inviteCode,omitempty&quot;`</span>
+	InviteCode <span class="hljs-type">string</span> <span class="hljs-string">`json:&quot;inviteCode,omitempty&quot;`</span>
 
 	<span class="hljs-comment">// Aggregate WTF level for the dial.</span>
-	Value <span class="hljs-keyword">int</span> <span class="hljs-string">`json:&quot;value&quot;`</span>
+	Value <span class="hljs-type">int</span> <span class="hljs-string">`json:&quot;value&quot;`</span>
 
 	<span class="hljs-comment">// Timestamps for dial creation &amp; last update.</span>
 	CreatedAt time.Time <span class="hljs-string">`json:&quot;createdAt&quot;`</span>
@@ -241,8 +240,7 @@ gtag('config', 'UA-156665333-1');
 	<span class="hljs-comment">// List of associated members and their contributing WTF level.</span>
 	<span class="hljs-comment">// This is only set when returning a single dial.</span>
 	Memberships []*DialMembership <span class="hljs-string">`json:&quot;memberships,omitempty&quot;`</span>
-&#125;</code></pre>
-<p>以上代码没有引用任何实现细节，只有基本类型和 <code>time.Time</code>。添加 JSON 标记是为了方便。</p>
+&#125;</code></pre><br>以上代码没有引用任何实现细节，只有基本类型和 <code>time.Time</code>。添加 JSON 标记是为了方便。</p>
 <h4 id="通过抽象去除依赖"><a href="#通过抽象去除依赖" class="headerlink" title="通过抽象去除依赖"></a>通过抽象去除依赖</h4><p>应用程序结构看起来好些了，但是 HTTP 依赖于 SQLite 仍然很奇怪。 HTTP 服务想要从底层数据存储中获取数据，它并不特别关心底层数据存储是否是 SQLite。</p>
 <p>为了解决该问题，我们为业务域中的服务操作创建接口。服务通常是Create/Read/Update/Delete（CRUD），但可以扩展到其他操作。</p>
 <pre><code class="hljs go"><span class="hljs-comment">// DialService represents a service for managing dials.</span>
@@ -250,31 +248,30 @@ gtag('config', 'UA-156665333-1');
 	<span class="hljs-comment">// Retrieves a single dial by ID along with associated memberships. Only</span>
 	<span class="hljs-comment">// the dial owner &amp; members can see a dial. Returns ENOTFOUND if dial does</span>
 	<span class="hljs-comment">// not exist or user does not have permission to view it.</span>
-	FindDialByID(ctx context.Context, id <span class="hljs-keyword">int</span>) (*Dial, error)
+	FindDialByID(ctx context.Context, id <span class="hljs-type">int</span>) (*Dial, <span class="hljs-type">error</span>)
 
 	<span class="hljs-comment">// Retrieves a list of dials based on a filter. Only returns dials that</span>
 	<span class="hljs-comment">// the user owns or is a member of. Also returns a count of total matching</span>
 	<span class="hljs-comment">// dials which may different from the number of returned dials if the</span>
 	<span class="hljs-comment">// &quot;Limit&quot; field is set.</span>
-	FindDials(ctx context.Context, filter DialFilter) ([]*Dial, <span class="hljs-keyword">int</span>, error)
+	FindDials(ctx context.Context, filter DialFilter) ([]*Dial, <span class="hljs-type">int</span>, <span class="hljs-type">error</span>)
 
 	<span class="hljs-comment">// Creates a new dial and assigns the current user as the owner.</span>
 	<span class="hljs-comment">// The owner will automatically be added as a member of the new dial.</span>
-	CreateDial(ctx context.Context, dial *Dial) error
+	CreateDial(ctx context.Context, dial *Dial) <span class="hljs-type">error</span>
 
 	<span class="hljs-comment">// Updates an existing dial by ID. Only the dial owner can update a dial.</span>
 	<span class="hljs-comment">// Returns the new dial state even if there was an error during update.</span>
 	<span class="hljs-comment">//</span>
 	<span class="hljs-comment">// Returns ENOTFOUND if dial does not exist. Returns EUNAUTHORIZED if user</span>
 	<span class="hljs-comment">// is not the dial owner.</span>
-	UpdateDial(ctx context.Context, id <span class="hljs-keyword">int</span>, upd DialUpdate) (*Dial, error)
+	UpdateDial(ctx context.Context, id <span class="hljs-type">int</span>, upd DialUpdate) (*Dial, <span class="hljs-type">error</span>)
 
 	<span class="hljs-comment">// Permanently removes a dial by ID. Only the dial owner may delete a dial.</span>
 	<span class="hljs-comment">// Returns ENOTFOUND if dial does not exist. Returns EUNAUTHORIZED if user</span>
 	<span class="hljs-comment">// is not the dial owner.</span>
-	DeleteDial(ctx context.Context, id <span class="hljs-keyword">int</span>) error
+	DeleteDial(ctx context.Context, id <span class="hljs-type">int</span>) <span class="hljs-type">error</span>
 &#125;</code></pre>
-
 <p>现在，领域包（<code>wtf</code>）不仅指定了数据结构，还指定了层次之间如何通信的接口约定。使包层次结构扁平化，所有包现在都依赖于领域包。使得我们能够打破包之间的直接依赖关系，而且能够引入诸如 <code>mock</code> 包之类的替代实现。</p>
 <p><img src="/images/packages-as-layers-not-groups-cn/E1B5DA68-F665-4427-A355-9CF8A7DB32A4.svg" alt="E1B5DA68-F665-4427-A355-9CF8A7DB32A4.svg+xml"></p>
 <h4 id="重新组包"><a href="#重新组包" class="headerlink" title="重新组包"></a>重新组包</h4><p>打破包之间的依赖关系可以让我们灵活地使用代码。对于二进制应用程序 <code>wtfd</code>，我们仍然希望 <code>http</code> 依赖于 <code>sqlite</code>（参见 <a target="_blank" rel="noopener" href="https://github.com/benbjohnson/wtf/blob/main/cmd/wtfd/main.go#L180-L205">wtf/main.go</a> )，但是对于测试，我们可以将 <code>http</code> 更改为依赖于新的<code>mock</code> 包（参见<a target="_blank" rel="noopener" href="https://github.com/benbjohnson/wtf/blob/main/http/server_test.go#L22-L59">http/server_test.go</a>):</p>
@@ -283,7 +280,7 @@ gtag('config', 'UA-156665333-1');
 <h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>包是 Go 中一个强大的工具，但是如果你把它看作分组而不是层次的话，它会让你感到无尽的沮丧，理解应用程序的逻辑层之后，可以提取业务域的数据类型和接口约定，并将它们移动到根包，作为所有子包的通用域语言。随着时间的推移，定义领域语言对于应用程序的增长至关重要。</p>
 <p>有问题或意见，请在 <a target="_blank" rel="noopener" href="https://github.com/benbjohnson/wtf/discussions">WTF Dial GitHub 讨论板</a> 上创建新帖。</p>
 <p><em>原文：</em><a target="_blank" rel="noopener" href="https://www.gobeyond.dev/packages-as-layers/">https://www.gobeyond.dev/packages-as-layers/</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-03-2021/packages-as-layers-not-groups-cn.html">https://www.cyningsun.com/03-03-2021/packages-as-layers-not-groups-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-03-2021/packages-as-layers-not-groups-cn.html">https://www.cyningsun.com/03-03-2021/packages-as-layers-not-groups-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -339,7 +336,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

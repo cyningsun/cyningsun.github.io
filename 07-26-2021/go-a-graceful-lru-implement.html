@@ -186,27 +186,21 @@ gtag('config', 'UA-156665333-1');
     <div class="post">
         
         <p>Golang 的各种组件很灵活也很强大，但对于初级入门的使用者来说，要用好着实不易。最近，在开发一个可以拿来即用的 golang 库。第一个组件选择了缓存，主要是因为这个组件非常的关键，但也非常不容易实现好。</p>
-<h3 id="第一步：定义-Cache-接口"><a href="#第一步：定义-Cache-接口" class="headerlink" title="第一步：定义 Cache 接口"></a>第一步：定义 Cache 接口</h3><p>设计一个高扩展的缓存包，就需要利用 <a href="/08-03-2019/solid-go-design-cn.html">里氏替换原则（Liskov Substitution Principle）</a>，做好抽象，将缓存定义为接口</p>
-<pre><code class="hljs ada"><span class="hljs-keyword">type</span> <span class="hljs-type">Cache </span><span class="hljs-keyword">interface</span> &#123;
+<h3 id="第一步：定义-Cache-接口"><a href="#第一步：定义-Cache-接口" class="headerlink" title="第一步：定义 Cache 接口"></a>第一步：定义 Cache 接口</h3><p>设计一个高扩展的缓存包，就需要利用 <a href="/08-03-2019/solid-go-design-cn.html">里氏替换原则（Liskov Substitution Principle）</a>，做好抽象，将缓存定义为接口<br><pre><code class="hljs ada"><span class="hljs-keyword">type</span> <span class="hljs-type">Cache </span><span class="hljs-keyword">interface</span> &#123;
     ...
-&#125;</code></pre>
-
-<h3 id="第二步：组织包结构"><a href="#第二步：组织包结构" class="headerlink" title="第二步：组织包结构"></a>第二步：组织包结构</h3><p>然后，实现一个具体的 LRU 缓存，那么此时首先要组织好包结构，如下：</p>
-<pre><code class="hljs bash">|-cache
+&#125;</code></pre></p>
+<h3 id="第二步：组织包结构"><a href="#第二步：组织包结构" class="headerlink" title="第二步：组织包结构"></a>第二步：组织包结构</h3><p>然后，实现一个具体的 LRU 缓存，那么此时首先要组织好包结构，如下：<br><pre><code class="hljs bash">|-cache
 | |-lru
 | | |-lru.go
 | | |-segment.go
 | | |-options.go
 | | |-expvar.go
-|-cache.go</code></pre>
-
-<p><a href="/03-03-2021/packages-as-layers-not-groups-cn.html">利用包划分层次</a>，将接口放在根包下，作为所有子包的通用语言：</p>
-<pre><code class="hljs ada">// cache.go
+|-cache.go</code></pre></p>
+<p><a href="/03-03-2021/packages-as-layers-not-groups-cn.html">利用包划分层次</a>，将接口放在根包下，作为所有子包的通用语言：<br><pre><code class="hljs ada">// cache.go
 <span class="hljs-keyword">package</span> <span class="hljs-title">edge</span>
 <span class="hljs-keyword">type</span> <span class="hljs-type">Cache </span><span class="hljs-keyword">interface</span> &#123;
     ...
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <h3 id="第三步：实现-LRU-缓存"><a href="#第三步：实现-LRU-缓存" class="headerlink" title="第三步：实现 LRU 缓存"></a>第三步：实现 LRU 缓存</h3><ol>
 <li>为了防止锁竞争导致的性能低下，此处使用分段加锁的方式降低锁粒度以提高缓存性能</li>
 <li>同时将 <code>segment</code>、<code>newSegment</code>、<code>cache</code> 以小写命名，避免对外暴露实现细节</li>
@@ -219,7 +213,7 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-keyword">type</span> cache <span class="hljs-keyword">struct</span> &#123;
     ...
 &#125;
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">New</span><span class="hljs-params">(opts ...Opt)</span> <span class="hljs-params">(*cache, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">New</span><span class="hljs-params">(opts ...Opt)</span></span> (*cache, <span class="hljs-type">error</span>) &#123;
     ...
 &#125;
 
@@ -229,7 +223,7 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-keyword">type</span> segment <span class="hljs-keyword">struct</span> &#123;
     ...
 &#125;
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">newSegment</span><span class="hljs-params">(c <span class="hljs-keyword">int</span>)</span> *<span class="hljs-title">segment</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">newSegment</span><span class="hljs-params">(c <span class="hljs-type">int</span>)</span></span> *segment &#123;
     ...
 &#125;
 
@@ -240,13 +234,13 @@ gtag('config', 'UA-156665333-1');
 
 <span class="hljs-keyword">type</span> Opt <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(*options)</span></span>
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithConcurrency</span><span class="hljs-params">(c <span class="hljs-keyword">int</span>)</span> <span class="hljs-title">Opt</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithConcurrency</span><span class="hljs-params">(c <span class="hljs-type">int</span>)</span></span> Opt &#123;
 	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(o *options)</span></span> &#123;
 		o.concurrency = c
 	&#125;
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithCapacity</span><span class="hljs-params">(c <span class="hljs-keyword">int</span>)</span> <span class="hljs-title">Opt</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithCapacity</span><span class="hljs-params">(c <span class="hljs-type">int</span>)</span></span> Opt &#123;
 	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(o *options)</span></span> &#123;
 		o.capacity = c
 	&#125;
@@ -268,7 +262,6 @@ gtag('config', 'UA-156665333-1');
 	Hit:    expvar.NewInt(<span class="hljs-string">&quot;cache.lru.hit&quot;</span>),
 	Evict:  expvar.NewInt(<span class="hljs-string">&quot;cache.lru.evict&quot;</span>),
 &#125;</code></pre>
-
 <h3 id="第四步：结束了么？"><a href="#第四步：结束了么？" class="headerlink" title="第四步：结束了么？"></a>第四步：结束了么？</h3><p>当然没有，从以上可以看到，以下几点：</p>
 <ol>
 <li>options 可以做到多种实现共用，更应该放在 cache 文件夹下。</li>
@@ -276,8 +269,7 @@ gtag('config', 'UA-156665333-1');
 <li>segment.go 和 expvar.go 未对使用者开放但文件却对外暴露</li>
 <li>segment 可能后续会用来实现其他缓存算法，也不适合放在 lru 包下</li>
 </ol>
-<p>基于以上原因，再次调整包结构如下：</p>
-<pre><code class="hljs bash">|-cache
+<p>基于以上原因，再次调整包结构如下：<br><pre><code class="hljs bash">|-cache
 | |-options.go
 | |-lru.go
 |-cache.go
@@ -285,26 +277,20 @@ gtag('config', 'UA-156665333-1');
 | |-cache
 | | |-lru
 | | | |-expvar.go
-| | | |-segment.go</code></pre>
-
-<p>同时，调整 LRU 缓存的接口为：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// cache.go</span>
+| | | |-segment.go</code></pre></p>
+<p>同时，调整 LRU 缓存的接口为：<br><pre><code class="hljs go"><span class="hljs-comment">// cache.go</span>
 <span class="hljs-keyword">package</span> cache
 
 <span class="hljs-keyword">type</span> cache <span class="hljs-keyword">struct</span> &#123;
     ...
 &#125;
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewLRU</span><span class="hljs-params">(opts ...Opt)</span> <span class="hljs-params">(*cache, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewLRU</span><span class="hljs-params">(opts ...Opt)</span></span> (*cache, <span class="hljs-type">error</span>) &#123;
     ...
-&#125;</code></pre>
-
-<p>是不是自然了很多，使用示例：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">var</span> c edge.Cache = cache.NewLRU()</code></pre>
-
-
+&#125;</code></pre></p>
+<p>是不是自然了很多，使用示例：<br><pre><code class="hljs go"><span class="hljs-keyword">var</span> c edge.Cache = cache.NewLRU()</code></pre></p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>学以致用，此 LRU 的实现应用了很多之前的知识。追求优秀代码的路是没有尽头的，下课。</p>
 <p>源代码：<a target="_blank" rel="noopener" href="https://github.com/cyningsun/edge">github.com/cyningsun/edge</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-26-2021/go-a-graceful-lru-implement.html">https://www.cyningsun.com/07-26-2021/go-a-graceful-lru-implement.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-26-2021/go-a-graceful-lru-implement.html">https://www.cyningsun.com/07-26-2021/go-a-graceful-lru-implement.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -360,7 +346,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

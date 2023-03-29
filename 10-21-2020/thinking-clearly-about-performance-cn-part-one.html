@@ -197,7 +197,6 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-number">3.1</span>x = <span class="hljs-number">9</span> <span class="hljs-comment">// 加法逆运算，化简</span>
 <span class="hljs-number">3.1</span>x ∕ <span class="hljs-number">3.1</span> = <span class="hljs-number">9</span> ∕ <span class="hljs-number">3.1</span> <span class="hljs-comment">// 除以相等的值</span>
 x ≈ <span class="hljs-number">2.903</span> <span class="hljs-comment">// 乘法逆运算，化简</span></code></pre>
-
 <p>哈基先生解决代数、几何学、三角学和微积分的公理化方法就是这样：一次只需一小步，合乎逻辑的、可证明的、可审查的一步。这是我第一次真正掌握数学。</p>
 <p>自然，当时我并没有意识到，却证明是我在课后的世界中取得成功至关重要的一项技能。在生活中，我发现了解事物很重要，但向别人证明事物更重要。没有良好的证明技术，很难成为一名优秀的顾问、一名优秀的领导者，甚至是一名优秀的员工。</p>
 <p>自1990年代中期以来，我的目标一直是为 Oracle 性能优化创建类似的严格方法。最近，我将目标的范围扩展到Oracle之外：“创建一个计算机软件性能优化的公理化方法。”我发现没有多少人喜欢我这样说，所以换而言之：“我的目标是帮助你清楚地思考如何优化你的计算机软件的性能。”</p>
@@ -253,7 +252,6 @@ x ≈ <span class="hljs-number">2.903</span> <span class="hljs-comment">// 乘�
 <p><strong>例八：</strong>设想以下两种可能，每个列表表示四个子程序调用的响应时间：</p>
 <pre><code class="hljs c++">A = &#123;<span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>&#125;
 B = &#123;<span class="hljs-number">3.7</span>, <span class="hljs-number">.1</span>, <span class="hljs-number">.1</span>, <span class="hljs-number">.1</span>&#125;</code></pre>
-
 <p>列表 A，响应时间是一样的，因此无论你去除哪一半（两个）调用，你都可以将总响应时间减少到两秒。然而，列表 B，哪两个调用被去除会有很大不同。如果去除前两个调用，则总响应时间将降至0.2秒（减少95%）。如果去除最后两个调用，则总响应时间将降至3.8秒（仅减少5%）。</p>
 <p>倾斜是一系列数值的不均匀性。各种可能的倾斜使你无法给我在本节开头提出的问题提供准确的答案。让我们再看看：</p>
 <p><strong>例九：</strong>Table 2 性能剖析表明 322,968次 DB:fetch() 调用花费了1748.229秒的响应时间。去除一半的调用，将去除多少不必要的响应时间？在不了解任何关于倾斜的情况下，您可以提供的最准确的答案是，“介于0到1748.229秒之间。”</p>
@@ -269,7 +267,7 @@ B = &#123;<span class="hljs-number">3.7</span>, <span class="hljs-number">.1</sp
 <p>这就是为什么每当有人建议更改系统的 Oracle SQL * Net 数据包大小时，我都会退缩。因为问题实际上是几个写得不好的Java程序，进行了许多不必要的数据库调用（因此，也会产生不必要的网络I/O调用）。如果除了一两个程序的用户外，每个人都相处得颇为融洽，那么解决这个问题最安全的办法就是将范围局限于这一两个程序。</p>
 <p>续下篇：<a href="/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">Thinking Clearly about Performance (Part 2)</a></p>
 <p>原文链接：<a target="_blank" rel="noopener" href="https://queue.acm.org/detail.cfm?id=1854041">Thinking Clearly about Performance</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">https://www.cyningsun.com/10-21-2020/thinking-clearly-about-performance-cn-part-one.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">https://www.cyningsun.com/10-21-2020/thinking-clearly-about-performance-cn-part-one.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -317,7 +315,7 @@ B = &#123;<span class="hljs-number">3.7</span>, <span class="hljs-number">.1</sp
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -192,7 +192,7 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <p>在REST论文中也有类似的描述：</p>
 <blockquote>
-<p>REST 对于信息的核心抽象是<em>资源*。任何能够被命名的信息都能够作为一个资源。资源 *R</em> 是一个随时间变化的成员函数 <em>M<strong>R</strong>(t)*，该函数将时间 *t</em> 映射到等价的一个实体或值的集合，集合中的值可能是<em>资源的表述</em> 和/或 <em>资源的标识符</em>。</p>
+<p>REST 对于信息的核心抽象是<em>资源</em>。任何能够被命名的信息都能够作为一个资源。资源 <em>R</em> 是一个随时间变化的成员函数 <em>M<strong>R</strong>(t)</em>，该函数将时间 <em>t</em> 映射到等价的一个实体或值的集合，集合中的值可能是<em>资源的表述</em> 和/或 <em>资源的标识符</em>。</p>
 </blockquote>
 <p><img src="/images/Data=ID+Content.png" alt="Data=ID+Content"></p>
 <p>其中包含了以下层面的意思：</p>
@@ -219,6 +219,7 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <p>但是以上组织方式引入了一个新的问题，到底该把哪些数据作为生成标识符的一部分呢？答案就是：集合（依据就是开头的片段）。资源可以由 <code>集合 ID</code> 和 <code>资源 ID</code> 组成；如果资源包含子资源，则子资源可以由 <code>父资源</code> 后跟 <code>子资源的 ID</code>。</p>
 <p>示例 1：存储服务具有一组 <code>buckets</code>，其中每个存储分区都有一组 <code>objects</code>：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -229,15 +230,19 @@ gtag('config', 'UA-156665333-1');
 <th>资源 ID</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td>//storage.googleapis.com</td>
 <td>/buckets</td>
 <td>/bucket-id</td>
 <td>/objects</td>
 <td>/object-id</td>
 </tr>
-</tbody></table>
+</tbody>
+</table>
+</div>
 <p>示例 2：电子邮件服务具有一组 <code>users</code>。每个用户都有一个 <code>settings</code> 子资源，而 <code>settings</code> 子资源拥有包括 <code>customFrom</code> 在内的许多其他子资源：</p>
+<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -248,15 +253,18 @@ gtag('config', 'UA-156665333-1');
 <th>资源 ID</th>
 </tr>
 </thead>
-<tbody><tr>
+<tbody>
+<tr>
 <td>//mail.googleapis.com</td>
 <td>/users</td>
 <td>/name@example.com</td>
 <td>/settings</td>
 <td>/customFrom</td>
 </tr>
-</tbody></table>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-09-2020/resouce-id-design.html">https://www.cyningsun.com/08-09-2020/resouce-id-design.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+</tbody>
+</table>
+</div>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-09-2020/resouce-id-design.html">https://www.cyningsun.com/08-09-2020/resouce-id-design.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -308,7 +316,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

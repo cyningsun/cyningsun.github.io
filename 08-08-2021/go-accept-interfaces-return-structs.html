@@ -204,26 +204,23 @@ gtag('config', 'UA-156665333-1');
 <p>对于函数输入，需求不在你的控制范围之内。你可能认为 database struct 就足够了，但用户可能需要用其他东西装饰它。就算不是不可能，预测每个人使用你的函数的状态也是很困难的。能够精确控制输出，但无法预测用户输入。相比对输出的抽象化，这种不平衡造成了对输入的抽象化更强烈的偏重。</p>
 <h3 id="去除不必要的代码细节"><a href="#去除不必要的代码细节" class="headerlink" title="去除不必要的代码细节"></a>去除不必要的代码细节</h3><p><img src="/images/accept-interfaces-return-structs/recipes.png" alt="recipes.png"></p>
 <p>简化的另一方面是去除不必要的细节。函数就像烹饪食谱：给定输入，就会得到一个蛋糕！没有食谱会列出不需要的配料。类似地，函数也不应该列出不需要的输入。你如何看以下函数？</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">addNumbers</span><span class="hljs-params">(a <span class="hljs-keyword">int</span>, b <span class="hljs-keyword">int</span>, s <span class="hljs-keyword">string</span>)</span> <span class="hljs-title">int</span></span> &#123; 
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">addNumbers</span><span class="hljs-params">(a <span class="hljs-type">int</span>, b <span class="hljs-type">int</span>, s <span class="hljs-type">string</span>)</span></span> <span class="hljs-type">int</span> &#123; 
     <span class="hljs-keyword">return</span> a + b 
 &#125;</code></pre>
-
 <p>对于大多数程序员来说，很明显，参数 s 不恰当。当参数是结构时，却不太明显。</p>
 <pre><code class="hljs go"><span class="hljs-keyword">type</span> Database <span class="hljs-keyword">struct</span>&#123; &#125; 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *Database)</span> <span class="hljs-title">AddUser</span><span class="hljs-params">(s <span class="hljs-keyword">string</span>)</span></span> &#123;...&#125; 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *Database)</span> <span class="hljs-title">RemoveUser</span><span class="hljs-params">(s <span class="hljs-keyword">string</span>)</span></span> &#123;...&#125;
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewUser</span><span class="hljs-params">(d *Database, firstName <span class="hljs-keyword">string</span>, lastName <span class="hljs-keyword">string</span>)</span></span> &#123; 
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *Database)</span></span> AddUser(s <span class="hljs-type">string</span>) &#123;...&#125; 
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *Database)</span></span> RemoveUser(s <span class="hljs-type">string</span>) &#123;...&#125;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewUser</span><span class="hljs-params">(d *Database, firstName <span class="hljs-type">string</span>, lastName <span class="hljs-type">string</span>)</span></span> &#123; 
     d.AddUser(firstName + lastName) 
 &#125;</code></pre>
-
 <p>就像配料太多的食谱一样，NewUser 接收一个可以做太多事情的 Database 对象。它只需要 AddUser，但接收的参数还有 RemoveUser。使用接口创建的函数，可以只依赖于必需。</p>
 <pre><code class="hljs go"><span class="hljs-keyword">type</span> DatabaseWriter <span class="hljs-keyword">interface</span> &#123; 
-    AddUser(<span class="hljs-keyword">string</span>) 
+    AddUser(<span class="hljs-type">string</span>) 
 &#125; 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewUser</span><span class="hljs-params">(d DatabaseWriter, firstName <span class="hljs-keyword">string</span>, lastName <span class="hljs-keyword">string</span>)</span></span> &#123; 
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewUser</span><span class="hljs-params">(d DatabaseWriter, firstName <span class="hljs-type">string</span>, lastName <span class="hljs-type">string</span>)</span></span> &#123; 
     d.AddUser(firstName + lastName) 
 &#125;</code></pre>
-
 <p>Dave Cheney 在描述 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Interface_segregation_principle">接口隔离原则</a> 时 <a target="_blank" rel="noopener" href="https://dave.cheney.net/2016/08/20/solid-go-design">写到了这一点</a>。他还描述了限制输入的其他优点，值得一读。让人理解这个想法的总目标是：</p>
 <blockquote>
 <p>结果同时是一个函数，它的要求是最具体的——它只需要一个可写的东西——并且它的函数是最通用的</p>
@@ -237,7 +234,7 @@ gtag('config', 'UA-156665333-1');
 </ul>
 <p>以上原因还允许我们定义规则的例外情况。例如，如果函数需要返回多种类型，那么显然返回需要定义为接口。类似地，如果函数是私有的，那么函数输入便并不模糊，因为你可以控制它，所以倾向于非预先抽象。对于第三条规则，go 没有办法抽象出 struct 成员的值。因此，如果你的函数需要访问结构体成员（而不仅仅是结构体上的函数），那么您将被迫直接接受结构体。</p>
 <p><em>原文：</em>  <a target="_blank" rel="noopener" href="https://medium.com/@cep21/what-accept-interfaces-return-structs-means-in-go-2fe879e25ee8">What “accept interfaces, return structs” means in Go</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-08-2021/go-accept-interfaces-return-structs.html">https://www.cyningsun.com/08-08-2021/go-accept-interfaces-return-structs.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-08-2021/go-accept-interfaces-return-structs.html">https://www.cyningsun.com/08-08-2021/go-accept-interfaces-return-structs.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -293,7 +290,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -199,18 +199,14 @@ gtag('config', 'UA-156665333-1');
 <p>Weibo</p>
 <p>微博 30bit的秒级时间，4bit来区分IDC，2bit 区分业务，15bit 给 Sequence。理论上限3.2w/s的速度。由于当前发号服务是机房中心式的，1bit 来区分热备。最终，没有用满64bit。</p>
 <p>Flicker</p>
-<p>Flicker 在解决全局ID生成方案里就采用了MySQL自增长ID的机制（auto_increment + replace into + MyISAM）。<br>在我们的应用端需要做下面这两个操作，在一个事务会话里提交：</p>
-<pre><code class="hljs sql">REPLACE <span class="hljs-keyword">INTO</span> Tickets64 (stub) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">&#x27;a&#x27;</span>);
-<span class="hljs-keyword">SELECT</span> LAST_INSERT_ID();</code></pre>
-<p>Flicker启用了两台数据库服务器生成ID来容灾，通过区分auto_increment的起始值和步长来生成奇偶数的ID。</p>
-<pre><code class="hljs pgsql">TicketServer1:
+<p>Flicker 在解决全局ID生成方案里就采用了MySQL自增长ID的机制（auto_increment + replace into + MyISAM）。<br>在我们的应用端需要做下面这两个操作，在一个事务会话里提交：<br><pre><code class="hljs sql">REPLACE <span class="hljs-keyword">INTO</span> Tickets64 (stub) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">&#x27;a&#x27;</span>);
+<span class="hljs-keyword">SELECT</span> LAST_INSERT_ID();</code></pre><br>Flicker启用了两台数据库服务器生成ID来容灾，通过区分auto_increment的起始值和步长来生成奇偶数的ID。<br><pre><code class="hljs pgsql">TicketServer1:
 auto-<span class="hljs-keyword">increment</span>-<span class="hljs-keyword">increment</span> = <span class="hljs-number">2</span>
 auto-<span class="hljs-keyword">increment</span>-offset = <span class="hljs-number">1</span>
 
 TicketServer2:
 auto-<span class="hljs-keyword">increment</span>-<span class="hljs-keyword">increment</span> = <span class="hljs-number">2</span>
-auto-<span class="hljs-keyword">increment</span>-offset = <span class="hljs-number">2</span></code></pre>
-
+auto-<span class="hljs-keyword">increment</span>-offset = <span class="hljs-number">2</span></code></pre></p>
 <p>微信</p>
 <p>微信使用MySQL持久化未分配的最大ID，每次从DB取一段放到内存分配给调用方。微信的ID生成是严格递增的，意味着同一时间只能有一台机器提供服务，因此使用仲裁服务+租约机制+路由表，进行容灾。</p>
 <p><img src="/images/weixin-id-generator.jpg" alt="weixin-id-generator"></p>
@@ -220,7 +216,7 @@ auto-<span class="hljs-keyword">increment</span>-offset = <span class="hljs-numb
 </blockquote>
 <p>这样的ID生成器可以使用大约17年，对于一款产品的生命周期来说已经足够使用。</p>
 <p>针对时间回拨产生的问题，因为发生的频率极小，所以只需要简单判断，如果不满足 currentMillis &lt;= lastTime，则返回错误即可。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-26-2018/id-generator.html">https://www.cyningsun.com/12-26-2018/id-generator.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-26-2018/id-generator.html">https://www.cyningsun.com/12-26-2018/id-generator.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -272,7 +268,7 @@ auto-<span class="hljs-keyword">increment</span>-offset = <span class="hljs-numb
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

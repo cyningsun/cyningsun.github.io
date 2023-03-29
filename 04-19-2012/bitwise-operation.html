@@ -203,37 +203,36 @@ gtag('config', 'UA-156665333-1');
 <p>( (A  ^ (A&gt;&gt;31)) -  (A&gt;&gt;31) );   </p>
 <p>7、求相反数（变量A）</p>
 <p>~A + 1  </p>
-<p>8、实现整数的加减乘除</p>
-<pre><code class="hljs c++">
+<p>8、实现整数的加减乘除<br><pre><code class="hljs c++">
 <span class="hljs-comment">//加法运算</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">add</span><span class="hljs-params">(<span class="hljs-keyword">int</span> a, <span class="hljs-keyword">int</span> b)</span></span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">add</span><span class="hljs-params">(<span class="hljs-type">int</span> a, <span class="hljs-type">int</span> b)</span></span>
 <span class="hljs-function"></span>&#123;
 	<span class="hljs-keyword">return</span> b==<span class="hljs-number">0</span> ? a: <span class="hljs-built_in">add</span>(a^b,(a&amp;b)&lt;&lt;<span class="hljs-number">1</span>);
 &#125;
  
 <span class="hljs-comment">//补码中正数转负数的原理</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">negative</span><span class="hljs-params">(<span class="hljs-keyword">int</span> a)</span></span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">negative</span><span class="hljs-params">(<span class="hljs-type">int</span> a)</span></span>
 <span class="hljs-function"></span>&#123;
 	<span class="hljs-keyword">return</span> <span class="hljs-built_in">add</span>(<span class="hljs-number">1</span>,~a);
 &#125;
  
 <span class="hljs-comment">//减法运算</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">sub</span><span class="hljs-params">(<span class="hljs-keyword">int</span> a,<span class="hljs-keyword">int</span> b)</span></span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">sub</span><span class="hljs-params">(<span class="hljs-type">int</span> a,<span class="hljs-type">int</span> b)</span></span>
 <span class="hljs-function"></span>&#123;
 	<span class="hljs-keyword">return</span> <span class="hljs-built_in">add</span>(a,<span class="hljs-built_in">negative</span>(b));
 &#125;
  
 <span class="hljs-comment">//判断正负</span>
-<span class="hljs-function"><span class="hljs-keyword">bool</span> <span class="hljs-title">isNegative</span><span class="hljs-params">(<span class="hljs-keyword">int</span> a)</span></span>
+<span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">isNegative</span><span class="hljs-params">(<span class="hljs-type">int</span> a)</span></span>
 <span class="hljs-function"></span>&#123;
 	<span class="hljs-keyword">return</span> (a&amp;INT_MIN)!=<span class="hljs-number">0</span>; <span class="hljs-comment">//INT_MIN只有最高位为1，其余位为0</span>
 &#125;
  
  
 <span class="hljs-comment">//仅计算正数乘法</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">multi_help</span><span class="hljs-params">(<span class="hljs-keyword">int</span> a,<span class="hljs-keyword">int</span> b)</span>  </span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">multi_help</span><span class="hljs-params">(<span class="hljs-type">int</span> a,<span class="hljs-type">int</span> b)</span>  </span>
 <span class="hljs-function"></span>&#123;  
-    <span class="hljs-keyword">int</span> result= <span class="hljs-number">0</span>;  
+    <span class="hljs-type">int</span> result= <span class="hljs-number">0</span>;  
     <span class="hljs-keyword">while</span>(b)  
     &#123;  
         <span class="hljs-keyword">if</span>(b&amp;<span class="hljs-number">1</span>) result = <span class="hljs-built_in">add</span>(result, a);  
@@ -244,7 +243,7 @@ gtag('config', 'UA-156665333-1');
 &#125; 
  
 <span class="hljs-comment">//乘法</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">multi</span><span class="hljs-params">(<span class="hljs-keyword">int</span> a,<span class="hljs-keyword">int</span> b)</span></span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">multi</span><span class="hljs-params">(<span class="hljs-type">int</span> a,<span class="hljs-type">int</span> b)</span></span>
 <span class="hljs-function"></span>&#123;
 	<span class="hljs-keyword">if</span>(<span class="hljs-built_in">isNegative</span>(a))
 	&#123;
@@ -263,13 +262,13 @@ gtag('config', 'UA-156665333-1');
 &#125;
  
 <span class="hljs-comment">//仅计算正数除法</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">div_help</span><span class="hljs-params">(<span class="hljs-keyword">int</span> a,<span class="hljs-keyword">int</span> b)</span>  </span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">div_help</span><span class="hljs-params">(<span class="hljs-type">int</span> a,<span class="hljs-type">int</span> b)</span>  </span>
 <span class="hljs-function"></span>&#123;  
 	<span class="hljs-keyword">if</span>(a&lt;b) <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
 	<span class="hljs-keyword">if</span>(a==b) <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;
-    <span class="hljs-keyword">int</span> result=<span class="hljs-number">0</span>; 
+    <span class="hljs-type">int</span> result=<span class="hljs-number">0</span>; 
 	<span class="hljs-comment">//第32位为符号位，所以从第31位开始</span>
-    <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">30</span>;i&gt;=<span class="hljs-number">0</span>;i--)  
+    <span class="hljs-keyword">for</span>(<span class="hljs-type">int</span> i=<span class="hljs-number">30</span>;i&gt;=<span class="hljs-number">0</span>;i--)  
     &#123;  
         <span class="hljs-keyword">if</span>((a&gt;&gt;i)&gt;=b)  
         &#123;  
@@ -280,7 +279,7 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-keyword">return</span> result;  
 &#125;
 <span class="hljs-comment">//除法</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">div</span><span class="hljs-params">(<span class="hljs-keyword">int</span> a,<span class="hljs-keyword">int</span> b)</span></span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">div</span><span class="hljs-params">(<span class="hljs-type">int</span> a,<span class="hljs-type">int</span> b)</span></span>
 <span class="hljs-function"></span>&#123;
 	<span class="hljs-keyword">if</span>(<span class="hljs-built_in">isNegative</span>(a))
 	&#123;
@@ -296,10 +295,9 @@ gtag('config', 'UA-156665333-1');
 		<span class="hljs-keyword">else</span>
 			<span class="hljs-keyword">return</span> <span class="hljs-built_in">div_help</span>(a,b);
 	&#125;
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p>注：上面的算法看起来确实极其简洁正确，也在人群中广泛流传。但是涉及到部分细节的问题却鲜有人能考虑到，这也造成了只知其一不知其二而犯下大错。例如，5，两变量的交换，有多少人能想到如果传入的两变量是同一个数，这样的交换得到的结果是完全错误的。所以使用算法之前，请注意好前提条件（例如上面，两变量）。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-19-2012/bitwise-operation.html">https://www.cyningsun.com/04-19-2012/bitwise-operation.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-19-2012/bitwise-operation.html">https://www.cyningsun.com/04-19-2012/bitwise-operation.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -338,7 +336,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -190,16 +190,16 @@ gtag('config', 'UA-156665333-1');
         <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在做微信看一看的时候，由于推荐服务中经常会有打散等随机操作，所以经常会使用到rand函数获取随机数。在做性能优化的时候发现，rand函数在多线程服务中性能非常之差。当前回忆起来因此有了这篇文章。</p>
 <h3 id="你不了解的rand函数"><a href="#你不了解的rand函数" class="headerlink" title="你不了解的rand函数"></a>你不了解的rand函数</h3><p>为什么rand性能差，最快能排查问题的方式，来时通过阅读源代码，来弄清楚rand究竟是怎么实现的。</p>
 <p><a target="_blank" rel="noopener" href="http://sourceware.org/git/?p=glibc.git;a=blob;f=stdlib/rand.c;hb=glibc-2.15#l26">来源</a></p>
-<pre><code class="hljs c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdlib.h&gt;</span></span>
+<pre><code class="hljs c++"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stdlib.h&gt;</span></span>
  
-<span class="hljs-meta">#<span class="hljs-meta-keyword">undef</span> rand</span>
+<span class="hljs-meta">#<span class="hljs-keyword">undef</span> rand</span>
  
 
 <span class="hljs-comment">/* Return a random integer between 0 and RAND_MAX.  */</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span></span>
+<span class="hljs-function"><span class="hljs-type">int</span></span>
 <span class="hljs-function"><span class="hljs-title">rand</span> <span class="hljs-params">()</span></span>
 <span class="hljs-function"></span>&#123;
-  <span class="hljs-keyword">return</span> (<span class="hljs-keyword">int</span>) __random ();
+  <span class="hljs-keyword">return</span> (<span class="hljs-type">int</span>) __random ();
 &#125;</code></pre>
 <p>可以看到函数调用__random(), 我们继续跟进这个函数</p>
 <p><a target="_blank" rel="noopener" href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random.c;hb=glibc-2.15">stdlib/random.c</a></p>
@@ -207,27 +207,25 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-comment">/* POSIX.1c requires that there is mutual exclusion for the `rand&#x27; and</span>
 <span class="hljs-comment">   `srand&#x27; functions to prevent concurrent calls from modifying common</span>
 <span class="hljs-comment">   data.  */</span>
-__libc_lock_define_initialized (<span class="hljs-keyword">static</span>, lock)
+__libc_lock_define_initialized (<span class="hljs-type">static</span>, lock)
 
 
-<span class="hljs-keyword">long</span> <span class="hljs-keyword">int</span>
+<span class="hljs-type">long</span> <span class="hljs-type">int</span>
 __random ()
 &#123;
-  <span class="hljs-keyword">int32_t</span> retval;
+  <span class="hljs-type">int32_t</span> retval;
  
   __libc_lock_lock (lock);
  
-  (<span class="hljs-keyword">void</span>) __random_r (&amp;unsafe_state, &amp;retval);
+  (<span class="hljs-type">void</span>) __random_r (&amp;unsafe_state, &amp;retval);
  
   __libc_lock_unlock (lock);
  
   <span class="hljs-keyword">return</span> retval;
 &#125;</code></pre>
-
 <p>这下真想大白了，函数中有一个锁防止并发调用__random_r()。在文件头可以看到锁初始化的注释，加锁的目的是不希望多线程并发调用，同时修改功能的数据。那么我们是不是可以看下有没有什么替代函数。能否使用不加锁版本的随机数呢？</p>
 <p>从代码中我们可以看到，此段代码调用了__rand_r()，我们看下它做了什么？</p>
-<p><a target="_blank" rel="noopener" href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random_r.c;hb=glibc-2.15">random_r.c</a></p>
-<pre><code class="hljs c++"><span class="hljs-comment">/* </span>
+<p><a target="_blank" rel="noopener" href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random_r.c;hb=glibc-2.15">random_r.c</a><br><pre><code class="hljs c++"><span class="hljs-comment">/* </span>
 <span class="hljs-comment">   If we are using the trivial TYPE_0 R.N.G., just do the old linear</span>
 <span class="hljs-comment">   congruential bit.  Otherwise, we do our fancy trinomial stuff, which is the</span>
 <span class="hljs-comment">   same in all the other cases due to all the global variables that have been</span>
@@ -239,12 +237,12 @@ __random ()
 <span class="hljs-comment">   rear pointers can&#x27;t wrap on the same call by not testing the rear</span>
 <span class="hljs-comment">   pointer if the front one has wrapped.  Returns a 31-bit random number.  */</span>
  
-<span class="hljs-keyword">int</span>
+<span class="hljs-type">int</span>
 __random_r (buf, result)
-     <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">random_data</span> *<span class="hljs-title">buf</span>;</span>
-     <span class="hljs-keyword">int32_t</span> *result;
+     <span class="hljs-keyword">struct</span> <span class="hljs-title class_">random_data</span> *buf;
+     <span class="hljs-type">int32_t</span> *result;
 &#123;
-  <span class="hljs-keyword">int32_t</span> *state;
+  <span class="hljs-type">int32_t</span> *state;
  
   <span class="hljs-keyword">if</span> (buf == <span class="hljs-literal">NULL</span> || result == <span class="hljs-literal">NULL</span>)
     <span class="hljs-keyword">goto</span> fail;
@@ -253,17 +251,17 @@ __random_r (buf, result)
  
   <span class="hljs-keyword">if</span> (buf-&gt;rand_type == TYPE_0)
     &#123;
-      <span class="hljs-keyword">int32_t</span> val = state[<span class="hljs-number">0</span>];
+      <span class="hljs-type">int32_t</span> val = state[<span class="hljs-number">0</span>];
       val = ((state[<span class="hljs-number">0</span>] * <span class="hljs-number">1103515245</span>) + <span class="hljs-number">12345</span>) &amp; <span class="hljs-number">0x7fffffff</span>;
       state[<span class="hljs-number">0</span>] = val;
       *result = val;
     &#125;
   <span class="hljs-keyword">else</span>
     &#123;
-      <span class="hljs-keyword">int32_t</span> *fptr = buf-&gt;fptr;
-      <span class="hljs-keyword">int32_t</span> *rptr = buf-&gt;rptr;
-      <span class="hljs-keyword">int32_t</span> *end_ptr = buf-&gt;end_ptr;
-      <span class="hljs-keyword">int32_t</span> val;
+      <span class="hljs-type">int32_t</span> *fptr = buf-&gt;fptr;
+      <span class="hljs-type">int32_t</span> *rptr = buf-&gt;rptr;
+      <span class="hljs-type">int32_t</span> *end_ptr = buf-&gt;end_ptr;
+      <span class="hljs-type">int32_t</span> val;
  
       val = *fptr += *rptr;
       <span class="hljs-comment">/* Chucking least random bit.  */</span>
@@ -288,8 +286,7 @@ __random_r (buf, result)
  fail:
   __set_errno (EINVAL);
   <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
-&#125;</code></pre>
-<p>以上就是主要的运算式了,基本上输入会有两个值, buf 与result, result 就是结果, 而buf则是输入的一种seed, rand()会挑一个默认值,每次调用会改变他的默认值,这也是为什么它用锁去保护他的原因,避免两个线程取到相同的值。由于在多线程情况下，不同线程是为不同用户的请求提供服务的，因此两个线程取到同相同的值，并不会影响逻辑和功能。</p>
+&#125;</code></pre><br>以上就是主要的运算式了,基本上输入会有两个值, buf 与result, result 就是结果, 而buf则是输入的一种seed, rand()会挑一个默认值,每次调用会改变他的默认值,这也是为什么它用锁去保护他的原因,避免两个线程取到相同的值。由于在多线程情况下，不同线程是为不同用户的请求提供服务的，因此两个线程取到同相同的值，并不会影响逻辑和功能。</p>
 <p>因此，<strong>在多线程服务中，建议可以直接调用rand_r()代替rand()</strong></p>
 <h3 id="伪随机生成算法"><a href="#伪随机生成算法" class="headerlink" title="伪随机生成算法"></a>伪随机生成算法</h3><p>那么上面这段代码究竟是什么是在做什么呢？其实主要是实现了线性同余算法与线性累加反馈法。</p>
 <p>线性同余法</p>
@@ -311,17 +308,17 @@ __random_r (buf, result)
 </li>
 </ol>
 <p>从r34开始的伪随机序列，通过以下的线性反馈循环来计算：</p>
-<ol start="4">
+<ol>
 <li>r(i) = (r(i-3) + r(i-31)) % 4294967296 (i ≥ 34)</li>
 </ol>
 <p>忽略掉r0…r343序列，rand()函数输出的伪随机数o(i)为：</p>
-<ol start="5">
+<ol>
 <li>o(i) = r(i+344) &gt;&gt; 1<blockquote>
 <p>r(i+344)的个位数字移除，生成31位随机数o(i)。</p>
 </blockquote>
 </li>
 </ol>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-29-2018/rand.html">https://www.cyningsun.com/12-29-2018/rand.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-29-2018/rand.html">https://www.cyningsun.com/12-29-2018/rand.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -360,7 +357,7 @@ __random_r (buf, result)
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

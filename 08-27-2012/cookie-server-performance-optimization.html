@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Cookie server 性能优化实践</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2012-08-27 00:00:00 +0800"/>
+<meta property="og:url" content="/08-27-2012/cookie-server-performance-optimization.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景 上图描述的是一般的服务器的模型，即：由主线程作为 server 端，负责接收所有到来的请求，并将请求封装为新的对象放入阻塞队列中。由线程池中的一系列工作线程对请求的业务进行处理（可能包括磁盘读写的操作），最后返回处理结果。Memcached 服务端也是采用类似的架构。 看起来上面的架构相当合理，但是仔细看来，其实里面大有可优化之处。下面是阻塞队列： 线">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Cookie server 性能优化实践</h1><br/>
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BC%82%E6%AD%A5%E7%BD%91%E7%BB%9C%E8%B0%83%E7%94%A8"><span class="toc-text">异步网络调用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BD%BB%E9%87%8D%E5%88%86%E7%A6%BB"><span class="toc-text">轻重分离</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BC%82%E6%AD%A5%E7%A3%81%E7%9B%98-I-O"><span class="toc-text">异步磁盘 I&#x2F;O</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p><img src="/images/cookie-server-performance-optimization/Cookie%20server%20性能优化实践-20230115171417.png" alt=""></p>
+<p>上图描述的是一般的服务器的模型，即：由主线程作为 server 端，负责接收所有到来的请求，并将请求封装为新的对象放入阻塞队列中。由线程池中的一系列工作线程对请求的业务进行处理（可能包括磁盘读写的操作），最后返回处理结果。Memcached 服务端也是采用类似的架构。</p>
+<p>看起来上面的架构相当合理，但是仔细看来，其实里面大有可优化之处。下面是阻塞队列：</p>
+<p><img src="/images/cookie-server-performance-optimization/Cookie%20server%20性能优化实践-20230115171425.png" alt=""></p>
+<p>线程池中的线程数目毕竟有限，假设只有四条线程轮询上面的阻塞队列，然后分别处理四条请求 R1~R4。当 R1~R4 都需要进行磁盘操作时此时问题就出现了。假设 R5 请求不需要进行磁盘操作，甚至可以很快处理完成。但是即使线程池里的线程都在等待 I/O 完成而“空闲”下来，后面的请求依然得不到处理。由此可见，消除磁盘 I/O 请求阻塞非磁盘请求可以优化请求的平均处理时间，提高服务器的性能。</p>
+<p>后面将陆续更新三种优化方法，当然三种方法全部依托于 twisted 框架。</p>
+<h3 id="异步网络调用"><a href="#异步网络调用" class="headerlink" title="异步网络调用"></a>异步网络调用</h3><p>一个真正达到性能优化服务器，还是需要我们在程序中真正良好的去应用 Twisted 的各种工具的。  最常见的情况就是我们将一个非阻塞的应用中，加入了长时间的处理过程，从而达到了阻塞的效果，从而让大家都因为一位同志的长时工作而等待。</p>
+<p>先来看看下面的这段代码：</p>
+<pre><code class="hljs python"><span class="hljs-keyword">from</span> twisted.internet <span class="hljs-keyword">import</span> protocol, reactor
+<span class="hljs-keyword">from</span> twisted.protocols <span class="hljs-keyword">import</span> basic
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">FingerProtocol</span>(basic.LineReceiver):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">lineReceived</span>(<span class="hljs-params">self, user</span>):
+        self.transport.write(self.factory.getUser(user)+<span class="hljs-string">&quot;\r\n&quot;</span>)
+        self.transport.loseConnection()
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">FingerFactory</span>(protocol.ServerFactory):
+    protocol = FingerProtocol
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, **kwargs</span>): self.users = kwargs
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">getUser</span>(<span class="hljs-params">self, user</span>):
+        <span class="hljs-keyword">return</span> self.users.get(user, <span class="hljs-string">&quot;No such user&quot;</span>)
+reactor.listenTCP(<span class="hljs-number">1079</span>, FingerFactory(hd=<span class="hljs-string">&#x27;Hello my python world&#x27;</span>))
+reactor.run()</code></pre>
+<p>它可能是我们所写的第一个 Twisted 服务器。可能所有人都会认为这样的操作已经不会有什么问题了。但是显然，在这里我们的 getUser 更多的情况下可能会是从数据库中或是 LDAP 服务器上获取相关的信息。哪么最好的处理就是将 get 操作以非即时方式返回，以避免发生处理的阻塞。哪么就需要使用 Deferreds 了：</p>
+<pre><code class="hljs python"><span class="hljs-keyword">from</span> twisted.internet <span class="hljs-keyword">import</span> protocol, reactor, defer
+<span class="hljs-keyword">from</span> twisted.protocols <span class="hljs-keyword">import</span> basic
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">FingerProtocol</span>(basic.LineReceiver):
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">lineReceived</span>(<span class="hljs-params">self, user</span>):
+        self.factory.getUser(user
+        ).addErrback(<span class="hljs-keyword">lambda</span> _: <span class="hljs-string">&quot;Internal error in server&quot;</span>
+        ).addCallback(<span class="hljs-keyword">lambda</span> m:
+                      (self.transport.write(m+<span class="hljs-string">&quot;\r\n&quot;</span>),
+                       self.transport.loseConnection()))
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">FingerFactory</span>(protocol.ServerFactory):
+    protocol = FingerProtocol
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, **kwargs</span>): self.users = kwargs
+    <span class="hljs-keyword">def</span> <span class="hljs-title function_">getUser</span>(<span class="hljs-params">self, user</span>):
+        <span class="hljs-keyword">return</span> defer.succeed(self.users.get(user, <span class="hljs-string">&quot;No such user&quot;</span>))
+reactor.listenTCP(<span class="hljs-number">1079</span>, FingerFactory(hd=<span class="hljs-string">&#x27;Hello my python world&#x27;</span>))
+reactor.run()</code></pre>
+<p>这里 getUser 返回的是 defer 处理过的一个事务，而 addCallback 方法注册了 defer 中处理完成后的返回事件。这样，事务的处理就可以在另一个事件可调度的情况下进行了。从而避免了因一个用户的处理阻塞的情况下，让所有的用户都停止了响应。</p>
+<h3 id="轻重分离"><a href="#轻重分离" class="headerlink" title="轻重分离"></a>轻重分离</h3><p>第二种优化的方法，可以只用下图来解释。即，使用轻量级的线程池（PreProcess）对所有请求进行预处理，所有不需要 I/O 执行时间很短的请求直接执行，如果是需要磁盘 I/O 的则放入下一级阻塞队列，有单独的线程池来处理这些请求。详见下图：</p>
+<p><img src="/images/cookie-server-performance-optimization/Cookie%20server%20性能优化实践-20230115171425-1.png" alt=""></p>
+<p>第一级请求使用自己已有的线程池，不再多说。I/O 请求+二级线程池可以使用 twisted 提供的 ThreadPool 机制来实现。而我所说的优化正是使用此方法，代码很简单，如下：</p>
+<pre><code class="hljs python">deferred = threads.deferToThread(data_loader.get, sn)
+deferred.addCallback(self.loader_callback, (req, other_data))</code></pre>
+<p>解释一下：</p>
+<p>threads.deferToThread 将会将 data_loader.get 放入 reactor 线程池的队列，并返回一个 defer 对象。data_loader.get 由 reactor 的线程池进行执行，执行完成后放入 reactor 的队列，然后由 reactor 主线程来调用 deferred.addCallback 中注册的回调函数。所以回调函数是不会跨线程调用的，如果在回调函数中调用一些不可跨线程的应用（如，memcached 客户端）也可放心使用，这也正是选择 reactor 的线程池作为二级线程池的原因之一。</p>
+<p>选择 reactor 的线程池作为二级线程池的原因二：回调函数。因为 Read Thread 将自己负责恢复请求，所以回调函数必不可少。</p>
+<p>接下来深入 twisted 源码探究此方法的原理，以下代码均是节选自 twisted2.0.0 源码，其他版本大致相同：</p>
+<pre><code class="hljs python"><span class="hljs-comment"># threads.py</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">deferToThread</span>(<span class="hljs-params">f, *args, **kwargs</span>):
+     d = defer.Deferred()
+     <span class="hljs-keyword">from</span> twisted.internet <span class="hljs-keyword">import</span> reactor
+     reactor.callInThread(_putResultInDeferred, d, f, args, kwargs)
+     <span class="hljs-keyword">return</span> d
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">_putResultInDeferred</span>(<span class="hljs-params">deferred, f, args, kwargs</span>):
+     <span class="hljs-keyword">from</span> twisted.internet <span class="hljs-keyword">import</span> reactor
+     <span class="hljs-keyword">try</span>:
+         result = f(*args, **kwargs)
+     <span class="hljs-keyword">except</span>:
+         f = failure.Failure()
+         reactor.callFromThread(deferred.errback, f)
+     <span class="hljs-keyword">else</span>:
+         reactor.callFromThread(deferred.callback, result)</code></pre>
+<pre><code class="hljs python"><span class="hljs-comment"># base.py</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">callInThread</span>(<span class="hljs-params">self, _<span class="hljs-built_in">callable</span>, *args, **kwargs</span>):
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> self.threadpool:
+        self._initThreadPool()
+    self.threadpool.callInThread(_<span class="hljs-built_in">callable</span>, *args, **kwargs)  //由线程池执行具体的读取操作
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">callFromThread</span>(<span class="hljs-params">self, f, *args, **kw</span>):
+    ...
+    self.threadCallQueue.append((f, args, kw))  //放入主线程队列，由主线程执行回调函数
+self.wakeUp()
+    ...</code></pre>
+<p>注：<a target="_blank" rel="noopener" href="http://twistedmatrix.com/documents/10.0.0/api/twisted.internet.interfaces.IReactorThreads.html#callInThread">callInThread</a> / allFromThread,前者是放入线程池执行，后者是 reactor 的队列里，由 reactor 的主线程来执行。</p>
+<p>至于 threadpool 的代码在 twisted / python / threadpool 是一个线程池</p>
+<h3 id="异步磁盘-I-O"><a href="#异步磁盘-I-O" class="headerlink" title="异步磁盘 I/O"></a>异步磁盘 I/O</h3><p>第三种方法是使用经典的服务器模型的 select（epoll）异步 I/O。使用 twisted 框架中的 reactor（epoll/select）+reader，将磁盘 I/O 封装为 reader，交给 reactor 来管理，磁盘 I/O 完成后调用回调函数将数据返回发送改请求的客户端。这样既不会因为 I/O 阻塞请求处理线程也不会如方法二一样因为 I/O 阻塞读取线程，详见下图：</p>
+<p><img src="/images/cookie-server-performance-optimization/Cookie%20server%20性能优化实践-20230115171425-2.png" alt=""></p>
+<p>reactor（epoll / select）+ reader 的方法需要继承 abstract.FileDescriptor 并且实现其几个方法，而 twisted 框架中的网络（TCP / UDP）、标准 I/O、进程都有类似的实现。使用时传入文件描述符，如下：</p>
+<pre><code class="hljs python">fileReader = FileReader(fd, loader_callback, other_data)
+reactor.addReader(fileReader)</code></pre>
+<p>FileReader 类的实现如下：</p>
+<pre><code class="hljs python"><span class="hljs-keyword">class</span> <span class="hljs-title class_">FileReader</span>(abstract.FileDescriptor):
+
+  <span class="hljs-keyword">def</span> <span class="hljs-title function_">__init__</span>(<span class="hljs-params">self, fd, result_callback, args</span>):
+    ...
+    self.fd = fd
+self.setNonBlocking(self.fd)
+self.dataRecieved=result_callback
+self.args=args
+self.all_data=<span class="hljs-string">&quot;&quot;</span>
+  <span class="hljs-keyword">def</span> <span class="hljs-title function_">setNonBlocking</span>(<span class="hljs-params">self, fd</span>):
+   ...
+  <span class="hljs-keyword">def</span> <span class="hljs-title function_">fileno</span>(<span class="hljs-params">self</span>):
+<span class="hljs-keyword">return</span> self.fd
+  <span class="hljs-keyword">def</span> <span class="hljs-title function_">connectionLost</span>(<span class="hljs-params">self, reason</span>):
+sys.close(self.fd)
+  <span class="hljs-keyword">def</span> <span class="hljs-title function_">doRead</span>(<span class="hljs-params">self</span>)://fdesc.readFromFD(self.fd, self.dataReceived)
+    data = os.read(self.fd, <span class="hljs-number">10240</span>)     //每次读取1M
+    self.all_data += data
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> data:
+       self.dataRecieved(self.all_data , self.args)
+      <span class="hljs-keyword">return</span> CONNECTION_LOST</code></pre>
+<p>自己实现的 reader 并没有使用类似其他标准实现中的 fdesc.readFromFD(self.fd, self.dataReceived)来读取数据，因为该函数中提供的回调函数不允许传参，所以自己将 fdesc 实现在了 FileReader 内。</p>
+<p>下面是此方法的理论依据：</p>
+<pre><code class="hljs python"><span class="hljs-comment"># pollreactor.py</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">addReader</span>(<span class="hljs-params">self, reader</span>):
+    fd = reader.fileno()
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> reads.has_key(fd):
+        selectables[fd] = reader
+        reads[fd] =  <span class="hljs-number">1</span>
+        self._updateRegistration(fd)
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">_updateRegistration</span>(<span class="hljs-params">self, fd</span>):
+    ...
+    mask = <span class="hljs-number">0</span>
+    <span class="hljs-keyword">if</span> reads.has_key(fd): mask = mask | select.POLLIN
+    poller.register(fd, mask)
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">_doReadOrWrite</span>(<span class="hljs-params">self, selectable, fd, event, POLLIN, POLLOUT, log,</span>
+<span class="hljs-params">    faildict=&#123;</span>
+<span class="hljs-params">        error.ConnectionDone: failure.Failure(<span class="hljs-params">error.ConnectionDone(<span class="hljs-params"></span>)</span>),</span>
+<span class="hljs-params">        error.ConnectionLost: failure.Failure(<span class="hljs-params">error.ConnectionLost(<span class="hljs-params"></span>)</span>)</span>
+<span class="hljs-params">    &#125;</span>):
+    ...
+    <span class="hljs-keyword">if</span> event &amp; POLLIN:
+      why = selectable.doRead()
+      inRead = <span class="hljs-literal">True</span>
+       ...
+    <span class="hljs-keyword">if</span> why:
+        self._disconnectSelectable(selectable, why, inRead)</code></pre>
+<pre><code class="hljs python"><span class="hljs-comment"># posixbase.py</span>
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">_disconnectSelectable</span>(<span class="hljs-params">self, selectable, why, isRead, faildict=&#123;</span>
+<span class="hljs-params">    error.ConnectionDone: failure.Failure(<span class="hljs-params">error.ConnectionDone(<span class="hljs-params"></span>)</span>),</span>
+<span class="hljs-params">    error.ConnectionLost: failure.Failure(<span class="hljs-params">error.ConnectionLost(<span class="hljs-params"></span>)</span>)</span>
+<span class="hljs-params">&#125;</span>):
+             ...
+             selectable.connectionLost(f)</code></pre>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-27-2012/cookie-server-performance-optimization.html">https://www.cyningsun.com/08-27-2012/cookie-server-performance-optimization.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/02-28-2014/velocity-resource-load.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/05-08-2012/stl-shuffle.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

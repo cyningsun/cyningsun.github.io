@@ -190,19 +190,16 @@ gtag('config', 'UA-156665333-1');
         <p>微服务火了这么久，服务越拆越多，但是很少有人知道如何维护好一个微服务。本文以微博的 “用户资料” 服务举例来谈谈。</p>
 <p>显而易见，一个正常状态的 “用户资料” 服务应该呈现以下状态：</p>
 <ol>
-<li><p>调用量以用户资料相关接口为主</p>
-<blockquote>
+<li>调用量以用户资料相关接口为主<blockquote>
 <p>举例：<br>调整前：为了保证用户已登记该设备，每次打开设备都调用 “用户资料” 的“登记设备”的接口。登记设备 占据该模块很大一部分请求量。<br>调整后：客户端修改逻辑，已经登记成功的设备落地存储，停止重复调用。</p>
 </blockquote>
 </li>
-<li><p>调用量应该读多写少（服务特性相关）</p>
-<blockquote>
+<li>调用量应该读多写少（服务特性相关）<blockquote>
 <p>举例：<br>调整前：<br>重复登记导致，用户资料表一直变化</p>
 <p>调整后：<br>用户资料几乎固定不变，<a href="/08-18-2020/first-lesson-of-database.html#%E5%AD%98%E5%82%A8%E7%BB%86%E5%88%86">读多写少的存储选型</a>能够更好的发挥作用</p>
 </blockquote>
 </li>
-<li><p>调用量高的接口耗时最低、最简单</p>
-<blockquote>
+<li>调用量高的接口耗时最低、最简单<blockquote>
 <p>举例：<br>微信早期限制 5000 好友的主要原因是朋友圈采用类似邮箱 “写扩散” 模 型。</p>
 <ul>
 <li>发朋友圈较少：群发需要先读取关系链，较为复杂</li>
@@ -220,8 +217,7 @@ gtag('config', 'UA-156665333-1');
 <p>举例：<br>很多需要权限的操作，前端/客户端完全有能力直接拦截跳转，但很多却依靠后端拦截跳转，导致接口中存在相当一部分无效的请求。错误浪费了用户的时间和服务的资源。</p>
 </blockquote>
 </li>
-<li><p>服务耗时、调用量、错误不应当出现猛增突降、毛刺</p>
-<blockquote>
+<li>服务耗时、调用量、错误不应当出现猛增突降、毛刺<blockquote>
 <p>举例：<br>在需求发布后</p>
 <ul>
 <li>接口耗时下降：意味着该接口执行的代码变少了，或者逻辑变简单了。耗时异常下降，可能意味着发布存在缺陷、</li>
@@ -229,8 +225,7 @@ gtag('config', 'UA-156665333-1');
 </ul>
 </blockquote>
 </li>
-<li><p>错误应该是明确的</p>
-<blockquote>
+<li>错误应该是明确的<blockquote>
 <p>举例：<br>用户更新资料的时候，明确提示用户参数 “内容存在敏感信息”，好过于提示用户 “参数错误”<br>越明确的错误，越能判定业务是否存在可以改进的点</p>
 </blockquote>
 </li>
@@ -250,7 +245,7 @@ gtag('config', 'UA-156665333-1');
 <li>Round D: 获得知识：业务促销应该避开该时间段…</li>
 </ul>
 </blockquote>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-31-2021/how-maintain-a-micro-service.html">https://www.cyningsun.com/03-31-2021/how-maintain-a-micro-service.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-31-2021/how-maintain-a-micro-service.html">https://www.cyningsun.com/03-31-2021/how-maintain-a-micro-service.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -289,7 +284,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

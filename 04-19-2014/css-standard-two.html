@@ -185,7 +185,7 @@ gtag('config', 'UA-156665333-1');
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
-    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A1%86%E7%BB%93%E6%9E%84"><span class="toc-text">框结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%96%E8%BE%B9%E8%B7%9D%E6%8A%98%E5%8F%A0"><span class="toc-text">外边距折叠</span></a></li></ol>
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A1%86%E7%BB%93%E6%9E%84"><span class="toc-text">框结构</span></a></li></ol>
  
         <h3 id="框结构"><a href="#框结构" class="headerlink" title="框结构"></a>框结构</h3><p>浏览器会根据渲染模型为每个元素生成四个嵌套的矩形框， 分别称作 content box、padding box、border box 和 margin box，它们是不可分割的，并可能会重合， 这就是 CSS 规范中描述的“盒模型”（box model）。</p>
 <p><img src="/images/css-standard/boxdim.png" alt="boxdim"></p>
@@ -193,8 +193,10 @@ gtag('config', 'UA-156665333-1');
 <iframe width="100%" height="250" src="http://jsfiddle.net/cyningsun/ycaPS/embedded/result,html,css/" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
 其盒模型分解如下图：
 
-<p><img src="/images/css-standard/boxdimeg.png" alt="boxdimeg"></p>
-<h3 id="外边距折叠"><a href="#外边距折叠" class="headerlink" title="外边距折叠"></a>外边距折叠</h3><p>1.两个或多个毗邻的普通流中的块元素垂直方向上的margin会折叠</p>
+![boxdimeg](/images/css-standard/boxdimeg.png)
+
+### 外边距折叠
+1.两个或多个毗邻的普通流中的块元素垂直方向上的margin会折叠
 <iframe width="100%" height="300" src="http://jsfiddle.net/cyningsun/n9E8h/embedded/html,result/" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
 2.浮动元素/inline-block的元素/绝对定位元素的margin不会和垂直方向上的其他元素的margin折叠
 <iframe width="100%" height="300" src="http://jsfiddle.net/cyningsun/gbF8J/embedded/html,result/" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
@@ -204,7 +206,7 @@ gtag('config', 'UA-156665333-1');
 <iframe width="100%" height="200" src="http://jsfiddle.net/cyningsun/2V8T3/embedded/html,result/" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
 
 <p>(完)</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-19-2014/css-standard-two.html">https://www.cyningsun.com/04-19-2014/css-standard-two.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-19-2014/css-standard-two.html">https://www.cyningsun.com/04-19-2014/css-standard-two.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -243,7 +245,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -209,7 +209,6 @@ gtag('config', 'UA-156665333-1');
 0       lack_target     xxx_cron_WsCDNStatMonitor
 0       lack_target     xxx_cron_TaskMonitor
 0       lack_target     xxx_cron_TxCloudStatMonitor</code></pre>
-
 <p>以上几个 Key 存在比较明显的特征，即，都是定时任务使用Redis作为分布式锁创建的。该部分比较特殊的地方在于使用 lua 脚本，而同步工具对 lua的支持不太好。</p>
 <h3 id="Redis-集群流量持续不归零"><a href="#Redis-集群流量持续不归零" class="headerlink" title="Redis 集群流量持续不归零"></a>Redis 集群流量持续不归零</h3><p>第二个问题出现在 <code>步骤5</code>，迁移完成之后Redis流程持续不归零，经过捞日志发现，该部分流量来源于监控、扫描检测程序</p>
 <p><img src="/images/redis-migrate-key-lost/redis-monitor.png" alt="redis monitor"></p>
@@ -217,7 +216,6 @@ gtag('config', 'UA-156665333-1');
 <pre><code class="hljs sh">2020-03-05 18:01:32 写入key：xxx_balancestatus_216213136
 2020-03-05 18:06:49 检测到key丢失
 2020-03-06 18:05:21 再次写入key</code></pre>
-
 <p>检查了项目代码里，没有删除key的操作，请问能否查下redis数据是否正常，有没有意外丢失key的可能性。以下是我们排查的对话：</p>
 <pre><code class="hljs sh">Devops: xxx_balancestatus_216213136  这个key有设置ttl嘛？
 Dev： 有，3 天
@@ -230,11 +228,10 @@ Dev: 4号还有一次
 Me: 4号几点？
 Dev: 4号 18 点
 Devops: 4号18点 已经切换集群了, 所以2号写入的key 在老集群, 3天后 过期 forward del命令到新集群</code></pre>
-
 <p>充足的日志提供了有力的证据把握各个时间点，成功捉虫：Devops 为了确保安全，没有尽快把同步程序关掉，导致该问题</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p><img src="/images/redis-migrate-key-lost/interface-timecost.png" alt="migrate result"></p>
 <p>迁移之后，平均耗时有1～2ms的降低，服务迁移有着比较明显的效果。由于两个地方位于同一个城市，说明调用耗时产生的原因跟距离关系不大，猜测跟机房的网络架构关系很大(之前也遇到过，同一地区同样配置服务，有一个机房就是比其他机房调用慢不少)。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-06-2020/redis-migrate-key-lost.html">https://www.cyningsun.com/09-06-2020/redis-migrate-key-lost.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-06-2020/redis-migrate-key-lost.html">https://www.cyningsun.com/09-06-2020/redis-migrate-key-lost.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -251,15 +248,15 @@ Devops: 4号18点 已经切换集群了, 所以2号写入的key 在老集群, 3�
 
   <ol class="related">
       
+            <li><span><a href="/03-12-2023/how-to-store-objects-in-redis.html">如何使用 Redis 存储对象</a></span></li>
+          
+            <li><span><a href="/02-14-2023/details-about-redis-cluster.html">Redis cluster 细节与技术选型</a></span></li>
+          
+            <li><span><a href="/01-27-2023/etcd-implement-and-tech-selection.html">etcd 实现与选型分析</a></span></li>
+          
             <li><span><a href="/06-06-2021/mysql-design-guide.html">MySQL 设计与查询规范</a></span></li>
           
             <li><span><a href="/08-25-2020/mysql-bplustree.html">B+树 —— 数据库的灵魂</a></span></li>
-          
-            <li><span><a href="/08-18-2020/first-lesson-of-database.html">数据库常识课</a></span></li>
-          
-            <li><span><a href="/12-02-2015/mysql-index-optimize.html">当谈SQL优化时谈些什么</a></span></li>
-          
-            <li><span><a href="/09-07-2014/performance-optimization-on-mysql.html">MySQL性能优化小结</a></span></li>
           
   </ol>
 
@@ -290,7 +287,7 @@ Devops: 4号18点 已经切换集群了, 所以2号写入的key 在老集群, 3�
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

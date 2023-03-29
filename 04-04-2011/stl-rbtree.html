@@ -204,12 +204,12 @@ gtag('config', 'UA-156665333-1');
 <p><strong>状况 1:</strong> S 为黑且 X 为外侧插入。对此情况，我们先对 P,G 做一次单旋转再更改 P,G 颜色，即可重新满足红黑树的规则 3 。如图：<br><img src="/images/stl-rbtree/2.gif" alt="stl-rbtree-2.png"></p>
 <p><strong>注意</strong>，此时可能产生不乎衡状态(高度相差l 以上 ) 。例如图中的 A 和 B 为 null ， D 或 E 不为 null 。这倒没关系，因为 RB — tree 的平衡性本来就比 AVL — tree 弱。然而 RB — tree 通常能够导致良好的平衡状态：是的，经验告诉我们， RB — tree 的搜寻平均效率和 AVL — tree 几乎相等。</p>
 <p><strong>状况 2：</strong> S为黑且 X 为内侧插入。对此情况，我们必须先对 P ， X 做一次单旋转并更改 G ， x 颜色，再将结果对 G 做一次单旋转，即可再次满足红黑树规则 3 。<br><img src="/images/stl-rbtree/3.gif" alt="stl-rbtree-3.png"></p>
-<p><strong>《 STL 源码剖析》原文中的状况 3,4 **<br>**状况 3：</strong> S为红且 X 为外侧插入。对此情况，先对 P 和 G 做一次单旋转，并改变 X 的颜色：此时如果 GG 为黑，一切搞定。如下图，但如果 GG 为红，则问题就比较大些，见状况 4 ．<br><img src="/images/stl-rbtree/4.gif" alt="stl-rbtree-4.png"></p>
+<p><strong>《 STL 源码剖析》原文中的状况 3,4 </strong><br><strong>状况 3：</strong> S为红且 X 为外侧插入。对此情况，先对 P 和 G 做一次单旋转，并改变 X 的颜色：此时如果 GG 为黑，一切搞定。如下图，但如果 GG 为红，则问题就比较大些，见状况 4 ．<br><img src="/images/stl-rbtree/4.gif" alt="stl-rbtree-4.png"></p>
 <p><strong>状况 4：</strong> S 为红且 X 为外侧插入。对此情况，先对 P 和 G 做一次单旋转，并改变 X 的颜色、此时如果 GG 亦为红，还得持续往上做，直到不再有父子连续为红的情况。<br><img src="/images/stl-rbtree/5.gif" alt="stl-rbtree-5.png"></p>
-<p>备注：状况 3 和 4 为 STL 源码剖析原文中给出的情况。观察源码便知，此处与源码不符。参考《勘误 &lt;STL 源码剖析 &gt; 》，作者做出的解释十分牵强，并不具有任何说服力。</p>
-<p><strong>自己理解的状况 3,4 **<br>**状况 3：</strong> S 为红且 X 为外侧插入，或者为内侧插入。对此情况，改变 P,G,S 颜色，此时如果 GG 为黑，一切搞定。如果 GG 为红，见状况 4 。<br><img src="/images/stl-rbtree/6.gif" alt="stl-rbtree-6.png"></p>
+<p>备注：状况 3 和 4 为 STL 源码剖析原文中给出的情况。观察源码便知，此处与源码不符。参考《勘误 <STL 源码剖析 > 》，作者做出的解释十分牵强，并不具有任何说服力。</p>
+<p><strong>自己理解的状况 3,4 </strong><br><strong>状况 3：</strong> S 为红且 X 为外侧插入，或者为内侧插入。对此情况，改变 P,G,S 颜色，此时如果 GG 为黑，一切搞定。如果 GG 为红，见状况 4 。<br><img src="/images/stl-rbtree/6.gif" alt="stl-rbtree-6.png"></p>
 <p><strong>状况 4：</strong> S 为红且 X 为外侧插入，或者为内侧插入。对此情况，改变 P,G,S 颜色，此时如果 GG 为红持续往上做，直到不再有父子连续为红的情况。<br><img src="/images/stl-rbtree/7.gif" alt="stl-rbtree-7.png"></p>
-<h4 id="RB-tree-迭代器"><a href="#RB-tree-迭代器" class="headerlink" title="RB-tree 迭代器"></a>RB-tree 迭代器</h4><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">increment</span> <span class="hljs-params">()</span></span>
+<h4 id="RB-tree-迭代器"><a href="#RB-tree-迭代器" class="headerlink" title="RB-tree 迭代器"></a>RB-tree 迭代器</h4><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">increment</span> <span class="hljs-params">()</span></span>
 <span class="hljs-function"></span>&#123;
     <span class="hljs-keyword">if</span> (node—&gt;right!=<span class="hljs-number">0</span>)       <span class="hljs-comment">// 如果有右子节点。 状况 &lt;A&gt;</span>
     &#123;
@@ -232,7 +232,7 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-comment">// 特殊关系</span>
 &#125;
 
-<span class="hljs-keyword">void</span> <span class="hljs-built_in">decrement</span> ()
+<span class="hljs-type">void</span> <span class="hljs-built_in">decrement</span> ()
 &#123;
     <span class="hljs-keyword">if</span> (node—&gt;color==_rbtree_red&amp;&amp;          <span class="hljs-comment">// 如果是红节点，且</span>
         node—&gt;parent—&gt;parent==node)      <span class="hljs-comment">// 父节点的父节点等于自己，</span>
@@ -253,12 +253,11 @@ gtag('config', 'UA-156665333-1');
             node=y ； <span class="hljs-comment">// 此时之父节点即为答案</span>
     &#125;
 &#125;</code></pre>
-
 <p>increment() 和 decrement() 两函数中，较为令人费解的是前者的状况&lt; D &gt;和后者的状况&lt; A &gt;，他们分别发生在下图所展示的状态下：<br><img src="/images/stl-rbtree/8.gif" alt="stl-rbtree-8.png"></p>
 <h4 id="RB-tree-的数据结构"><a href="#RB-tree-的数据结构" class="headerlink" title="RB-tree 的数据结构"></a>RB-tree 的数据结构</h4><p>树状结构的各种操作，最需要关注的就是边界情况的发生，也就是走到根节点时要有特殊的处理。为了简化处理，SGI STL 特别为根节点再设计一个父节点，名为header ，并令其初始状态如下图所示：<br><img src="/images/stl-rbtree/9.gif" alt="stl-rbtree-9.png"></p>
 <h4 id="调整-RB-tree"><a href="#调整-RB-tree" class="headerlink" title="调整 RB-tree"></a>调整 RB-tree</h4><pre><code class="hljs c++"><span class="hljs-comment">// 重新令树形平衡（改变颜色及旋转树形）</span>
 <span class="hljs-comment">// 参数一为新增节点，参数二为 root</span>
-<span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-type">void</span>
 __rb_tree_rebalance (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root )
 &#123;
   x-&gt;color = __rb_tree_red;         <span class="hljs-comment">// 新节点必为红</span>
@@ -315,7 +314,7 @@ __rb_tree_rebalance (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root )
 
 <span class="hljs-comment">// 新节点必为红节点。如果安插处之父节点亦为红节点，就违反红黑树规则，此时必须</span>
 <span class="hljs-comment">// 做树形旋转（及颜色改变，在程序它处）。</span>
-<span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-type">void</span>
 __rb_tree_rotate_left (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root )
 &#123;
   <span class="hljs-comment">// x 为旋转点</span>
@@ -338,7 +337,7 @@ __rb_tree_rotate_left (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root )
 
 <span class="hljs-comment">// 新节点必为红节点。如果安插处之父节点亦为红节点，就违反红黑树规则，此时必须</span>
 <span class="hljs-comment">// 做树形旋转（及颜色改变，在程序它处）。</span>
-<span class="hljs-keyword">inline</span> <span class="hljs-keyword">void</span>
+<span class="hljs-keyword">inline</span> <span class="hljs-type">void</span>
 __rb_tree_rotate_right (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root )
 &#123;
   <span class="hljs-comment">// x 为旋转点</span>
@@ -359,8 +358,7 @@ __rb_tree_rotate_right (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root 
   y-&gt;right = x;
   x-&gt;parent = y;
 &#125;</code></pre>
-
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-04-2011/stl-rbtree.html">https://www.cyningsun.com/04-04-2011/stl-rbtree.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-04-2011/stl-rbtree.html">https://www.cyningsun.com/04-04-2011/stl-rbtree.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -414,7 +412,7 @@ __rb_tree_rotate_right (__rb_tree_node_base* x , __rb_tree_node_base*&amp; root 
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -191,17 +191,14 @@ gtag('config', 'UA-156665333-1');
 <p>但是在不同的公司往往有不同的构建工具，能否有一种通用的方法，整合这些工具到quickfix呢？答案是肯定的，当然完成的目的的前提是你足够了解quickfix的工作原理</p>
 <h3 id="quickfix工作原理"><a href="#quickfix工作原理" class="headerlink" title="quickfix工作原理"></a>quickfix工作原理</h3><p>quickfix工作一般包括两个过程：<br>1、在使用”:make“时，vim会自动调用’makeprg’选项定义的命令进行编译（默认为make），<strong>并把编译输出重定向到一个临时文件中</strong>。<br>2、当编译出现错误时，vim会根据’errorformat’选项定义的格式从上述临时文件中读出错误信息，根据这些信息形成quickfix列表，并跳转到第一个错误出现的地方。</p>
 <p>然后你就可以轻松的使用以下命令逐个修复错误，然后再:make了</p>
-<pre><code class="hljs sh">:cp   跳到上一个错误 ( :<span class="hljs-built_in">help</span> :cp )      
+<pre><code class="hljs sh">:<span class="hljs-built_in">cp</span>   跳到上一个错误 ( :<span class="hljs-built_in">help</span> :<span class="hljs-built_in">cp</span> )      
 :cn   跳到下一个错误 ( :<span class="hljs-built_in">help</span> :cn )        
 :cl   列出所有错误 ( :<span class="hljs-built_in">help</span> :cl )</code></pre>
-
-
 <p>vim可以同时记住最新的10个错误列表，你还可以根据以下命令查看本次错误列表、以及前几次的错误列表，进行比较差错    </p>
 <pre><code class="hljs sh">:cl    列出所有错误 ( :<span class="hljs-built_in">help</span> :cl )          
 :cw    如果有错误列表，则打开quickfix窗口 ( :<span class="hljs-built_in">help</span> :cw )          
 :col   到前一个旧的错误列表 ( :<span class="hljs-built_in">help</span> :col )         
 :cnew  到后一个较新的错误列表 ( :<span class="hljs-built_in">help</span> :cnew )</code></pre>
-
 <p>科普完毕，下面进入正题。</p>
 <h3 id="整合编译工具"><a href="#整合编译工具" class="headerlink" title="整合编译工具"></a>整合编译工具</h3><p>下面以微信使用的构建工具<a target="_blank" rel="noopener" href="https://github.com/chen3feng/typhoon-blade">blade</a>为例，详细说明如果整合这些构建工具。整合的过程同样包括两部分：<br>1、定义makeprg选项的值为编译工具的编译命令，如：blade build -m32 -D -S<br>2、定义errorformat解析编译输出的错误信息，详细可以参考:help errorformat。如：</p>
 <pre><code class="hljs mel">set errorformat+=%E%f:%l:%c:\ <span class="hljs-keyword">error</span>:%m,%Z%m
@@ -214,12 +211,9 @@ set errorformat+=%-G%.%#
 <span class="hljs-string"></span>
 <span class="hljs-string">One more thing，一般构建工具的使用的根路径，可能跟你工程的根路径有差异，这就导致quickfix跳转时找不到文件路径。例如，我的项目目录为dirA，归属于项目组dir下，编译工具从dir开始编译，输出的错误信息的文件名是相对项目组的路径：     </span>
 <span class="hljs-string"></span></code></pre>
-<p>dir/dirA/file 11:22 error unfound varible a</p>
-<pre><code class="hljs taggerscript">
-解决的方式就是理解上面唯一加粗的正文&quot;**并把编译输出重定向到一个临时文件中**&quot;，既然quickfix解析的只是输出过后的临时文件，那我们就可以按照自己的需要，在makeprg中首先处理得到的编译输出为想要的格式，再让quickifx解析。例如，将以上信息使用sed工具(sed &#x27;s/^dir/<span class="hljs-symbol">\/</span>home<span class="hljs-symbol">\/</span>cyningsun<span class="hljs-symbol">\/</span>dir<span class="hljs-symbol">\/</span>g&#x27;)处理为绝对路径：        
-</code></pre>
-<p>/home/cyningsun/dir/dirA/file 11:22 error unfound varible a             </p>
-<pre><code class="hljs jboss-cli">
+<p>dir/dirA/file 11:22 error unfound varible a<br><pre><code class="hljs sml">
+解决的方式就是理解上面唯一加粗的正文<span class="hljs-string">&quot;**并把编译输出重定向到一个临时文件中**&quot;</span>，既然quickfix解析的只是输出过后的临时文件，那我们就可以按照自己的需要，在makeprg中首先处理得到的编译输出为想要的格式，再让quickifx解析。例如，将以上信息使用sed工具(sed <span class="hljs-symbol">&#x27;s</span>/^dir/\/home\/cyningsun\/dir\/g&#x27;)处理为绝对路径：        
+</code></pre><br>/home/cyningsun/dir/dirA/file 11:22 error unfound varible a<br><pre><code class="hljs bash">
 无论你使用怎样的编译工具，通过自定义脚本的处理编译输出，你总能得到让quickfix正确识别的信息
 
 <span class="hljs-comment">### 最后</span>
@@ -230,17 +224,14 @@ set errorformat+=%-G%.%#
 ```sh
 mmake：
 <span class="hljs-comment">#！ /bin/bash</span>
-blade build -m32 -D -S |s/^dir/\<span class="hljs-string">/home</span>\<span class="hljs-string">/cyningsun</span>\<span class="hljs-string">/dir</span>\<span class="hljs-string">/g</span></code></pre>
-
+blade build -m32 -D -S |s/^<span class="hljs-built_in">dir</span>/\/home\/cyningsun\/dir\/g</code></pre></p>
 <p>2、配置makeprg</p>
 <pre><code class="hljs sh"><span class="hljs-built_in">set</span> makeprg=mmake</code></pre>
-
 <p>3、配置errorformat</p>
 <pre><code class="hljs sh"><span class="hljs-built_in">set</span> errorformat+=%E%f:%l:%c:\ error:%m,%Z%m
 <span class="hljs-built_in">set</span> errorformat+=%-G%.%<span class="hljs-comment">#</span></code></pre>
-
-<p>然后，可以愉快的工作了<del>~</del></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-13-2015/vim-quickfix.html">https://www.cyningsun.com/06-13-2015/vim-quickfix.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p>然后，可以愉快的工作了~~~</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-13-2015/vim-quickfix.html">https://www.cyningsun.com/06-13-2015/vim-quickfix.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -258,7 +249,7 @@ blade build -m32 -D -S |s/^dir/\<span class="hljs-string">/home</span>\<span cla
      <li class="next"><a href="/12-02-2015/mysql-index-optimize.html">Newer &rarr;</a></li>
     
     
-    <li class="previous"><a href="/05-31-2015/youcompleteme-install.html">&larr; Older</a></li>
+    <li class="previous"><a href="/10-15-2014/reading-mybatis-source-code.html">&larr; Older</a></li>
     
 </ul>
 </div>
@@ -279,7 +270,7 @@ blade build -m32 -D -S |s/^dir/\<span class="hljs-string">/home</span>\<span cla
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

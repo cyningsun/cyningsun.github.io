@@ -196,13 +196,11 @@ devtmpfs       devtmpfs  489M     0  489M   0% /dev
 tmpfs          tmpfs     497M     0  497M   0% /dev/shm
 tmpfs          tmpfs     497M   50M  447M  11% /run
 tmpfs          tmpfs     497M     0  497M   0% /sys/fs/cgroup</code></pre>
-
 <p><strong>2. 执行du命令查看各个目录的磁盘占用情况，把各个目录文件的大小相加，发现并没有占满磁盘，有10多G空间莫名失踪。</strong></p>
 <pre><code class="hljs language-bash">-bash-4.2$ du -h --max-depth=1 /home
 16M	/home/logs
 11G	/home/serverdog
 11G	/home</code></pre>
-
 <p><strong>3. 为何会出现这样的情况呢？</strong></p>
 <p>因为虽然文件已被删除，但是一些进程仍然打开这些文件，因此其占用的磁盘空间并没有被释放。执行 <code>lsof</code> 命令显示打开已删除的文件。将有问题的进程重启（或，清空），磁盘空间就会得到释放。</p>
 <pre><code class="hljs language-bash">-bash-4.2# lsof | grep delete
@@ -211,7 +209,6 @@ mysqld     2470         mysql    5u      REG              253,1           0     
 mysqld     2470         mysql    6u      REG              253,1           0     523581 /var/tmp/ibLjiALu (deleted)
 mysqld     2470         mysql    7u      REG              253,1           0     523585 /var/tmp/ibCFnzTB (deleted)
 mysqld     2470         mysql   11u      REG              253,1           0     523587 /var/tmp/ibCjuqva (deleted)</code></pre>
-
 <p>那么，Linux的文件系统，到底为什么这么设计呢？要了解这些，就要先弄清楚并不容易，下面将从一些基本概念入手，一步步将这些梳理清楚：</p>
 <ul>
 <li>什么是虚拟文件系统（VFS：virtual filesystem）？</li>
@@ -284,16 +281,14 @@ mysqld     2470         mysql   11u      REG              253,1           0     
 　　… 
 　　<span class="hljs-function">rest_init </span>
 <span class="hljs-function">　　<span class="hljs-title">kernel_thread</span><span class="hljs-params">(kernel_init, <span class="hljs-literal">NULL</span>, CLONE_FS)</span></span>;</code></pre>
-
 <p>就单个文件系统而言，在文件系统安装时，创建超级块对象；沿树查找文件时，总是首先从初识目录的中查找匹配的目录项，以便获取相应的索引节点，然后读取索引节点的目录文件，转化为dentry对象，再检查匹配的目录项，反复执行以上过程，直至找到对应的文件的索引节点，并创建索引节点对象。</p>
 <h4 id="软链接-vs-硬链接"><a href="#软链接-vs-硬链接" class="headerlink" title="软链接 vs 硬链接"></a>软链接 vs 硬链接</h4><p>软链接是一个普通的文件，其中存放的是另外一个文件的路径名。硬链接则指向同一个索引节点，硬链接数记录在索引节点对象的 <code>i_nlink</code> 字段。当 <code>i_nlink</code>字段为零时，说明没有硬链接指向该文件。</p>
 <h3 id="文件-amp-进程管理"><a href="#文件-amp-进程管理" class="headerlink" title="文件 &amp; 进程管理"></a>文件 &amp; 进程管理</h3><p>下图是一个简单示例，说明进程是怎样与文件进行交互。三个不同进程打开同一个文件，每个进程都有自己的文件对象，其中两个进程使用同一个硬链接（每个硬链接对应一个目录对象），两个目录项对象都指向同一个 索引节点对象。</p>
 <p><img src="/images/virtual-file-system/vfs-process-interaction.jpeg" alt="vfs-process-interaction"></p>
-<p>索引节点的数据又由两部分组成：内存数据和磁盘数据。Linux 使用 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Cache_(computing)#Writing_policies">Write back</a> 作为索引节点的数据一致性策略。对于索引节点的数据，当文件被打开时，才会加载索引节点到内存；当不再被进程使用，则从内存踢出；如果中间有更新，则需要把数据写回磁盘。</p>
+<p>索引节点的数据又由两部分组成：内存数据和磁盘数据。Linux 使用 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Cache_(computing">Write back</a>#Writing_policies) 作为索引节点的数据一致性策略。对于索引节点的数据，当文件被打开时，才会加载索引节点到内存；当不再被进程使用，则从内存踢出；如果中间有更新，则需要把数据写回磁盘。</p>
 <pre><code class="hljs markdown"><span class="hljs-bullet">*</span>  &quot;in<span class="hljs-emphasis">_use&quot; - valid inode, i_</span>count &gt; 0, i<span class="hljs-emphasis">_nlink &gt; 0</span>
 <span class="hljs-emphasis">*  &quot;dirty&quot;  - as &quot;in_</span>use&quot; but also dirty
 <span class="hljs-bullet">*</span>  &quot;unused&quot; - valid inode, i<span class="hljs-emphasis">_count = 0</span></code></pre>
-
 <p>索引节点是否仍在使用，是通过 <code>open()</code> 和 <code>close()</code> 操作建立和销毁文件对象，文件对象通过索引节点提供的 <code>iget</code> 和 <code>iput</code>  更新索引节点的i_count字段，以完成使用计数。open 操作使得 i_count 加一， close 操作使得 i_count 减一。在 close 操作时判断索引节点是否释放，如果 i_count = 0，则意味着不再有进程引用，将会从内存释放。</p>
 <h3 id="文件-amp-磁盘管理"><a href="#文件-amp-磁盘管理" class="headerlink" title="文件 &amp; 磁盘管理"></a>文件 &amp; 磁盘管理</h3><p>文件与磁盘管理联系最紧密的操作，莫过于 <code>touch</code> 和 <code>rm</code> 操作，而尤以后者最为关键。通过strace(或 dtruss)，查看 <code>rm</code> 的实际的系统调用</p>
 <pre><code class="hljs sh"><span class="hljs-comment"># dtruss rm tmp</span>
@@ -302,8 +297,7 @@ geteuid(0x0, 0x0, 0x0)		 = 0 0
 ioctl(0x0, 0x4004667A, 0x7FFEE06F09C4)		 = 0 0
 lstat64(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x7FFEE06F0968, 0x0)		 = 0 0
 access(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x2, 0x0)		 = 0 0
-unlink(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x0, 0x0)		 = 0 0</code></pre>
-
+<span class="hljs-built_in">unlink</span>(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x0, 0x0)		 = 0 0</code></pre>
 <p>可以发现 <code>rm</code> 实际是通过 <code>unlink</code> 完成的。 <code>unlink</code>代表删除目录项，以及减少其索引节点的计数。由通用文件模型可知，父目录本身同样是一个文件，也就意味着目录项是其文件数据的一部分。删除目录项等价于从父目录的文件中删除数据，也就意味着首先要打开父目录的文件。那么，删除操作即可理解为：</p>
 <ol>
 <li>删除命令（一个进程）使用 <code>open</code> 操作获得父目录文件对象</li>
@@ -326,7 +320,7 @@ unlink(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x0, 0x0)		 = 0 0</co
 <h4 id="索引与数据"><a href="#索引与数据" class="headerlink" title="索引与数据"></a>索引与数据</h4><p>文件系统与文件、磁盘管理与文件、进程管理与文件，最核心的都是文件的索引，而不是文件的数据。把数据和索引分开是理解文件系统的关键。</p>
 <p><img src="/images/virtual-file-system/file-object-model.png" alt="file-object-model"></p>
 <p>一个数据构建了各式各样的索引，只有索引全部失效，此时数据才失去意义，此时才能释放</p>
-<h4 id="缓存策略"><a href="#缓存策略" class="headerlink" title="缓存策略"></a>缓存策略</h4><p>由于操作系统使用 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Cache_(computing)#Writing_policies">Write back</a> 的策略，意味着只有先释放内存，才有可能释放磁盘。</p>
+<h4 id="缓存策略"><a href="#缓存策略" class="headerlink" title="缓存策略"></a>缓存策略</h4><p>由于操作系统使用 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Cache_(computing">Write back</a>#Writing_policies) 的策略，意味着只有先释放内存，才有可能释放磁盘。</p>
 <h4 id="Why-lsof"><a href="#Why-lsof" class="headerlink" title="Why lsof ?"></a>Why lsof ?</h4><p>从上面的模型可以很清楚的理解，因为目录已经没有索引到文件了，但是打开文件还有索引到文件，所以不能立刻释放磁盘空间。</p>
 <p>为什么 lsof 可以找到已删除未释放的文件呢？<br>lsof，顾名思义：list open files，该命令的原理就是查找打开文件的列表，因此可以找到已删除未释放的文件。</p>
 <p><strong>参考：</strong></p>
@@ -338,7 +332,7 @@ unlink(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x0, 0x0)		 = 0 0</co
 <li><a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/v4.8/source/fs/inode.c">https://elixir.bootlin.com/linux/v4.8/source/fs/inode.c</a></li>
 <li><a target="_blank" rel="noopener" href="https://unix.stackexchange.com/questions/151951/what-is-the-difference-between-rm-and-unlink">https://unix.stackexchange.com/questions/151951/what-is-the-difference-between-rm-and-unlink</a></li>
 </ol>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-18-2020/learn-virtual-filesystem-from-lsof.html">https://www.cyningsun.com/09-18-2020/learn-virtual-filesystem-from-lsof.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-18-2020/learn-virtual-filesystem-from-lsof.html">https://www.cyningsun.com/09-18-2020/learn-virtual-filesystem-from-lsof.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -388,7 +382,7 @@ unlink(<span class="hljs-string">&quot;tmp\0&quot;</span>, 0x0, 0x0)		 = 0 0</co
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

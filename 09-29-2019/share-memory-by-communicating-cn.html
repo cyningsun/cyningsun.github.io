@@ -192,19 +192,16 @@ gtag('config', 'UA-156665333-1');
 <blockquote>
 <p>Do not communicate by sharing memory; instead, share memory by communicating.<br>不要通过共享内存进行通信；而是通过通信共享内存。</p>
 </blockquote>
-<p>考虑一个轮询 URL 列表的程序。在传统的线程环境中，人们可能会如下构造其数据：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> Resource <span class="hljs-keyword">struct</span> &#123;
-    url        <span class="hljs-keyword">string</span>
-    polling    <span class="hljs-keyword">bool</span>
-    lastPolled <span class="hljs-keyword">int64</span>
+<p>考虑一个轮询 URL 列表的程序。在传统的线程环境中，人们可能会如下构造其数据：<br><pre><code class="hljs go"><span class="hljs-keyword">type</span> Resource <span class="hljs-keyword">struct</span> &#123;
+    url        <span class="hljs-type">string</span>
+    polling    <span class="hljs-type">bool</span>
+    lastPolled <span class="hljs-type">int64</span>
 &#125;
 
 <span class="hljs-keyword">type</span> Resources <span class="hljs-keyword">struct</span> &#123;
     data []*Resource
     lock *sync.Mutex
-&#125;</code></pre>
-<p>然后，Poller 函数（许多类似的函数会运行在单独的线程中）如下：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Poller</span><span class="hljs-params">(res *Resources)</span></span> &#123;
+&#125;</code></pre><br>然后，Poller 函数（许多类似的函数会运行在单独的线程中）如下：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Poller</span><span class="hljs-params">(res *Resources)</span></span> &#123;
     <span class="hljs-keyword">for</span> &#123;
         <span class="hljs-comment">// get the least recently-polled Resource</span>
         <span class="hljs-comment">// and mark it as being polled</span>
@@ -234,10 +231,8 @@ gtag('config', 'UA-156665333-1');
         r.lastPolled = time.Nanoseconds()
         res.lock.Unlock()
     &#125;
-&#125;</code></pre>
-<p>此功能大约一页纸长，并且需要更多细节才能完成。它甚至不包括 URL 轮询逻辑（它本身只有几行），也不能优雅地应对资源池耗尽。</p>
-<p>让我们看一下使用 Go 风格实现的相同功能。在此示例中，Poller 函数从输入 channel 接收要轮询的资源，并在完成后将其发送到输出 channel。</p>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> Resource <span class="hljs-keyword">string</span>
+&#125;</code></pre><br>此功能大约一页纸长，并且需要更多细节才能完成。它甚至不包括 URL 轮询逻辑（它本身只有几行），也不能优雅地应对资源池耗尽。</p>
+<p>让我们看一下使用 Go 风格实现的相同功能。在此示例中，Poller 函数从输入 channel 接收要轮询的资源，并在完成后将其发送到输出 channel。<br><pre><code class="hljs go"><span class="hljs-keyword">type</span> Resource <span class="hljs-type">string</span>
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Poller</span><span class="hljs-params">(in, out <span class="hljs-keyword">chan</span> *Resource)</span></span> &#123;
     <span class="hljs-keyword">for</span> r := <span class="hljs-keyword">range</span> in &#123;
@@ -246,11 +241,10 @@ gtag('config', 'UA-156665333-1');
         <span class="hljs-comment">// send the processed Resource to out</span>
         out &lt;- r
     &#125;
-&#125;</code></pre>
-<p>前一个例子中的微妙逻辑显然没有了，并且 Resource 数据结构不再包含记账数据。实际上，剩下的都是重要的部分。以上应该使您对这些简单的语言功能的威力有所了解。</p>
+&#125;</code></pre><br>前一个例子中的微妙逻辑显然没有了，并且 Resource 数据结构不再包含记账数据。实际上，剩下的都是重要的部分。以上应该使您对这些简单的语言功能的威力有所了解。</p>
 <p>上面的代码片段有很多遗漏之处。如需走读使用以上想法的，完整的、惯用的 Go 程序，请参阅 Codewalk <a target="_blank" rel="noopener" href="https://golang.org/doc/codewalk/sharemem/">Share Memory By Communicating</a>。</p>
 <p><em>原文：<a target="_blank" rel="noopener" href="https://blog.golang.org/share-memory-by-communicating">https://blog.golang.org/share-memory-by-communicating</a></em><br><em>源代码：<a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test">https://github.com/cyningsun/go-test</a></em></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-29-2019/share-memory-by-communicating-cn.html">https://www.cyningsun.com/09-29-2019/share-memory-by-communicating-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-29-2019/share-memory-by-communicating-cn.html">https://www.cyningsun.com/09-29-2019/share-memory-by-communicating-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -306,7 +300,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

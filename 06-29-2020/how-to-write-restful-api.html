@@ -236,9 +236,7 @@ gtag('config', 'UA-156665333-1');
 <li>Action(i.e. Batch Operation)</li>
 </ul>
 <h4 id="Error-handling"><a href="#Error-handling" class="headerlink" title="Error handling"></a>Error handling</h4><p>详见：<a href="/06-07-2020/unified-error-handling.html">跨服务错误处理</a></p>
-<h4 id="Sorting"><a href="#Sorting" class="headerlink" title="Sorting"></a>Sorting</h4><p>如果 API 方法允许客户端指定列表结果的排序顺序，则请求消息<strong>应该</strong>包含一个字段：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">string</span> order_by = ...;</code></pre>
-
+<h4 id="Sorting"><a href="#Sorting" class="headerlink" title="Sorting"></a>Sorting</h4><p>如果 API 方法允许客户端指定列表结果的排序顺序，则请求消息<strong>应该</strong>包含一个字段：<br><pre><code class="hljs go"><span class="hljs-type">string</span> order_by = ...;</code></pre></p>
 <blockquote>
 <p><strong>说明</strong>：语法中的冗余空格字符是无关紧要的。<code>&quot;foo,bar desc&quot;</code> 和 <code>&quot; foo , bar desc &quot;</code> 是等效的。</p>
 </blockquote>
@@ -251,40 +249,18 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <ul>
 <li><p>翻页方式</p>
-<table>
-<thead>
-<tr>
-<th>后台存储</th>
-<th>Request</th>
-<th>Response</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>搜索引擎</td>
-<td>{    <br />“page_num”: 1,   // 页码从 1 开始<br/><br/>     “page_size”: 10<br/><br/>}</td>
-<td>{  <br/>“code”: 0,  <br/>“msg”: “”,  <br/>“data”: {<br/><br/>“total_cnt”: 100,<br/><br/>“items”: []<br/><br/>}  <br/>}</td>
-</tr>
-<tr>
-<td>数据库</td>
-<td>{<br/><br/>     “last_id”: 1,   //  第一页，默认传0<br/><br/>     “page_size”: 10<br/><br/>}</td>
-<td>{<br/>“code”: 0,<br/>“msg”: “”,<br/>“data”: {<br/><br/>     “items”: [],<br/><br/>     “next_id”: 10   // 下一页放到last_id的值<br/><br/>}<br/>}</td>
-</tr>
-</tbody></table>
+<p>  | 后台存储 | Request                                                      | Response                                                     |<br>  | ———— | —————————————————————————————— | —————————————————————————————— |<br>  | 搜索引擎 | {    <br />“page_num”: 1,   // 页码从 1 开始<br/><br/>     “page_size”: 10<br/><br/>} | {  <br/>“code”: 0,  <br/>“msg”: “”,  <br/>“data”: {<br/><br/>“total_cnt”: 100,<br/><br/>“items”: []<br/><br/>}  <br/>} |<br>  | 数据库   | {<br/><br/>     “last_id”: 1,   //  第一页，默认传0<br/><br/>     “page_size”: 10<br/><br/>} | {<br/>“code”: 0,<br/>“msg”: “”,<br/>“data”: {<br/><br/>     “items”: [],<br/><br/>     “next_id”: 10   // 下一页放到last_id的值<br/><br/>}<br/>} |</p>
 </li>
 </ul>
 <h4 id="Versioning"><a href="#Versioning" class="headerlink" title="Versioning"></a>Versioning</h4><h5 id="业界方案"><a href="#业界方案" class="headerlink" title="业界方案"></a>业界方案</h5><ul>
-<li><p>无版本控制<br>这是最简单的方法，它对于一些内部 API 来说可能是可以接受的。 重大变化可以表示为新资源或新链接。 向现有资源添加内容可能不会带来重大更改，因为不希望看到此内容的客户端应用程序将忽略它。</p>
-<pre><code class="hljs http">https://adventure-works.com/customers/3</code></pre></li>
-<li><p>URI 版本控制<br>每次修改 Web API 或更改资源的架构时，向每个资源的 URI 添加版本号。 以前存在的 URI 应像以前一样继续运行，并返回符合原始架构的资源。</p>
-<pre><code class="hljs http">https://adventure-works.com/v2/customers/3</code></pre></li>
-<li><p>查询字符串版本控制<br>不是提供多个 URI，而是可以通过在追加到 HTTP 请求后面的查询字符串中使用参数来指定资源的版本，例如</p>
-<pre><code class="hljs http">https://adventure-works.com/customers/3?version=2</code></pre>
+<li>无版本控制<br>这是最简单的方法，它对于一些内部 API 来说可能是可以接受的。 重大变化可以表示为新资源或新链接。 向现有资源添加内容可能不会带来重大更改，因为不希望看到此内容的客户端应用程序将忽略它。<pre><code class="hljs http">https://adventure-works.com/customers/3</code></pre></li>
+<li>URI 版本控制<br>每次修改 Web API 或更改资源的架构时，向每个资源的 URI 添加版本号。 以前存在的 URI 应像以前一样继续运行，并返回符合原始架构的资源。<pre><code class="hljs http">https://adventure-works.com/v2/customers/3</code></pre></li>
+<li>查询字符串版本控制<br>不是提供多个 URI，而是可以通过在追加到 HTTP 请求后面的查询字符串中使用参数来指定资源的版本，例如<pre><code class="hljs http">https://adventure-works.com/customers/3?version=2</code></pre>
 <blockquote>
 <p><strong>注意：</strong>某些较旧的 Web 浏览器和 Web 代理不会缓存在 URI 中包含查询字符串的请求的响应。 这可能会降低使用 Web API 并在此类 Web 浏览器中运行的 Web 应用程序的性能。 </p>
 </blockquote>
 </li>
-<li><p>标头版本控制<br>  不是追加版本号作为查询字符串参数，而是可以实现指示资源的版本的自定义标头。 此方法需要客户端应用程序将相应标头添加到所有请求，虽然如果省略了版本标头，处理客户端请求的代码可以使用默认值（版本 1）。 下面的示例使用了名为 Custom-Header 的自定义标头**。 此标头的值指示 Web API 的版本。</p>
-<pre><code class="hljs http"><span class="hljs-keyword">GET</span> <span class="hljs-string">https://adventure-works.com/customers/3</span> <span class="hljs-meta">HTTP/1.1</span>
+<li>标头版本控制<br>  不是追加版本号作为查询字符串参数，而是可以实现指示资源的版本的自定义标头。 此方法需要客户端应用程序将相应标头添加到所有请求，虽然如果省略了版本标头，处理客户端请求的代码可以使用默认值（版本 1）。 下面的示例使用了名为 Custom-Header 的自定义标头**。 此标头的值指示 Web API 的版本。<pre><code class="hljs http"><span class="hljs-keyword">GET</span> <span class="hljs-string">https://adventure-works.com/customers/3</span> <span class="hljs-meta">HTTP/1.1</span>
 <span class="hljs-attribute">Custom-Header</span><span class="hljs-punctuation">: </span>api-version=1</code></pre></li>
 <li><p>无版本控制：在更改RESTful API时，请以兼容的方式进行更改，并避免生成其他API版本。</p>
 <blockquote>
@@ -299,38 +275,33 @@ gtag('config', 'UA-156665333-1');
 <li>在微服务中创建一个新的API版本，该版本支持与旧API同时支持</li>
 </ul>
 <h5 id="Filtering"><a href="#Filtering" class="headerlink" title="Filtering"></a>Filtering</h5><p>在参数过滤时通常会为参数值定义数据格式。为了在所有 API 中提供一致的开发者体验并减少学习曲线，API 设计人员<strong>必须</strong>使用以下<a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/%E6%89%A9%E5%B1%95%E5%B7%B4%E7%A7%91%E6%96%AF%E8%8C%83%E5%BC%8F#%E7%BA%A6%E5%AE%9A">扩展巴科斯范式</a>（Extended Backus-Naur Form，简写为“EBNF”）语法的变体来定义这样的语法：</p>
-<pre><code class="hljs javascript">Production  = name <span class="hljs-string">&quot;=&quot;</span> [ Expression ] <span class="hljs-string">&quot;;&quot;</span> ;
-Expression  = Alternative &#123; <span class="hljs-string">&quot;|&quot;</span> Alternative &#125; ;
-Alternative = Term &#123; Term &#125; ;
-Term        = name | TOKEN | Group | Option | Repetition ;
-Group       = <span class="hljs-string">&quot;(&quot;</span> Expression <span class="hljs-string">&quot;)&quot;</span> ;
-Option      = <span class="hljs-string">&quot;[&quot;</span> Expression <span class="hljs-string">&quot;]&quot;</span> ;
-Repetition  = <span class="hljs-string">&quot;&#123;&quot;</span> Expression <span class="hljs-string">&quot;&#125;&quot;</span> ;</code></pre>
-
+<pre><code class="hljs javascript"><span class="hljs-title class_">Production</span>  = name <span class="hljs-string">&quot;=&quot;</span> [ <span class="hljs-title class_">Expression</span> ] <span class="hljs-string">&quot;;&quot;</span> ;
+<span class="hljs-title class_">Expression</span>  = <span class="hljs-title class_">Alternative</span> &#123; <span class="hljs-string">&quot;|&quot;</span> <span class="hljs-title class_">Alternative</span> &#125; ;
+<span class="hljs-title class_">Alternative</span> = <span class="hljs-title class_">Term</span> &#123; <span class="hljs-title class_">Term</span> &#125; ;
+<span class="hljs-title class_">Term</span>        = name | <span class="hljs-variable constant_">TOKEN</span> | <span class="hljs-title class_">Group</span> | <span class="hljs-title class_">Option</span> | <span class="hljs-title class_">Repetition</span> ;
+<span class="hljs-title class_">Group</span>       = <span class="hljs-string">&quot;(&quot;</span> <span class="hljs-title class_">Expression</span> <span class="hljs-string">&quot;)&quot;</span> ;
+<span class="hljs-title class_">Option</span>      = <span class="hljs-string">&quot;[&quot;</span> <span class="hljs-title class_">Expression</span> <span class="hljs-string">&quot;]&quot;</span> ;
+<span class="hljs-title class_">Repetition</span>  = <span class="hljs-string">&quot;&#123;&quot;</span> <span class="hljs-title class_">Expression</span> <span class="hljs-string">&quot;&#125;&quot;</span> ;</code></pre>
 <blockquote>
 <p><strong>注意</strong>：<code>TOKEN</code> 表示在语法之外定义的终端符号。</p>
 </blockquote>
 <p>Example</p>
 <pre><code class="hljs http">GET /zoos?id=1001,1002,1003</code></pre>
-
 <h4 id="Long-running"><a href="#Long-running" class="headerlink" title="Long running"></a>Long running</h4><p>有时，POST、PUT、PATCH 或 DELETE 操作可能需要一段时间才能完成。如果需要等待该操作完成后才能向客户端发送响应，可能会造成不可接受的延迟。在这种情况下，请考虑将该操作设置为异步操作。返回 HTTP 状态代码 202（已接受），指示该请求已接受进行处理，但尚未完成。</p>
 <p>应公开一个可返回异步请求状态的终结点，使客户端能够通过轮询状态终结点来监视状态。在 202 响应的 Location 标头中包含状态终结点的 URI。例如：</p>
 <pre><code class="hljs http"><span class="hljs-meta">HTTP/1.1</span> <span class="hljs-number">202</span> Accepted
 <span class="hljs-attribute">Location</span><span class="hljs-punctuation">: </span>/api/status/12345</code></pre>
-
 <p>如果客户端向此终结点发送 GET 请求，响应中应包含该请求的当前状态。（可选）响应中还可以包含预计完成时间，或者用于取消操作的链接</p>
 <pre><code class="hljs http"><span class="hljs-meta">HTTP/1.1</span> <span class="hljs-number">200</span> OK
 <span class="hljs-attribute">Content-Type</span><span class="hljs-punctuation">: </span>application/json
 
-<span class="json">&#123;</span>
-<span class="json">    <span class="hljs-attr">&quot;status&quot;</span>:<span class="hljs-string">&quot;In progress&quot;</span>,</span>
-<span class="json">    <span class="hljs-attr">&quot;link&quot;</span>: &#123; <span class="hljs-attr">&quot;rel&quot;</span>:<span class="hljs-string">&quot;cancel&quot;</span>, <span class="hljs-attr">&quot;method&quot;</span>:<span class="hljs-string">&quot;delete&quot;</span>, <span class="hljs-attr">&quot;href&quot;</span>:<span class="hljs-string">&quot;/api/status/12345&quot;</span> &#125;</span>
-<span class="json">&#125;</span></code></pre>
-
+<span class="language-json"><span class="hljs-punctuation">&#123;</span></span>
+<span class="language-json">    <span class="hljs-attr">&quot;status&quot;</span><span class="hljs-punctuation">:</span><span class="hljs-string">&quot;In progress&quot;</span><span class="hljs-punctuation">,</span></span>
+<span class="language-json">    <span class="hljs-attr">&quot;link&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">&#123;</span> <span class="hljs-attr">&quot;rel&quot;</span><span class="hljs-punctuation">:</span><span class="hljs-string">&quot;cancel&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;method&quot;</span><span class="hljs-punctuation">:</span><span class="hljs-string">&quot;delete&quot;</span><span class="hljs-punctuation">,</span> <span class="hljs-attr">&quot;href&quot;</span><span class="hljs-punctuation">:</span><span class="hljs-string">&quot;/api/status/12345&quot;</span> <span class="hljs-punctuation">&#125;</span></span>
+<span class="language-json"><span class="hljs-punctuation">&#125;</span></span></code></pre>
 <p>如果异步操作创建了新资源，则该操作完成后，状态终结点应返回状态代码 303（查看其他）。在 303 响应中，包含一个 Location 标头用于提供新资源的 URI：</p>
 <pre><code class="hljs http"><span class="hljs-meta">HTTP/1.1</span> <span class="hljs-number">303</span> See Other
 <span class="hljs-attribute">Location</span><span class="hljs-punctuation">: </span>/api/orders/12345</code></pre>
-
 <p>有关详细信息，请参阅<a target="_blank" rel="noopener" href="https://docs.microsoft.com/zh-cn/azure/architecture/patterns/async-request-reply">异步请求-回复模式</a>。</p>
 <h4 id="Sub-collection"><a href="#Sub-collection" class="headerlink" title="Sub-collection"></a>Sub-collection</h4><p>有时，API 需要让客户跨子集执行 <code>List/Search</code> 操作。例如，“API 图书馆”有一组书架，每个书架都有一系列书籍，而客户希望在所有书架上搜索某一本书。在这种情况下，建议在子集合上使用标准 <code>List</code>，并为父集合指定通配符集合 ID <code>&quot;-&quot;</code>。对于“API 图书馆”示例，我们可以使用以下 REST API 请求：</p>
 <pre class="md-fences md-end-block ty-contain-cm modeLoaded">
@@ -363,43 +334,9 @@ DELETE /zoos/ID/animals/ID：删除某个指定动物园的指定动物
 GET /zoos/-/action/batch  批量查询
 POST /zoos/-/action/batch 批量更新
 POST /zoos/-/action/search 搜索</code></pre>
-
 <h4 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h4><ul>
 <li><p>对 <code>null</code> 和不存在的属性使用相同的语义</p>
-<table>
-<thead>
-<tr>
-<th>required</th>
-<th>nullable</th>
-<th>{}</th>
-<th>{“example”:null}</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>true</code></td>
-<td><code>true</code></td>
-<td>✗ No</td>
-<td>✔ Yes</td>
-</tr>
-<tr>
-<td><code>false</code></td>
-<td><code>true</code></td>
-<td>✔ Yes</td>
-<td>✔ Yes</td>
-</tr>
-<tr>
-<td><code>true</code></td>
-<td><code>false</code></td>
-<td>✗ No</td>
-<td>✗ No</td>
-</tr>
-<tr>
-<td><code>false</code></td>
-<td><code>false</code></td>
-<td>✔ Yes</td>
-<td>✗ No</td>
-</tr>
-</tbody></table>
+<p>  | required | nullable | {}    | {“example”:null} |<br>  | ———— | ———— | ——- | ———————— |<br>  | <code>true</code>   | <code>true</code>   | ✗ No  | ✔ Yes            |<br>  | <code>false</code>  | <code>true</code>   | ✔ Yes | ✔ Yes            |<br>  | <code>true</code>   | <code>false</code>  | ✗ No  | ✗ No             |<br>  | <code>false</code>  | <code>false</code>  | ✔ Yes | ✗ No             |</p>
 </li>
 <li><p>路径使用 中划线 <code>-</code> 代替 下划线 <code>_</code>；</p>
 <blockquote>
@@ -425,7 +362,7 @@ POST /zoos/-/action/search 搜索</code></pre>
 <li><a target="_blank" rel="noopener" href="https://martinfowler.com/articles/enterpriseREST.html">Enterprise Integration Using REST</a></li>
 <li><a target="_blank" rel="noopener" href="https://restful-api-design.readthedocs.io/en/latest/intro.html">Thoughts on RESTful API Design</a></li>
 </ul>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-29-2020/how-to-write-restful-api.html">https://www.cyningsun.com/06-29-2020/how-to-write-restful-api.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-29-2020/how-to-write-restful-api.html">https://www.cyningsun.com/06-29-2020/how-to-write-restful-api.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -477,7 +414,7 @@ POST /zoos/-/action/search 搜索</code></pre>
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

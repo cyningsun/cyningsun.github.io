@@ -15,7 +15,7 @@
 <meta property="article:published_time" content="2021-07-19 00:00:00 +0800"/>
 <meta property="og:url" content="/07-19-2021/go-higher-order-function.html">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta itemprop="description" name="description" content="在请求处理过程中，应用程序会接受和处理请求，然后返回响应结果。在该过程中，还存在一些通用的功能，例如：鉴权、监控、链路追踪。众多 RPC 框架会提供称之为 Middleware 或者 Interceptor 等概念，以可插拔的方式来支持上述谈到的众多功能。以 gRPC 为例，工作原理如图： 其服务端的接口如下所示： func UnaryServerInter">
+<meta itemprop="description" name="description" content="在请求处理过程中，应用程序会接受和处理请求，然后返回响应结果。在该过程中，还存在一些通用的功能，例如：鉴权、监控、链路追踪。众多 RPC 框架会提供称之为 Middleware 或者 Interceptor 等概念，以可插拔的方式来支持上述谈到的众多功能。以 gRPC 为例，工作原理如图： 其服务端的接口如下所示：func UnaryServerInterc">
 
 <meta name="keywords" content="Functional programming,高阶函数,Functional Options">
 
@@ -187,11 +187,9 @@ gtag('config', 'UA-156665333-1');
         
         <p>在请求处理过程中，应用程序会接受和处理请求，然后返回响应结果。在该过程中，还存在一些通用的功能，例如：鉴权、监控、链路追踪。众多 RPC 框架会提供称之为 Middleware 或者 Interceptor 等概念，以可插拔的方式来支持上述谈到的众多功能。以 gRPC 为例，工作原理如图：</p>
 <p><img src="/images/go-higher-order-function/grpc-interceptors.png" alt="grpc-interceptors.png"></p>
-<p>其服务端的接口如下所示：</p>
-<pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">UnaryServerInterceptor</span><span class="hljs-params">(ctx context.Context, req <span class="hljs-keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler)</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span></span>
+<p>其服务端的接口如下所示：<br><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">UnaryServerInterceptor</span><span class="hljs-params">(ctx context.Context, req <span class="hljs-keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler)</span></span> (<span class="hljs-keyword">interface</span>&#123;&#125;, <span class="hljs-type">error</span>)
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">StreamServerInterceptor</span> <span class="hljs-params">(srv <span class="hljs-keyword">interface</span>&#123;&#125;, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler)</span> <span class="hljs-title">error</span></span></code></pre>
-
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">StreamServerInterceptor</span> <span class="hljs-params">(srv <span class="hljs-keyword">interface</span>&#123;&#125;, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler)</span></span> <span class="hljs-type">error</span></code></pre></p>
 <p>可以看到，接口明确定义了输入参数，输出结果。如果我们要自己实现一个组件，需要支持使用者传入特定的配置，有没有什么办法可以做到呢？</p>
 <p>答案是肯定的。</p>
 <h3 id="Higher-order-function"><a href="#Higher-order-function" class="headerlink" title="Higher-order function"></a>Higher-order function</h3><p>在了解具体的解决方案之前，需要先了解一个概念叫<code>Higher-order function（高阶函数）</code></p>
@@ -200,13 +198,12 @@ gtag('config', 'UA-156665333-1');
 <li>将一个或多个函数作为参数（即过程参数），</li>
 <li>返回函数作为其结果</li>
 </ol>
-<p>第二点，正是需要的特性。以限流的 interceptor 为例，支持传入自定义的限流器。此时就需要定义一个以限流器为参数的高阶函数，然后返回的函数是框架需要的 Interceptor，并在 Interceptor 函数内使用传入的限流器判断是否需要限流。按照接口限流的 Interceptor 具体实现为：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> Limiter <span class="hljs-keyword">interface</span> &#123;
-	Limit(key <span class="hljs-keyword">string</span>) <span class="hljs-keyword">bool</span>
+<p>第二点，正是需要的特性。以限流的 interceptor 为例，支持传入自定义的限流器。此时就需要定义一个以限流器为参数的高阶函数，然后返回的函数是框架需要的 Interceptor，并在 Interceptor 函数内使用传入的限流器判断是否需要限流。按照接口限流的 Interceptor 具体实现为：<br><pre><code class="hljs go"><span class="hljs-keyword">type</span> Limiter <span class="hljs-keyword">interface</span> &#123;
+	Limit(key <span class="hljs-type">string</span>) <span class="hljs-type">bool</span>
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">UnaryServerInterceptor</span><span class="hljs-params">(limiter Limiter)</span> <span class="hljs-title">grpc</span>.<span class="hljs-title">UnaryServerInterceptor</span></span> &#123;
-	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, req <span class="hljs-keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler)</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">UnaryServerInterceptor</span><span class="hljs-params">(limiter Limiter)</span></span> grpc.UnaryServerInterceptor &#123;
+	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, req <span class="hljs-keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler)</span></span> (<span class="hljs-keyword">interface</span>&#123;&#125;, <span class="hljs-type">error</span>) &#123;
 		<span class="hljs-keyword">if</span> limiter.Limit(info.FullMethod) &#123;
 			<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, status.Errorf(codes.ResourceExhausted, <span class="hljs-string">&quot;%s is rejected by grpc_ratelimit middleware, please retry later.&quot;</span>, info.FullMethod)
 		&#125;
@@ -215,43 +212,35 @@ gtag('config', 'UA-156665333-1');
 &#125;
 
 ...
-</code></pre>
-
+</code></pre></p>
 <p>目前传入的参数是固定的，可以这么来实现。更进一步，如果使用比较复杂，除了当前已经确定的参数，可以预期以后会增加更多的参数。也就要求当前设计的接口需要有很好的扩展性。还有办法么？</p>
 <p>答案同样是肯定的。</p>
 <h3 id="Functional-Options"><a href="#Functional-Options" class="headerlink" title="Functional Options"></a>Functional Options</h3><p>没有意外，利用的就是高阶函数的第一点，该编程模式有一个特定的名称：Functional Options。</p>
-<p>首先为传入的参数定义结构体</p>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> options <span class="hljs-keyword">struct</span> &#123;
-    byMethod  <span class="hljs-keyword">bool</span>
-    byUser    <span class="hljs-keyword">bool</span>
-    byClientIP <span class="hljs-keyword">bool</span>
-&#125;</code></pre>
-
-<p>其次，再定义一个函数类型：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">type</span> Option <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(*Options)</span></span></code></pre>
-
-<p>再次，定义修改配置的一组函数</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">ByMethod</span><span class="hljs-params">(m <span class="hljs-keyword">bool</span>)</span> <span class="hljs-title">Option</span></span> &#123;
+<p>首先为传入的参数定义结构体<br><pre><code class="hljs go"><span class="hljs-keyword">type</span> options <span class="hljs-keyword">struct</span> &#123;
+    byMethod  <span class="hljs-type">bool</span>
+    byUser    <span class="hljs-type">bool</span>
+    byClientIP <span class="hljs-type">bool</span>
+&#125;</code></pre></p>
+<p>其次，再定义一个函数类型：<br><pre><code class="hljs go"><span class="hljs-keyword">type</span> Option <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(*Options)</span></span></code></pre></p>
+<p>再次，定义修改配置的一组函数<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">ByMethod</span><span class="hljs-params">(m <span class="hljs-type">bool</span>)</span></span> Option &#123;
     <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(o *options)</span></span> &#123;
         o.byMethod = m
     &#125;
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">ByUser</span><span class="hljs-params">(u <span class="hljs-keyword">bool</span>)</span> <span class="hljs-title">Option</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">ByUser</span><span class="hljs-params">(u <span class="hljs-type">bool</span>)</span></span> Option &#123;
     <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(o *options)</span></span> &#123;
         o.byUser = u
     &#125;
 &#125;
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">ByClientIP</span><span class="hljs-params">(c <span class="hljs-keyword">bool</span>)</span> <span class="hljs-title">Option</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">ByClientIP</span><span class="hljs-params">(c <span class="hljs-type">bool</span>)</span></span> Option &#123;
     <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(o *options)</span></span> &#123;
         o.byClientIP = c
     &#125;
-&#125;</code></pre>
-
-<p>最后，修改提供的 Interceptor 为：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">UnaryServerInterceptor</span><span class="hljs-params">(limiter Limiter, opts ...Option)</span> <span class="hljs-title">grpc</span>.<span class="hljs-title">UnaryServerInterceptor</span></span> &#123;
-	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, req <span class="hljs-keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler)</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span></span> &#123;
+&#125;</code></pre></p>
+<p>最后，修改提供的 Interceptor 为：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">UnaryServerInterceptor</span><span class="hljs-params">(limiter Limiter, opts ...Option)</span></span> grpc.UnaryServerInterceptor &#123;
+	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, req <span class="hljs-keyword">interface</span>&#123;&#125;, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler)</span></span> (<span class="hljs-keyword">interface</span>&#123;&#125;, <span class="hljs-type">error</span>) &#123;
         <span class="hljs-keyword">default</span> := options &#123;
             byMethod: <span class="hljs-literal">true</span>,
             byUser: <span class="hljs-literal">false</span>,
@@ -263,15 +252,14 @@ gtag('config', 'UA-156665333-1');
         ...
 		<span class="hljs-keyword">return</span> handler(ctx, req)
 	&#125;
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p>如是，你就拥有了一个具有扩展性、支持自定义参数的 Interceptor。</p>
 <h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>做个总结，谈个观点：</p>
 <ol>
 <li>高阶函数，并不是属于哪一个特定的编程语言。其他语言如C++，同样支持类似的特性。</li>
 <li>作为架构师需要了解实现细节么，答案是需要。否则，在特定环境下，拿什么来支撑设计所谓的扩展性呢。</li>
 </ol>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-19-2021/go-higher-order-function.html">https://www.cyningsun.com/07-19-2021/go-higher-order-function.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-19-2021/go-higher-order-function.html">https://www.cyningsun.com/07-19-2021/go-higher-order-function.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -327,7 +315,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

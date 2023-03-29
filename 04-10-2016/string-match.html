@@ -193,7 +193,8 @@ gtag('config', 'UA-156665333-1');
 <ul>
 <li>1、当i＝0，N［0］＝0</li>
 <li>2、当i＝1，如果P［1］＝P［0］，N［1］＝N［0］＋1；否则N［1］＝N［0］</li>
-<li>3、当i＝j，如果P［j］＝P［N［j－1］］，N［j］＝N［j－1］＋1；<pre><code>否则，i＝N［j－1］，如果i&gt;0，重复上述计算，否则，N［j］＝0</code></pre></li>
+<li>3、当i＝j，如果P［j］＝P［N［j－1］］，N［j］＝N［j－1］＋1；<pre><code>       否则，i＝N［j－1］，如果i&gt;0，重复上述计算，否则，N［j］＝0
+</code></pre></li>
 </ul>
 <h4 id="AC自动机"><a href="#AC自动机" class="headerlink" title="AC自动机"></a>AC自动机</h4><ul>
 <li>1、为模式串建立Trie（标志模式串的节点特殊标记，用于匹配时确认匹配成功）</li>
@@ -208,7 +209,7 @@ gtag('config', 'UA-156665333-1');
 <p><strong>后缀连接：</strong>如果一个步骤插入（Insert）两个以上新的节点，如果该新节点不是当前步骤中创建的第一个节点，则将先前插入的节点与该新节点通过一个特殊的指针连接，称为后缀连接（Suffix Link）。后缀连接通过一条虚线来表示，连接由前一个节点指向后一个节点。从根节点到达后缀连接指向节点的字符串，是从根节点到达后缀连接源节点的字符串的后缀。所以后缀连接的前一个节点需要分割时，需要同时分割后缀连接指向的节点。</p>
 <h4 id="代码实现"><a href="#代码实现" class="headerlink" title="代码实现"></a>代码实现</h4><p>(未完待续)</p>
 <h4 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a>参考文档</h4><p>后缀树: <a target="_blank" rel="noopener" href="http://www.cnblogs.com/gaochundong/p/suffix_tree.html">http://www.cnblogs.com/gaochundong/p/suffix_tree.html</a><br/><br>Ukkonen 的后缀树算法的清晰解释: <a target="_blank" rel="noopener" href="http://www.oschina.net/translate/ukkonens-suffix-tree-algorithm-in-plain-english">http://www.oschina.net/translate/ukkonens-suffix-tree-algorithm-in-plain-english</a><br/><br>Aho-Corasick自动机浅析: <a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000000484127">https://segmentfault.com/a/1190000000484127</a><br/><br>AC自动机算法: <a target="_blank" rel="noopener" href="http://m.blog.csdn.net/article/details?id=7002823">http://m.blog.csdn.net/article/details?id=7002823</a><br/><br>从头到尾彻底理解KMP算法: <a target="_blank" rel="noopener" href="http://www.ruanyifeng.com/blog/2013/05/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm.html">http://www.ruanyifeng.com/blog/2013/05/Knuth%E2%80%93Morris%E2%80%93Pratt_algorithm.html</a><br/><br>从头到尾彻底理解KMP算法: <a target="_blank" rel="noopener" href="http://blog.csdn.net/v_july_v/article/details/7041827">http://blog.csdn.net/v_july_v/article/details/7041827</a><br/></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-10-2016/string-match.html">https://www.cyningsun.com/04-10-2016/string-match.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-10-2016/string-match.html">https://www.cyningsun.com/04-10-2016/string-match.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -223,7 +224,7 @@ gtag('config', 'UA-156665333-1');
 
     <ul class="pager">
      
-     <li class="next"><a href="/04-13-2016/recent-blog.html">Newer &rarr;</a></li>
+     <li class="next"><a href="/05-01-2016/decision.html">Newer &rarr;</a></li>
     
     
     <li class="previous"><a href="/04-04-2016/kmp.html">&larr; Older</a></li>
@@ -247,7 +248,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

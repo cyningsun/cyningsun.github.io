@@ -191,7 +191,7 @@ gtag('config', 'UA-156665333-1');
 <h3 id="最终一致性-在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。"><a href="#最终一致性-在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。" class="headerlink" title="最终一致性 - 在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。"></a>最终一致性 - 在全球范围内构建可靠的分布式系统需要在一致性和可用性之间进行权衡。</h3><p>亚马逊云计算的基础是诸如 S3（Simple Storage Service）、SimpleDB、EC2（Elastic Compute Cloud）等基础设施，为构建互联网规模级别计算平台和种类繁多的应用提供了资源。这些基础设施服务的要求非常严格，需要在安全性、可扩展性、可用性、性能和成本效益方面获得高分，与此同时还要持续为全球数以百万计的客户提供服务。</p>
 <p>在这些服务幕后，是全球范围内运行的大规模分布式系统。这种规模带来了额外的挑战。因为当系统处理数以万亿计的请求时，通常情况下发生概率较低的的事件会必然发生，需要在系统设计和架构中预先考虑。鉴于这些系统遍及全球范围，我们通常使用复制技术来保证一致性的性能和高可用性。尽管复制使我们更接近目标，却不能以完全透明的方式实现这些目标。在许多情况下，这些服务的客户将面临服务内部使用复制技术的后果。</p>
 <p>其中一种表现方式是提供的数据一致性的类型，特别是底层分布式系统为数据复制提供最终一致性模型时。在亚马逊设计这些大规模系统时，使用了一套与大规模数据复制相关的指导原则和抽象方法，并专注于高可用性和数据一致性之间的平衡。在本文中，我介绍了一些相关的背景知识，包含了我们交付需要在全球范围内运行的可靠分布式系统的方法。本文的<a target="_blank" rel="noopener" href="http://www.allthingsdistributed.com/2007/12/eventually_consistent.html">早期版本</a>于 2007 年 12 月在 All Things Distributed 博客上发表，在读者的帮助下得到了极大的改进。</p>
-<h3 id="历史视角"><a href="#历史视角" class="headerlink" title="历史视角"></a>历史视角</h3><p>在理想世界里，只有一种一致性模型：当更新发生时，所有观察者都能看到那个更新。该模型第一次出现难以实现的情况是在70年代末的数据库系统中。关于该主题最好的“时期作品”是 <a target="_blank" rel="noopener" href="http://acmqueue.com/modules.php?name=Content&pa=showpage&pid=233">Bruce Lindsay 等人的</a>”分布式数据库笔记”。 它阐述了数据库复制的基础性原则，并讨论了许多处理实现一致性的技术。其中许多技术都试图实现分发透明性——即对系统用户来说，似乎只有一个系统而不是多个协作系统。在此期间，许多系统采取的做法是倾向于让整个系统失败，而非破坏其透明度。</p>
+<h3 id="历史视角"><a href="#历史视角" class="headerlink" title="历史视角"></a>历史视角</h3><p>在理想世界里，只有一种一致性模型：当更新发生时，所有观察者都能看到那个更新。该模型第一次出现难以实现的情况是在70年代末的数据库系统中。关于该主题最好的“时期作品”是 <a target="_blank" rel="noopener" href="http://acmqueue.com/modules.php?name=Content&amp;pa=showpage&amp;pid=233">Bruce Lindsay 等人的</a>”分布式数据库笔记”。 它阐述了数据库复制的基础性原则，并讨论了许多处理实现一致性的技术。其中许多技术都试图实现分发透明性——即对系统用户来说，似乎只有一个系统而不是多个协作系统。在此期间，许多系统采取的做法是倾向于让整个系统失败，而非破坏其透明度。</p>
 <p>在90年代中期，随着大型互联网系统的兴起，这些做法被重新审视。当时的人们开始考虑可用性可能是这些系统最重要的属性的想法，但他们正在为拿什么权衡而苦苦挣扎。加州大学伯克利分校系统教授、当时的 Inktomi 负责人 <a target="_blank" rel="noopener" href="http://www.cs.berkeley.edu/~brewer/">Eric Brewer</a> 在 2000 年 PODC（分布式计算原理）会议上的<a target="_blank" rel="noopener" href="http://www.cs.berkeley.edu/~brewer/cs262b-2004/PODC-keynote.pdf">主题演讲</a>中将不同的权衡结合在一起。他提出了 CAP 定理，该定理指出共享数据系统的三个属性——数据一致性、系统可用性和对网络分区的容忍度——在任何给定时间只能实现两个。更正式的认定可以在 <a target="_blank" rel="noopener" href="http://portal.acm.org/citation.cfm?doid=564585.564601">Seth Gilbert 和 Nancy Lynch</a> 2002 年的一篇论文中找到。</p>
 <p>一个不容忍网络分区的系统可以实现数据的一致性和可用性，通常通过使用事务协议来实现。要实现这一点，客户端和存储系统必须是同一环境的一部分；在某些情况下，它们作为一个整体失败，因此，客户端无法观察到分区。一个重要的观察结果是，在较大的分布式系统中，网络分区是给定的；因此，一致性和可用性无法同时实现。这意味着对于要删除的内容有两种选择：放宽一致性将允许系统在可分区条件下保持高可用性，而将一致性作为优先级意味着在某些条件下系统将不可用。</p>
 <p>两种选项都要求客户端开发者了解系统提供的内容。如果系统强调一致性，开发者需要处理系统可能不可用的事实，例如：写入。如果因为系统不可用写操作失败，那么开发者不得不处理如何处置要写入的数据。如果系统强调可用性，那么总能接受写操作，但是在某些情况下，读操作不会反映最近完成的写入的结果。然后，开发人员必须决定客户端是否需要始终访问绝对最新的更新。大量的应用程序可以处理稍微陈旧的数据，并且在此模型下可以很好地提供服务。</p>
@@ -248,13 +248,13 @@ gtag('config', 'UA-156665333-1');
 <p>本文的目标是提高对工程系统复杂性的认识，这些系统需要在全球范围内运行，并且需要仔细调优，以确保它们能够提供应用程序所需的持久性、可用性和性能。系统设计者拥有的工具之一就是一致性窗口的长度，在此期间，系统的客户端可能会接触到大规模系统工程的实相。</p>
 <h3 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h3><ol>
 <li>Brewer, E. A. 2000. <a target="_blank" rel="noopener" href="http://www.cs.berkeley.edu/~brewer/cs262b-2004/PODC-keynote.pdf">Towards robust distributed systems (abstract)</a>. In <em>Proceedings of the 19th Annual ACM Symposium on Principles of Distributed Computing</em> (July 16-19, Portland, Oregon): 7</li>
-<li><a target="_blank" rel="noopener" href="http://acmqueue.com/modules.php?name=Content&pa=showpage&pid=233">A Conversation with Bruce Lindsay.</a> 2004. ACM Queue 2(8): 22-33.</li>
+<li><a target="_blank" rel="noopener" href="http://acmqueue.com/modules.php?name=Content&amp;pa=showpage&amp;pid=233">A Conversation with Bruce Lindsay.</a> 2004. ACM Queue 2(8): 22-33.</li>
 <li>DeCandia, G., Hastorun, D., Jampani, M., Kakulapati, G., Lakshman, A., Pilchin, A., Sivasubramanian, S., Vosshall, P., Vogels, W. 2007. <a target="_blank" rel="noopener" href="http://www.allthingsdistributed.com/2007/10/amazons_dynamo.html">Dynamo: Amazon’s highly available key-value store</a>. In Proceedings of the 21st ACM <em>Symposium on Operating Systems Principles</em> (Stevenson, Washington, October).</li>
 <li>Gilbert , S., Lynch, N. 2002. <a target="_blank" rel="noopener" href="http://portal.acm.org/citation.cfm?doid=564585.564601">Brewer’s conjecture and the feasibility of consistent, available, partition-tolerant Web services</a>. ACM SIGACT News 33(2).</li>
 <li>Lindsay, B. G., Selinger, P. G., et al. 1980. Notes on distributed databases. In <em>Distributed Data Bases, ed. I</em>. W. Draffan and F. Poole, 247-284. Cambridge: Cambridge University Press. Also available as IBM Research Report RJ2517, San Jose, California (July 1979).</li>
 </ol>
 <p>原文链接：<a target="_blank" rel="noopener" href="http://www.allthingsdistributed.com/2008/12/eventually_consistent.html">http://www.allthingsdistributed.com/2008/12/eventually_consistent.html</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-26-2021/eventually-consistent-cn.html">https://www.cyningsun.com/06-26-2021/eventually-consistent-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-26-2021/eventually-consistent-cn.html">https://www.cyningsun.com/06-26-2021/eventually-consistent-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -293,7 +293,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -257,7 +257,6 @@ gtag('config', 'UA-156665333-1');
 <pre><code class="hljs json">keepalive_probes  探测次数（<span class="hljs-number">9</span>次）
 keepalive_time    探测的超时（<span class="hljs-number">2</span>小时）
 keepalive_intvl   探测间隔(<span class="hljs-number">75</span>s)</code></pre>
-
 <p>事实上，TCP KeepAlive 的机制其实并不适用于此。Keep Alive 机制开启后，，如果2小时内在此套接口的任一方向都没有数据交换，TCP就自动给对方发一个保持存活探测分节（keepalive probe），会导致一下三种情况</p>
 <ul>
 <li>对方接收一切正常：以期望的ACK响应。2小时后，TCP将发出另一个探测分节</li>
@@ -268,12 +267,10 @@ keepalive_intvl   探测间隔(<span class="hljs-number">75</span>s)</code></pre
 <h3 id="应用层架构"><a href="#应用层架构" class="headerlink" title="应用层架构"></a>应用层架构</h3><p>理清楚以上关键点，再去设计架构，就比较清晰容易了。因为几大国民应用（淘宝、支付宝、微信、QQ）都是采用类似的实现方式，也从侧面进一步印证了该设计的合理性</p>
 <p><img src="/images/mobile-application-access/application-architecture.png" alt="application-architecture"></p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>其实无论是 “单直播间百万CCU的弹幕服务” ，还是“单用户千万粉丝的红点服务”，在整体上都脱不开这个模型。只是要根据业务特性，在实现上做一定的修改变化以适应业务的需要</p>
-<br/>
-
+<p><br/></p>
 <p><strong>参考链接</strong> </p>
 <ul>
-<li><p><a target="_blank" rel="noopener" href="https://www.infoq.cn/article/58WHhVew7kUYwHS*L6sE">蚂蚁金服亿级并发下的移动端到端网络接入架构解析</a></p>
-</li>
+<li><a target="_blank" rel="noopener" href="https://www.infoq.cn/article/58WHhVew7kUYwHS*L6sE">蚂蚁金服亿级并发下的移动端到端网络接入架构解析</a></li>
 <li><p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/66807833">知乎千万级高性能长连接网关揭秘</a></p>
 </li>
 <li><p><a target="_blank" rel="noopener" href="http://www.blogjava.net/yongboy/archive/2014/03/05/410636.html">微信协议简单调研笔记</a></p>
@@ -284,9 +281,9 @@ keepalive_intvl   探测间隔(<span class="hljs-number">75</span>s)</code></pre
 </li>
 <li><p><a target="_blank" rel="noopener" href="https://tech.meituan.com/2017/03/17/shark-sdk.html">美团点评移动网络优化实践</a></p>
 </li>
-<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzI2MTIzMzY3Mw==&mid=2247484552&idx=1&sn=40852d08a7fc5ce5bbef40e82b70f6b1">魅族实时消息推送架构</a></p>
+<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzI2MTIzMzY3Mw==&amp;mid=2247484552&amp;idx=1&amp;sn=40852d08a7fc5ce5bbef40e82b70f6b1">魅族实时消息推送架构</a></p>
 </li>
-<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzAwMDU1MTE1OQ==&mid=209727496&idx=1&sn=86b64ddadcc91bc6b0741a870692b3c0">360 如何实现支持数亿用户的长连消息系统</a></p>
+<li><p><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzAwMDU1MTE1OQ==&amp;mid=209727496&amp;idx=1&amp;sn=86b64ddadcc91bc6b0741a870692b3c0">360 如何实现支持数亿用户的长连消息系统</a></p>
 </li>
 <li><p><a target="_blank" rel="noopener" href="https://yeqown.github.io/2020/04/02/%E6%B6%88%E6%81%AF%E6%8E%A8%E9%80%81%E6%9E%B6%E6%9E%84-based-GOIM/">消息推送架构-BASED-GOIM</a></p>
 </li>
@@ -301,7 +298,7 @@ keepalive_intvl   探测间隔(<span class="hljs-number">75</span>s)</code></pre
 <li><p><a target="_blank" rel="noopener" href="https://halfrost.com/advance_tcp/">TCP 进阶</a></p>
 </li>
 </ul>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-03-2020/mobile-application-access-tech.html">https://www.cyningsun.com/05-03-2020/mobile-application-access-tech.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-03-2020/mobile-application-access-tech.html">https://www.cyningsun.com/05-03-2020/mobile-application-access-tech.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -340,7 +337,7 @@ keepalive_intvl   探测间隔(<span class="hljs-number">75</span>s)</code></pre
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

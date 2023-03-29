@@ -207,7 +207,7 @@ gtag('config', 'UA-156665333-1');
 </ul>
 <p>Loggo 还提供了根据每个包调整日志的详细程度的功能。</p>
 <p>因此，以上两个示例显然受到其他语言的其他日志库的影响。实际上，它们的命令行可以追溯到 syslog(3)，甚至更早。我认为他们是错的。</p>
-<p>我站相反的立场。我认为_所有_日志库都不好，因为它提供了_太多_的功能。一系列令人困惑的选择，使程序员必须清楚地思考如何与未来的读者沟通，而读者将要使用他们的日志。</p>
+<p>我站相反的立场。我认为<em>所有</em>日志库都不好，因为它提供了<em>太多</em>的功能。一系列令人困惑的选择，使程序员必须清楚地思考如何与未来的读者沟通，而读者将要使用他们的日志。</p>
 <p>我认为成功的日志包需要的功能要少得多，当然需要的级别也更少。</p>
 <h3 id="Let’s-talk-about-warnings"><a href="#Let’s-talk-about-warnings" class="headerlink" title="Let’s talk about warnings"></a>Let’s talk about warnings</h3><p>我们从最简单的一个开始。没有人需要 warning 的日志级别。</p>
 <p>没有人阅读 warning，因为按照定义，没有出错。也许将来会出问题，但这听起来像是别人的问题。</p>
@@ -230,20 +230,16 @@ gtag('config', 'UA-156665333-1');
 <li>将错误返回给您的呼叫者（您可以选择包装错误，但这对于本次讨论并不重要）</li>
 </ul>
 <p>如果您选择通过打印日志来处理错误，那么按照定义，你已经处理了它，错误就不存在了。打印错误处理错误的行为，意味着不再适合将其打印为错误日志。</p>
-<p>让我尝试用以下代码片段说服您：</p>
-<pre><code class="hljs go">err := somethingHard()
+<p>让我尝试用以下代码片段说服您：<br><pre><code class="hljs go">err := somethingHard()
 <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
         log.Error(<span class="hljs-string">&quot;oops, something was too hard&quot;</span>, err)
         <span class="hljs-keyword">return</span> err <span class="hljs-comment">// what is this, Java ?</span>
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p>您永远不应该在 error 级别打印任何内容的日志，因为您应该处理错误，或者将其传递回调用方。</p>
-<p>准确地说，我并不是说您不应该将发生的情况打印日志</p>
-<pre><code class="hljs code">if err := planA(); err != nil &#123;
+<p>准确地说，我并不是说您不应该将发生的情况打印日志<br><pre><code class="hljs code">if err := planA(); err != nil &#123;
         log.Infof(&quot;could&#x27;t open the foo file, continuing with plan b: %v&quot;, err)
         planB()
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p>但实际上 <code>log.Info</code> 和 <code>log.Error</code> 有异曲同工之妙。</p>
 <p>我并不是说不要打印错误日志！相反，问题是，最小的日志API是什么？当提到错误时，我相信绝大多数打印日志为 error 级别的项目，都是通过这种简单地方式完成的，因为它们与错误相关。实际上，它们只是提供信息，意味着可以从API中删除以 error 级别打印日志。</p>
 <h3 id="What’s-left"><a href="#What’s-left" class="headerlink" title="What’s left ?"></a>What’s left ?</h3><p>我们已经排除了 warning，认为不应该以 error 级别打印任何内容的日志，并且表明只有应用程序的顶层应该具有某种 <code>log.Fatal</code> 行为。还剩什么 ？</p>
@@ -253,21 +249,21 @@ gtag('config', 'UA-156665333-1');
 <li>用户在使用您的软件时关心的东西。</li>
 </ol>
 <p>显然，分别是 debug 和 info 级别。</p>
-<p><code>log.Info</code> 应该简单地将该行写入日志输出。不应有将其关闭的选项，因为仅应告知用户对他们有用的事情。如果发生<em>无法_处理的错误，它将冒泡到 <code>main.main</code>， 程序终止的地方。必须在最后一条日志消息前面插入 _FATAL</em> 前缀，或直接用 <code>fmt.Fprintf</code> 写入 <code>os.Stderr</code> 所带来的小小不便，不足以解释日志包需要添加 <code>log.Fatal</code> 方法。</p>
+<p><code>log.Info</code> 应该简单地将该行写入日志输出。不应有将其关闭的选项，因为仅应告知用户对他们有用的事情。如果发生<em>无法</em>处理的错误，它将冒泡到 <code>main.main</code>， 程序终止的地方。必须在最后一条日志消息前面插入 <em>FATAL</em> 前缀，或直接用 <code>fmt.Fprintf</code> 写入 <code>os.Stderr</code> 所带来的小小不便，不足以解释日志包需要添加 <code>log.Fatal</code> 方法。</p>
 <p><code>log.Debug</code>，则完全不同。由开发人员或支持工程师控制。在开发过程中，调试语句应足够多，而不必求助于 trace 或 debug<sup>2</sup> 级别。日志包应支持细粒度的控制，以启用或禁用调试，并且仅在该包或可能更精细的范围内的语句调试。</p>
 <h3 id="Wrapping-up"><a href="#Wrapping-up" class="headerlink" title="Wrapping up"></a>Wrapping up</h3><p>如果这是推特民意调查，请您选择</p>
 <ul>
 <li>打印日志很重要</li>
 <li>打印日志很难</li>
 </ul>
-<p>但是事实是，打印日志是两者兼而有之。解决这个问题的方法_必须_是解构和残酷地消除不必要的干扰。</p>
+<p>但是事实是，打印日志是两者兼而有之。解决这个问题的方法<em>必须</em>是解构和残酷地消除不必要的干扰。</p>
 <p>你怎么看？这仅仅是疯狂到足以工作，还是纯粹是疯狂的？</p>
 <h3 id="Notes"><a href="#Notes" class="headerlink" title="Notes"></a>Notes</h3><ol>
 <li>一些库可能使用 <code>panic</code>/<code>recover</code> 作为内部控制流机制，但最重要的原则是它们一定不能让这些控制流操作泄漏到程序包边界之外。</li>
 <li>具有讽刺意味的是，尽管缺少 debug 级别的输出，但 Go 标准日志包同时具有 <code>Fatal</code> 和 <code>Panic</code> 功能。在此程序包中，导致程序突然退出的功能数量超过了没有退出功能的数量。</li>
 </ol>
 <p><em>原文：<a target="_blank" rel="noopener" href="https://dave.cheney.net/2015/11/05/lets-talk-about-logging">https://dave.cheney.net/2015/11/05/lets-talk-about-logging</a></em></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-27-2019/lets-talk-about-logging-cn.html">https://www.cyningsun.com/09-27-2019/lets-talk-about-logging-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-27-2019/lets-talk-about-logging-cn.html">https://www.cyningsun.com/09-27-2019/lets-talk-about-logging-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -323,7 +319,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

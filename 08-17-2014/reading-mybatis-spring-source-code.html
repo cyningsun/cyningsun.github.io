@@ -192,61 +192,59 @@ gtag('config', 'UA-156665333-1');
 <pre><code class="hljs xml"><span class="hljs-tag">&lt;<span class="hljs-name">bean</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;org.mybatis.spring.mapper.MapperScannerConfigurer&quot;</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;basePackage&quot;</span> <span class="hljs-attr">value</span>=<span class="hljs-string">&quot;&quot;</span> /&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">bean</span>&gt;</span></code></pre>
-
 <p>入口类为MapperScannerConfigurer, 该类实现了BeanDefinitionRegistryPostProcessor接口用来查找Mapper类，然后将MapperFactoryBean设置为Mapper的<br>实现类。MapperFactoryBean是一个代理类，会根据Mapper信息通过sqlSession获取对应Mapper的实例。以上就是Mybatis-Spring的所有任务。</p>
 <h4 id="MapperScannerConfigurer如何查找Mapper"><a href="#MapperScannerConfigurer如何查找Mapper" class="headerlink" title="MapperScannerConfigurer如何查找Mapper"></a>MapperScannerConfigurer如何查找Mapper</h4><p>了解Mapper查找的原理，首先要了解BeanDefinitionRegistryPostProcessor接口。开发人员通过 XML 文件或者 Annotation 预定义配置 bean 的各种属性后，启动 Spring 容器，Spring 容器会首先解析这些配置属性，生成对应都 Bean Definition，装入到 DefaultListableBeanFactory 对象的属性容器中去。Spring 框架会根据配置，过滤出 BeanDefinitionRegistryPostProcessor 类型的 Bean 定义，并通过 Spring 框架生成其对应的 Bean 对象。Spring 容器会在实例化开发人员所定义的 Bean 前先调用该 processor 的 postProcessBeanDefinitionRegistry(…) 方法。此处可以操作和配置Bean Definition。下面是MapperScannerConfigurer的源码</p>
-<pre><code class="hljs java"> <span class="hljs-function"><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title">postProcessBeanDefinitionRegistry</span><span class="hljs-params">(BeanDefinitionRegistry registry)</span> <span class="hljs-keyword">throws</span> BeansException </span>&#123;
-   <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.processPropertyPlaceHolders) &#123;
+<pre><code class="hljs java"> <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">postProcessBeanDefinitionRegistry</span><span class="hljs-params">(BeanDefinitionRegistry registry)</span> <span class="hljs-keyword">throws</span> BeansException &#123;
+   <span class="hljs-keyword">if</span> (<span class="hljs-built_in">this</span>.processPropertyPlaceHolders) &#123;
      processPropertyPlaceHolders();
    &#125;
 <span class="hljs-comment">//配置需要查找的Mapper类的信息</span>
-   ClassPathMapperScanner scanner = <span class="hljs-keyword">new</span> ClassPathMapperScanner(registry);
-   scanner.setAddToConfig(<span class="hljs-keyword">this</span>.addToConfig);
-   scanner.setAnnotationClass(<span class="hljs-keyword">this</span>.annotationClass);
-   scanner.setMarkerInterface(<span class="hljs-keyword">this</span>.markerInterface);
-   scanner.setSqlSessionFactory(<span class="hljs-keyword">this</span>.sqlSessionFactory);
-   scanner.setSqlSessionTemplate(<span class="hljs-keyword">this</span>.sqlSessionTemplate);
-   scanner.setSqlSessionFactoryBeanName(<span class="hljs-keyword">this</span>.sqlSessionFactoryBeanName);
-   scanner.setSqlSessionTemplateBeanName(<span class="hljs-keyword">this</span>.sqlSessionTemplateBeanName);
-   scanner.setResourceLoader(<span class="hljs-keyword">this</span>.applicationContext);
-   scanner.setBeanNameGenerator(<span class="hljs-keyword">this</span>.nameGenerator);
+   <span class="hljs-type">ClassPathMapperScanner</span> <span class="hljs-variable">scanner</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">ClassPathMapperScanner</span>(registry);
+   scanner.setAddToConfig(<span class="hljs-built_in">this</span>.addToConfig);
+   scanner.setAnnotationClass(<span class="hljs-built_in">this</span>.annotationClass);
+   scanner.setMarkerInterface(<span class="hljs-built_in">this</span>.markerInterface);
+   scanner.setSqlSessionFactory(<span class="hljs-built_in">this</span>.sqlSessionFactory);
+   scanner.setSqlSessionTemplate(<span class="hljs-built_in">this</span>.sqlSessionTemplate);
+   scanner.setSqlSessionFactoryBeanName(<span class="hljs-built_in">this</span>.sqlSessionFactoryBeanName);
+   scanner.setSqlSessionTemplateBeanName(<span class="hljs-built_in">this</span>.sqlSessionTemplateBeanName);
+   scanner.setResourceLoader(<span class="hljs-built_in">this</span>.applicationContext);
+   scanner.setBeanNameGenerator(<span class="hljs-built_in">this</span>.nameGenerator);
    scanner.registerFilters();
-   scanner.scan(StringUtils.tokenizeToStringArray(<span class="hljs-keyword">this</span>.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
+   scanner.scan(StringUtils.tokenizeToStringArray(<span class="hljs-built_in">this</span>.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
  &#125;</code></pre>
-
 <p>ClassPathMapperScanner继承了ClassPathBeanDefinitionScanner，scanner.scan()语句会调用ClassPathMapperScanner的doScan函数。然后此函数中将MapperFactoryBean设置为查找到的Mapper的实现类</p>
-<pre><code class="hljs java"><span class="hljs-function"><span class="hljs-keyword">public</span> Set&lt;BeanDefinitionHolder&gt; <span class="hljs-title">doScan</span><span class="hljs-params">(String... basePackages)</span> </span>&#123;
-   Set&lt;BeanDefinitionHolder&gt; beanDefinitions = <span class="hljs-keyword">super</span>.doScan(basePackages);
+<pre><code class="hljs java"><span class="hljs-keyword">public</span> Set&lt;BeanDefinitionHolder&gt; <span class="hljs-title function_">doScan</span><span class="hljs-params">(String... basePackages)</span> &#123;
+   Set&lt;BeanDefinitionHolder&gt; beanDefinitions = <span class="hljs-built_in">super</span>.doScan(basePackages);
 
    <span class="hljs-keyword">if</span> (beanDefinitions.isEmpty()) &#123;
      logger.warn(<span class="hljs-string">&quot;No MyBatis mapper was found in &#x27;&quot;</span> + Arrays.toString(basePackages) + <span class="hljs-string">&quot;&#x27; package. Please check your configuration.&quot;</span>);
    &#125; <span class="hljs-keyword">else</span> &#123;
   <span class="hljs-comment">//遍历找到的Mapper</span>
      <span class="hljs-keyword">for</span> (BeanDefinitionHolder holder : beanDefinitions) &#123;
-       GenericBeanDefinition definition = (GenericBeanDefinition) holder.getBeanDefinition();
+       <span class="hljs-type">GenericBeanDefinition</span> <span class="hljs-variable">definition</span> <span class="hljs-operator">=</span> (GenericBeanDefinition) holder.getBeanDefinition();
 
        <span class="hljs-comment">//下面的definition.getPropertyValues().add函数均为实例化代理类设置参数，以使得MapperFactoryBean完成代理</span>
        definition.getPropertyValues().add(<span class="hljs-string">&quot;mapperInterface&quot;</span>, definition.getBeanClassName());
 	<span class="hljs-comment">// 设置Mapper的实现类为MapperFactoryBean</span>
        definition.setBeanClass(MapperFactoryBean.class);
 
-       definition.getPropertyValues().add(<span class="hljs-string">&quot;addToConfig&quot;</span>, <span class="hljs-keyword">this</span>.addToConfig);
+       definition.getPropertyValues().add(<span class="hljs-string">&quot;addToConfig&quot;</span>, <span class="hljs-built_in">this</span>.addToConfig);
 
-       <span class="hljs-keyword">boolean</span> explicitFactoryUsed = <span class="hljs-keyword">false</span>;
-       <span class="hljs-keyword">if</span> (StringUtils.hasText(<span class="hljs-keyword">this</span>.sqlSessionFactoryBeanName)) &#123;
-         definition.getPropertyValues().add(<span class="hljs-string">&quot;sqlSessionFactory&quot;</span>, <span class="hljs-keyword">new</span> RuntimeBeanReference(<span class="hljs-keyword">this</span>.sqlSessionFactoryBeanName));
-         explicitFactoryUsed = <span class="hljs-keyword">true</span>;
-       &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.sqlSessionFactory != <span class="hljs-keyword">null</span>) &#123;
-         definition.getPropertyValues().add(<span class="hljs-string">&quot;sqlSessionFactory&quot;</span>, <span class="hljs-keyword">this</span>.sqlSessionFactory);
-         explicitFactoryUsed = <span class="hljs-keyword">true</span>;
+       <span class="hljs-type">boolean</span> <span class="hljs-variable">explicitFactoryUsed</span> <span class="hljs-operator">=</span> <span class="hljs-literal">false</span>;
+       <span class="hljs-keyword">if</span> (StringUtils.hasText(<span class="hljs-built_in">this</span>.sqlSessionFactoryBeanName)) &#123;
+         definition.getPropertyValues().add(<span class="hljs-string">&quot;sqlSessionFactory&quot;</span>, <span class="hljs-keyword">new</span> <span class="hljs-title class_">RuntimeBeanReference</span>(<span class="hljs-built_in">this</span>.sqlSessionFactoryBeanName));
+         explicitFactoryUsed = <span class="hljs-literal">true</span>;
+       &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-built_in">this</span>.sqlSessionFactory != <span class="hljs-literal">null</span>) &#123;
+         definition.getPropertyValues().add(<span class="hljs-string">&quot;sqlSessionFactory&quot;</span>, <span class="hljs-built_in">this</span>.sqlSessionFactory);
+         explicitFactoryUsed = <span class="hljs-literal">true</span>;
        &#125;
 
-       <span class="hljs-keyword">if</span> (StringUtils.hasText(<span class="hljs-keyword">this</span>.sqlSessionTemplateBeanName)) &#123;
-         definition.getPropertyValues().add(<span class="hljs-string">&quot;sqlSessionTemplate&quot;</span>, <span class="hljs-keyword">new</span> RuntimeBeanReference(<span class="hljs-keyword">this</span>.sqlSessionTemplateBeanName));
-         explicitFactoryUsed = <span class="hljs-keyword">true</span>;
-       &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.sqlSessionTemplate != <span class="hljs-keyword">null</span>) &#123;
-         definition.getPropertyValues().add(<span class="hljs-string">&quot;sqlSessionTemplate&quot;</span>, <span class="hljs-keyword">this</span>.sqlSessionTemplate);
-         explicitFactoryUsed = <span class="hljs-keyword">true</span>;
+       <span class="hljs-keyword">if</span> (StringUtils.hasText(<span class="hljs-built_in">this</span>.sqlSessionTemplateBeanName)) &#123;
+         definition.getPropertyValues().add(<span class="hljs-string">&quot;sqlSessionTemplate&quot;</span>, <span class="hljs-keyword">new</span> <span class="hljs-title class_">RuntimeBeanReference</span>(<span class="hljs-built_in">this</span>.sqlSessionTemplateBeanName));
+         explicitFactoryUsed = <span class="hljs-literal">true</span>;
+       &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-built_in">this</span>.sqlSessionTemplate != <span class="hljs-literal">null</span>) &#123;
+         definition.getPropertyValues().add(<span class="hljs-string">&quot;sqlSessionTemplate&quot;</span>, <span class="hljs-built_in">this</span>.sqlSessionTemplate);
+         explicitFactoryUsed = <span class="hljs-literal">true</span>;
        &#125;
 
        <span class="hljs-keyword">if</span> (!explicitFactoryUsed) &#123;
@@ -257,17 +255,15 @@ gtag('config', 'UA-156665333-1');
 
    <span class="hljs-keyword">return</span> beanDefinitions;
  &#125;</code></pre>
-
 <p>然后就是MapperFactoryBean根据实例化的信息创建对应的Mapper实例了</p>
-<pre><code class="hljs java"><span class="hljs-function"><span class="hljs-keyword">public</span> T <span class="hljs-title">getObject</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception </span>&#123;
-  <span class="hljs-keyword">return</span> getSqlSession().getMapper(<span class="hljs-keyword">this</span>.mapperInterface);
+<pre><code class="hljs java"><span class="hljs-keyword">public</span> T <span class="hljs-title function_">getObject</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception &#123;
+  <span class="hljs-keyword">return</span> getSqlSession().getMapper(<span class="hljs-built_in">this</span>.mapperInterface);
 &#125;
 </code></pre>
-
 <p>就这样Mybatis-Spring省去了手工配置Mapper，帮助开发者实现自动的配置，使得开发快速。</p>
-<h4 id="Mybatis涉及的主要类"><a href="#Mybatis涉及的主要类" class="headerlink" title="Mybatis涉及的主要类"></a>Mybatis涉及的主要类</h4><p>MapperScannerConfigurer – ClassPathMapperScanner – MapperFactoryBean</p>
+<h4 id="Mybatis涉及的主要类"><a href="#Mybatis涉及的主要类" class="headerlink" title="Mybatis涉及的主要类"></a>Mybatis涉及的主要类</h4><p>MapperScannerConfigurer — ClassPathMapperScanner — MapperFactoryBean</p>
 <p>(完)</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-17-2014/reading-mybatis-spring-source-code.html">https://www.cyningsun.com/08-17-2014/reading-mybatis-spring-source-code.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-17-2014/reading-mybatis-spring-source-code.html">https://www.cyningsun.com/08-17-2014/reading-mybatis-spring-source-code.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -306,7 +302,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

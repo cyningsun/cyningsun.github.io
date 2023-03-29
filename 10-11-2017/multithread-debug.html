@@ -206,9 +206,8 @@ Breakpoint <span class="hljs-number">1</span>, WordElement::<span class="hljs-bu
 <span class="hljs-number">39</span>     in word_element.cpp
 The program stopped in another thread <span class="hljs-keyword">while</span> making a function call from GDB.
 
-(google::protobuf::Message::<span class="hljs-built_in">PrintDebugString</span>() <span class="hljs-keyword">const</span>) will be abandoned.
+(google::protobuf::Message::<span class="hljs-built_in">PrintDebugString</span>() <span class="hljs-type">const</span>) will be abandoned.
 When the function is done executing, GDB will silently stop.</code></pre>
-
 <p>由于执行函数调用，当前进程因为另外一个线程执行而停止，调试进行不下去了。回到刚刚的概念</p>
 <h3 id="什么是“All-Stop-Mode”？"><a href="#什么是“All-Stop-Mode”？" class="headerlink" title="什么是“All-Stop Mode”？"></a>什么是“All-Stop Mode”？</h3><p>GDB无法单步调试所有线程，由于线程的调度策略取决于调试的操作系统，当调试线程执行一步时，其他线程可能执行不止一条语句。当调试线程continue或者单步执行时，一旦其他线程在当前线程的执行结束之前触发断点、异常、信号，可能会发现程序终止（program stopped）。由于触发，GDB会自动切换到触发线程并提示“ [Switching to Thread n]”。因此，如果想要顺利调试需要使用“set scheduler-locking on”锁定操作系统调度器，只允许调试线程执行。</p>
 <pre><code class="hljs cpp">(gdb) <span class="hljs-keyword">break</span> word_element.cpp:<span class="hljs-number">39</span>
@@ -227,9 +226,8 @@ Breakpoint <span class="hljs-number">1</span>, WordElement::<span class="hljs-bu
 <span class="hljs-function">node_level: <span class="hljs-number">3</span></span>
 <span class="hljs-function">node_weight: <span class="hljs-number">0.49673182</span></span>
 <span class="hljs-function">hit_field: <span class="hljs-number">0</span></span></code></pre>
-
 <p>如上，就可以愉快的排查堆栈，查看coredump发生的原因了</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/10-11-2017/multithread-debug.html">https://www.cyningsun.com/10-11-2017/multithread-debug.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/10-11-2017/multithread-debug.html">https://www.cyningsun.com/10-11-2017/multithread-debug.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -268,7 +266,7 @@ Breakpoint <span class="hljs-number">1</span>, WordElement::<span class="hljs-bu
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

@@ -214,15 +214,11 @@ gtag('config', 'UA-156665333-1');
 </li>
 </ol>
 <p>在<a href="/07-27-2020/how-to-write-rpc-interface.html#%E8%AE%A4%E8%AF%86%E8%B5%84%E6%BA%90">《如何设计RPC接口》</a> 中我们提到过一个观点：所有的数据都等于 ID + Content，同时 ID 又可以以集合的形式存在。</p>
-<p>假设查询微博列表是一个单独的API接口，各种数据在系统中的表达分别为：post（微博）、profile（个人信息）、stat（点赞、评论等计数、点赞）。那么通常的实现是：</p>
-<pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> ... <span class="hljs-keyword">FROM</span> post <span class="hljs-keyword">LEFT</span> <span class="hljs-keyword">JOIN</span> profile <span class="hljs-keyword">LEFT</span> <span class="hljs-keyword">JOIN</span> stat ...</code></pre>
-<p>两张大表直接进行关联。如果扛不住，就添加缓存，将查询结果缓存。</p>
+<p>假设查询微博列表是一个单独的API接口，各种数据在系统中的表达分别为：post（微博）、profile（个人信息）、stat（点赞、评论等计数、点赞）。那么通常的实现是：<br><pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> ... <span class="hljs-keyword">FROM</span> post <span class="hljs-keyword">LEFT</span> <span class="hljs-keyword">JOIN</span> profile <span class="hljs-keyword">LEFT</span> <span class="hljs-keyword">JOIN</span> stat ...</code></pre><br>两张大表直接进行关联。如果扛不住，就添加缓存，将查询结果缓存。</p>
 <p>那么，在开发过程中是否真的无法逃出这一怪圈？答案当然是否定的，本文的目的就是承接 <a href="/12-15-2020/system-design-concept-and-relation.html">《系统设计之概念与关系》</a>、<a href="/07-27-2020/how-to-write-rpc-interface.html#%E8%AE%A4%E8%AF%86%E8%B5%84%E6%BA%90">《如何设计RPC接口》</a> ，谈谈如何设计，才能让数据落地到缓存。</p>
-<h3 id="结构化缓存"><a href="#结构化缓存" class="headerlink" title="结构化缓存"></a>结构化缓存</h3><p>具体来看怎么做的，实际上可以将以上查询进行拆分：</p>
-<pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> post <span class="hljs-keyword">WHERE</span> ...
+<h3 id="结构化缓存"><a href="#结构化缓存" class="headerlink" title="结构化缓存"></a>结构化缓存</h3><p>具体来看怎么做的，实际上可以将以上查询进行拆分：<br><pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> post <span class="hljs-keyword">WHERE</span> ...
 <span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> profile <span class="hljs-keyword">WHERE</span> id <span class="hljs-keyword">in</span> (...)
-<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> stat <span class="hljs-keyword">WHERE</span> id <span class="hljs-keyword">in</span> (...)</code></pre>
-<p>很多人看到这里会直摇头，这不就直接会导致一次API调用，会直接导致 N 次数据库查询。那你怎么能这样拆分呢？</p>
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> stat <span class="hljs-keyword">WHERE</span> id <span class="hljs-keyword">in</span> (...)</code></pre><br>很多人看到这里会直摇头，这不就直接会导致一次API调用，会直接导致 N 次数据库查询。那你怎么能这样拆分呢？</p>
 <p>事实上并非如此，由于缓存的存在，后两个数据库查询都会命中应用缓存，最终只会有一次简单查询到数据库。考虑最差的情况应用缓存没有命中，后两个数据库查询也会极大概率命中数据的缓存。同时，随着业务的迭代，可以放心使用组合模式，不断组合其他数据，而不用担心复杂度的高度。再次，考虑 KOL 的微博访问量大，可以沿着结构树不断向上添加缓存（例如：在微博列表层添加缓存）。最后，如果分布式缓存压力太大，还可以组合本地缓存使用。</p>
 <p>最重要的是，所有以上提到的所有优化点，都可以使用组合模式实现，而不用大幅度调整代码，避免陷入开发、优化、重构的怪圈。</p>
 <p>再看拆分前，由于使用SQL关联操作，会在业务的发展过程中不断面临挑战：</p>
@@ -254,7 +250,7 @@ gtag('config', 'UA-156665333-1');
 </li>
 </ol>
 <p>当然此种实现并非没有代价。显然，如果数据的访问频率很低，极少的结果才会命中缓存，那么效果就微乎其微。而梳理数据关系、结构，以及按照拆分的形式实现代码，将花费不少的时间，在讲究快速开发、先撑住再优化的今天，很容易让开发者采取非此即彼的决策。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/02-18-2021/high-concurrency-cache-design.html">https://www.cyningsun.com/02-18-2021/high-concurrency-cache-design.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/02-18-2021/high-concurrency-cache-design.html">https://www.cyningsun.com/02-18-2021/high-concurrency-cache-design.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -306,7 +302,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

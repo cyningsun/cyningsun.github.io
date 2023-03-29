@@ -203,20 +203,17 @@ g++ (GCC) 4.8.0
 Copyright (C) 2013 Free Software Foundation, Inc.
 ...
 $</code></pre>
-
-<p>程序运行在配备3.4GHz Core i7-2600 CPU 16 GB RAM的Gentoo Linux’s 3.8.4-gentoo内核的计算机上。 通过以下代码禁用了机器的CPU频率调整：</p>
-<pre><code class="hljs sh">$ sudo bash
+<p>程序运行在配备3.4GHz Core i7-2600 CPU 16 GB RAM的Gentoo Linux’s 3.8.4-gentoo内核的计算机上。 通过以下代码禁用了机器的CPU频率调整：<br><pre><code class="hljs sh">$ sudo bash
 <span class="hljs-comment"># for i in /sys/devices/system/cpu/cpu[0-7]</span>
 <span class="hljs-keyword">do</span>
     <span class="hljs-built_in">echo</span> performance &gt; <span class="hljs-variable">$i</span>/cpufreq/scaling_governor
 <span class="hljs-keyword">done</span>
-<span class="hljs-comment">#</span></code></pre>
-
+<span class="hljs-comment">#</span></code></pre></p>
 <p>我们采用 <a target="_blank" rel="noopener" href="https://github.com/hundt98847/multi-language-bench">Hundt’s benchmark programs</a> 的C++和Go部分，将每个程序组合成一个单独的源文件，并删掉了除一行输出之外的所有内容。我们将使用Linux的time工具为程序计时 ，其格式显示为 user time, system time, real time, and maximum memory usage:</p>
 <blockquote>
 <p>Mac OS 需要 <code>brew install gnu-time</code>，使用 gtime 命令替代</p>
 </blockquote>
-<pre><code class="hljs sh">$ cat xtime
+<pre><code class="hljs sh">$ <span class="hljs-built_in">cat</span> xtime
 <span class="hljs-comment">#!/bin/sh</span>
 /usr/bin/time -f <span class="hljs-string">&#x27;%Uu %Ss %er %MkB %C&#x27;</span> <span class="hljs-string">&quot;<span class="hljs-variable">$@</span>&quot;</span>
 $
@@ -235,10 +232,8 @@ $ ./xtime ./havlak1
 <span class="hljs-comment"># of loops: 76000 (including 1 artificial root node)</span>
 25.05u 0.11s 25.20r 1334032kB ./havlak1
 $</code></pre>
-
 <p>C++程序运行使用17.80秒 700 MB内存。 Go程序运行使用25.20秒 1302 MB的内存。（该结果很难与论文中的统一，但本文的重点是探索如何使用 <code>go tool pprof</code>，而不是重现论文的结果。）</p>
-<h3 id="CPU-Profile"><a href="#CPU-Profile" class="headerlink" title="CPU Profile"></a>CPU Profile</h3><p>要调优Go程序，我们必须启用profiling。 如果代码使用<a target="_blank" rel="noopener" href="https://golang.org/pkg/testing/">Go testing package</a>的benchmarking分析，可以使用gotest标准的 <code>-cpuprofile</code> 和 <code>-memprofile flags</code> 。 我们必须在程序中导入 <code>runtime/pprof</code> 并添加几行代码：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">var</span> cpuprofile = flag.String(<span class="hljs-string">&quot;cpuprofile&quot;</span>, <span class="hljs-string">&quot;&quot;</span>, <span class="hljs-string">&quot;write cpu profile to file&quot;</span>)
+<h3 id="CPU-Profile"><a href="#CPU-Profile" class="headerlink" title="CPU Profile"></a>CPU Profile</h3><p>要调优Go程序，我们必须启用profiling。 如果代码使用<a target="_blank" rel="noopener" href="https://golang.org/pkg/testing/">Go testing package</a>的benchmarking分析，可以使用gotest标准的 <code>-cpuprofile</code> 和 <code>-memprofile flags</code> 。 我们必须在程序中导入 <code>runtime/pprof</code> 并添加几行代码：<br><pre><code class="hljs go"><span class="hljs-keyword">var</span> cpuprofile = flag.String(<span class="hljs-string">&quot;cpuprofile&quot;</span>, <span class="hljs-string">&quot;&quot;</span>, <span class="hljs-string">&quot;write cpu profile to file&quot;</span>)
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
     flag.Parse()
@@ -250,18 +245,14 @@ $</code></pre>
         pprof.StartCPUProfile(f)
         <span class="hljs-keyword">defer</span> pprof.StopCPUProfile()
     &#125;
-    ...</code></pre>
-
+    ...</code></pre></p>
 <p>新代码定义了一个名为 <code>cpuprofile</code> 的flag，调用 <a target="_blank" rel="noopener" href="https://golang.org/pkg/flag/">Go flag library</a> 来解析命令行flags，如果在命令行上设置了 <code>cpuprofile</code> flag，则 <a target="_blank" rel="noopener" href="https://golang.org/pkg/runtime/pprof/#StartCPUProfile">starts CPU profiling</a> 重定向到该文件。 在程序退出之前，profiler 需要最后调用 <a target="_blank" rel="noopener" href="https://golang.org/pkg/runtime/pprof/#StopCPUProfile"><code>StopCPUProfile</code></a> 来flush未写入文件的数据; 我们使用 <code>defer</code> 来确保在 <code>main</code> 返回前执行该调用。</p>
-<p>添加该代码后，我们可以使用新的 <code>-cpuprofile</code> flag 运行程序，然后运行 <code>go tool pprof</code> 来解释 profile。</p>
-<pre><code class="hljs sh">$ make havlak1.prof
+<p>添加该代码后，我们可以使用新的 <code>-cpuprofile</code> flag 运行程序，然后运行 <code>go tool pprof</code> 来解释 profile。<br><pre><code class="hljs sh">$ make havlak1.prof
 ./havlak1 -cpuprofile=havlak1.prof
 <span class="hljs-comment"># of loops: 76000 (including 1 artificial root node)</span>
 $ go tool pprof havlak1 havlak1.prof
 Welcome to pprof!  For <span class="hljs-built_in">help</span>, <span class="hljs-built_in">type</span> <span class="hljs-string">&#x27;help&#x27;</span>.
-(pprof)</code></pre>
-<p><code>go tool pprof</code> 程序是 <a target="_blank" rel="noopener" href="https://github.com/gperftools/gperftools">Google’s <code>pprof</code> C++ profiler</a> 的细微变体。最重要的命令是 <code>topN</code> ，显示profile中 top <code>N</code> 的样本：</p>
-<pre><code class="hljs sh">(pprof) top10
+(pprof)</code></pre><br><code>go tool pprof</code> 程序是 <a target="_blank" rel="noopener" href="https://github.com/gperftools/gperftools">Google’s <code>pprof</code> C++ profiler</a> 的细微变体。最重要的命令是 <code>topN</code> ，显示profile中 top <code>N</code> 的样本：<br><pre><code class="hljs sh">(pprof) top10
 Total: 2525 samples
      298  11.8%  11.8%      345  13.7% runtime.mapaccess1_fast64
      268  10.6%  22.4%     2124  84.1% main.FindLoops
@@ -272,35 +263,29 @@ Total: 2525 samples
       96   3.8%  53.1%       98   3.9% flushptrbuf
       95   3.8%  56.9%       95   3.8% runtime.aeshash64
       95   3.8%  60.6%      101   4.0% runtime.settype_flush
-      88   3.5%  64.1%      988  39.1% runtime.mallocgc</code></pre>
-<p>CPU profiling 启用时，Go程序每秒大约停止100次，并在当前正在执行的goroutine堆栈上记录由程序计数器组成的样本。 该 profile 有2525个样本，因此运行时间超过25秒。 在 <code>go tool pprof</code> 输出中，样本中出现的每个函数都有一行。 </p>
+      88   3.5%  64.1%      988  39.1% runtime.mallocgc</code></pre><br>CPU profiling 启用时，Go程序每秒大约停止100次，并在当前正在执行的goroutine堆栈上记录由程序计数器组成的样本。 该 profile 有2525个样本，因此运行时间超过25秒。 在 <code>go tool pprof</code> 输出中，样本中出现的每个函数都有一行。 </p>
 <ul>
 <li>前两列显示函数运行的样本数（而不是等待被调用函数返回），展示为原始计数和总样本的百分比。 <code>runtime.mapaccess1_fast64</code> 函数在298个样本期间运行(11.8％)。 <code>top10</code> 输出按样本计数排序。 </li>
 <li>第三列显示了清单期间的运行总数：前三行占样本的32.4％。 </li>
 <li>第四和第五列显示函数出现的样本数（运行或等待被调用的函数返回）。 <code>main.FindLoops</code>函数在10.6％的样本中运行，但是它在84.1％的样本中位于调用堆栈（它或它的调用正在运行）上。</li>
 </ul>
-<p>要按第四和第五列排序，要使用 <code>-cum</code>（for cumulative）flag：</p>
-<pre><code class="hljs sh">(pprof) top5 -cum
+<p>要按第四和第五列排序，要使用 <code>-cum</code>（for cumulative）flag：<br><pre><code class="hljs sh">(pprof) top5 -cum
 Total: 2525 samples
        0   0.0%   0.0%     2144  84.9% gosched0
        0   0.0%   0.0%     2144  84.9% main.main
        0   0.0%   0.0%     2144  84.9% runtime.main
        0   0.0%   0.0%     2124  84.1% main.FindHavlakLoops
      268  10.6%  10.6%     2124  84.1% main.FindLoops
-(pprof) top5 -cum</code></pre>
-
+(pprof) top5 -cum</code></pre></p>
 <p>事实上， <code>main.FindLoops</code> 和 <code>main.main</code> 的总数应该是100％，但每个堆栈样本只包含底部的100个堆栈帧; 在大约四分之一的样本中，递归 <code>main.DFS</code> 函数比 <code>main.main</code> 深100多帧，因此完整的trace被截断。</p>
-<p>stack trace样本包含有关函数调用关系，不是文本列表可以显示的有趣数据。 <code>web</code> 命令以SVG格式输出profile数据为图像，并在Web浏览器中打开它。 （还有一个 <code>gv</code> 命令可以编写PostScript并在Ghostview中打开它。两个命令都需要安装 <a target="_blank" rel="noopener" href="http://www.graphviz.org/">graphviz</a> 。）</p>
-<pre><code class="hljs sh">(pprof) web</code></pre>
-<p><a target="_blank" rel="noopener" href="https://rawgit.com/rsc/benchgraffiti/master/havlak/havlak1.svg">完整图形</a>的一小部分如下：</p>
+<p>stack trace样本包含有关函数调用关系，不是文本列表可以显示的有趣数据。 <code>web</code> 命令以SVG格式输出profile数据为图像，并在Web浏览器中打开它。 （还有一个 <code>gv</code> 命令可以编写PostScript并在Ghostview中打开它。两个命令都需要安装 <a target="_blank" rel="noopener" href="http://www.graphviz.org/">graphviz</a> 。）<br><pre><code class="hljs sh">(pprof) web</code></pre><br><a target="_blank" rel="noopener" href="https://rawgit.com/rsc/benchgraffiti/master/havlak/havlak1.svg">完整图形</a>的一小部分如下：</p>
 <p><img src="/images/profiling-go-programs/havlak1a-75.png" alt="havlak1a-75.png"></p>
 <p>图中的每个框对应于一个函数，并且框根据函数运行的样本数来确定大小。 从方框X到方框Y的线表示X调用Y; 沿线的数字是调用在样本中出现的次数。 如果在单个样本中多次出现呼叫，例如在递归函数调用期间，则每次出现都会计入线权重。 解释了从 <code>main.DFS</code> 到自身的线的上的权重：21342。</p>
 <p>我们可以一目了然看到该程序将大部分时间花在哈希操作上，这与使用Go的 <code>map</code> 值相对应。 我们让 <code>web</code> 只使用包含特定函数的样本，例如 <code>runtime.mapaccess1_fast64</code> ，可以清除图中的一些噪音：</p>
 <pre><code class="hljs sh">(pprof) web mapaccess1</code></pre>
 <p><img src="/images/profiling-go-programs/havlak1-hash_lookup-75.png" alt="havlak1-hash_lookup-75.png"></p>
 <p>如果斜视，我们可以看到 <code>main.FindLoops</code> 和 <code>main.DFS</code> 对 <code>runtime.mapaccess1_fast64</code> 的调用。</p>
-<p>现在我们已经大致了解了大局，现在是时候放大一个特定的函数了。 让我们先看看 <code>main.DFS</code>  ，因为它是一个较短的函数：</p>
-<pre><code class="hljs sh">(pprof) list DFS
+<p>现在我们已经大致了解了大局，现在是时候放大一个特定的函数了。 让我们先看看 <code>main.DFS</code>  ，因为它是一个较短的函数：<br><pre><code class="hljs sh">(pprof) list DFS
 Total: 2525 samples
 ROUTINE ====================== main.DFS <span class="hljs-keyword">in</span> /home/rsc/g/benchgraffiti/havlak/havlak1.go
    119    697 Total samples (flat / cumulative)
@@ -316,22 +301,19 @@ ROUTINE ====================== main.DFS <span class="hljs-keyword">in</span> /ho
      .      .  249:     &#125;
      7     59  250:     last[number[currentNode]] = lastid
      1      1  251:     <span class="hljs-built_in">return</span> lastid
-(pprof)</code></pre>
-
+(pprof)</code></pre></p>
 <p>该清单显示了 <code>DFS</code> 函数的源代码（实际上，显示了与正则表达式 <code>DFS</code> 匹配的每个函数）。 前三列是运行该行时的样本数，运行该行或该行调用的代码的样本数，以及文件中的行号。 相关命令 <code>disasm</code> 可以显示函数的反汇编而不是源代码清单; 当有足够的样本时，可以帮助您查看哪些指令很昂贵。 <code>weblist</code> 命令混合了两种模式：<a target="_blank" rel="noopener" href="https://rawgit.com/rsc/benchgraffiti/master/havlak/havlak1.html">它显示了一个源列表，单击一行显示反汇编</a>。</p>
 <p>由于我们已经知道时间花费在哈希运行时函数实现的映射查找，因此我们最关注的是第二列。 在递归调用 <code>DFS</code> （第247行）中花费了很大一部分时间，符合递归遍历的期望。 排除递归，看起来时间是花费在第242,246和250行的 <code>number</code> map的访问。对于特定查找，map 不是最有效的选择。 正如它们在编译器中一样，basic block 结构具有分配给它们的唯一序列号。 我们可以使用 <code>[]int</code> 替代 <code>map[*BasicBlock]int</code>，这是一个由block number索引的slice。 当数组或slice可以使用时，没有理由使用map。</p>
-<p>将 <code>number</code> 从map更改为slice需要在程序中编辑七行，并将其运行时间减少近1/2：</p>
-<pre><code class="hljs sh">$ make havlak2
+<p>将 <code>number</code> 从map更改为slice需要在程序中编辑七行，并将其运行时间减少近1/2：<br><pre><code class="hljs sh">$ make havlak2
 go build havlak2.go
 $ ./xtime ./havlak2
 <span class="hljs-comment"># of loops: 76000 (including 1 artificial root node)</span>
 16.55u 0.11s 16.69r 1321008kB ./havlak2
-$</code></pre>
+$</code></pre></p>
 <blockquote>
 <p>见: <a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/commit/58ac27bcac3ffb553c29d0b3fb64745c91c95948"><code>havlak1</code> vs <code>havlak2</code> diff</a></p>
 </blockquote>
-<h3 id="GC-Memory-Profile"><a href="#GC-Memory-Profile" class="headerlink" title="GC Memory Profile"></a>GC Memory Profile</h3><p>我们可以再次运行 profiler 来确认 <code>main.DFS</code> 不再是运行时间中重要的组成部分：</p>
-<pre><code class="hljs sh">$ make havlak2.prof
+<h3 id="GC-Memory-Profile"><a href="#GC-Memory-Profile" class="headerlink" title="GC Memory Profile"></a>GC Memory Profile</h3><p>我们可以再次运行 profiler 来确认 <code>main.DFS</code> 不再是运行时间中重要的组成部分：<br><pre><code class="hljs sh">$ make havlak2.prof
 ./havlak2 -cpuprofile=havlak2.prof
 <span class="hljs-comment"># of loops: 76000 (including 1 artificial root node)</span>
 $ go tool pprof havlak2 havlak2.prof
@@ -344,9 +326,7 @@ Total: 1652 samples
      130   7.9%  31.2%      152   9.2% sweepspan
      104   6.3%  37.5%      896  54.2% runtime.mallocgc
       98   5.9%  43.5%      100   6.1% flushptrbuf
-(pprof)</code></pre>
-<p>条目 <code>main.DFS</code> 不再出现在 profile 中，程序 runtime 的其余部分也已消失。 现在该程序花费大部分时间来分配内存和垃圾收集（ <code>runtime.mallocgc</code>，分配和运行定期垃圾收集，占54.2％的时间）。 为了找出垃圾收集器运行如此多的原因，我们必须找出分配内存的原因。 一种方法是向程序添加 memory profiling。 我们改写程序，如果提供 <code>-memprofile</code> flag，程序在循环查找一次迭代后停止，写入 memory profile，并退出：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">var</span> memprofile = flag.String(<span class="hljs-string">&quot;memprofile&quot;</span>, <span class="hljs-string">&quot;&quot;</span>, <span class="hljs-string">&quot;write memory profile to this file&quot;</span>)
+(pprof)</code></pre><br>条目 <code>main.DFS</code> 不再出现在 profile 中，程序 runtime 的其余部分也已消失。 现在该程序花费大部分时间来分配内存和垃圾收集（ <code>runtime.mallocgc</code>，分配和运行定期垃圾收集，占54.2％的时间）。 为了找出垃圾收集器运行如此多的原因，我们必须找出分配内存的原因。 一种方法是向程序添加 memory profiling。 我们改写程序，如果提供 <code>-memprofile</code> flag，程序在循环查找一次迭代后停止，写入 memory profile，并退出：<br><pre><code class="hljs go"><span class="hljs-keyword">var</span> memprofile = flag.String(<span class="hljs-string">&quot;memprofile&quot;</span>, <span class="hljs-string">&quot;&quot;</span>, <span class="hljs-string">&quot;write memory profile to this file&quot;</span>)
 ...
 
     FindHavlakLoops(cfgraph, lsgraph)
@@ -358,18 +338,15 @@ Total: 1652 samples
         pprof.WriteHeapProfile(f)
         f.Close()
         <span class="hljs-keyword">return</span>
-    &#125;</code></pre>
-
-<p>我们使用  <code>-memprofile</code> flag 调用程序写入 profile：</p>
-<pre><code class="hljs sh">$ make havlak3.mprof
+    &#125;</code></pre></p>
+<p>我们使用  <code>-memprofile</code> flag 调用程序写入 profile：<br><pre><code class="hljs sh">$ make havlak3.mprof
 go build havlak3.go
 ./havlak3 -memprofile=havlak3.mprof
-$</code></pre>
+$</code></pre></p>
 <blockquote>
 <p>见: <a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/commit/b78dac106bea1eb3be6bb3ca5dba57c130268232">diff from havlak2</a></p>
 </blockquote>
-<p>我们以完全相同的方式使用 <code>go tool pprof</code>。 现在我们正在检查的样本是内存分配，而不是时钟周期。</p>
-<pre><code class="hljs sh">$ go tool pprof havlak3 havlak3.mprof
+<p>我们以完全相同的方式使用 <code>go tool pprof</code>。 现在我们正在检查的样本是内存分配，而不是时钟周期。<br><pre><code class="hljs sh">$ go tool pprof havlak3 havlak3.mprof
 Adjusting heap profiles <span class="hljs-keyword">for</span> 1-in-524288 sampling rate
 Welcome to pprof!  For <span class="hljs-built_in">help</span>, <span class="hljs-built_in">type</span> <span class="hljs-string">&#x27;help&#x27;</span>.
 (pprof) top5
@@ -379,8 +356,7 @@ Total: 82.4 MB
      8.0   9.7%  99.4%     25.6  31.0% main.NewBasicBlockEdge
      0.5   0.6% 100.0%      0.5   0.6% itab
      0.0   0.0% 100.0%      0.5   0.6% fmt.init
-(pprof)</code></pre>
-
+(pprof)</code></pre></p>
 <p>命令 <code>go tool pprof</code> 显示 <code>FindLoops</code> 分配了正在使用的大约56.3个82.4 MB; <code>CreateNode</code> 占另外的17.6 MB。 为了减少开销，内存分析器分配每半兆字节大约只记录一个块的信息。（“1-in-524288采样率”），因此这些是实际计数的近似值。</p>
 <p>要查找内存分配，我们可以列出这些函数。</p>
 <pre><code class="hljs sh">(pprof) list FindLoops
@@ -407,8 +383,7 @@ ROUTINE ====================== main.FindLoops <span class="hljs-keyword">in</spa
      .      .  289:     &#125;
 ...</code></pre>
 <p>看起来当前的瓶颈与上一个瓶颈相同：在原本使用更简单的数据结构就足够时使用 map。 <code>FindLoops</code> 正在分配大约29.5 MB的 maps。</p>
-<p>顺便说一句，如果我们使用<code>--inuse_objects</code> flag 运行 <code>go tool pprof</code> ，它将报告分配计数而不是大小：</p>
-<pre><code class="hljs sh">$ go tool pprof --inuse_objects havlak3 havlak3.mprof
+<p>顺便说一句，如果我们使用<code>--inuse_objects</code> flag 运行 <code>go tool pprof</code> ，它将报告分配计数而不是大小：<br><pre><code class="hljs sh">$ go tool pprof --inuse_objects havlak3 havlak3.mprof
 Adjusting heap profiles <span class="hljs-keyword">for</span> 1-in-524288 sampling rate
 Welcome to pprof!  For <span class="hljs-built_in">help</span>, <span class="hljs-built_in">type</span> <span class="hljs-string">&#x27;help&#x27;</span>.
 (pprof) list FindLoops
@@ -430,19 +405,16 @@ ROUTINE ====================== main.FindLoops <span class="hljs-keyword">in</spa
 <span class="hljs-string">409600 409600  288:             nonBackPreds[i] = make(map[int]bool)</span>
 <span class="hljs-string">     .      .  289:     &#125;</span>
 <span class="hljs-string">...</span>
-<span class="hljs-string">(pprof)</span></code></pre>
-
+<span class="hljs-string">(pprof)</span></code></pre></p>
 <p>由于~200,000个 maps 占29.5 MB，因此初始 map 分配大约需要150个字节。 map 用于保存键值对是合理的，但是在此处map被用作简单集合的替代是不合理的。</p>
-<p>我们可以使用简单的slice来列出元素，而不是使用map。 在使用 map 的所有情况中，一种情况要除外，map不可能插入重复的元素。在下面的的一个例子中，我们可以编写一个简单的“append”内置函数变体：</p>
-<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">appendUnique</span><span class="hljs-params">(a []<span class="hljs-keyword">int</span>, x <span class="hljs-keyword">int</span>)</span> []<span class="hljs-title">int</span></span> &#123;
+<p>我们可以使用简单的slice来列出元素，而不是使用map。 在使用 map 的所有情况中，一种情况要除外，map不可能插入重复的元素。在下面的的一个例子中，我们可以编写一个简单的“append”内置函数变体：<br><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">appendUnique</span><span class="hljs-params">(a []<span class="hljs-type">int</span>, x <span class="hljs-type">int</span>)</span></span> []<span class="hljs-type">int</span> &#123;
     <span class="hljs-keyword">for</span> _, y := <span class="hljs-keyword">range</span> a &#123;
         <span class="hljs-keyword">if</span> x == y &#123;
             <span class="hljs-keyword">return</span> a
         &#125;
     &#125;
     <span class="hljs-keyword">return</span> <span class="hljs-built_in">append</span>(a, x)
-&#125;</code></pre>
-<p>除了编写该函数之外，将Go程序更改为使用slices而不是maps需要更改几行代码。</p>
+&#125;</code></pre><br>除了编写该函数之外，将Go程序更改为使用slices而不是maps需要更改几行代码。</p>
 <pre><code class="hljs sh">$ make havlak4
 go build havlak4.go
 $ ./xtime ./havlak4
@@ -472,15 +444,12 @@ Total: 1173 samples
       50   4.3%  75.4%      146  12.4% runtime.MCache_Alloc
 (pprof)</code></pre>
 <p>现在内存分配和随后的垃圾收集（<code>run time.mallocgc</code>）占我们运行时间的50.9%。</p>
-<p>另一种查看系统为什么进行垃圾收集的方法是查看导致收集的分配，即查看在 <code>mallocgc</code>中花费大部分时间的地方：</p>
-<pre><code class="hljs sh">(pprof) web mallocgc</code></pre>
-
+<p>另一种查看系统为什么进行垃圾收集的方法是查看导致收集的分配，即查看在 <code>mallocgc</code>中花费大部分时间的地方：<br><pre><code class="hljs sh">(pprof) web mallocgc</code></pre></p>
 <p><img src="/images/profiling-go-programs/havlak4a-mallocgc.png" alt="havlak4a-mallocgc.png"></p>
 <p>很难看清楚图中发生了什么，因为有许多节点的样本数量很少，这些节点模糊了大样本的。我们可以让 <code>go tool pprof</code> 忽略少于10%占比的样本节点：</p>
 <pre><code class="hljs sh">$ go tool pprof --nodefraction=0.1 havlak4 havlak4.prof
 Welcome to pprof!  For <span class="hljs-built_in">help</span>, <span class="hljs-built_in">type</span> <span class="hljs-string">&#x27;help&#x27;</span>.
 (pprof) web mallocgc</code></pre>
-
 <p><img src="/images/profiling-go-programs/havlak4a-mallocgc-trim.png" alt="havlak4a-mallocgc-trim.png"></p>
 <p>我们现在可以轻松地遵循粗箭头，看看 <code>FindLoops</code> 是否触发了大部分垃圾收集。 如果我们列出 <code>FindLoops</code> 们可以看到，大部分在开始时是正确的：</p>
 <pre><code class="hljs sh">(pprof) list FindLoops
@@ -506,33 +475,29 @@ Welcome to pprof!  For <span class="hljs-built_in">help</span>, <span class="hlj
      .      .  288:     &#125;
 ...
 (pprof)</code></pre>
-
 <p>每次调用 <code>FindLoops</code> ，它都会分配一些相当大的 bookkeeping structures。 由于benchmark调用 <code>FindLoops</code> 50次，因此这些增加了大量的垃圾，所以垃圾收集器的工作量很大。</p>
 <p>使用垃圾收集语言并不意味着您可以忽略内存分配问题。 在这种情况下，一个简单的解决方案是引入一个缓存，以便每次调用 <code>FindLoops</code> 时尽可能重用前一个调用的存储。</p>
 <blockquote>
 <p>事实上，在Hundt的论文中，他解释说Java程序只需要进行这种改变就可以得到合理的性能，但是他没有在其他垃圾收集的实现中做出相同的改变。</p>
 </blockquote>
-<p>我们将添加一个全局cache结构：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">var</span> cache <span class="hljs-keyword">struct</span> &#123;
-    size <span class="hljs-keyword">int</span>
-    nonBackPreds [][]<span class="hljs-keyword">int</span>
-    backPreds [][]<span class="hljs-keyword">int</span>
-    number []<span class="hljs-keyword">int</span>
-    header []<span class="hljs-keyword">int</span>
-    types []<span class="hljs-keyword">int</span>
-    last []<span class="hljs-keyword">int</span>
+<p>我们将添加一个全局cache结构：<br><pre><code class="hljs go"><span class="hljs-keyword">var</span> cache <span class="hljs-keyword">struct</span> &#123;
+    size <span class="hljs-type">int</span>
+    nonBackPreds [][]<span class="hljs-type">int</span>
+    backPreds [][]<span class="hljs-type">int</span>
+    number []<span class="hljs-type">int</span>
+    header []<span class="hljs-type">int</span>
+    types []<span class="hljs-type">int</span>
+    last []<span class="hljs-type">int</span>
     nodes []*UnionFindNode
-&#125;</code></pre>
-
-<p>然后把它当作 <code>FindLoops</code> 内存分配的替代品：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">if</span> cache.size &lt; size &#123;
+&#125;</code></pre></p>
+<p>然后把它当作 <code>FindLoops</code> 内存分配的替代品：<br><pre><code class="hljs go"><span class="hljs-keyword">if</span> cache.size &lt; size &#123;
     cache.size = size
-    cache.nonBackPreds = <span class="hljs-built_in">make</span>([][]<span class="hljs-keyword">int</span>, size)
-    cache.backPreds = <span class="hljs-built_in">make</span>([][]<span class="hljs-keyword">int</span>, size)
-    cache.number = <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">int</span>, size)
-    cache.header = <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">int</span>, size)
-    cache.types = <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">int</span>, size)
-    cache.last = <span class="hljs-built_in">make</span>([]<span class="hljs-keyword">int</span>, size)
+    cache.nonBackPreds = <span class="hljs-built_in">make</span>([][]<span class="hljs-type">int</span>, size)
+    cache.backPreds = <span class="hljs-built_in">make</span>([][]<span class="hljs-type">int</span>, size)
+    cache.number = <span class="hljs-built_in">make</span>([]<span class="hljs-type">int</span>, size)
+    cache.header = <span class="hljs-built_in">make</span>([]<span class="hljs-type">int</span>, size)
+    cache.types = <span class="hljs-built_in">make</span>([]<span class="hljs-type">int</span>, size)
+    cache.last = <span class="hljs-built_in">make</span>([]<span class="hljs-type">int</span>, size)
     cache.nodes = <span class="hljs-built_in">make</span>([]*UnionFindNode, size)
     <span class="hljs-keyword">for</span> i := <span class="hljs-keyword">range</span> cache.nodes &#123;
         cache.nodes[i] = <span class="hljs-built_in">new</span>(UnionFindNode)
@@ -551,59 +516,46 @@ number := cache.number[:size]
 header := cache.header[:size]
 types := cache.types[:size]
 last := cache.last[:size]
-nodes := cache.nodes[:size]</code></pre>
-
-<p>当然，这样的全局变量是糟糕的工程实践：它意味着对 <code>FindLoops</code> 并发调用现在是不安全的。 目前，我们正在进行尽可能少的更改，以便了解对我们的程序的性能有什么重要意义; 这种变化很简单，并且反映了Java实现中的代码。 Go程序的最终版本将使用单独的 <code>LoopFinder</code> 实例来跟踪此内存，从而恢复并发使用的可能性。</p>
-<pre><code class="hljs sh">$ make havlak5
+nodes := cache.nodes[:size]</code></pre></p>
+<p>当然，这样的全局变量是糟糕的工程实践：它意味着对 <code>FindLoops</code> 并发调用现在是不安全的。 目前，我们正在进行尽可能少的更改，以便了解对我们的程序的性能有什么重要意义; 这种变化很简单，并且反映了Java实现中的代码。 Go程序的最终版本将使用单独的 <code>LoopFinder</code> 实例来跟踪此内存，从而恢复并发使用的可能性。<br><pre><code class="hljs sh">$ make havlak5
 go build havlak5.go
 $ ./xtime ./havlak5
 <span class="hljs-comment"># of loops: 76000 (including 1 artificial root node)</span>
 8.03u 0.06s 8.11r 770352kB ./havlak5
-$</code></pre>
+$</code></pre></p>
 <blockquote>
 <p>见 <a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/commit/2d41d6d16286b8146a3f697dd4074deac60d12a4">diff from havlak4</a></p>
 </blockquote>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>我们可以做更多的事情来清理程序并使其更快，但是它们都不需要我们尚未展示的分析技术。 内部循环中使用的工作列表可以跨迭代和跨调用进行重用。 FindLoops，它可以与在该过程中生成的单独的“节点池”相结合。 类似地，循环图存储可以在每次迭代时重用，而不是重新分配。 除了这些性能变化之外， <a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/blob/master/havlak/havlak6.go">最终版本</a>是使用惯用的Go样式编写的，使用数据结构和方法。 风格变化对运行时间的影响很小：算法和约束不变。</p>
-<p>最终版本运行2.29秒，使用351 MB内存：</p>
-<pre><code class="hljs sh">$ make havlak6
+<p>最终版本运行2.29秒，使用351 MB内存：<br><pre><code class="hljs sh">$ make havlak6
 go build havlak6.go
 $ ./xtime ./havlak6
 <span class="hljs-comment"># of loops: 76000 (including 1 artificial root node)</span>
 2.26u 0.02s 2.29r 360224kB ./havlak6
-$</code></pre>
-
-<p>这比我们开始的程序快11倍。 即使我们禁用对生成的循环图的重用，以便唯一的缓存内存是循环查找bookeeping，程序仍然比原始运行速度快6.7倍，并且使用的内存减少1.5倍。</p>
-<pre><code class="hljs sh">$ ./xtime ./havlak6 -reuseloopgraph=<span class="hljs-literal">false</span>
+$</code></pre></p>
+<p>这比我们开始的程序快11倍。 即使我们禁用对生成的循环图的重用，以便唯一的缓存内存是循环查找bookeeping，程序仍然比原始运行速度快6.7倍，并且使用的内存减少1.5倍。<br><pre><code class="hljs sh">$ ./xtime ./havlak6 -reuseloopgraph=<span class="hljs-literal">false</span>
 <span class="hljs-comment"># of loops: 76000 (including 1 artificial root node)</span>
 3.69u 0.06s 3.76r 797120kB ./havlak6 -reuseloopgraph=<span class="hljs-literal">false</span>
-$</code></pre>
-<p>当然，将这个Go程序与原始的C++程序进行比较是不公平的，因为它使用了低效的数据结构，例如 <code>set</code>s 其中 <code>vector</code>s 更合适。 作为完整性检查，我们将最终的Go程序翻译成<a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/blob/master/havlak/havlak6.cc">等效的C++代码</a>。 它的执行时间类似于Go程序：</p>
-<pre><code class="hljs sh">$ make havlak6cc
+$</code></pre><br>当然，将这个Go程序与原始的C++程序进行比较是不公平的，因为它使用了低效的数据结构，例如 <code>set</code>s 其中 <code>vector</code>s 更合适。 作为完整性检查，我们将最终的Go程序翻译成<a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/blob/master/havlak/havlak6.cc">等效的C++代码</a>。 它的执行时间类似于Go程序：<br><pre><code class="hljs sh">$ make havlak6cc
 g++ -O3 -o havlak6cc havlak6.cc
 $ ./xtime ./havlak6cc
 <span class="hljs-comment"># of loops: 76000 (including 1 artificial root node)</span>
-1.99u 0.19s 2.19r 387936kB ./havlak6cc</code></pre>
-
-<p>Go程序的运行速度几乎和C++程序一样快。 由于C++程序使用自动删除和分配而不是显式缓存，因此C++程序更短更容易编写，但不是那么明显：</p>
-<pre><code class="hljs sh">$ wc havlak6.cc; wc havlak6.go
+1.99u 0.19s 2.19r 387936kB ./havlak6cc</code></pre></p>
+<p>Go程序的运行速度几乎和C++程序一样快。 由于C++程序使用自动删除和分配而不是显式缓存，因此C++程序更短更容易编写，但不是那么明显：<br><pre><code class="hljs sh">$ <span class="hljs-built_in">wc</span> havlak6.cc; <span class="hljs-built_in">wc</span> havlak6.go
  401 1220 9040 havlak6.cc
  461 1441 9467 havlak6.go
-$</code></pre>
+$</code></pre></p>
 <blockquote>
 <p>见 <a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/blob/master/havlak/havlak6.cc">havlak6.cc</a> 和 <a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/blob/master/havlak/havlak6.go">havlak6.go</a></p>
 </blockquote>
 <p>Benchmarks与他们测量的程序一样好。 我们使用 <code>go tool pprof</code> 来研究低效的Go程序，然后将其性能提高一个数量级，并将其内存使用量减少3.7倍。 随后与等效优化的C++程序进行比较表明，当程序员小心内循环生成多少垃圾时，Go可以与C++竞争。</p>
 <p>用于编写这篇文章的程序源代码，Linux x86-64二进制文件和配置文件可以在GitHub上的<a target="_blank" rel="noopener" href="https://github.com/rsc/benchgraffiti/">benchgraffiti</a>项目中找到 。</p>
-<p>如上所述， <a target="_blank" rel="noopener" href="https://golang.org/cmd/go/#Test_packages"><code>go test</code></a> 已经包含了这些 profiling flags：<a target="_blank" rel="noopener" href="https://golang.org/pkg/testing/">benchmark function</a> ，你就完成了。 还有一个用于 profiling 数据的标准HTTP接口。 在HTTP服务器中，添加</p>
-<pre><code class="hljs go"><span class="hljs-keyword">import</span> _ <span class="hljs-string">&quot;net/http/pprof&quot;</span></code></pre>
-<p>将安装几个URL的处理程序 <code>/debug/pprof/</code>. 然后，您可以用一个参数运行 <code>go tool pprof</code>——指向服务器profiling数据的URL，它将下载并检查实时Profile文件。</p>
-<pre><code class="hljs sh">go tool pprof http://localhost:6060/debug/pprof/profile   <span class="hljs-comment"># 30-second CPU profile</span>
+<p>如上所述， <a target="_blank" rel="noopener" href="https://golang.org/cmd/go/#Test_packages"><code>go test</code></a> 已经包含了这些 profiling flags：<a target="_blank" rel="noopener" href="https://golang.org/pkg/testing/">benchmark function</a> ，你就完成了。 还有一个用于 profiling 数据的标准HTTP接口。 在HTTP服务器中，添加<br><pre><code class="hljs go"><span class="hljs-keyword">import</span> _ <span class="hljs-string">&quot;net/http/pprof&quot;</span></code></pre><br>将安装几个URL的处理程序 <code>/debug/pprof/</code>. 然后，您可以用一个参数运行 <code>go tool pprof</code>——指向服务器profiling数据的URL，它将下载并检查实时Profile文件。<br><pre><code class="hljs sh">go tool pprof http://localhost:6060/debug/pprof/profile   <span class="hljs-comment"># 30-second CPU profile</span>
 go tool pprof http://localhost:6060/debug/pprof/heap      <span class="hljs-comment"># heap profile</span>
-go tool pprof http://localhost:6060/debug/pprof/block     <span class="hljs-comment"># goroutine blocking profile</span></code></pre>
-<p>goroutine blocking profile 将在以后的文章中解释。 敬请关注。</p>
+go tool pprof http://localhost:6060/debug/pprof/block     <span class="hljs-comment"># goroutine blocking profile</span></code></pre><br>goroutine blocking profile 将在以后的文章中解释。 敬请关注。</p>
 <p>作者：Russ Cox，2011年7月; 由Shenghou Ma更新，2013年5月</p>
 <p><em>原文：<a target="_blank" rel="noopener" href="https://blog.golang.org/profiling-go-programs">https://blog.golang.org/profiling-go-programs</a></em><br/><br><em>源代码：<a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test">https://github.com/cyningsun/go-test</a></em></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-20-2019/profiling-go-programs-cn.html">https://www.cyningsun.com/07-20-2019/profiling-go-programs-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-20-2019/profiling-go-programs-cn.html">https://www.cyningsun.com/07-20-2019/profiling-go-programs-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -659,7 +611,7 @@ go tool pprof http://localhost:6060/debug/pprof/block     <span class="hljs-comm
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

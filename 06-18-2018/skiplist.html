@@ -209,10 +209,9 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-keyword">while</span> random() &lt; p <span class="hljs-keyword">and</span> <span class="hljs-keyword">level</span> &lt; MaxLevel <span class="hljs-keyword">do</span>
         <span class="hljs-keyword">level</span> := <span class="hljs-keyword">level</span> + <span class="hljs-number">1</span>
     <span class="hljs-keyword">return</span> <span class="hljs-keyword">level</span></code></pre>
-
 <p>randomLevel()的伪码中包含两个参数，一个是p，一个是MaxLevel。在Redis的skiplist实现中，这两个参数的取值为：</p>
-<pre><code class="hljs ini"><span class="hljs-attr">p</span> = <span class="hljs-number">1</span>/<span class="hljs-number">4</span>
-<span class="hljs-attr">MaxLevel</span> = <span class="hljs-number">32</span></code></pre>
+<pre><code class="hljs abnf"><span class="hljs-attribute">p</span> <span class="hljs-operator">=</span> <span class="hljs-number">1</span>/<span class="hljs-number">4</span>
+<span class="hljs-attribute">MaxLevel</span> <span class="hljs-operator">=</span> <span class="hljs-number">32</span></code></pre>
 <p>根据前面randomLevel()的伪码，我们很容易看出，产生越高的节点层数，概率越低,无论如何层数总是满足幂次定律（power law，越大的数出现的概率越小）。定量的分析如下：</p>
 <ul>
 <li>节点层数至少为1。而大于1的节点层数，满足一个概率分布。</li>
@@ -226,10 +225,9 @@ gtag('config', 'UA-156665333-1');
 <h3 id="如何插入删除？"><a href="#如何插入删除？" class="headerlink" title="如何插入删除？"></a>如何插入删除？</h3><p>以在插入时，需要首先查找到合适的位置，然后就是修改指针（和链表中操作类似），然后更新跳表的level变量。由于同时要更改若干层的指针，跳表使用一个update数组来辅助指针切换。在查找的过程中，一旦当前节点的后继节点为空，或者后继结点比插入节点要大，说明找到了插入节点在该层的前驱节点，记录到update数组中。在切换指针时只需要遍历update数组即可完成所有层的指针切换。下图给出了插入路径，红色部分即为update数组内容。<br><img src="/images/skiplist/skiplist-insert.png" alt="skiplist insert"></p>
 <h3 id="Redis为什么用skiplist而不用平衡树？"><a href="#Redis为什么用skiplist而不用平衡树？" class="headerlink" title="Redis为什么用skiplist而不用平衡树？"></a>Redis为什么用skiplist而不用平衡树？</h3><p>Redis的作者 @antirez 是怎么说的：</p>
 <blockquote>
-<p>There are a few reasons:</p>
-<p>1) They are not very memory intensive. It’s up to you basically. Changing parameters about the probability of a node to have a given number of levels will make then less memory intensive than btrees.<br>2) A sorted set is often target of many ZRANGE or ZREVRANGE operations, that is, traversing the skip list as a linked list. With this operation the cache locality of skip lists is at least as good as with other kind of balanced trees.<br>3) They are simpler to implement, debug, and so forth. For instance thanks to the skip list simplicity I received a patch (already in Redis master) with augmented skip lists implementing ZRANK in O(log(N)). It required little changes to the code.<br>来源链接：<a target="_blank" rel="noopener" href="https://news.ycombinator.com/item?id=1171423">https://news.ycombinator.com/item?id=1171423</a></p>
+<p>There are a few reasons:<br>1) They are not very memory intensive. It’s up to you basically. Changing parameters about the probability of a node to have a given number of levels will make then less memory intensive than btrees.<br>2) A sorted set is often target of many ZRANGE or ZREVRANGE operations, that is, traversing the skip list as a linked list. With this operation the cache locality of skip lists is at least as good as with other kind of balanced trees.<br>3) They are simpler to implement, debug, and so forth. For instance thanks to the skip list simplicity I received a patch (already in Redis master) with augmented skip lists implementing ZRANK in O(log(N)). It required little changes to the code.<br>来源链接：<a target="_blank" rel="noopener" href="https://news.ycombinator.com/item?id=1171423">https://news.ycombinator.com/item?id=1171423</a></p>
 </blockquote>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-18-2018/skiplist.html">https://www.cyningsun.com/06-18-2018/skiplist.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-18-2018/skiplist.html">https://www.cyningsun.com/06-18-2018/skiplist.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -268,7 +266,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

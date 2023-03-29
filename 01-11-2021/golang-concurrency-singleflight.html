@@ -188,19 +188,16 @@ gtag('config', 'UA-156665333-1');
     <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BA%86%E8%A7%A3-singleflight"><span class="toc-text">了解 singleflight</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90"><span class="toc-text">问题分析</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%98%BB%E5%A1%9E%E8%AF%BB"><span class="toc-text">阻塞读</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8D%95%E5%B9%B6%E5%8F%91"><span class="toc-text">单并发</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
  
         <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p><a href="/subjects#缓存">缓存</a> 在各种场景中被大量使用，在 Cache Miss（缓存未命中）的情况下，就会出现下图的情况：<br><img src="/images/golang-concurrency-singleflight/cache-miss.png" alt="cache-miss.png"><br>所有的请求被同时打到下游存储上，将会影响下游存储的服务质量，因此需要严格限制访问下游存储的并发量。使用 Golang 编程的人，倾向于不假思索的使用 <code>singleflight</code> 应对 Cache Miss（缓存未命中），即：<br><img src="/images/golang-concurrency-singleflight/singleflight.png" alt="singleflight.png"><br>在绝大多数场景下，<code>singleflight</code> 都很好用，因此让很多人相信 <code>singleflight</code> 是完美无缺的银弹。在2020年的电商大促中，因为此种认知，导致线上业务出现了严重故障。之前只是直觉性的觉得这么设计不妥，因为该问题促使我回过头来梳理该类型设计的存在的不足。</p>
-<h3 id="了解-singleflight"><a href="#了解-singleflight" class="headerlink" title="了解 singleflight"></a>了解 singleflight</h3><p>在此之前，先了解下 <code>singleflight</code> 来源于准官方库<code>golang.org/x/sync/singleflight</code>，能够在抑制对下游的多次重复请求.主要提供了以下三个方法：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// Do():  相同的 key，fn 同时只会执行一次，返回执行的结果给fn执行期间，所有使用该 key 的调用</span>
+<h3 id="了解-singleflight"><a href="#了解-singleflight" class="headerlink" title="了解 singleflight"></a>了解 singleflight</h3><p>在此之前，先了解下 <code>singleflight</code> 来源于准官方库<code>golang.org/x/sync/singleflight</code>，能够在抑制对下游的多次重复请求.主要提供了以下三个方法：<br><pre><code class="hljs go"><span class="hljs-comment">// Do():  相同的 key，fn 同时只会执行一次，返回执行的结果给fn执行期间，所有使用该 key 的调用</span>
 <span class="hljs-comment">// v: fn 返回的数据</span>
 <span class="hljs-comment">// err: fn 返回的err</span>
 <span class="hljs-comment">// shared: 表示返回数据是调用 fn 得到的还是其他相同 key 调用返回的</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span> <span class="hljs-title">Do</span><span class="hljs-params">(key <span class="hljs-keyword">string</span>, fn <span class="hljs-keyword">func</span>()</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span>) <span class="hljs-params">(v <span class="hljs-keyword">interface</span>&#123;&#125;, err error, shared <span class="hljs-keyword">bool</span>)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> Do(key <span class="hljs-type">string</span>, fn <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> (<span class="hljs-keyword">interface</span>&#123;&#125;, <span class="hljs-type">error</span>)) (v <span class="hljs-keyword">interface</span>&#123;&#125;, err <span class="hljs-type">error</span>, shared <span class="hljs-type">bool</span>) &#123;
 <span class="hljs-comment">// DoChan(): 类似Do方（），以 chan 返回结果</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span> <span class="hljs-title">DoChan</span><span class="hljs-params">(key <span class="hljs-keyword">string</span>, fn <span class="hljs-keyword">func</span>()</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span>) &lt;-<span class="hljs-title">chan</span> <span class="hljs-title">Result</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> DoChan(key <span class="hljs-type">string</span>, fn <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> (<span class="hljs-keyword">interface</span>&#123;&#125;, <span class="hljs-type">error</span>)) &lt;-<span class="hljs-keyword">chan</span> Result &#123;
 <span class="hljs-comment">// Forget(): 失效 key，后续对此 key 的调用将执行 fn，而不是等待前面的调用完成</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span> <span class="hljs-title">Forget</span><span class="hljs-params">(key <span class="hljs-keyword">string</span>)</span></span></code></pre>
-
-<p>通常的使用方式如下：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> Forget(key <span class="hljs-type">string</span>)</code></pre></p>
+<p>通常的使用方式如下：<br><pre><code class="hljs go"><span class="hljs-keyword">package</span> main
 
 <span class="hljs-keyword">import</span> (
 	<span class="hljs-string">&quot;context&quot;</span>
@@ -210,21 +207,21 @@ gtag('config', 'UA-156665333-1');
 	<span class="hljs-string">&quot;time&quot;</span>
 )
 
-<span class="hljs-keyword">type</span> Result <span class="hljs-keyword">string</span>
+<span class="hljs-keyword">type</span> Result <span class="hljs-type">string</span>
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">find</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(Result, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">find</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-type">string</span>)</span></span> (Result, <span class="hljs-type">error</span>) &#123;
 	<span class="hljs-keyword">return</span> Result(fmt.Sprintf(<span class="hljs-string">&quot;result for %q&quot;</span>, query)), <span class="hljs-literal">nil</span>
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
 	<span class="hljs-keyword">var</span> g singleflight.Group
 	<span class="hljs-keyword">const</span> n = <span class="hljs-number">5</span>
-	waited := <span class="hljs-keyword">int32</span>(n)
+	waited := <span class="hljs-type">int32</span>(n)
 	done := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-keyword">struct</span>&#123;&#125;)
 	key := <span class="hljs-string">&quot;https://weibo.com/1227368500/H3GIgngon&quot;</span>
 	<span class="hljs-keyword">for</span> i := <span class="hljs-number">0</span>; i &lt; n; i++ &#123;
-		<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(j <span class="hljs-keyword">int</span>)</span></span> &#123;
-			v, _, shared := g.Do(key, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span></span> &#123;
+		<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(j <span class="hljs-type">int</span>)</span></span> &#123;
+			v, _, shared := g.Do(key, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> (<span class="hljs-keyword">interface</span>&#123;&#125;, <span class="hljs-type">error</span>) &#123;
 				ret, err := find(context.Background(), key)
 				<span class="hljs-keyword">return</span> ret, err
 			&#125;)
@@ -240,19 +237,16 @@ gtag('config', 'UA-156665333-1');
 	<span class="hljs-keyword">case</span> &lt;-time.After(time.Second):
 		fmt.Println(<span class="hljs-string">&quot;Do hangs&quot;</span>)
 	&#125;
-&#125;</code></pre>
-<p>输出结果如下：</p>
-<pre><code class="hljs shell">index: 1, val: result for &quot;https://weibo.com/1227368500/H3GIgngon&quot;, shared: true
+&#125;</code></pre><br>输出结果如下：<br><pre><code class="hljs shell">index: 1, val: result for &quot;https://weibo.com/1227368500/H3GIgngon&quot;, shared: true
 index: 2, val: result for &quot;https://weibo.com/1227368500/H3GIgngon&quot;, shared: true
 index: 3, val: result for &quot;https://weibo.com/1227368500/H3GIgngon&quot;, shared: false
 index: 4, val: result for &quot;https://weibo.com/1227368500/H3GIgngon&quot;, shared: false
-index: 0, val: result for &quot;https://weibo.com/1227368500/H3GIgngon&quot;, shared: false</code></pre>
-
+index: 0, val: result for &quot;https://weibo.com/1227368500/H3GIgngon&quot;, shared: false</code></pre></p>
 <p>如果函数执行一切正常，则所有请求都能顺利获得正确的数据。相反，如果函数执行遇到问题呢？由于 <code>singleflight</code> 是以阻塞读的方式来控制向下游请求的并发量，在第一个下游请求没有返回之前，所有请求都将被阻塞。</p>
 <h3 id="问题分析"><a href="#问题分析" class="headerlink" title="问题分析"></a>问题分析</h3><p>假设服务正常情况下处理能力为 1W QPS，每次请求会发起 3 次 下游调用，其中一个下游调用使用 <code>singleflight</code> 获取控制并发获取数据，请求超时时间为3S。那么在出现请求超时的情况下，会出现以下几个问题：</p>
 <ul>
 <li>协程暴增，最小协程数为3W（1 W/S * 3S）</li>
-<li>内存暴涨，内存总大小为：协程内存大小 + 1W/S * 3S *（3+1）次 * （请求包+响应包）大小</li>
+<li>内存暴涨，内存总大小为：协程内存大小 + 1W/S <em> 3S </em>（3+1）次 * （请求包+响应包）大小</li>
 <li>大量超时报错：1W/S * 3S</li>
 <li>后续请求耗时增加（调度等待）</li>
 </ul>
@@ -263,7 +257,7 @@ index: 0, val: result for &quot;https://weibo.com/1227368500/H3GIgngon&quot;, sh
 </ul>
 <p>那么如何应对以上问题呢？</p>
 <h4 id="阻塞读"><a href="#阻塞读" class="headerlink" title="阻塞读"></a>阻塞读</h4><p>作为 Do() 的替代函数，<code>singleflight</code> 提供了 DoChan（）。两者实现上完全一样，不同的是，DoChan() 通过 channel 返回结果。因此可以使用 select 语句实现超时控制</p>
-<pre><code class="hljs go">ch := g.DoChan(key, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span></span> &#123;
+<pre><code class="hljs go">ch := g.DoChan(key, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> (<span class="hljs-keyword">interface</span>&#123;&#125;, <span class="hljs-type">error</span>) &#123;
     ret, err := find(context.Background(), key)
     <span class="hljs-keyword">return</span> ret, err
 &#125;)
@@ -279,8 +273,7 @@ timeout := time.After(<span class="hljs-number">500</span> * time.Millisecond)
     fmt.Printf(<span class="hljs-string">&quot;index: %d, val: %v, shared: %v\n&quot;</span>, j, ret.Val, ret.Shared)
 &#125;
 </code></pre>
-<h4 id="单并发"><a href="#单并发" class="headerlink" title="单并发"></a>单并发</h4><p>在一些对可用性要求极高的场景下，往往需要一定的请求饱和度来保证业务的最终成功率。一次请求还是多次请求，对于下游服务而言并没有太大区别，此时使用 <code>singleflight</code> 只是为了降低请求的数量级，那么使用 Forget() 提高下游请求的并发:</p>
-<pre><code class="hljs go">v, _, shared := g.Do(key, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span> <span class="hljs-params">(<span class="hljs-keyword">interface</span>&#123;&#125;, error)</span></span> &#123;
+<h4 id="单并发"><a href="#单并发" class="headerlink" title="单并发"></a>单并发</h4><p>在一些对可用性要求极高的场景下，往往需要一定的请求饱和度来保证业务的最终成功率。一次请求还是多次请求，对于下游服务而言并没有太大区别，此时使用 <code>singleflight</code> 只是为了降低请求的数量级，那么使用 Forget() 提高下游请求的并发:<br><pre><code class="hljs go">v, _, shared := g.Do(key, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> (<span class="hljs-keyword">interface</span>&#123;&#125;, <span class="hljs-type">error</span>) &#123;
     <span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123;
         time.Sleep(<span class="hljs-number">10</span> * time.Millisecond)
         fmt.Printf(<span class="hljs-string">&quot;Deleting key: %v\n&quot;</span>, key)
@@ -288,8 +281,7 @@ timeout := time.After(<span class="hljs-number">500</span> * time.Millisecond)
     &#125;()
     ret, err := find(context.Background(), key)
     <span class="hljs-keyword">return</span> ret, err
-&#125;)</code></pre>
-
+&#125;)</code></pre></p>
 <p>当有一个并发请求超过 10ms，那么将会有第二个请求发起，此时只有 10ms 内的请求最多发起一次请求，即最大并发：100 QPS。单次请求失败的影响大大降低。</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>当然，如果单次的失败无法容忍，在高并发的场景下更好的处理方案是：</p>
 <ol>
@@ -297,7 +289,7 @@ timeout := time.After(<span class="hljs-number">500</span> * time.Millisecond)
 <li>“缓存” 存储准实时的数据 + “异步更新” 数据到缓存</li>
 </ol>
 <p>以上模式，在设计弹幕系统的时候有使用到，详细介绍参考：<a href="/03-31-2019/live-streaming-danmaku.html">弹幕系统设计实践</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/01-11-2021/golang-concurrency-singleflight.html">https://www.cyningsun.com/01-11-2021/golang-concurrency-singleflight.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/01-11-2021/golang-concurrency-singleflight.html">https://www.cyningsun.com/01-11-2021/golang-concurrency-singleflight.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -353,7 +345,7 @@ timeout := time.After(<span class="hljs-number">500</span> * time.Millisecond)
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

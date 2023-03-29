@@ -206,7 +206,7 @@ style=&quot;&quot; <span class="hljs-comment">/* a=1 b=0 c=0 d=0 -&gt; specifici
 <p>1.用户端声明( UA declarations )<br>2.一般用户声明( user normal declarations )<br>3.一般作者声明( author normal declarations )<br>4.加了 ‘!important’ 的作者声明( author important declarations )<br>5.加了 ‘!important’ 的用户声明( user important declarations ) </p>
 </blockquote>
 <p>2.拥有相同重要性和来源的规则，按照 CSS specificity 来排序。<br>3.最后，根据先后次序来排列：如果两条规则具有相同的权重，相同的来源和相同的选择器特殊性，则后出现的规则超越先出现的规则.  </p>
-<h3 id="CSS-尺寸"><a href="#CSS-尺寸" class="headerlink" title="CSS 尺寸"></a>CSS 尺寸</h3><p><strong>em</strong>：em指字体高，任意浏览器的默认字体高都是16px。所以未经调整的浏览器都符合：1em=16px。那么12px=0.75em。但是em并不是固定的，它会继承父级元素的字体大小。<br><strong>pt</strong>：pt是一个绝对值,它等于1/72英寸。在css中pt要在屏幕上显示，必须先把以 pt 为单位的长度转换为以像素为单位的长度。例如，无论在哪个操作系统中，Firefox 浏览器默认的 DPI 都是 96，那么实际上 9pt = 9 * 1/72 * 96 = 12px。  </p>
+<h3 id="CSS-尺寸"><a href="#CSS-尺寸" class="headerlink" title="CSS 尺寸"></a>CSS 尺寸</h3><p><strong>em</strong>：em指字体高，任意浏览器的默认字体高都是16px。所以未经调整的浏览器都符合：1em=16px。那么12px=0.75em。但是em并不是固定的，它会继承父级元素的字体大小。<br><strong>pt</strong>：pt是一个绝对值,它等于1/72英寸。在css中pt要在屏幕上显示，必须先把以 pt 为单位的长度转换为以像素为单位的长度。例如，无论在哪个操作系统中，Firefox 浏览器默认的 DPI 都是 96，那么实际上 9pt = 9 <em> 1/72 </em> 96 = 12px。  </p>
 <blockquote>
 <p>虽然pt是绝对单位，但是那只是针对输出设备而言的，在文字排版工具（word，abobe）中是非常有用的字体单位。不管显示器的分辨率是多少，打印在纸面上的结果是一样的。但是网页主要为了屏幕显示，而不是为了打印等其他需要的。</p>
 </blockquote>
@@ -214,7 +214,7 @@ style=&quot;&quot; <span class="hljs-comment">/* a=1 b=0 c=0 d=0 -&gt; specifici
 <p>因此CSS规范使用视角来定义“参考像素”，1参考像素即为从一臂之遥看解析度为96DPI的设备输出（即1英寸96点）时，1点（即1/96英寸）的视角。px可被视为一个基准单位——与桌面分辨率一致，如果是液晶屏，则几乎总是与液晶屏物理分辨率一致——也就是说网页设计者设定的1px，就是“最终看到这个网页的用户的显示器上的1个点距”！反倒是那些绝对单位，其实一点也不绝对。因为绝对单位比如cm或者pt，显示在屏幕上时最后还是要换算为像素，而且这种换算不是按照像素的实际物理长度来换算的（浏览器不用知道，也不可能知道当前这台显示器的1px物理长度到底是多少），而是按照桌面设定的DPI计算的。</p>
 <h3 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h3><p><a target="_blank" rel="noopener" href="http://hax.iteye.com/blog/374323">http://hax.iteye.com/blog/374323</a><br><a target="_blank" rel="noopener" href="http://www.zhihu.com/question/20088580/answer/13935004">http://www.zhihu.com/question/20088580/answer/13935004</a>        </p>
 <p>(完)</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-18-2014/css-standard-one.html">https://www.cyningsun.com/04-18-2014/css-standard-one.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-18-2014/css-standard-one.html">https://www.cyningsun.com/04-18-2014/css-standard-one.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -253,7 +253,7 @@ style=&quot;&quot; <span class="hljs-comment">/* a=1 b=0 c=0 d=0 -&gt; specifici
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

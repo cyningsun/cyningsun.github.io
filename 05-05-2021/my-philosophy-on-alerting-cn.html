@@ -277,11 +277,11 @@ Also firing:
 <ul>
 <li><strong>有一个已知的原因实际上位于现象的噪音之下</strong>。例如，如果您的服务有 99.99% 的可用性，但是有一个导致 0.001% 的请求失败的常见事件，那么您不能将其作为现象进行警报（因为它处于噪音中），但您可以捕获导致的事件。也许值得一试，把这些信息添加到栈上，但也许仅仅提醒原因是最简单的。警告值班人员。</li>
 <li><strong>您无法监控出口，因为丢失了数据分辨率</strong>。 例如，也许您可以容忍某些 handlers/endpoints/backends/URLs 相当慢（例如，验证信用卡与浏览待售商品相比）或可用性低（例如，收件箱的后台刷新）。 在负载均衡器上，这种区分可能会丢失。 从栈中走下来，并从有区分的最高位置发出警报。</li>
-<li><strong>现象出现时已经太晚，就像已经用完配额</strong>。当然，您需要在太迟之前紧急呼叫，有时这意味着要找到紧急呼叫的原因（例如，使用率 &gt;80%，并将在 &lt;4 小时内以最后 1 小时的增长率用完）。但如果你能做到这一点，你也应该能够找到一个类似的原因，不那么紧迫（例如配额 &gt;90%，并将在 &lt;4d 以过去 1d 的增长率耗尽），这将抓住大多数情况，并处理作为一张单据或电子邮件警报或每日问题报告，而不是最后的升级，一个紧急呼叫所代表的。</li>
+<li><strong>现象出现时已经太晚，就像已经用完配额</strong>。当然，您需要在太迟之前紧急呼叫，有时这意味着要找到紧急呼叫的原因（例如，使用率 &gt;80%，并将在 <4 小时内以最后 1 小时的增长率用完）。但如果你能做到这一点，你也应该能够找到一个类似的原因，不那么紧迫（例如配额 >90%，并将在 &lt;4d 以过去 1d 的增长率耗尽），这将抓住大多数情况，并处理作为一张单据或电子邮件警报或每日问题报告，而不是最后的升级，一个紧急呼叫所代表的。</li>
 <li><strong>警报设置听起来比试图检测的问题更复杂</strong>。有时如此。目标应该是趋向于简单、健壮、自我保护的系统（你怎么没有注意到配额已经用完了？为什么这些数据不能转移到其他地方？）从长远来看，它们应该趋向于简单化，但在任何给定的时间，局部最优可能是相对复杂的规则，以保持安静和准确。</li>
 </ul>
 <p><em>原文：</em> <a target="_blank" rel="noopener" href="https://docs.google.com/document/d/199PqyG3UsyXlwieHaqbGiWVa8eMWi8zzAn0YfcApr8Q/edit#heading=h.f2j0epxtq9mi">My Philosophy On Alerting</a></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-05-2021/my-philosophy-on-alerting-cn.html">https://www.cyningsun.com/05-05-2021/my-philosophy-on-alerting-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-05-2021/my-philosophy-on-alerting-cn.html">https://www.cyningsun.com/05-05-2021/my-philosophy-on-alerting-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -320,7 +320,7 @@ Also firing:
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

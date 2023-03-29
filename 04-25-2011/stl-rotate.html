@@ -15,7 +15,7 @@
 <meta property="article:published_time" content="2011-04-25 00:00:00 +0800"/>
 <meta property="og:url" content="/04-25-2011/stl-rotate.html">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta itemprop="description" name="description" content="STL在rotate上的优化是极尽其所能的。分别对前向访问，双向访问，随机访问的数据结构实现了三个版本的rotate。下面是自己按照对三种算法的理解，自己进行的实现。实现中我尽力避免使用C++的特性，从而以后可以在纯C的代码中使用。 下面是我使用到的数据结构，单向链表与双向链表，用于实现算法和验证算法的正确性： //单链表节点 typedef struct ">
+<meta itemprop="description" name="description" content="STL在rotate上的优化是极尽其所能的。分别对前向访问，双向访问，随机访问的数据结构实现了三个版本的rotate。下面是自己按照对三种算法的理解，自己进行的实现。实现中我尽力避免使用C++的特性，从而以后可以在纯C的代码中使用。 下面是我使用到的数据结构，单向链表与双向链表，用于实现算法和验证算法的正确性：//单链表节点 typedef struct N">
 
 <meta name="keywords" content="STL,rotate">
 
@@ -186,28 +186,27 @@ gtag('config', 'UA-156665333-1');
     <div class="post">
         
         <p>STL在rotate上的优化是极尽其所能的。分别对前向访问，双向访问，随机访问的数据结构实现了三个版本的rotate。下面是自己按照对三种算法的理解，自己进行的实现。实现中我尽力避免使用C++的特性，从而以后可以在纯C的代码中使用。</p>
-<p>下面是我使用到的数据结构，单向链表与双向链表，用于实现算法和验证算法的正确性：</p>
-<pre><code class="hljs c++"><span class="hljs-comment">//单链表节点</span>
-<span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">Node</span>* <span class="hljs-title">Link</span>;</span>
-<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">Node</span>&#123;</span>
-    <span class="hljs-keyword">int</span> value;
+<p>下面是我使用到的数据结构，单向链表与双向链表，用于实现算法和验证算法的正确性：<br><pre><code class="hljs c++"><span class="hljs-comment">//单链表节点</span>
+<span class="hljs-keyword">typedef</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">Node</span>* Link;
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">Node</span>&#123;
+    <span class="hljs-type">int</span> value;
     Link next;
     <span class="hljs-function">Link <span class="hljs-title">forward</span><span class="hljs-params">(Link&amp; i)</span></span>
 <span class="hljs-function">    </span>&#123;
         i=i-&gt;next;
         <span class="hljs-keyword">return</span> i;
     &#125;
-    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">swap</span><span class="hljs-params">(Link&amp; i)</span></span>
+    <span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">swap</span><span class="hljs-params">(Link&amp; i)</span></span>
 <span class="hljs-function">    </span>&#123;
-        <span class="hljs-keyword">int</span> temp=i-&gt;value;
+        <span class="hljs-type">int</span> temp=i-&gt;value;
         i-&gt;value=<span class="hljs-keyword">this</span>-&gt;value;
         <span class="hljs-keyword">this</span>-&gt;value=temp;
     &#125;
 &#125;;
  
-<span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BiNode</span>* <span class="hljs-title">BiLink</span>;</span>
-<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BiNode</span>&#123;</span>
-    <span class="hljs-keyword">int</span> value;
+<span class="hljs-keyword">typedef</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">BiNode</span>* BiLink;
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">BiNode</span>&#123;
+    <span class="hljs-type">int</span> value;
     BiLink next;
     BiLink prev;
     <span class="hljs-function">BiLink <span class="hljs-title">forward</span><span class="hljs-params">(BiLink&amp; i)</span></span>
@@ -220,16 +219,15 @@ gtag('config', 'UA-156665333-1');
         i=i-&gt;prev;
         <span class="hljs-keyword">return</span> i;
     &#125;
-    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">swap</span><span class="hljs-params">(BiLink&amp; i)</span></span>
+    <span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">swap</span><span class="hljs-params">(BiLink&amp; i)</span></span>
 <span class="hljs-function">    </span>&#123;
-        <span class="hljs-keyword">int</span> temp=i-&gt;value;
+        <span class="hljs-type">int</span> temp=i-&gt;value;
         i-&gt;value=<span class="hljs-keyword">this</span>-&gt;value;
         <span class="hljs-keyword">this</span>-&gt;value=temp;
     &#125;
-&#125;;</code></pre>
-
+&#125;;</code></pre></p>
 <h3 id="版本一：forward-iterator-即类单向链表上的rotate"><a href="#版本一：forward-iterator-即类单向链表上的rotate" class="headerlink" title="版本一：forward iterator,即类单向链表上的rotate"></a>版本一：forward iterator,即类单向链表上的rotate</h3><pre><code class="hljs c++"><span class="hljs-comment">//forward iterator,即类单向链表</span>
-<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">forwardRotate</span><span class="hljs-params">(Link head,Link middle)</span></span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">forwardRotate</span><span class="hljs-params">(Link head,Link middle)</span></span>
 <span class="hljs-function"></span>&#123;
     Link i=middle;
     <span class="hljs-keyword">while</span>(<span class="hljs-literal">true</span>)
@@ -246,10 +244,8 @@ gtag('config', 'UA-156665333-1');
             i=middle;                       <span class="hljs-comment">//如果后者先到达末尾，则将middle作为i，继续rotate</span>
     &#125;
 &#125;</code></pre>
-
 <p>另附上注释的图像版以帮助理解：<br><img src="/images/stl-rotate.png" alt="stl-rotate.png"> </p>
-<h3 id="版本二：bidirection-iterator-即类双向链表上的rotate"><a href="#版本二：bidirection-iterator-即类双向链表上的rotate" class="headerlink" title="版本二：bidirection iterator,即类双向链表上的rotate"></a>版本二：bidirection iterator,即类双向链表上的rotate</h3><p>这个版本的算法很容易理解，即是分段进行反转，之后对左右数据进行反转，代码如下：</p>
-<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">reverse</span><span class="hljs-params">(BiLink first,BiLink last)</span></span>
+<h3 id="版本二：bidirection-iterator-即类双向链表上的rotate"><a href="#版本二：bidirection-iterator-即类双向链表上的rotate" class="headerlink" title="版本二：bidirection iterator,即类双向链表上的rotate"></a>版本二：bidirection iterator,即类双向链表上的rotate</h3><p>这个版本的算法很容易理解，即是分段进行反转，之后对左右数据进行反转，代码如下：<br><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">reverse</span><span class="hljs-params">(BiLink first,BiLink last)</span></span>
 <span class="hljs-function"></span>&#123;
     <span class="hljs-keyword">while</span>(first!=last &amp;&amp;first!=last-&gt;<span class="hljs-built_in">backward</span>(last))
     &#123;
@@ -258,19 +254,17 @@ gtag('config', 'UA-156665333-1');
     &#125;
 &#125;
  
-<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">bidirectionRotate</span><span class="hljs-params">(BiLink first,BiLink middle,BiLink last)</span></span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">bidirectionRotate</span><span class="hljs-params">(BiLink first,BiLink middle,BiLink last)</span></span>
 <span class="hljs-function"></span>&#123;
     <span class="hljs-built_in">reverse</span>(first,middle);
     <span class="hljs-built_in">reverse</span>(middle,last);
     <span class="hljs-built_in">reverse</span>(first,last);
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <h3 id="版本三：random-access-iterator-即类数组上的rotate"><a href="#版本三：random-access-iterator-即类数组上的rotate" class="headerlink" title="版本三：random access iterator,即类数组上的rotate"></a>版本三：random access iterator,即类数组上的rotate</h3><p>该版本的效率无疑是最高的，当然算法因为涉及到有关群论的知识所以有点难以理解。其理论支持详见：<a target="_blank" rel="noopener" href="http://blog.csdn.net/jcwkyl/article/details/3874629">数组循环移位问题</a></p>
-<p>自己实现版本的代码如下：</p>
-<pre><code class="hljs c++"><span class="hljs-comment">//求最大公约数</span>
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">gcd</span><span class="hljs-params">(<span class="hljs-keyword">int</span> m,<span class="hljs-keyword">int</span> n)</span></span>
+<p>自己实现版本的代码如下：<br><pre><code class="hljs c++"><span class="hljs-comment">//求最大公约数</span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">gcd</span><span class="hljs-params">(<span class="hljs-type">int</span> m,<span class="hljs-type">int</span> n)</span></span>
 <span class="hljs-function"></span>&#123;
-    <span class="hljs-keyword">int</span> t;
+    <span class="hljs-type">int</span> t;
     <span class="hljs-keyword">while</span>(n!=<span class="hljs-number">0</span>)
     &#123;
         t=m%n;
@@ -280,11 +274,11 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-keyword">return</span> m;
 &#125;
 <span class="hljs-comment">//循环移位</span>
-<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">rotate_cycle</span><span class="hljs-params">(<span class="hljs-keyword">int</span> array[],<span class="hljs-keyword">int</span> len,<span class="hljs-keyword">int</span> initial,<span class="hljs-keyword">int</span> shift)</span></span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">rotate_cycle</span><span class="hljs-params">(<span class="hljs-type">int</span> array[],<span class="hljs-type">int</span> len,<span class="hljs-type">int</span> initial,<span class="hljs-type">int</span> shift)</span></span>
 <span class="hljs-function"></span>&#123;
-    <span class="hljs-keyword">int</span> value=array[initial];
-    <span class="hljs-keyword">int</span> first=initial;
-    <span class="hljs-keyword">int</span> next=initial+shift;
+    <span class="hljs-type">int</span> value=array[initial];
+    <span class="hljs-type">int</span> first=initial;
+    <span class="hljs-type">int</span> next=initial+shift;
     <span class="hljs-keyword">while</span>(next!=initial)
     &#123;
         array[first]=array[next];
@@ -294,17 +288,15 @@ gtag('config', 'UA-156665333-1');
     array[first]=value;
 &#125;
  
-<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">randomRotate</span><span class="hljs-params">(<span class="hljs-keyword">int</span> array[],<span class="hljs-keyword">int</span> middle,<span class="hljs-keyword">int</span> len)</span></span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">randomRotate</span><span class="hljs-params">(<span class="hljs-type">int</span> array[],<span class="hljs-type">int</span> middle,<span class="hljs-type">int</span> len)</span></span>
 <span class="hljs-function"></span>&#123;
-    <span class="hljs-keyword">int</span> n=<span class="hljs-built_in">gcd</span>(len,middle);
+    <span class="hljs-type">int</span> n=<span class="hljs-built_in">gcd</span>(len,middle);
     <span class="hljs-keyword">while</span>(n--)
         <span class="hljs-built_in">rotate_cycle</span>(array,len,n,middle);
-&#125;</code></pre>
-
-<p>最后附上我自己的测试代码：</p>
-<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>
+&#125;</code></pre></p>
+<p>最后附上我自己的测试代码：<br><pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>
 <span class="hljs-function"></span>&#123;
-    <span class="hljs-keyword">int</span> len=<span class="hljs-number">20</span>;
+    <span class="hljs-type">int</span> len=<span class="hljs-number">20</span>;
     <span class="hljs-built_in">srand</span>(<span class="hljs-built_in">time</span>(<span class="hljs-number">0</span>));
     <span class="hljs-comment">//单向访问链表的rotate</span>
     Link head=<span class="hljs-keyword">new</span> Node;
@@ -312,7 +304,7 @@ gtag('config', 'UA-156665333-1');
     cout&lt;&lt;head-&gt;value&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
     Link p=head;
     Link middle;
-    <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
+    <span class="hljs-keyword">for</span>(<span class="hljs-type">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
     &#123;
         Link next=<span class="hljs-keyword">new</span> Node;
         p-&gt;next=next;
@@ -339,7 +331,7 @@ gtag('config', 'UA-156665333-1');
     cout&lt;&lt;bihead-&gt;value&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
     BiLink bip=bihead;
     BiLink bimiddle;
-    <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
+    <span class="hljs-keyword">for</span>(<span class="hljs-type">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
     &#123;
         BiLink binext=<span class="hljs-keyword">new</span> BiNode;
         bip-&gt;next=binext;
@@ -363,22 +355,21 @@ gtag('config', 'UA-156665333-1');
     &#125;
     cout&lt;&lt;endl;
 
-    <span class="hljs-keyword">int</span> array[len];
-    <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
+    <span class="hljs-type">int</span> array[len];
+    <span class="hljs-keyword">for</span>(<span class="hljs-type">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
     &#123;
         array[i]=<span class="hljs-built_in">rand</span>()%<span class="hljs-number">200</span>;
         cout&lt;&lt;array[i]&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
     &#125;	
     cout&lt;&lt;endl;
     <span class="hljs-built_in">randomRotate</span>(array,len/<span class="hljs-number">3</span>,len);
-    <span class="hljs-keyword">for</span>(<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
+    <span class="hljs-keyword">for</span>(<span class="hljs-type">int</span> i=<span class="hljs-number">0</span>;i&lt;len;i++)
         cout&lt;&lt;array[i]&lt;&lt;<span class="hljs-string">&quot;\t&quot;</span>;
     cout&lt;&lt;endl;
     <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p>OK，大致如此了。三个版本的rotate，极至的优化手段，这也许就是STL的魅力所在吧。</p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-25-2011/stl-rotate.html">https://www.cyningsun.com/04-25-2011/stl-rotate.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-25-2011/stl-rotate.html">https://www.cyningsun.com/04-25-2011/stl-rotate.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -434,7 +425,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

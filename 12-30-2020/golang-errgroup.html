@@ -203,8 +203,7 @@ gtag('config', 'UA-156665333-1');
 <li>停止无效的请求，减少资源资源</li>
 <li>快速返回，方便用户再次重试，降低偶然出错的影响</li>
 </ol>
-<h3 id="sync-errgroup"><a href="#sync-errgroup" class="headerlink" title="sync.errgroup"></a>sync.errgroup</h3><p>那么，Go 语言中该怎么实现呢？ golang 提供了一个很好用的小组件：<code>errgroup</code>。仍然以微博为例，来演示如何使用该函数：</p>
-<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+<h3 id="sync-errgroup"><a href="#sync-errgroup" class="headerlink" title="sync.errgroup"></a>sync.errgroup</h3><p>那么，Go 语言中该怎么实现呢？ golang 提供了一个很好用的小组件：<code>errgroup</code>。仍然以微博为例，来演示如何使用该函数：<br><pre><code class="hljs go"><span class="hljs-keyword">package</span> main
 
 <span class="hljs-keyword">import</span> (
 	<span class="hljs-string">&quot;context&quot;</span>
@@ -218,24 +217,24 @@ gtag('config', 'UA-156665333-1');
 	Weibo = find(<span class="hljs-string">&quot;H3GIgngon&quot;</span>)
 )
 
-<span class="hljs-keyword">type</span> Result <span class="hljs-keyword">string</span>
-<span class="hljs-keyword">type</span> Find <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(Result, error)</span></span>
+<span class="hljs-keyword">type</span> Result <span class="hljs-type">string</span>
+<span class="hljs-keyword">type</span> Find <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-type">string</span>)</span></span> (Result, <span class="hljs-type">error</span>)
 
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">find</span><span class="hljs-params">(kind <span class="hljs-keyword">string</span>)</span> <span class="hljs-title">Find</span></span> &#123;
-	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(_ context.Context, query <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">(Result, error)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">find</span><span class="hljs-params">(kind <span class="hljs-type">string</span>)</span></span> Find &#123;
+	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(_ context.Context, query <span class="hljs-type">string</span>)</span></span> (Result, <span class="hljs-type">error</span>) &#123;
 		<span class="hljs-keyword">return</span> Result(fmt.Sprintf(<span class="hljs-string">&quot;%s result for %q&quot;</span>, kind, query)), <span class="hljs-literal">nil</span>
 	&#125;
 &#125;
 
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
-	SinaWeibo := <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-keyword">string</span>)</span> <span class="hljs-params">([]Result, error)</span></span> &#123;
+	SinaWeibo := <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-type">string</span>)</span></span> ([]Result, <span class="hljs-type">error</span>) &#123;
 		g, ctx := errgroup.WithContext(ctx)
 
 		finds := []Find&#123;Blogger, Weibo&#125;
 		results := <span class="hljs-built_in">make</span>([]Result, <span class="hljs-built_in">len</span>(finds))
 		<span class="hljs-keyword">for</span> i, find := <span class="hljs-keyword">range</span> finds &#123;
 			i, find := i, find <span class="hljs-comment">// https://golang.org/doc/faq#closures_and_goroutines</span>
-			g.Go(<span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span> <span class="hljs-title">error</span></span> &#123;
+			g.Go(<span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> <span class="hljs-type">error</span> &#123;
 				result, err := find(ctx, query)
 				<span class="hljs-keyword">if</span> err == <span class="hljs-literal">nil</span> &#123;
 					results[i] = result
@@ -258,11 +257,9 @@ gtag('config', 'UA-156665333-1');
 		fmt.Println(result)
 	&#125;
 
-&#125;</code></pre>
-
+&#125;</code></pre></p>
 <p><code>errgroup</code> 使用 Context 来控制超时，使用 Go() 函数返回的第一个错误来停止所有协程。使用 <code>errgroup</code> 尤其需要小心踩坑 <a target="_blank" rel="noopener" href="https://golang.org/doc/faq#closures_and_goroutines"><code>闭包</code></a> 问题</p>
-<h3 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h3><p>那么 <code>errgroup</code> 究竟是如何实现的呢？<code>errgroup</code> 简单的令人惊讶，却功能强大。代码+注释不过六十余行，值得仔细品味。源码如下：</p>
-<pre><code class="hljs go"><span class="hljs-comment">// Package errgroup provides synchronization, error propagation, and Context</span>
+<h3 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h3><p>那么 <code>errgroup</code> 究竟是如何实现的呢？<code>errgroup</code> 简单的令人惊讶，却功能强大。代码+注释不过六十余行，值得仔细品味。源码如下：<br><pre><code class="hljs go"><span class="hljs-comment">// Package errgroup provides synchronization, error propagation, and Context</span>
 <span class="hljs-comment">// cancelation for groups of goroutines working on subtasks of a common task.</span>
 <span class="hljs-keyword">package</span> errgroup
 
@@ -281,7 +278,7 @@ gtag('config', 'UA-156665333-1');
 	wg sync.WaitGroup
 
 	errOnce sync.Once
-	err     error
+	err     <span class="hljs-type">error</span>
 &#125;
 
 <span class="hljs-comment">// WithContext returns a new Group and an associated Context derived from ctx.</span>
@@ -289,14 +286,14 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-comment">// The derived Context is canceled the first time a function passed to Go</span>
 <span class="hljs-comment">// returns a non-nil error or the first time Wait returns, whichever occurs</span>
 <span class="hljs-comment">// first.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithContext</span><span class="hljs-params">(ctx context.Context)</span> <span class="hljs-params">(*Group, context.Context)</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithContext</span><span class="hljs-params">(ctx context.Context)</span></span> (*Group, context.Context) &#123;
 	ctx, cancel := context.WithCancel(ctx)
 	<span class="hljs-keyword">return</span> &amp;Group&#123;cancel: cancel&#125;, ctx
 &#125;
 
 <span class="hljs-comment">// Wait blocks until all function calls from the Go method have returned, then</span>
 <span class="hljs-comment">// returns the first non-nil error (if any) from them.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span> <span class="hljs-title">Wait</span><span class="hljs-params">()</span> <span class="hljs-title">error</span></span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> Wait() <span class="hljs-type">error</span> &#123;
 	g.wg.Wait()
 	<span class="hljs-keyword">if</span> g.cancel != <span class="hljs-literal">nil</span> &#123;
 		g.cancel()
@@ -308,7 +305,7 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-comment">//</span>
 <span class="hljs-comment">// The first call to return a non-nil error cancels the group; its error will be</span>
 <span class="hljs-comment">// returned by Wait.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span> <span class="hljs-title">Go</span><span class="hljs-params">(f <span class="hljs-keyword">func</span>()</span> <span class="hljs-title">error</span>)</span> &#123;
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> Go(f <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> <span class="hljs-type">error</span>) &#123;
 	g.wg.Add(<span class="hljs-number">1</span>)
 
 	<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123;
@@ -323,9 +320,7 @@ gtag('config', 'UA-156665333-1');
 			&#125;)
 		&#125;
 	&#125;()
-&#125;</code></pre>
-
-
+&#125;</code></pre></p>
 <h3 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h3><ol>
 <li>除了官方实现，其实 bilbil 也有类似实现 <a target="_blank" rel="noopener" href="https://github.com/bilibili/kratos/blob/master/pkg/sync/errgroup/errgroup.go">bilbil/kratos</a>。为什么官方库却没有选择实现以下两个功能？：<blockquote>
 <ul>
@@ -336,7 +331,7 @@ gtag('config', 'UA-156665333-1');
 </li>
 <li>同样以微博为例，用户访问微博的时候，同样需要获取“评论数”、“点赞数”、“是否已关注”。不同的是，这些数据并非关键数据，获取失败却不影响用户查看微博。因此，在<strong>官宣恋情婚讯</strong> 的高峰期，其实可以尽力提供服务。那么非关键数据，如何实现 <strong>尽力</strong> 并发获取？</li>
 </ol>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-30-2020/golang-errgroup.html">https://www.cyningsun.com/12-30-2020/golang-errgroup.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-30-2020/golang-errgroup.html">https://www.cyningsun.com/12-30-2020/golang-errgroup.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -392,7 +387,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

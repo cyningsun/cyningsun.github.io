@@ -251,7 +251,6 @@ gtag('config', 'UA-156665333-1');
 	mux.HandleFunc(<span class="hljs-string">&quot;/custom_debug_path/profile&quot;</span>, pprof.Profile)
 	log.Fatal(http.ListenAndServe(<span class="hljs-string">&quot;:7777&quot;</span>, mux))
 &#125;</code></pre>
-
 <h3 id="Tracing"><a href="#Tracing" class="headerlink" title="Tracing"></a>Tracing</h3><p>Tracing 是一种检测代码的方法，用于分析一系列调用的生命周期中的延迟。 Go提供 <a target="_blank" rel="noopener" href="https://godoc.org/golang.org/x/net/trace">golang.org/x/net/trace</a> 包作为每个Go节点的最小 tracing backend，并提供一个带有简单仪表板的最小检测库。 Go还提供了一个执行跟踪器来跟踪时间间隔内的 runtime events。</p>
 <p>Tracing 使我们能够：</p>
 <ul>
@@ -283,10 +282,8 @@ gtag('config', 'UA-156665333-1');
 <p><strong>调试器与 Go 程序的兼容性如何？</strong></p>
 <p><code>gc</code> 编译器执行优化，例如函数内联和变量注册。 这些优化有时会使调试器调试更困难。 目前正在努力提高优化后的二进制文件的DWARF 信息的质量。 在这些改进可用之前，我们建议在构建正在调试的代码时禁用优化。 以下命令构建一个没有编译器优化的包：</p>
 <pre><code class="hljs sh">$ go build -gcflags=all=<span class="hljs-string">&quot;-N -l&quot;</span></code></pre>
-
 <p>作为改进工作的一部分，Go 1.10引入了一个新的编译器flag  <code>-dwarflocationlists</code>。 该标志使编译器添加位置列表，以帮助调试器使用优化后的二进制文件。 以下命令构建使用优化但包含 DWARF 位置列表的包：</p>
 <pre><code class="hljs sh">$ go build -gcflags=<span class="hljs-string">&quot;-dwarflocationlists=true&quot;</span></code></pre>
-
 <p><strong>推荐的用户界面调试器是什么？</strong></p>
 <p>尽管 delve 和 gdb 都提供了 CLI，但大多数集成编辑器和IDE都提供了特定于调试的用户界面。</p>
 <p><strong>是否可以使用Go程序进行事后调试？</strong></p>
@@ -325,7 +322,7 @@ gtag('config', 'UA-156665333-1');
 </li>
 </ul>
 <p><em>原文：<a target="_blank" rel="noopener" href="https://golang.org/doc/diagnostics.html">https://golang.org/doc/diagnostics.html</a></em></p>
-<p><strong>本文作者</strong>：cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-21-2019/go-diagnostics-cn.html">https://www.cyningsun.com/07-21-2019/go-diagnostics-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-21-2019/go-diagnostics-cn.html">https://www.cyningsun.com/07-21-2019/go-diagnostics-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -381,7 +378,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2022 cyningsun
+    <p class="text-muted credit">Copyright ©2023 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
