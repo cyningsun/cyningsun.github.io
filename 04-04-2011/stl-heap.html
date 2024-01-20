@@ -188,7 +188,7 @@ gtag('config', 'UA-156665333-1');
     <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#heap-%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="toc-text">heap 的实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#heap-%E7%9A%84%E5%88%86%E7%B1%BB"><span class="toc-text">heap 的分类</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#heap-%E7%AE%97%E6%B3%95%E4%BE%9D%E8%B5%96%E5%85%B3%E7%B3%BB"><span class="toc-text">heap 算法依赖关系</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#push-heap-%E7%AE%97%E6%B3%95"><span class="toc-text">push_heap 算法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#pop-heap-%E7%AE%97%E6%B3%95"><span class="toc-text">pop_heap 算法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#sort-heap-%E7%AE%97%E6%B3%95"><span class="toc-text">sort_heap 算法</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#make-heap-%E7%AE%97%E6%B3%95"><span class="toc-text">make_heap 算法</span></a></li></ol></li></ol>
  
         <p>binary heap 是一种 Complete binary tree, 也就是，整棵 binary tree 除叶子节点之外，是填满的，而最底层的叶节点由左至右又不得有空隙。<br><img src="/images/stl-heap/1.gif" alt="stl-heap-1.png"></p>
-<h3 id="heap-的实现"><a href="#heap-的实现" class="headerlink" title="heap 的实现"></a>heap 的实现</h3><p>假设动用 一 个小技巧 3 ，将 array 的 #0 元素保留（或设为无限大值或无限小值），那么当 complete binary tree 中 的某个节点位 于 array 的i 处，其左子节点必位于 array 的2i 处，其右子节点必位于 array 的2i+1 处，其父节点必位于「i/2 」处 （此处的「」权且代表高斯符号，取其整数）。通过这么简单的位置规则，array 可以轻易实作出 complete binary tree 。这种以array 表述 tree 的方式，我们称为隐式表述法（implicit representation ）。</p>
+<h3 id="heap-的实现"><a href="#heap-的实现" class="headerlink" title="heap 的实现"></a>heap 的实现</h3><p>假设动用 一 个小技巧 3 ，将 array 的 #0 元素保留（或设为无限大值或无限小值），那么当 complete binary tree 中 的某个节点位 于 array 的i 处，其左子节点必位于 array 的2i 处，其右子节点必位于 array 的2i+1 处，其父节点必位于「i&#x2F;2 」处 （此处的「」权且代表高斯符号，取其整数）。通过这么简单的位置规则，array 可以轻易实作出 complete binary tree 。这种以array 表述 tree 的方式，我们称为隐式表述法（implicit representation ）。</p>
 <p>注意： STL 中并未使用此技巧，此点需要特别注意，后面的所有的下标都与此有关。 </p>
 <h3 id="heap-的分类"><a href="#heap-的分类" class="headerlink" title="heap 的分类"></a>heap 的分类</h3><p>根据元素排列方式， heap 可分为 max-heap 和min-heap 两种，前者每个节点的键值（ key ）都大于或等于其子节点键值，后者的每个节点键值（ key ）都小于或等于其子节点键值。因此， max-heap 的最大值在根节点，并总是位于底层 array 或 vector 的 起 头 处 ； min-heap 的 最 小 值 在 根 节 点 ， 亦 总 是 位 于 底 层 array 或 vector 的起头处。</p>
 <p>注意： STL 提供的是 max-heap </p>
@@ -212,7 +212,9 @@ gtag('config', 'UA-156665333-1');
 
     *(first + holeIndex) = value; <span class="hljs-comment">// 令洞值为新值，完成安插动作。</span>
 &#125;</code></pre>
-<h4 id="pop-heap-算法"><a href="#pop-heap-算法" class="headerlink" title="pop_heap 算法"></a>pop_heap 算法</h4><p>pop 动作取走根节点（其实是移至底部容器 vector 的最后一个元素）之后，为了满足 complete binary tree 的条件，必须割舍最下层最右边的叶节点，并将其值安插至 max_heap （安插时用到 __push_heap ）。（取走根节点后）为满足 max-heap 的条件（每个节点的键值都大于或等于其子节点键值），我们执行一个所谓的 percolate down （下溯）程序：将根节点取走（最大值被取走后，形成一个「 hole 」），然后比较其两个子节点键值（ key ），并与较大子节点对调位置。如此一直下放，直到这个「 hole 」的键值大于左右两个子节点，或直到下放至叶节点为止。<br><pre><code class="hljs c++"><span class="hljs-comment">//first: 底层容器的起始位置 iterator</span>
+
+<h4 id="pop-heap-算法"><a href="#pop-heap-算法" class="headerlink" title="pop_heap 算法"></a>pop_heap 算法</h4><p>pop 动作取走根节点（其实是移至底部容器 vector 的最后一个元素）之后，为了满足 complete binary tree 的条件，必须割舍最下层最右边的叶节点，并将其值安插至 max_heap （安插时用到 __push_heap ）。（取走根节点后）为满足 max-heap 的条件（每个节点的键值都大于或等于其子节点键值），我们执行一个所谓的 percolate down （下溯）程序：将根节点取走（最大值被取走后，形成一个「 hole 」），然后比较其两个子节点键值（ key ），并与较大子节点对调位置。如此一直下放，直到这个「 hole 」的键值大于左右两个子节点，或直到下放至叶节点为止。</p>
+<pre><code class="hljs c++"><span class="hljs-comment">//first: 底层容器的起始位置 iterator</span>
 <span class="hljs-comment">//holeIndex: 被取走的根植形成 hole 位置的索引</span>
 <span class="hljs-comment">//len: 指定了排序的区域大小</span>
 <span class="hljs-comment">//value: 割舍之叶节点之值</span>
@@ -239,8 +241,9 @@ gtag('config', 'UA-156665333-1');
         holeIndex = secondChild - <span class="hljs-number">1</span>;
     &#125;
     __push_heap (first, holeIndex, topIndex, value);
-&#125;</code></pre></p>
-<h4 id="sort-heap-算法"><a href="#sort-heap-算法" class="headerlink" title="sort_heap 算法"></a>sort_heap 算法</h4><p>既然每次 pop_heap 可获得 heap 之 中 键值最大的元素，如果持续对整个 heap 做pop_heap 动作，每次将操作范围从后向前缩减 一 个元素（因为 pop_heap 会把键值最大的元素放在底部容器的最尾端），当整个程序执行完毕，我们便有了㆒个递增序列。<br><pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-keyword">class</span> <span class="hljs-title class_">RandomAccessIterator</span>&gt;
+&#125;</code></pre>
+<h4 id="sort-heap-算法"><a href="#sort-heap-算法" class="headerlink" title="sort_heap 算法"></a>sort_heap 算法</h4><p>既然每次 pop_heap 可获得 heap 之 中 键值最大的元素，如果持续对整个 heap 做pop_heap 动作，每次将操作范围从后向前缩减 一 个元素（因为 pop_heap 会把键值最大的元素放在底部容器的最尾端），当整个程序执行完毕，我们便有了㆒个递增序列。</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-keyword">class</span> <span class="hljs-title class_">RandomAccessIterator</span>&gt;
 <span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">sort_heap</span> <span class="hljs-params">(RandomAccessIterator first,</span></span>
 <span class="hljs-params"><span class="hljs-function">    RandomAccessIterator last)</span> </span>&#123;
     <span class="hljs-comment">// 以 下 ，每执行 一 次 pop_heap() ，极值（在 STL heap 中 为极大值）即被放在尾端。</span>
@@ -248,8 +251,10 @@ gtag('config', 'UA-156665333-1');
     <span class="hljs-comment">// 排序结果。</span>
     <span class="hljs-keyword">while</span> (last - first &gt; <span class="hljs-number">1</span>)
         <span class="hljs-built_in">pop_heap</span> (first, last--); <span class="hljs-comment">// 每执行 pop_heap() 一 次，操作范围即退缩 一 格。</span>
-&#125;</code></pre></p>
-<h4 id="make-heap-算法"><a href="#make-heap-算法" class="headerlink" title="make_heap 算法"></a>make_heap 算法</h4><p>这个算法用来将一段现有的数据转化为一个heap 。其主要依据就是 complete binary tree 的隐式表述（ implicit representation ）。<br><pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-keyword">class</span> <span class="hljs-title class_">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title class_">T</span>, <span class="hljs-keyword">class</span> <span class="hljs-title class_">Distance</span>&gt;
+&#125;</code></pre>
+
+<h4 id="make-heap-算法"><a href="#make-heap-算法" class="headerlink" title="make_heap 算法"></a>make_heap 算法</h4><p>这个算法用来将一段现有的数据转化为一个heap 。其主要依据就是 complete binary tree 的隐式表述（ implicit representation ）。</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">template</span> &lt;<span class="hljs-keyword">class</span> <span class="hljs-title class_">RandomAccessIterator</span>, <span class="hljs-keyword">class</span> <span class="hljs-title class_">T</span>, <span class="hljs-keyword">class</span> <span class="hljs-title class_">Distance</span>&gt;
 <span class="hljs-type">void</span> __make_heap (RandomAccessIterator first,
     RandomAccessIterator last, T*,
     Distance*) &#123;
@@ -272,8 +277,9 @@ gtag('config', 'UA-156665333-1');
         <span class="hljs-comment">// 走完根节点，就结束。</span>
         <span class="hljs-comment">// （即将重排之子树的）头部向前一个节点</span>
     &#125;
-&#125;</code></pre></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-04-2011/stl-heap.html">https://www.cyningsun.com/04-04-2011/stl-heap.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+&#125;</code></pre>
+
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/04-04-2011/stl-heap.html">https://www.cyningsun.com/04-04-2011/stl-heap.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -329,7 +335,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2024 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

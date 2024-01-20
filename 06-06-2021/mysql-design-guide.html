@@ -188,7 +188,7 @@ gtag('config', 'UA-156665333-1');
         <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>想象一下自己是一名伐木工人，手里有林场里最好的斧子，因此你是工作效率最高的。突然有一天场里来了个推销的，他把一种新的砍树工具——链锯——给夸到了天上去。你也买了一把，不过你不懂得怎么用。你估摸着按照自己原来擅长的砍树方法，把链锯大力地挥向树干……</p>
 <p>MySQL 这个工具也是一样，设计规范就是的一个很好的工具说明。即统一了命名风格，又可以让新人快速上手。</p>
 <p>本文的主要内容可以在网上找到类似的版本，但是在一些细节点又略微不同。基于多年 MySQL 使用经验，基于应用与 MySQL 的通盘考虑（视 MySQL 为低配版本的：Bigtable + KV），才有了这些细节上的调整。</p>
-<h3 id="命名"><a href="#命名" class="headerlink" title="命名"></a>命名</h3><p>避免使用 MySQL 关键词 作为 db / table / field / index 名称</p>
+<h3 id="命名"><a href="#命名" class="headerlink" title="命名"></a>命名</h3><p>避免使用 MySQL 关键词 作为 db &#x2F; table &#x2F; field &#x2F; index 名称</p>
 <ul>
 <li>DB<ul>
 <li>使用项目名作为前缀，“_db” 作为后缀；分库添加后缀8位宽度的数字，数字从0开始</li>
@@ -274,18 +274,20 @@ gtag('config', 'UA-156665333-1');
 <ol>
 <li>MySQL 外键实现比较简单粗糙，性能不好</li>
 <li>MySQL 作为后端存储，不在 MySQL 上放置任何计算逻辑</li>
-<li>如果依赖于在 MySQL 服务器上运行的计算逻辑，进行数据库/表分片将非常困难</li>
+<li>如果依赖于在 MySQL 服务器上运行的计算逻辑，进行数据库&#x2F;表分片将非常困难</li>
 </ol>
 </blockquote>
 </li>
 </ul>
 <h3 id="Field"><a href="#Field" class="headerlink" title="Field"></a>Field</h3><ul>
-<li>优先选择符合存储需要的最小的数据类型<blockquote>
+<li><p>优先选择符合存储需要的最小的数据类型</p>
+<blockquote>
 <p>列的字段越大，索引时所需要的空间越大，磁盘单页存储的索引节点数越少，遍历时 IO 次数就越多， 索引性能也就越差</p>
-<p>方法：<br>1）将字符串转换成数字类型存储，如：将IP地址转换成整形数据（inet_aton / inet_ntoa）<br>2）对于非负型的数据（如自增ID、整型IP）来说，要优先使用无符号整型来存储</p>
+<p>方法：<br>1）将字符串转换成数字类型存储，如：将IP地址转换成整形数据（inet_aton &#x2F; inet_ntoa）<br>2）对于非负型的数据（如自增ID、整型IP）来说，要优先使用无符号整型来存储</p>
 </blockquote>
 </li>
-<li>存储相同数据的列名和列类型必须一致<blockquote>
+<li><p>存储相同数据的列名和列类型必须一致</p>
+<blockquote>
 <p>如果查询时关联列类型不一致会自动进行数据类型隐式转换，会造成列上的索引失效，导致查询效率降低</p>
 </blockquote>
 </li>
@@ -344,7 +346,7 @@ gtag('config', 'UA-156665333-1');
 </li>
 <li>WHERE从句中禁止对列进行函数转换和计算<blockquote>
 <p>对列进行函数转换或计算时会导致无法使用索引。</p>
-<p>正确：WHERE create_time &gt;= 20190101 AND create_time &lt; 20190102<br>错误：WHERE DATE(create_time)=20190101</p>
+<p>正确：WHERE create_time &gt;&#x3D; 20190101 AND create_time &lt; 20190102<br>错误：WHERE DATE(create_time)&#x3D;20190101</p>
 </blockquote>
 </li>
 <li>不会有重复值时使用 UNION ALL 而不是 UNION<blockquote>
@@ -353,7 +355,7 @@ gtag('config', 'UA-156665333-1');
 </li>
 </ul>
 <p>参考链接：<br><a target="_blank" rel="noopener" href="https://www.cnblogs.com/huchong/p/10219318.html">https://www.cnblogs.com/huchong/p/10219318.html</a></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-06-2021/mysql-design-guide.html">https://www.cyningsun.com/06-06-2021/mysql-design-guide.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/06-06-2021/mysql-design-guide.html">https://www.cyningsun.com/06-06-2021/mysql-design-guide.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -370,15 +372,15 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
+            <li><span><a href="/08-20-2023/go-redis-connection-timeout.html">go-redis 超时机制</a></span></li>
+          
+            <li><span><a href="/07-04-2023/redis-cluster-gossip.html">深入理解 Redis cluster GOSSIP 协议</a></span></li>
+          
+            <li><span><a href="/06-05-2023/go-redis-connection-pool.html">如何配置 go-redis 连接池</a></span></li>
+          
             <li><span><a href="/03-12-2023/how-to-store-objects-in-redis.html">如何使用 Redis 存储对象</a></span></li>
           
             <li><span><a href="/02-14-2023/details-about-redis-cluster.html">Redis cluster 细节与技术选型</a></span></li>
-          
-            <li><span><a href="/01-27-2023/etcd-implement-and-tech-selection.html">etcd 实现与选型分析</a></span></li>
-          
-            <li><span><a href="/09-06-2020/redis-migrate-key-lost.html">记一次 Redis 迁移 —— Key 丢失问题排查</a></span></li>
-          
-            <li><span><a href="/08-25-2020/mysql-bplustree.html">B+树 —— 数据库的灵魂</a></span></li>
           
   </ol>
 
@@ -409,7 +411,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2024 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

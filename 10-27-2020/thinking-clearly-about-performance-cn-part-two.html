@@ -187,13 +187,14 @@ gtag('config', 'UA-156665333-1');
         
     <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%88%E7%8E%87"><span class="toc-text">效率</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%B4%9F%E8%BD%BD"><span class="toc-text">负载</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%8E%92%E9%98%9F%E5%BB%B6%E8%BF%9F"><span class="toc-text">排队延迟</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%8B%90%E7%82%B9"><span class="toc-text">拐点</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%8B%90%E7%82%B9%E7%9A%84%E7%9B%B8%E5%85%B3%E6%80%A7"><span class="toc-text">拐点的相关性</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%AE%B9%E9%87%8F%E8%A7%84%E5%88%92"><span class="toc-text">容量规划</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E9%9A%8F%E6%9C%BA%E5%88%B0%E8%BE%BE"><span class="toc-text">随机到达</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%80%E8%87%B4%E6%80%A7%E5%BB%B6%E8%BF%9F"><span class="toc-text">一致性延迟</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95"><span class="toc-text">性能测试</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%8B%E9%87%8F"><span class="toc-text">测量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E6%98%AF%E4%B8%80%E7%A7%8D%E7%89%B9%E6%80%A7"><span class="toc-text">性能是一种特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Q%EF%BC%9A%E5%85%B3%E4%BA%8E%E6%8B%90%E7%82%B9%E7%9A%84%E5%85%AC%E5%BC%80%E8%BE%A9%E8%AE%BA"><span class="toc-text">Q：关于拐点的公开辩论</span></a></li></ol>
  
-        <p><br/></p>
+        <br/>
+
 <p>接上篇：<a href="/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">Thinking Clearly about Performance (Part 1)</a></p>
 <h3 id="效率"><a href="#效率" class="headerlink" title="效率"></a>效率</h3><p>即使整个系统中的每个人都在遭受痛苦，你仍然应该首先关注业务需要第一个改进的程序。首先确保程序尽可能高效地工作。在不增加容量和不牺牲所需的业务功能的情况下，效率与任务执行的总处理时间成反比。</p>
 <p>换句话说，效率与滥用成反比。以下是数据库应用中常见的一些滥用的示例：</p>
 <ul>
-<li>中间层程序为每一行插入到数据库的数据创建一条不同的SQL语句。它本可以用一个 <code>prepare</code> 调用（从而减少9999次网络I/O调用）完成任务，却执行10000次数据库 <code>prepare</code> 调用（因而产生10000次网络I/O调用）。</li>
-<li>中间层程序执行100次数据库 fetch 调用（因而产生100次网络I/O调用）以获取994行数据。它本可以用10次 fetch 调用获取994行数据（从而减少90次网络I/O调用）。</li>
+<li>中间层程序为每一行插入到数据库的数据创建一条不同的SQL语句。它本可以用一个 <code>prepare</code> 调用（从而减少9999次网络I&#x2F;O调用）完成任务，却执行10000次数据库 <code>prepare</code> 调用（因而产生10000次网络I&#x2F;O调用）。</li>
+<li>中间层程序执行100次数据库 fetch 调用（因而产生100次网络I&#x2F;O调用）以获取994行数据。它本可以用10次 fetch 调用获取994行数据（从而减少90次网络I&#x2F;O调用）。</li>
 <li>一条SQL语句访问数据库缓存7428322次以返回698行的结果集。添加一个筛选谓词返回最终用户真正希望看到的7行，可以只访问数据库缓存52次。（选择该措辞是彻底的泄密：我是在 Oracle 社区初次了解 SQL 的）</li>
 </ul>
 <p>当然，如果一个系统存在一些全局性问题，导致整个系统中的大量任务效率低下（例如，考虑不周的索引、设置错误的参数、配置不当的硬件），那么你应该改进它。但是，不要调整系统以适应效率低下的程序。（诚然，有时你需要止血带来防止流血致死，但不要把权宜之计作为永久解决办法解决效率低下的问题。）有很多手段可以解决项目效率低下的问题。即使是现有的商业化应用，与软件供应商合作以使程序高效，而不是效率低下的试图优化系统使其尽可能高效，从长远来看对你的益处更大。</p>
@@ -206,7 +207,7 @@ gtag('config', 'UA-156665333-1');
 <p>尽管有一些过激的假设，比如 “完美可扩展性”，<code>M/M/m</code> 在性能方面仍有很多东西值得学习。Figure 4 展示了 <code>M/M/m</code> 响应时间和负载之间的关系。</p>
 <p><img src="/images/thinking-clearly-about-performance-cn/millsap-4.png" alt="millsap-4.png"></p>
 <p>Figure 4，你可以从数学角度看到，在不同负载条件下使用系统时的感受。在低负载时，响应时间与空载时的响应时间基本相同。随着负载的增加，会感觉到响应时间有平缓的略微的变差。这种逐渐的变差并不会造成多大的危害，但是随着负载的不断增加，响应时间开始某种意义上快速的剧烈的变差。在某种程度上来说，响应时间变差变得相当令人不快，并且事实上变成了抛物型的。</p>
-<p>在完美可扩展 <code>M/M/m</code> 模型中，响应时间（R）由两部分组成：处理时间（S）和排队延迟（Q），或 R=S+Q。处理时间是任务消耗给定资源的持续时间，以每次任务执行的时间为单位，例如以每次单击的秒数为单位。排队延迟是任务在给定资源处排队，等待消耗该资源的条件满足的时间。排队延迟也以每次任务执行的时间来衡量（例如，每次单击的秒数）。</p>
+<p>在完美可扩展 <code>M/M/m</code> 模型中，响应时间（R）由两部分组成：处理时间（S）和排队延迟（Q），或 R&#x3D;S+Q。处理时间是任务消耗给定资源的持续时间，以每次任务执行的时间为单位，例如以每次单击的秒数为单位。排队延迟是任务在给定资源处排队，等待消耗该资源的条件满足的时间。排队延迟也以每次任务执行的时间来衡量（例如，每次单击的秒数）。</p>
 <p>换言之，当你在 Taco Tico 点午餐时，你收到订单的响应时间（R）是你在柜台前等待有人接受你的订单所花费的排队延迟时间（Q），再加上你在开始与订单管理员交谈后等待订单送达的处理时间（S）。队列延迟是指给定任务的响应时间与空载系统上同一任务的响应时间之差（不要忘记我们完美可扩展性假设）。</p>
 <h5 id="拐点"><a href="#拐点" class="headerlink" title="拐点"></a>拐点</h5><p>说到性能，你希望从一个系统中得到两点：</p>
 <ul>
@@ -221,7 +222,7 @@ gtag('config', 'UA-156665333-1');
 <p><img src="/images/thinking-clearly-about-performance-cn/millsap-table5.png" alt="millsap-table5.png"></p>
 <p>为什么拐点如此重要？对于随机处理请求的系统，允许资源负载持续超过临界值会导致响应时间和吞吐量随负载的微小变化而剧烈波动。因此，在随机请求到达的系统中，管理负载以使其不会超过拐点值是至关重要的。</p>
 <h5 id="拐点的相关性"><a href="#拐点的相关性" class="headerlink" title="拐点的相关性"></a>拐点的相关性</h5><p>拐点的概念到底是否真的如此重要？正如我告诉过你的，毕竟 <code>M/M/m</code> 模型假设了一个荒谬的乌托邦想法，即你所考虑的系统可以完美地扩展。我知道你在想什么：不可能。</p>
-<p><code>M/M/m</code> 给我们的知识是，即使你的系统能够完美地扩展，一旦你的平均负载超过 table 1 中的拐点值，你仍然会遇到大量的性能问题。你的系统不如 <code>M/M/m</code> 模型中的理论系统好。因此，与 table 1 中的值相比，系统拐点的利用率值将更小。（”值” 和 “拐点”是复数形式，因为你可以用一个模型来建模CPU，另一个模型来建模磁盘，另一个模型来建模I/O控制器，依此类推。）</p>
+<p><code>M/M/m</code> 给我们的知识是，即使你的系统能够完美地扩展，一旦你的平均负载超过 table 1 中的拐点值，你仍然会遇到大量的性能问题。你的系统不如 <code>M/M/m</code> 模型中的理论系统好。因此，与 table 1 中的值相比，系统拐点的利用率值将更小。（”值” 和 “拐点”是复数形式，因为你可以用一个模型来建模CPU，另一个模型来建模磁盘，另一个模型来建模I&#x2F;O控制器，依此类推。）</p>
 <p>回顾一下：</p>
 <ul>
 <li>系统中的每种资源都有一个拐点。</li>
@@ -278,37 +279,37 @@ gtag('config', 'UA-156665333-1');
 <p>我认为供应商往往会花太多的时间去考虑如何使他们的测量代码路径高效，而不首先弄清楚如何使其有效。它完全符合 Knuth 在1974年写的 “过早优化是万恶之源” 的观点[6]。将性能测量集成到产品中的软件设计师更有可能创建快速的应用，更重要的是，随着时间的推移，应用将变得更快。</p>
 <h3 id="Q：关于拐点的公开辩论"><a href="#Q：关于拐点的公开辩论" class="headerlink" title="Q：关于拐点的公开辩论"></a>Q：关于拐点的公开辩论</h3><blockquote>
 <p>在本文中，我将介绍拐点的性能曲线、相关性以及应用。然而，是否值得尝试定义拐点的概念，这是一个至少可以追溯到20年前的争论话题。</p>
-<p>有一个重要的历史看法，我所描述的拐点实际上并没有真正意义。1988年，斯蒂芬·萨姆森认为，至少对于 M/M/1 排队系统，性能曲线中不会出现“拐点”。“选择一个指导性数字并不容易，但经验法则的制定者是正确的。在大多数情况下，没有一个膝盖，无论我们多么希望找到一个。”，萨姆森写道[3a]。</p>
+<p>有一个重要的历史看法，我所描述的拐点实际上并没有真正意义。1988年，斯蒂芬·萨姆森认为，至少对于 M&#x2F;M&#x2F;1 排队系统，性能曲线中不会出现“拐点”。“选择一个指导性数字并不容易，但经验法则的制定者是正确的。在大多数情况下，没有一个膝盖，无论我们多么希望找到一个。”，萨姆森写道[3a]。</p>
 <p>正如我在1999年写的[2a]，整个问题让我想起了青蛙和沸水的寓言。故事说，如果你把一只青蛙扔进一只开水的锅里，它就会逃跑。但是如果你把一只青蛙放进一盆凉水里慢慢加热，青蛙就会耐心地坐在原地直到被煮死。</p>
 <p>利用率，就像沸水一样，显然存在一个“死亡区”，在这个范围内，你无法支撑随机到达式系统的运行。但死亡区的边界在哪里？如果你试图实现一种过程化的方法来管理利用率，你需要知道。</p>
-<p>我的朋友尼尔·冈瑟私下里和我争论过，首先，在没有功能中断的情况下，“拐点”这个词在这里完全用错了。第二，他断言对于 M/M/1 系统，边界值为0.5是浪费性的低，应该能够以比这更高的利用率成功运行这样一个系统。最后，他认为，任何此类特殊利用率值都应明确定义为平均响应时间超过平均响应时间容忍度的利用率值（Figure A）。因此，冈瑟认为，任何有用的不可超过的利用率值，只能从人类偏好的调查中得出，而不是从数学中得出。（有关他的论点，请参阅 <a target="_blank" rel="noopener" href="http://www.cmg.org/measureit/issues/mit62/m_62_15.html">此处</a>。）</p>
+<p>我的朋友尼尔·冈瑟私下里和我争论过，首先，在没有功能中断的情况下，“拐点”这个词在这里完全用错了。第二，他断言对于 M&#x2F;M&#x2F;1 系统，边界值为0.5是浪费性的低，应该能够以比这更高的利用率成功运行这样一个系统。最后，他认为，任何此类特殊利用率值都应明确定义为平均响应时间超过平均响应时间容忍度的利用率值（Figure A）。因此，冈瑟认为，任何有用的不可超过的利用率值，只能从人类偏好的调查中得出，而不是从数学中得出。（有关他的论点，请参阅 <a target="_blank" rel="noopener" href="http://www.cmg.org/measureit/issues/mit62/m_62_15.html">此处</a>。）</p>
 <p><img src="/images/thinking-clearly-about-performance-cn/millsap-a.png" alt="millsap-a.png"></p>
 <p>我在这个论点中看到的问题如 Figure B 所示。假设你对平均响应时间的容忍度是T，如此产生了ρT的最大容许利用率值。请注意，即使在ρT附近的平均利用率出现微小波动，也会导致平均响应时间的巨大波动。</p>
 <p><img src="/images/thinking-clearly-about-performance-cn/millsap-b.png" alt="millsap-b.png"></p>
 <p>我相信你的客户感受到的是差异，而不是平均值。也许他们说他们会接受T以内的平均响应时间，但当一分钟内平均利用率变化1%会导致平均响应时间增加10倍时，人类不会容忍系统的性能问题。</p>
-<p>我确实理解这样一种观点，即我在本文中列出的拐点值低于许多人认为可以安全地超过的利用率值，特别是对于低阶系统，如 M/M/1。但是，重要的是要避免以平均利用率值使用资源，因为利用率的小波动会导致响应时间的过大波动。</p>
+<p>我确实理解这样一种观点，即我在本文中列出的拐点值低于许多人认为可以安全地超过的利用率值，特别是对于低阶系统，如 M&#x2F;M&#x2F;1。但是，重要的是要避免以平均利用率值使用资源，因为利用率的小波动会导致响应时间的过大波动。</p>
 <p>话虽如此，我还没有一个很好的定义来定义过大波动。也许，就像响应时间容忍度一样，不同的人对波动的容忍度也不同。但也许有一个波动容忍系数，适用于所有用户的合理普遍性。例如，Apdex应用性能指数标准，假定用户变得“沮丧”的响应时间 F，通常是其态度从“满意”转变为勉强“容忍”的响应时间 T 的四倍[1a]。</p>
 <p>拐点，不管你如何定义它，或者最终如何称呼它，它是我在本文正文前面描述的容量规划过程的一个重要参数，我相信它是计算机系统工作负载管理的日常过程的一个重要参数。</p>
 <p>我会继续研究。</p>
-<p><strong>References</strong><br>1a. Apdex; <a target="_blank" rel="noopener" href="http://www.apdex.org">http://www.apdex.org</a>.<br>2a. Millsap, C. 1999. Performance management: myths and facts; <a target="_blank" rel="noopener" href="http://method-r.com">http://method-r.com</a>.<br>3a. Samson, S. 1988. MVS performance legends. In Computer Measurement Group Conference Proceedings: 148-159.</p>
+<p><strong>References</strong><br>1a. Apdex; <a target="_blank" rel="noopener" href="http://www.apdex.org/">http://www.apdex.org</a>.<br>2a. Millsap, C. 1999. Performance management: myths and facts; <a target="_blank" rel="noopener" href="http://method-r.com/">http://method-r.com</a>.<br>3a. Samson, S. 1988. MVS performance legends. In Computer Measurement Group Conference Proceedings: 148-159.</p>
 </blockquote>
 <p><strong>References</strong></p>
 <ol>
-<li>CMG (Computer Measurement Group, a network of professionals who study these problems very, very seriously); <a target="_blank" rel="noopener" href="http://www.cmg.org">http://www.cmg.org</a>.</li>
+<li>CMG (Computer Measurement Group, a network of professionals who study these problems very, very seriously); <a target="_blank" rel="noopener" href="http://www.cmg.org/">http://www.cmg.org</a>.</li>
 <li>Eight-second rule; <a target="_blank" rel="noopener" href="http://en.wikipedia.org/wiki/Network_performance#8-second_rule">http://en.wikipedia.org/wiki/Network_performance#8-second_rule</a>.</li>
 <li>Garvin, D. 1993. Building a learning organization. Harvard Business Review (July).</li>
 <li>General Electric Company. What is Six Sigma? The roadmap to customer impact.  <a target="_blank" rel="noopener" href="http://www.ge.com/sixsigma/SixSigma.pdf">http://www.ge.com/sixsigma/SixSigma.pdf</a>.</li>
-<li>Gunther, N. 1993. Universal Law of Computational Scalability; <a target="_blank" rel="noopener" href="http://en.wikipedia.org/wiki/Neil_J.\_Gunther#Universal_Law_of_Computational_Scalability">http://en.wikipedia.org/wiki/Neil_J.\_Gunther#Universal_Law_of_Computational_Scalability</a>.</li>
+<li>Gunther, N. 1993. Universal Law of Computational Scalability; <a target="_blank" rel="noopener" href="http://en.wikipedia.org/wiki/Neil_J./_Gunther#Universal_Law_of_Computational_Scalability">http://en.wikipedia.org/wiki/Neil_J.\_Gunther#Universal_Law_of_Computational_Scalability</a>.</li>
 <li>Knuth, D. 1974. Structured programming with Go To statements. ACM Computing Surveys 6(4): 268.</li>
 <li>Kyte, T. 2009. A couple of links and an advert…; <a target="_blank" rel="noopener" href="http://tkyte.blogspot.com/2009/02/couple-of-links-and-advert.html">http://tkyte.blogspot.com/2009/02/couple-of-links-and-advert.html</a>.</li>
 <li>Millsap, C. 2009. My whole system is slow. Now what? <a target="_blank" rel="noopener" href="http://carymillsap.blogspot.com/2009/12/my-whole-system-is-slow-now-what.html">http://carymillsap.blogspot.com/2009/12/my-whole-system-is-slow-now-what.html</a>.</li>
 <li>Millsap, C. 2009. On the importance of diagnosing before resolving.  <a target="_blank" rel="noopener" href="http://carymillsap.blogspot.com/2009/09/on-importance-of-diagnosing-before.html">http://carymillsap.blogspot.com/2009/09/on-importance-of-diagnosing-before.html</a>.</li>
 <li>Millsap, C. 2009. Performance optimization with Global Entry. Or not? <a target="_blank" rel="noopener" href="http://carymillsap.blogspot.com/2009/11/performance-optimization-with-global.html">http://carymillsap.blogspot.com/2009/11/performance-optimization-with-global.html</a>.</li>
 <li>Millsap, C., Holt, J. 2003. Optimizing Oracle Performance. Sebastopol, CA: O’Reilly.</li>
-<li>Oak Table Network; <a target="_blank" rel="noopener" href="http://www.oaktable.net">http://www.oaktable.net</a>.</li>
+<li>Oak Table Network; <a target="_blank" rel="noopener" href="http://www.oaktable.net/">http://www.oaktable.net</a>.</li>
 </ol>
 <p>原文链接：<a target="_blank" rel="noopener" href="https://queue.acm.org/detail.cfm?id=1854041">Thinking Clearly about Performance</a></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">https://www.cyningsun.com/10-27-2020/thinking-clearly-about-performance-cn-part-two.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">https://www.cyningsun.com/10-27-2020/thinking-clearly-about-performance-cn-part-two.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -325,6 +326,8 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
+            <li><span><a href="/12-22-2023/redis-latency-spike.html">记一次 Redis 延时毛刺问题定位</a></span></li>
+          
             <li><span><a href="/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">译｜Thinking Clearly about Performance (Part 1)</a></span></li>
           
   </ol>
@@ -356,7 +359,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2024 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
