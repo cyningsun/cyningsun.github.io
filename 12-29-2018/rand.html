@@ -202,7 +202,7 @@ gtag('config', 'UA-156665333-1');
   <span class="hljs-keyword">return</span> (<span class="hljs-type">int</span>) __random ();
 &#125;</code></pre>
 <p>可以看到函数调用__random(), 我们继续跟进这个函数</p>
-<p><a target="_blank" rel="noopener" href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random.c;hb=glibc-2.15">stdlib/random.c</a></p>
+<p><a target="_blank" rel="noopener" href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random.c;hb=glibc-2.15">stdlib&#x2F;random.c</a></p>
 <pre><code class="hljs c++">
 <span class="hljs-comment">/* POSIX.1c requires that there is mutual exclusion for the `rand&#x27; and</span>
 <span class="hljs-comment">   `srand&#x27; functions to prevent concurrent calls from modifying common</span>
@@ -223,9 +223,11 @@ __random ()
  
   <span class="hljs-keyword">return</span> retval;
 &#125;</code></pre>
+
 <p>这下真想大白了，函数中有一个锁防止并发调用__random_r()。在文件头可以看到锁初始化的注释，加锁的目的是不希望多线程并发调用，同时修改功能的数据。那么我们是不是可以看下有没有什么替代函数。能否使用不加锁版本的随机数呢？</p>
 <p>从代码中我们可以看到，此段代码调用了__rand_r()，我们看下它做了什么？</p>
-<p><a target="_blank" rel="noopener" href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random_r.c;hb=glibc-2.15">random_r.c</a><br><pre><code class="hljs c++"><span class="hljs-comment">/* </span>
+<p><a target="_blank" rel="noopener" href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=stdlib/random_r.c;hb=glibc-2.15">random_r.c</a></p>
+<pre><code class="hljs c++"><span class="hljs-comment">/* </span>
 <span class="hljs-comment">   If we are using the trivial TYPE_0 R.N.G., just do the old linear</span>
 <span class="hljs-comment">   congruential bit.  Otherwise, we do our fancy trinomial stuff, which is the</span>
 <span class="hljs-comment">   same in all the other cases due to all the global variables that have been</span>
@@ -286,39 +288,40 @@ __random_r (buf, result)
  fail:
   __set_errno (EINVAL);
   <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
-&#125;</code></pre><br>以上就是主要的运算式了,基本上输入会有两个值, buf 与result, result 就是结果, 而buf则是输入的一种seed, rand()会挑一个默认值,每次调用会改变他的默认值,这也是为什么它用锁去保护他的原因,避免两个线程取到相同的值。由于在多线程情况下，不同线程是为不同用户的请求提供服务的，因此两个线程取到同相同的值，并不会影响逻辑和功能。</p>
+&#125;</code></pre>
+<p>以上就是主要的运算式了,基本上输入会有两个值, buf 与result, result 就是结果, 而buf则是输入的一种seed, rand()会挑一个默认值,每次调用会改变他的默认值,这也是为什么它用锁去保护他的原因,避免两个线程取到相同的值。由于在多线程情况下，不同线程是为不同用户的请求提供服务的，因此两个线程取到同相同的值，并不会影响逻辑和功能。</p>
 <p>因此，<strong>在多线程服务中，建议可以直接调用rand_r()代替rand()</strong></p>
 <h3 id="伪随机生成算法"><a href="#伪随机生成算法" class="headerlink" title="伪随机生成算法"></a>伪随机生成算法</h3><p>那么上面这段代码究竟是什么是在做什么呢？其实主要是实现了线性同余算法与线性累加反馈法。</p>
 <p>线性同余法</p>
 <p>线性同余法，LCG(linear congruential generator)，是经典的伪随机数产生器算法，速度快，容易理解实现。 LCG 算法数学上基于公式：</p>
-<p>X(n+1) = (a * X(n) + c) % m</p>
-<p>其中，各系数为：模m, 系数a, 0 &lt; a &lt; m，增量c, 0 &lt;= c &lt; m，原始值(种子) 0 &lt;= X(0) &lt; m 。其中参数c, m, a比较敏感，或者说直接影响了伪随机数产生的质量。</p>
-<p>GLIBC中对LCG的实现，取a = 1103515245, c = 12345, m = 134217728，即</p>
+<p>X(n+1) &#x3D; (a * X(n) + c) % m</p>
+<p>其中，各系数为：模m, 系数a, 0 &lt; a &lt; m，增量c, 0 &lt;&#x3D; c &lt; m，原始值(种子) 0 &lt;&#x3D; X(0) &lt; m 。其中参数c, m, a比较敏感，或者说直接影响了伪随机数产生的质量。</p>
+<p>GLIBC中对LCG的实现，取a &#x3D; 1103515245, c &#x3D; 12345, m &#x3D; 134217728，即</p>
 <blockquote>
-<p>X(n+1) = (1103515245 * X(n) + 12345) &amp; 2147483647</p>
+<p>X(n+1) &#x3D; (1103515245 * X(n) + 12345) &amp; 2147483647</p>
 </blockquote>
 <p>线性累加反馈法</p>
-<p>线性累加反馈法，即LAFM（linear additive feedback method），以下是GLIBC使用的线性累加反馈法的流程描述。其中，2147483647 = 2^31 – 1，4294967296 = 2^32. 所有变量都是整数。 对于给定的种子常量s, 初始化序列r0…r33通过以下步骤计算：</p>
+<p>线性累加反馈法，即LAFM（linear additive feedback method），以下是GLIBC使用的线性累加反馈法的流程描述。其中，2147483647 &#x3D; 2^31 – 1，4294967296 &#x3D; 2^32. 所有变量都是整数。 对于给定的种子常量s, 初始化序列r0…r33通过以下步骤计算：</p>
 <ol>
-<li>r(0) = s</li>
-<li>r(i) = (16807 * r(i-1) ) % 2147483647 (i = 1…30)</li>
-<li>r(i) = r(i-31) (i = 31…33)<blockquote>
+<li>r(0) &#x3D; s</li>
+<li>r(i) &#x3D; (16807 * r(i-1) ) % 2147483647 (i &#x3D; 1…30)</li>
+<li>r(i) &#x3D; r(i-31) (i &#x3D; 31…33)<blockquote>
 <p>注意数乘16807的结果应该由足够大的整数类型存储，避免取模操作之前发生值溢出。r(i-1)在乘法操作已经是32位整数，r(i)计算结果确保是0到2147483646之间的正整数, 即使r(i-1)为负数。</p>
 </blockquote>
 </li>
 </ol>
 <p>从r34开始的伪随机序列，通过以下的线性反馈循环来计算：</p>
-<ol>
-<li>r(i) = (r(i-3) + r(i-31)) % 4294967296 (i ≥ 34)</li>
+<ol start="4">
+<li>r(i) &#x3D; (r(i-3) + r(i-31)) % 4294967296 (i ≥ 34)</li>
 </ol>
 <p>忽略掉r0…r343序列，rand()函数输出的伪随机数o(i)为：</p>
-<ol>
-<li>o(i) = r(i+344) &gt;&gt; 1<blockquote>
+<ol start="5">
+<li>o(i) &#x3D; r(i+344) &gt;&gt; 1<blockquote>
 <p>r(i+344)的个位数字移除，生成31位随机数o(i)。</p>
 </blockquote>
 </li>
 </ol>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/12-29-2018/rand.html">https://www.cyningsun.com/12-29-2018/rand.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/12-29-2018/rand.html">https://www.cyningsun.com/12-29-2018/rand.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -357,7 +360,7 @@ __random_r (buf, result)
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2024 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>

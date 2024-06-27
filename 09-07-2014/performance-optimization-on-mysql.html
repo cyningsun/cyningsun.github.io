@@ -189,7 +189,7 @@ gtag('config', 'UA-156665333-1');
  
         <h3 id="如何做性能优化？"><a href="#如何做性能优化？" class="headerlink" title="如何做性能优化？"></a>如何做性能优化？</h3><p>做好性能优化应该理解什么是性能优化。按照我的理解性能就是“从请求发起到得到响应所需要的时间”，而优化就是目标，是为了降低响应时间。</p>
 <h4 id="1-选定优化目标-what"><a href="#1-选定优化目标-what" class="headerlink" title="1.选定优化目标(what)"></a>1.选定优化目标(what)</h4><p>为了在有效的时间内做好性能优化达到成本与结果成正比，优化哪些目标同样重要。实际工作中所有的时间都是有成本的，理清轻重缓急与主次相当重要。根据阿姆达尔，对于一个时间比重占用不超过5%的查询进行优化，无论如何努力，收益也不会超过5%。例如，此次优化的选择：先用户侧后商户侧(前者对响应时间比较敏感)，先黄金路径接口后功能路径接口。</p>
-<h4 id="2、如何进行优化"><a href="#2、如何进行优化" class="headerlink" title="2、如何进行优化"></a>2、如何进行优化</h4><p>如果目标是降低响应时间，那么首先我们要弄清楚“时间都去哪儿了”，对症下药的方案也就比较明了。完成一项任务所需的时间一般分为两个部分：执行时间和等待时间。<br>如果想优化等待时间，最好的办法是测量和定位不同子任务花费的时间，然后选择一些耗时不正常的子任务优化。优化等待时间意味着等待是如何发生的，等待可能是由于不同子任务或者子系统间接影响导致，也可能由于磁盘I/O、CPU资源争抢、网络传输。更深入一点，如果业务程序是CPU消耗性的，可能系统调用也会影响响应时间。</p>
+<h4 id="2、如何进行优化"><a href="#2、如何进行优化" class="headerlink" title="2、如何进行优化"></a>2、如何进行优化</h4><p>如果目标是降低响应时间，那么首先我们要弄清楚“时间都去哪儿了”，对症下药的方案也就比较明了。完成一项任务所需的时间一般分为两个部分：执行时间和等待时间。<br>如果想优化等待时间，最好的办法是测量和定位不同子任务花费的时间，然后选择一些耗时不正常的子任务优化。优化等待时间意味着等待是如何发生的，等待可能是由于不同子任务或者子系统间接影响导致，也可能由于磁盘I&#x2F;O、CPU资源争抢、网络传输。更深入一点，如果业务程序是CPU消耗性的，可能系统调用也会影响响应时间。</p>
 <h4 id="总结一下："><a href="#总结一下：" class="headerlink" title="总结一下："></a>总结一下：</h4><blockquote>
 <p>1.优化值得优化的查询，优化成本大于收益时就应该停止。<br>2.弄清“时间都去哪儿了”，有的放矢</p>
 </blockquote>
@@ -200,7 +200,7 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <h3 id="MySQL-性能优化小结"><a href="#MySQL-性能优化小结" class="headerlink" title="MySQL 性能优化小结"></a>MySQL 性能优化小结</h3><p>最好的优化永远是与业务关联的、最好的优化永远是良好的设计，所谓的优化只应该作为辅助和应对变更的方法，不应该把所有的任务放到优化阶段，不然所需要的消耗的时间将是指数级的！</p>
 <p>(完)</p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-07-2014/performance-optimization-on-mysql.html">https://www.cyningsun.com/09-07-2014/performance-optimization-on-mysql.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/09-07-2014/performance-optimization-on-mysql.html">https://www.cyningsun.com/09-07-2014/performance-optimization-on-mysql.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -217,15 +217,15 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
-            <li><span><a href="/03-12-2023/how-to-store-objects-in-redis.html">如何使用 Redis 存储对象</a></span></li>
+            <li><span><a href="/06-27-2024/iocost-block-io-control-for-containers-in-datacenters-cn.html">译｜IOCost: Block IO Control for Containers in Datacenters</a></span></li>
           
-            <li><span><a href="/02-14-2023/details-about-redis-cluster.html">Redis cluster 细节与技术选型</a></span></li>
+            <li><span><a href="/05-18-2024/efficient-io-with-io_uring.html">译｜Efficient IO with io_uring</a></span></li>
           
-            <li><span><a href="/01-27-2023/etcd-implement-and-tech-selection.html">etcd 实现与选型分析</a></span></li>
+            <li><span><a href="/08-20-2023/go-redis-connection-timeout.html">go-redis 超时机制</a></span></li>
           
-            <li><span><a href="/06-06-2021/mysql-design-guide.html">MySQL 设计与查询规范</a></span></li>
+            <li><span><a href="/07-04-2023/redis-cluster-gossip.html">深入理解 Redis cluster GOSSIP 协议</a></span></li>
           
-            <li><span><a href="/09-06-2020/redis-migrate-key-lost.html">记一次 Redis 迁移 —— Key 丢失问题排查</a></span></li>
+            <li><span><a href="/06-05-2023/go-redis-connection-pool.html">如何配置 go-redis 连接池</a></span></li>
           
   </ol>
 
@@ -256,7 +256,7 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2024 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
