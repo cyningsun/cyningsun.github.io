@@ -439,12 +439,8 @@ body {
   margin-right: auto;
   margin-left: auto;
 }
-.container a {
-  border-bottom: 1px #8a8a8a dotted;
-  text-decoration: none;
-}
 time {
-  color: #c9c9c9;
+  color: #555;
   font-family: "Helvetica Neue", helvetica, "Open Sans", sans-serif;
   font-weight: 100;
   text-shadow: 1px 1px #fff;
@@ -462,6 +458,14 @@ time {
 }
 .recent-posts h3 {
   line-height: 2;
+}
+.recent-posts h3 a {
+  border-bottom: 1px solid #1abc9c;
+}
+.recent-posts h3 a:hover {
+  border-bottom-color: #555;
+  color: #555;
+  text-decoration: none;
 }
 .badge {
   display: inline-block;
