@@ -240,10 +240,15 @@ gtag('config', 'UA-156665333-1');
 	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">malloc_chunk</span>* <span class="hljs-title">fd_nextsize</span>;</span> <span class="hljs-comment">/* double links -- used only if free. */</span>
 	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">malloc_chunk</span>* <span class="hljs-title">bk_nextsize</span>;</span>
 &#125;;</code></pre>
+
 <p><img src="/images/allocator/ptmalloc-logical.png" alt="skiplist"></p>
-<p>&gt;<br>注意：Main arena 无需维护多个堆，因此也无需 heap_info。当空间耗尽时，与 thread arena 不同，main arena 可以通过 sbrk 拓展堆段，直至堆段「碰」到内存映射段；</p>
+<blockquote>
+</blockquote>
+<p>注意：Main arena 无需维护多个堆，因此也无需 heap_info。当空间耗尽时，与 thread arena 不同，main arena 可以通过 sbrk 拓展堆段，直至堆段「碰」到内存映射段；</p>
 <h5 id="用户向看ptmalloc内存管理"><a href="#用户向看ptmalloc内存管理" class="headerlink" title="用户向看ptmalloc内存管理"></a>用户向看ptmalloc内存管理</h5><p>当某一线程需要调用malloc()分配内存空间时，该线程先查看线程私有变量中是否已经存在一个分配区，如果存在，尝试对该分配区加锁，如果加锁成功，使用该分配区分配内存，如果失败，该线程搜索循环链表试图获得一个没有加锁的分配区。如果所有的分配区都已经加锁，那么malloc()会开辟一个新的分配区，把该分配区加入到全局分配区循环链表并加锁，然后使用该分配区进行分配内存操作。在释放操作中，线程同样试图获得待释放内存块所在分配区的锁，如果该分配区正在被别的线程使用，则需要等待直到其他线程释放该分配区的互斥锁之后才可以进行释放操作。</p>
-<p>&gt;<br>For 32 bit systems:<br>    Number of arena = 2 <em> number of cores + 1.<br>For 64 bit systems:<br>    Number of arena = 8 </em> number of cores + 1.  </p>
+<blockquote>
+</blockquote>
+<p>For 32 bit systems:<br>    Number of arena &#x3D; 2 * number of cores + 1.<br>For 64 bit systems:<br>    Number of arena &#x3D; 8 * number of cores + 1.  </p>
 <h5 id="线程中内存管理"><a href="#线程中内存管理" class="headerlink" title="线程中内存管理"></a>线程中内存管理</h5><p>对于空闲的chunk，ptmalloc采用分箱式内存管理方式，每一个内存分配区中维护着[bins]的列表数据结构，用于保存free chunks。根据空闲chunk的大小和处于的状态将其放在四个不同的bin中，这四个空闲chunk的容器包括fast bins，unsorted bin， small bins和large bins。</p>
 <p><strong>从工作原理来看：</strong></p>
 <ul>
@@ -274,7 +279,7 @@ gtag('config', 'UA-156665333-1');
 <p>备注：glibc 2.26( <a target="_blank" rel="noopener" href="https://sourceware.org/glibc/wiki/Release/2.26">2017-08-02</a> )中已经添加了tcache(thread local cache)优化malloc速度</p>
 </blockquote>
 <h3 id="tcmalloc"><a href="#tcmalloc" class="headerlink" title="tcmalloc"></a>tcmalloc</h3><p>tcmalloc是Google开发的内存分配器，在Golang、Chrome中都有使用该分配器进行内存分配。有效的优化了ptmalloc中存在的问题。当然为此也付出了一些代价，按下不表，先看tcmalloc的具体实现。</p>
-<h5 id="系统向看tcmalloc内存管理"><a href="#系统向看tcmalloc内存管理" class="headerlink" title="系统向看tcmalloc内存管理"></a>系统向看tcmalloc内存管理</h5><p>tcmalloc把8kb的连续内存称为一个页(Page)，可以用下面两个常量来描述：<br>const size_t kPageShift = 13;<br>const size_t kPageSize = 1 &lt;&lt; kPageShift;<br>对于一个指针p，p&gt;&gt;kPageShift即是p的页地址。同样的对于一个页地址x，管理的实际内存区间是[x &lt;<kPageShift, (x+1)<<kPageShift)。一个或多个连续的页组成一个Span.对于一个Span，管理的实际内存区间是[start<<kPageShift,  (start+length)<<kPageShift)。tcmalloc中所有页级别的操作，都是对Span的操作。PageHeap是一个全局的用来管理Span的类。PageHeap把小于的空闲Span保存在双向循环链表上，而大的span则保存在SET中。保证了所有的内存的申请速度，减少了内存查找。
+<h5 id="系统向看tcmalloc内存管理"><a href="#系统向看tcmalloc内存管理" class="headerlink" title="系统向看tcmalloc内存管理"></a>系统向看tcmalloc内存管理</h5><p>tcmalloc把8kb的连续内存称为一个页(Page)，可以用下面两个常量来描述：<br>const size_t kPageShift &#x3D; 13;<br>const size_t kPageSize &#x3D; 1 &lt;&lt; kPageShift;<br>对于一个指针p，p&gt;&gt;kPageShift即是p的页地址。同样的对于一个页地址x，管理的实际内存区间是[x &lt;&lt;kPageShift, (x+1)&lt;&lt;kPageShift)。一个或多个连续的页组成一个Span.对于一个Span，管理的实际内存区间是[start&lt;&lt;kPageShift,  (start+length)&lt;&lt;kPageShift)。tcmalloc中所有页级别的操作，都是对Span的操作。PageHeap是一个全局的用来管理Span的类。PageHeap把小于的空闲Span保存在双向循环链表上，而大的span则保存在SET中。保证了所有的内存的申请速度，减少了内存查找。</p>
 <pre><code class="hljs c"><span class="hljs-comment">// Information kept for a span (a contiguous run of pages).</span>
 <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">Span</span> &#123;</span>
   PageID        start;          <span class="hljs-comment">// Starting page number</span>
@@ -318,21 +323,23 @@ SpanList free_[kMaxPages];
 <span class="hljs-comment">// Rather than using a linked list, we use sets here for efficient</span>
 <span class="hljs-comment">// best-fit search.</span>
 SpanSet large_normal_;
-SpanSet large_returned_;</code></pre></p>
+SpanSet large_returned_;</code></pre>
+
 <p><img src="/images/allocator/tcmalloc.png" alt="skiplist"></p>
 <h5 id="用户向看tcmalloc内存管理"><a href="#用户向看tcmalloc内存管理" class="headerlink" title="用户向看tcmalloc内存管理"></a>用户向看tcmalloc内存管理</h5><p>TCMalloc是专门对多线并发的内存管理而设计的，TCMalloc主要是在线程级实现了缓存，使得用户在申请内存时大多情况下是无锁内存分配。整个 TCMalloc 实现了三级缓存，分别是ThreadCache(线程级缓存)，Central Cache(中央缓存：CentralFreeeList)，PageHeap(页缓存)，最后两级需要加锁访问。如图为内存分配<br><img src="/images/allocator/tcmalloc-simple.png" alt="skiplist"></p>
-<p>每个线程都一个线程局部的 ThreadCache，ThreadCache中包含一个链表数组FreeList list_[kNumClasses]，维护了不同规格的空闲内存的链表；当申请内存的时候可以直接根据大小寻找恰当的规则的内存。如果ThreadCache的对象不够了，就从 CentralCache 进行批量分配；如果 CentralCache 依然没有，就从PageHeap申请Span；PageHeap首先在free[n,128]中查找、然后到large set中查找，目标就是找到一个最小的满足要求的空闲Span，优先使用normal类链表中的Span。如果找到了一个Span，则尝试分裂(Carve)这个Span并分配出去；如果所有的链表中都没找到length&gt;=n的Span，则只能从操作系统申请了。Tcmalloc一次最少向系统申请1MB的内存，默认情况下，使用sbrk申请，在sbrk失败的时候，使用mmap申请。 </p>
+<p>每个线程都一个线程局部的 ThreadCache，ThreadCache中包含一个链表数组FreeList list_[kNumClasses]，维护了不同规格的空闲内存的链表；当申请内存的时候可以直接根据大小寻找恰当的规则的内存。如果ThreadCache的对象不够了，就从 CentralCache 进行批量分配；如果 CentralCache 依然没有，就从PageHeap申请Span；PageHeap首先在free[n,128]中查找、然后到large set中查找，目标就是找到一个最小的满足要求的空闲Span，优先使用normal类链表中的Span。如果找到了一个Span，则尝试分裂(Carve)这个Span并分配出去；如果所有的链表中都没找到length&gt;&#x3D;n的Span，则只能从操作系统申请了。Tcmalloc一次最少向系统申请1MB的内存，默认情况下，使用sbrk申请，在sbrk失败的时候，使用mmap申请。 </p>
 <p>当我们申请的内存大于kMaxSize(256k)的时候，内存大小超过了ThreadCache和CenterCache的最大规格，所以会直接从全局的PageHeap中申请最小的Span分配出去(return span-&gt;start &lt;&lt; kPageShift))；</p>
 <h5 id="tcmalloc的优势"><a href="#tcmalloc的优势" class="headerlink" title="tcmalloc的优势"></a>tcmalloc的优势</h5><ul>
 <li>小内存可以在ThreadCache中不加锁分配(加锁的代价大约100ns)      </li>
 <li>大内存可以直接按照大小分配不需要再像ptmalloc一样进行查找      </li>
 <li>大内存加锁使用更高效的自旋锁     </li>
-<li>减少了<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/29216091">内存碎片</a>      </li>
+<li>减少了<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/29216091">内存碎片</a></li>
 </ul>
 <p>然而，tcmalloc也带来了一些问题，使用自旋锁虽然减少了加锁效率，但是如果使用大内存较多的情况下，内存在Central Cache或者Page Heap加锁分配。而tcmalloc对大小内存的分配过于保守，在一些内存需求较大的服务（如推荐系统），小内存上限过低，当请求量上来，锁冲突严重，CPU使用率将指数暴增。</p>
-<h3 id="jemalloc"><a href="#jemalloc" class="headerlink" title="jemalloc"></a>jemalloc</h3><p>jemalloc是facebook推出的，目前在firefox、facebook服务器、android 5.0 等服务中大量使用。 jemalloc最大的优势还是其强大的多核/多线程分配能力. 以现代计算机硬件架构来说, 最大的瓶颈已经不再是内存容量或cpu速度, 而是多核/多线程下的lock contention(锁竞争). 因为无论CPU核心数量如何多, 通常情况下内存只有一份. 可以说, 如果内存足够大, CPU的核心数量越多, 程序线程数越多, jemalloc的分配速度越快。</p>
+<h3 id="jemalloc"><a href="#jemalloc" class="headerlink" title="jemalloc"></a>jemalloc</h3><p><a target="_blank" rel="noopener" href="https://github.com/jemalloc/jemalloc/wiki/Background">jemalloc</a> 最初由 Jason Evans 开发，用于 FreeBSD 的 libc 库，后续在 firefox、facebook 服务器、android 5.0 等服务中大量使用。 jemalloc最大的优势还是其强大的多核&#x2F;多线程分配能力. 以现代计算机硬件架构来说, 最大的瓶颈已经不再是内存容量或cpu速度, 而是多核&#x2F;多线程下的lock contention(锁竞争). 因为无论CPU核心数量如何多, 通常情况下内存只有一份. 可以说, 如果内存足够大, CPU的核心数量越多, 程序线程数越多, jemalloc的分配速度越快。</p>
 <h5 id="系统向看jemalloc内存管理"><a href="#系统向看jemalloc内存管理" class="headerlink" title="系统向看jemalloc内存管理"></a>系统向看jemalloc内存管理</h5><p>对于一个多线程+多CPU核心的运行环境, 传统分配器中大量开销被浪费在lock contention和false sharing上, 随着线程数量和核心数量增多, 这种分配压力将越来越大.针对多线程, 一种解决方法是将一把global lock分散成很多与线程相关的lock. 而针对多核心, 则要尽量把不同线程下分配的内存隔离开, 避免不同线程使用同一个cache-line的情况.按照上面的思路, 一个较好的实现方式就是引入arena.将内存划分成若干数量的arenas, 线程最终会与某一个arena绑定.由于两个arena在地址空间上几乎不存在任何联系, 就可以在无锁的状态下完成分配. 同样由于空间不连续, 落到同一个cache-line中的几率也很小, 保证了各自独立。由于arena的数量有限, 因此不能保证所有线程都能独占arena, 分享同一个arena的所有线程, 由该arena内部的lock保持同步.</p>
-<p>chunk是仅次于arena的次级内存结构，arena都有专属的chunks, 每个chunk的头部都记录了chunk的分配信息。chunk是具体进行内存分配的区域，目前的默认大小是4M。chunk以page（默认为4K)为单位进行管理，每个chunk的前几个page（默认是6个）用于存储chunk的元数据，后面跟着一个或多个page的runs。后面的runs可以是未分配区域， 多个小对象组合在一起组成run, 其元数据放在run的头部。 大对象构成的run, 其元数据放在chunk的头部。在使用某一个chunk的时候，会把它分割成很多个run，并记录到bin中。不同size的class对应着不同的bin，在bin里，都会有一个红黑树来维护空闲的run，并且在run里，使用了bitmap来记录了分配状态。此外，每个arena里面维护一组按地址排列的可获得的run的红黑树。<br><pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">arena_s</span> &#123;</span>
+<p>chunk是仅次于arena的次级内存结构，arena都有专属的chunks, 每个chunk的头部都记录了chunk的分配信息。chunk是具体进行内存分配的区域，目前的默认大小是4M。chunk以page（默认为4K)为单位进行管理，每个chunk的前几个page（默认是6个）用于存储chunk的元数据，后面跟着一个或多个page的runs。后面的runs可以是未分配区域， 多个小对象组合在一起组成run, 其元数据放在run的头部。 大对象构成的run, 其元数据放在chunk的头部。在使用某一个chunk的时候，会把它分割成很多个run，并记录到bin中。不同size的class对应着不同的bin，在bin里，都会有一个红黑树来维护空闲的run，并且在run里，使用了bitmap来记录了分配状态。此外，每个arena里面维护一组按地址排列的可获得的run的红黑树。 </p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">arena_s</span> &#123;</span>
     ...
     <span class="hljs-comment">/* 当前arena管理的dirty chunks */</span>
     <span class="hljs-type">arena_chunk_tree_t</span>  chunks_dirty;
@@ -376,7 +383,8 @@ SpanSet large_returned_;</code></pre></p>
     <span class="hljs-type">uint32_t</span>    nextind;
     <span class="hljs-comment">/* 当前run中空闲块数目. */</span>
     <span class="hljs-type">unsigned</span>    nfree;
-&#125;;</code></pre><br><img src="/images/allocator/jemalloc.png" alt="skiplist"></p>
+&#125;;</code></pre>
+<p><img src="/images/allocator/jemalloc.png" alt="skiplist"></p>
 <h5 id="用户向看jemalloc内存管理"><a href="#用户向看jemalloc内存管理" class="headerlink" title="用户向看jemalloc内存管理"></a>用户向看jemalloc内存管理</h5><p>jemalloc 按照内存分配请求的尺寸，分了 small object (例如 1 – 57344B)、 large object (例如 57345 – 4MB )、 huge object (例如 4MB以上)。jemalloc同样有一层线程缓存的内存名字叫tcache，当分配的内存大小小于tcache_maxclass时，jemalloc会首先在tcache的small object以及large object中查找分配，tcache不中则从arena中申请run，并将剩余的区域缓存到tcache。若arena找不到合适大小的内存块， 则向系统申请内存。当申请大小大于tcache_maxclass且大小小于huge大小的内存块时，则直接从arena开始分配。而huge object的内存不归arena管理， 直接采用mmap从system memory中申请，并由一棵与arena独立的红黑树进行管理。<br><img src="/images/allocator/jemalloc-simple.png" alt="skiplist"></p>
 <h6 id="jemalloc的优势"><a href="#jemalloc的优势" class="headerlink" title="jemalloc的优势"></a>jemalloc的优势</h6><ul>
 <li>多线程下加锁大大减少</li>
@@ -388,7 +396,7 @@ SpanSet large_returned_;</code></pre></p>
 <li>内存当作磁盘使用的情况下，需要考虑内存分配和释放的效率，是使用内存管理库还是应该自己进行大对象大内存的管理。（在搜索以及推荐系统中尤为突出）</li>
 </ul>
 <p><em>参考链接：</em><br>[0]:<a target="_blank" rel="noopener" href="http://mqzhuang.iteye.com/blog/1005909">http://mqzhuang.iteye.com/blog/1005909</a><br/><br>[1]:<a target="_blank" rel="noopener" href="https://paper.seebug.org/papers/Archive/refs/heap/glibc%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86ptmalloc%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90.pdf">https://paper.seebug.org/papers/Archive/refs/heap/glibc%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86ptmalloc%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90.pdf</a><br/><br>[2]:<a target="_blank" rel="noopener" href="http://core-analyzer.sourceforge.net/index_files/Page335.html">http://core-analyzer.sourceforge.net/index_files/Page335.html</a><br/><br>[3]:<a target="_blank" rel="noopener" href="https://blog.csdn.net/maokelong95/article/details/51989081">https://blog.csdn.net/maokelong95/article/details/51989081</a><br/><br>[4]:<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/29216091">https://zhuanlan.zhihu.com/p/29216091</a><br/><br>[5]:<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/29415507">https://zhuanlan.zhihu.com/p/29415507</a><br/><br>[6]:<a target="_blank" rel="noopener" href="https://blog.csdn.net/zwleagle/article/details/45113303">https://blog.csdn.net/zwleagle/article/details/45113303</a><br/><br>[7]:<a target="_blank" rel="noopener" href="http://game.academy.163.com/library/2015/2/10/17713_497699.html">http://game.academy.163.com/library/2015/2/10/17713_497699.html</a><br/><br>[8]:<a target="_blank" rel="noopener" href="https://www.cnblogs.com/taoxinrui/p/6492733.html">https://www.cnblogs.com/taoxinrui/p/6492733.html</a><br/><br>[9]:<a target="_blank" rel="noopener" href="https://blog.csdn.net/vector03/article/details/50634802">https://blog.csdn.net/vector03/article/details/50634802</a><br/><br>[10]:<a target="_blank" rel="noopener" href="http://brionas.github.io/2015/01/31/jemalloc%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/">http://brionas.github.io/2015/01/31/jemalloc%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/</a><br/></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/07-07-2018/memory-allocator-contrasts.html">https://www.cyningsun.com/07-07-2018/memory-allocator-contrasts.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/07-07-2018/memory-allocator-contrasts.html">https://www.cyningsun.com/07-07-2018/memory-allocator-contrasts.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -427,12 +435,20 @@ SpanSet large_returned_;</code></pre></p>
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2024 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

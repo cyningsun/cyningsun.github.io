@@ -191,6 +191,7 @@ gtag('config', 'UA-156665333-1');
 	<span class="hljs-keyword">return</span> id[<span class="hljs-number">6</span>:<span class="hljs-number">14</span>]
 &#125;
 </code></pre>
+
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> (
 	id = <span class="hljs-string">&quot;412717199109031697&quot;</span>
 )
@@ -201,6 +202,7 @@ gtag('config', 'UA-156665333-1');
 		t.Errorf(<span class="hljs-string">&quot;unexpected birthday, wanted:%v, found:%v&quot;</span>, wanted, found)
 	&#125;
 &#125;</code></pre>
+
 <p>简单的数据，如此实现倒也问题不大。但生产环境中往往遇到的都是复杂的多的数据和操作。此时就需要将数据和操作封装在一起</p>
 <h3 id="封装"><a href="#封装" class="headerlink" title="封装"></a>封装</h3><p>Golang 中可以通过 <code>type</code> 关键字创建新的类型，同时使用 <code>NewXXX</code> 的风格创建对象。</p>
 <pre><code class="hljs go"><span class="hljs-keyword">type</span> ID <span class="hljs-type">string</span>
@@ -215,6 +217,7 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(i ID)</span></span> Birthday() <span class="hljs-type">string</span> &#123;
 	<span class="hljs-keyword">return</span> <span class="hljs-type">string</span>(i[<span class="hljs-number">6</span>:<span class="hljs-number">14</span>])
 &#125;</code></pre>
+
 <pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestID_Birthday</span><span class="hljs-params">(t *testing.T)</span></span> &#123;
 	found := ID(id).Birthday()
 	wanted := <span class="hljs-string">&quot;19910903&quot;</span>
@@ -222,6 +225,7 @@ gtag('config', 'UA-156665333-1');
 		t.Errorf(<span class="hljs-string">&quot;unexpected birthday, wanted:%v, found:%v&quot;</span>, wanted, found)
 	&#125;
 &#125;</code></pre>
+
 <p>当业务变得更加复杂，同一种功能，存在多种实现方式，比如支付方式，微信支付、京东支付、支付宝、银联等不同渠道的大概流程大抵相似，但实现细节有所区别。此时就需要借助多态的动态绑定来进行业务抽象。</p>
 <h3 id="多态"><a href="#多态" class="headerlink" title="多态"></a>多态</h3><p>Golang 中动态绑定方法的唯一方式是通过接口（interface）来实现的。结构或其他具体类型上的方法始终是静态的。</p>
 <pre><code class="hljs go"><span class="hljs-keyword">type</span> ID <span class="hljs-keyword">interface</span> &#123;
@@ -241,6 +245,7 @@ gtag('config', 'UA-156665333-1');
 	<span class="hljs-keyword">return</span> <span class="hljs-type">string</span>(i[<span class="hljs-number">6</span>:<span class="hljs-number">14</span>])
 &#125;
 </code></pre>
+
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> (
 	fakeid = <span class="hljs-string">&quot;412717199109031697&quot;</span>
 )
@@ -254,6 +259,7 @@ gtag('config', 'UA-156665333-1');
 		t.Errorf(<span class="hljs-string">&quot;unexpected birthday, wanted:%v, found:%v&quot;</span>, wanted, found)
 	&#125;
 &#125;</code></pre>
+
 <p>除了线性的业务逻辑处理场景，在生产中还会遇到层状的业务流，但是不同层次之间又有很多功能是相通的，此时就需要借助“继承”之类的能力，来实现代码复用。遗憾的是 Golang 中并不存在继承，下面我们介绍它的替代者</p>
 <h3 id="组合"><a href="#组合" class="headerlink" title="组合"></a>组合</h3><p>在最知名的语言中，面向对象编程很多讨论是关于类型之间关系的。Go 采用了不同的实现 —— 隐藏类式的类型依赖。</p>
 <p>在 Go 中，类型会自动满足指定其方法子集的任何接口，无需提前声明两种类型相关联。类型可以一次满足许多接口，而没有传统的多重继承的复杂性。 类型和接口之间没有明确的关系，所以不涉及类型层次结构。类似想法可以用来构造像类型安全的 Unix 管道一样的实现。</p>
@@ -291,6 +297,7 @@ gtag('config', 'UA-156665333-1');
 	ID
 	name <span class="hljs-type">string</span>
 &#125;</code></pre>
+
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> (
 	peterid = <span class="hljs-string">&quot;412717199109031697&quot;</span>
 	samid   = <span class="hljs-string">&quot;312717199109036148&quot;</span>
@@ -309,9 +316,10 @@ gtag('config', 'UA-156665333-1');
 	&#125;
 
 &#125;</code></pre>
+
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>Write go in go way. Golang 很多经典的思想都可以通过官方文档获得，例如：<a target="_blank" rel="noopener" href="https://golang.org/doc/faq">FAQ</a>。</p>
 <p><em>源代码：</em><a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test/tree/master/20210311-oop-in-go">https://github.com/cyningsun/go-test/tree/master/20210311-oop-in-go</a></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-12-2021/oop-in-go.html">https://www.cyningsun.com/03-12-2021/oop-in-go.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/03-12-2021/oop-in-go.html">https://www.cyningsun.com/03-12-2021/oop-in-go.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -367,12 +375,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2024 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

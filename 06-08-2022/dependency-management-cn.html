@@ -205,7 +205,7 @@ gtag('config', 'UA-156665333-1');
 <p>其中一些工具，如 <code>buildizer</code> 和 <code>buildozer</code>，可以放在 <a target="_blank" rel="noopener" href="https://github.com/bazelbuild/buildtools">buildtools</a> 目录中与 Bazel 一起使用</p>
 <h3 id="最小化模块可见性"><a href="#最小化模块可见性" class="headerlink" title="最小化模块可见性"></a>最小化模块可见性</h3><p>Bazel 和其他构建系统允许每个目标指定可见性：一种指定哪些目标可以依赖于它的属性。目标可以是公共的，此时，工作区中的任何其他目标都可以引用它；私有的，此时，只允许同一个 BUILD 文件中引用它；或仅对明确定义的其他目标列表可见。可见性本质上与依赖相反：如果目标 A 想要依赖目标 B，则目标 B 必须使其自身对目标 A 可见。与大多数编程语言一样，通常最好尽可能降低可见性。一般来说，仅当目标代表 Google 的任何团队都可以广泛使用的库时，Google 团队才会公开。要求在使用他们代码之前与他们协调的团队，会维护一份允许的客户目标列表，作为其目标的可见范围。每个团队内部实现的目标将可见性仅限于团队拥有的目录，大多数BUILD 文件只有一个非私有的目标。</p>
 <h3 id="管理依赖项"><a href="#管理依赖项" class="headerlink" title="管理依赖项"></a>管理依赖项</h3><p>模块需要能够相互引用。将代码库拆分成精细的模块的缺点是，需要管理模块之间的依赖关系（尽管工具可以帮助自动执行）。表达依赖关系通常最终成为 BUILD 文件中的大部分内容。</p>
-<h4 id="内部依赖项"><a href="#内部依赖项" class="headerlink" title="内部依赖项"></a>内部依赖项</h4><p>在分解为精细模块的大型项目中，大多数依赖项可能是内部依赖项；即，在同一源代码库中定义和构建的另一个目标。内部依赖项与外部依赖项的不同之处在于，它们是从源代码构建的，而不是在运行构建时以预构建制品下载的。这也意味着内部依赖项没有“版本”概念，目标及其所有内部依赖项始终在存储库中的同一提交/修订时构建。关于内部依赖项，如何处理可传递依赖项（图 1）是一个应谨慎处理的问题。假设目标 A 依赖于目标 B，而目标 B 依赖于通用库目标 C。目标 A 是否能够使用目标 C 中定义的类？</p>
+<h4 id="内部依赖项"><a href="#内部依赖项" class="headerlink" title="内部依赖项"></a>内部依赖项</h4><p>在分解为精细模块的大型项目中，大多数依赖项可能是内部依赖项；即，在同一源代码库中定义和构建的另一个目标。内部依赖项与外部依赖项的不同之处在于，它们是从源代码构建的，而不是在运行构建时以预构建制品下载的。这也意味着内部依赖项没有“版本”概念，目标及其所有内部依赖项始终在存储库中的同一提交&#x2F;修订时构建。关于内部依赖项，如何处理可传递依赖项（图 1）是一个应谨慎处理的问题。假设目标 A 依赖于目标 B，而目标 B 依赖于通用库目标 C。目标 A 是否能够使用目标 C 中定义的类？</p>
 <p><img src="/images/dependency-management-cn/transitive-dependencies.png" alt="transitive-dependencies.png"><br>图 1. 可传递依赖项</p>
 <p>就底层工具而言，这么做没有任何问题； B 和 C 都会在构建时链接到目标 A，因此 C 中定义的任何符号都是已知的。Bazel 多年来一直允许这种情况出现，但随着 Google 不断发展，我们看到了一些问题。假设 B 已重构，使其不再需要依赖于 C。如果 B 对 C 的依赖被移除，那么通过 B 的依赖关系使用 C 的 A 以及其他所有目标都会破坏。实际上，目标的依赖项会成为其公共合约的一部分，永远无法安全更改。这意味着，依赖关系会随着时间的推移而积累，Google 的构建速度会开始变慢。</p>
 <p>Google 最终在 Bazel 中引入了“严格可传递依赖关系模式”，从而解决了此问题。在此模式下，Bazel 会检测目标是否试图直接引用符号，而不依赖于它；如果是的话，则失败，并显示错误以及一条可用于自动插入依赖项的 shell 命令。在 Google 的整个代码库中推广这一变化，并重构数百万个构建目标，以明确列出它们的依赖项，该项目花费了多年的努力，但非常值得。由于目标中不必要依赖项减少，现在构建要快得多。而且，工程师有权删除他们不需要的依赖项，而不用担心破坏依赖它们的目标。</p>
@@ -225,7 +225,7 @@ gtag('config', 'UA-156665333-1');
 <p>如前所述，如需解决制品构建时间较长的问题，一种更好的方式是使用支持远程缓存的构建系统。此类构建系统会将每个构建生成的制品保存到工程师共享的位置，因此如果开发者依赖其他人最近构建的制品，构建系统会自动下载无需构建。这样做提供了直接依赖于工件做法的所有性能优势，同时仍然确保构建与从同一源构建一样。这是 Google 内部使用的策略，Bazel 支持配置使用远程缓存。</p>
 <h4 id="外部依赖的安全性和可靠性"><a href="#外部依赖的安全性和可靠性" class="headerlink" title="外部依赖的安全性和可靠性"></a>外部依赖的安全性和可靠性</h4><p>依赖于第三方来源的制品本身存在风险。如果第三方源代码（例如：制品库）发生故障，则会有可用性风险，因为如果无法下载外部依赖项，整个构建可能会停止。还有一种安全风险：如果第三方系统遭到攻击者入侵，攻击者可以将引用的制品替换为他们自己的设计之一，从而将任意代码注入到您的 build 中。将依赖的任何制品镜像到受控的服务器，并阻止构建系统访问 Maven Central 等第三方制品库，可以解决这两个问题。需要权衡的是，镜像需要精力和资源维护，因此，是否使用它们通常取决于项目的规模。通过在源存储库中指定每个第三方制品的哈希值，也可以完全防止安全问题，而开销很小，如果制品被篡改，则会导致构建失败。另一种完全回避问题的替代方法是拷贝（vendor）项目的依赖项。当项目拷贝（vendor）其依赖项时，它会将这些依赖项和项目的源代码（源代码或二进制文件）签入源代码控制系统。这实际上意味着，项目的所有外部依赖项都会转换为内部依赖项。Google 在内部使用此方法，将整个 Google 中引用的每个第三方库签入 Google 源代码树根目录下的 third_party 目录。但是，这仅在 Google 有效，因为 Google 的源代码控制系统是为了处理超大单一代码库而专门构建的，因此拷贝可能不适合所有组织。</p>
 <p><em>原文：</em> <a target="_blank" rel="noopener" href="https://bazel.build/basics/dependencies">Dependency Management</a></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-08-2022/dependency-management-cn.html">https://www.cyningsun.com/06-08-2022/dependency-management-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/06-08-2022/dependency-management-cn.html">https://www.cyningsun.com/06-08-2022/dependency-management-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -264,12 +264,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2024 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 
