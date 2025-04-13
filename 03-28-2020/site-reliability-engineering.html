@@ -233,7 +233,7 @@ gtag('config', 'UA-156665333-1');
 <li>流量波动：在理想的世界里，流量是有起伏规律的，监控系统能够掌握这种规律，当流量上升时，告警阈值自动上升</li>
 <li>瞬态告警：每个人都会遇到这样的情况，同样的问题隔段时间就出现一次，持续时间不过几分钟，来得快去得也快。说实话，你已经忙得不可开交了，近期内也不大会去排除这种问题。是忽略呢？还是忽略呢？</li>
 <li>信息过载：典型的信息过载场景是，给所有需要的地方都加上了告警，以为这样即可高枕无忧了，结果随着而来的是，各种来源的告警轻松挤满你的收件箱。</li>
-<li>故障定位：在相对复杂的业务场景下，一个“告警事件” 除了包含“时间”(何时发生)、“地点”(哪个服务器/组件)、“内容”(包括错误码、状态值等)外，还包含地区、机房、服务、接口等，故障定位之路道阻且长。</li>
+<li>故障定位：在相对复杂的业务场景下，一个“告警事件” 除了包含“时间”(何时发生)、“地点”(哪个服务器&#x2F;组件)、“内容”(包括错误码、状态值等)外，还包含地区、机房、服务、接口等，故障定位之路道阻且长。</li>
 </ol>
 <p>那么目前我们解决的怎么样了呢？</p>
 <ul>
@@ -243,11 +243,13 @@ gtag('config', 'UA-156665333-1');
 <li>问题 5，目前仍然没有得到很好的解决，但是已经有了方案，将在后续进一步优化</li>
 </ul>
 <h3 id="未来之路"><a href="#未来之路" class="headerlink" title="未来之路"></a>未来之路</h3><p>基于 <a href="/02-22-2020/hidden-secret-to-understanding-prometheus.html">Prometheus 的数据平台能力</a>，可以构建出业务所有服务的调用的树状图，并且当时的错误变化情况，进行自动故障根源分析，这也是我们以后将要做的</p>
-<p><BR/><br>附：</p>
+<BR/>
+附：
+
 <p><img src="/images/site-reliability-engineering/overview.png" alt="overview"><br>（全局看板部分视图）</p>
 <p><img src="/images/site-reliability-engineering/detail1.png" alt="detail1"><br><img src="/images/site-reliability-engineering/detail2.png" alt="detail2"><br>（详细看板部分视图）</p>
 <p><strong>参考链接</strong><br><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/06c7dd803d4a">https://www.jianshu.com/p/06c7dd803d4a</a></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-28-2020/site-reliability-engineering.html">https://www.cyningsun.com/03-28-2020/site-reliability-engineering.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/03-28-2020/site-reliability-engineering.html">https://www.cyningsun.com/03-28-2020/site-reliability-engineering.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -301,12 +303,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 
