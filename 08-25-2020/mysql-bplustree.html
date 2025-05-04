@@ -199,12 +199,12 @@ gtag('config', 'UA-156665333-1');
 <ul>
 <li>每个节点最多有 m 个 Key 及 m+1 个子节点</li>
 <li>除根节点外，所有节点必须半满（Half-full）</li>
-<li>如果 m 是 偶数，且 m = 2d<ul>
+<li>如果 m 是 偶数，且 m &#x3D; 2d<ul>
 <li>叶节点半满：至少有 d 个Key</li>
 <li>非叶节点半满：至少有 d 个Key</li>
 </ul>
 </li>
-<li>如果 m 是奇数，且 m = 2d+1<ul>
+<li>如果 m 是奇数，且 m &#x3D; 2d+1<ul>
 <li>叶节点半满：至少有 d+1 个 Key</li>
 <li>非叶节点半满：至少有 d 个Key</li>
 </ul>
@@ -291,7 +291,7 @@ gtag('config', 'UA-156665333-1');
 </li>
 </ol>
 </blockquote>
-<p>因此，上面的B+树可以用来搜索 (branch_name) 或 (branch_name, balance) ，而不能搜索 (balance)。例如，balance=2000 出现在B+树的两个路径中。</p>
+<p>因此，上面的B+树可以用来搜索 (branch_name) 或 (branch_name, balance) ，而不能搜索 (balance)。例如，balance&#x3D;2000 出现在B+树的两个路径中。</p>
 <h3 id="聚簇索引"><a href="#聚簇索引" class="headerlink" title="聚簇索引"></a>聚簇索引</h3><p>由B+树的结构可知，数据记录本身被存于叶子节点上。<strong>就要求同一个叶子节点内（大小为一个内存页或磁盘页）的各条数据记录按主键顺序存放</strong>，因此每当有一条新的记录插入时，B+树会根据其主键将其插入适当的节点和位置</p>
 <ol>
 <li><p>如果使用递增的字段作为主键，新增记录就会添加到当前索引节点的后面。<strong>不需要因为插入移动已有数据，因此写入效率很高</strong></p>
@@ -336,7 +336,7 @@ gtag('config', 'UA-156665333-1');
 <li><a target="_blank" rel="noopener" href="https://web.stanford.edu/class/cs346/2015/">https://web.stanford.edu/class/cs346/2015/</a></li>
 <li><a target="_blank" rel="noopener" href="https://pdfs.semanticscholar.org/0d7b/8b9172a69fa069c9c38b5f01bd37a498563c.pdf">https://pdfs.semanticscholar.org/0d7b/8b9172a69fa069c9c38b5f01bd37a498563c.pdf</a></li>
 </ol>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-25-2020/mysql-bplustree.html">https://www.cyningsun.com/08-25-2020/mysql-bplustree.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/08-25-2020/mysql-bplustree.html">https://www.cyningsun.com/08-25-2020/mysql-bplustree.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -353,15 +353,15 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
-            <li><span><a href="/03-12-2023/how-to-store-objects-in-redis.html">如何使用 Redis 存储对象</a></span></li>
+            <li><span><a href="/05-05-2025/rocksdb-obsolete-files.html">深入理解 RocksDB 过期文件清理</a></span></li>
           
-            <li><span><a href="/02-14-2023/details-about-redis-cluster.html">Redis cluster 细节与技术选型</a></span></li>
+            <li><span><a href="/05-04-2025/rocksdb-sst-file-size.html">深入理解 RocksDB SST 文件大小控制</a></span></li>
           
-            <li><span><a href="/01-27-2023/etcd-implement-and-tech-selection.html">etcd 实现与选型分析</a></span></li>
+            <li><span><a href="/12-11-2024/linux-page-cache-minibook-cn.html">译｜Linux Page Cache mini book</a></span></li>
           
-            <li><span><a href="/06-06-2021/mysql-design-guide.html">MySQL 设计与查询规范</a></span></li>
+            <li><span><a href="/06-27-2024/iocost-block-io-control-for-containers-in-datacenters-cn.html">译｜IOCost: Block IO Control for Containers in Datacenters</a></span></li>
           
-            <li><span><a href="/09-06-2020/redis-migrate-key-lost.html">记一次 Redis 迁移 —— Key 丢失问题排查</a></span></li>
+            <li><span><a href="/05-18-2024/efficient-io-with-io_uring.html">译｜Efficient IO with io_uring</a></span></li>
           
   </ol>
 
@@ -392,12 +392,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

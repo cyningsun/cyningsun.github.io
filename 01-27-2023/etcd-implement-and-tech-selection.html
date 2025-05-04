@@ -199,8 +199,8 @@ gtag('config', 'UA-156665333-1');
 <p>本文所有内容基于 etcd v3.5.0</p>
 </blockquote>
 <h4 id="起源"><a href="#起源" class="headerlink" title="起源"></a>起源</h4><p>2013 年，有一个叫 CoreOS 的创业团队，需要一个协调服务来存储服务配置信息、提供分布式锁等能力，来构建一款叫做 Container Linux 的产品。当分析过需求场景、痛点和核心目标，并评估社区开源的选项之后，CoreOS 团队最终选择自己造轮子，从 0 到 1 开发 etcd 以满足其需求。</p>
-<h4 id="时间线"><a href="#时间线" class="headerlink" title="时间线"></a>时间线</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20实现与选型分析-1674747425540.png" alt=""></p>
-<h3 id="基础架构"><a href="#基础架构" class="headerlink" title="基础架构"></a>基础架构</h3><h4 id="集群架构"><a href="#集群架构" class="headerlink" title="集群架构"></a>集群架构</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20实现与选型分析-20230126170737%201.png" alt=""></p>
+<h4 id="时间线"><a href="#时间线" class="headerlink" title="时间线"></a>时间线</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-1674747425540.png"></p>
+<h3 id="基础架构"><a href="#基础架构" class="headerlink" title="基础架构"></a>基础架构</h3><h4 id="集群架构"><a href="#集群架构" class="headerlink" title="集群架构"></a>集群架构</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-20230126170737%201.png"></p>
 <p><strong>架构说明</strong></p>
 <ul>
 <li>集群由一个 Leader 节点和 多个 Follower 节点组成，通过 Raft 协议达成共识</li>
@@ -211,13 +211,13 @@ gtag('config', 'UA-156665333-1');
 </ul>
 </li>
 </ul>
-<h4 id="单机架构"><a href="#单机架构" class="headerlink" title="单机架构"></a>单机架构</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20实现与选型分析-20230126170737-1.png" alt=""></p>
+<h4 id="单机架构"><a href="#单机架构" class="headerlink" title="单机架构"></a>单机架构</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-20230126170737-1.png"></p>
 <p><strong>架构说明</strong></p>
 <ul>
 <li><strong>Client（客户端层）</strong>：包含 Client v2 和 v3 两个⼤版本 API 客户端。</li>
 <li><strong>API（网络层）</strong>：<ol>
 <li>包含 Client 访问 Server、Server 节点之间的通信协议</li>
-<li>Client 访问 Server 协议有两个版本：v2 API 采⽤ HTTP/1.x 协议，v3 API 采用 gRPC 协议</li>
+<li>Client 访问 Server 协议有两个版本：v2 API 采⽤ HTTP&#x2F;1.x 协议，v3 API 采用 gRPC 协议</li>
 <li>Server 节点之间使用 HTTP 协议，通过 Raft 算法实现数据复制和 Leader 选举等功能</li>
 </ol>
 </li>
@@ -233,7 +233,7 @@ gtag('config', 'UA-156665333-1');
 </ol>
 </li>
 </ul>
-<h3 id="核心工作流"><a href="#核心工作流" class="headerlink" title="核心工作流"></a>核心工作流</h3><h4 id="数据写入"><a href="#数据写入" class="headerlink" title="数据写入"></a>数据写入</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20实现与选型分析-1674748261952.png" alt=""></p>
+<h3 id="核心工作流"><a href="#核心工作流" class="headerlink" title="核心工作流"></a>核心工作流</h3><h4 id="数据写入"><a href="#数据写入" class="headerlink" title="数据写入"></a>数据写入</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-1674748261952.png"></p>
 <p><strong>步骤</strong>：</p>
 <ol>
 <li>客户端发送一个 Put 请求给 KVServer。</li>
@@ -252,8 +252,9 @@ gtag('config', 'UA-156665333-1');
 </ol>
 <p>从上面的流程可以看出，一条记录首先是写入本地的 raftlog。然后发送给其它节点，当超过半数的节点接收到这条记录时，那么该记录就被认为已经 commit 了。最后才能被 KVServer apply。 所以下面的条件永远成立：</p>
 <pre><code class="hljs abnf">ApplyId &lt;<span class="hljs-operator">=</span> CommitId &lt;<span class="hljs-operator">=</span> RaftLogId</code></pre>
+
 <h5 id="复制状态机"><a href="#复制状态机" class="headerlink" title="复制状态机"></a>复制状态机</h5><p>etcd 使用 <strong>Raft 协议来维护集群内各个节点状态的一致性</strong>。每个 etcd 节点都维护了一个状态机，并且任意时刻至多存在一个有效的主节点。主节点处理所有来自客户端写操作，通过 Raft 协议保证写操作对状态机的改动会可靠的同步到其他节点。</p>
-<p><img src="/images/etcd-implement-and-tech-selection/etcd%20实现与选型分析-20230126170737-3.png" alt=""><br>步骤：</p>
+<p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-20230126170737-3.png"><br>步骤：</p>
 <ol>
 <li>Client 客户端向 KVServer 发送请求</li>
 <li>Server 接收到请求后，向 Raft 模块提交 Proposal</li>
@@ -266,7 +267,7 @@ gtag('config', 'UA-156665333-1');
 <li>Leader 发送消息到 Follower 节点时，告知目前已经提交的索引位置</li>
 <li>各个节点根据已提交的日志条目，将内容应用（apply）到存储、状态机</li>
 </ol>
-<h4 id="租约"><a href="#租约" class="headerlink" title="租约"></a>租约</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20实现与选型分析-1674749248679.png" alt=""><br><strong>创建租约</strong>：</p>
+<h4 id="租约"><a href="#租约" class="headerlink" title="租约"></a>租约</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-1674749248679.png"><br><strong>创建租约</strong>：</p>
 <ul>
 <li>当 LeaseServer 收到 Client 的创建一个 Lease 请求后，会通过 Raft 模块<br>完成日志同步</li>
 <li>随后 Apply 模块通过 Lessor 模块的 Grant 接口执行日志条目内容。<ul>
@@ -300,7 +301,7 @@ gtag('config', 'UA-156665333-1');
 <p>kubernetes 场景中有大量的 event，如果一个 event 一个 Lease， Lease 数量是非常多的，Lease 过期会触发大量写请求，再加上变更通知产生的读请求，对 etcd server 压力非常大。</p>
 <p>为了解决这个问题对 etcd server 性能的影响，Lease 过期淘汰会默认限速每秒 1000 个。因此 kubernetes 场景为了优化 Lease 数，会将最近一分钟内产生的 event key 列表，复用在同一个 Lease，大大降低了 Lease 数。</p>
 </blockquote>
-<h4 id="变更通知"><a href="#变更通知" class="headerlink" title="变更通知"></a>变更通知</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20实现与选型分析-1674749229867.png" alt=""></p>
+<h4 id="变更通知"><a href="#变更通知" class="headerlink" title="变更通知"></a>变更通知</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-1674749229867.png"></p>
 <p><strong>概念</strong>：</p>
 <p>etcd 通过对 watcher 进行分类，来实现事件的可靠性：</p>
 <ul>
@@ -310,11 +311,13 @@ gtag('config', 'UA-156665333-1');
 </ul>
 <p><strong>订阅流程</strong>：</p>
 <ul>
-<li>当 Client 发起一个 watch key 请求的时候，etcd 的 WatchServer 收到 watch 请求后，会创建一个 serverWatchStream, 它负责接收 client 的 gRPC Stream 的 create/cancel watcher 请求 (recvLoop goroutine)，并将从 MVCC 模块接收的 Watch 事件转发给 client(sendLoop goroutine)。</li>
-<li>当 serverWatchStream 收到 create watcher 请求后，serverWatchStream 会调用 MVCC 模块的 WatchStream 子模块分配一个 watcher id，并将 watcher 注册到 MVCC 的 WatchableKV 模块。</li>
+<li><p>当 Client 发起一个 watch key 请求的时候，etcd 的 WatchServer 收到 watch 请求后，会创建一个 serverWatchStream, 它负责接收 client 的 gRPC Stream 的 create&#x2F;cancel watcher 请求 (recvLoop goroutine)，并将从 MVCC 模块接收的 Watch 事件转发给 client(sendLoop goroutine)。</p>
+</li>
+<li><p>当 serverWatchStream 收到 create watcher 请求后，serverWatchStream 会调用 MVCC 模块的 WatchStream 子模块分配一个 watcher id，并将 watcher 注册到 MVCC 的 WatchableKV 模块。</p>
+</li>
 <li><p>etcd 启动后，WatchableKV 模块会运行 syncWatchersLoop 和 syncVictimsLoop goroutine，分别负责不同场景下的事件推送。</p>
 <blockquote>
-<p>etcd 使用 map 记录了监听单个 key 的 watcher，但是你要注意的是 Watch 特性不仅仅可以监听单 key，它还可以指定监听 key 范围、key 前缀，因此 etcd 还使用了区间树。当收到创建 watcher 请求的时候，它会把 watcher 监听的 key 范围插入到上面的区间树中，区间的值保存了监听同样 key 范围的 watcher 集合 /watcherSet。</p>
+<p>etcd 使用 map 记录了监听单个 key 的 watcher，但是你要注意的是 Watch 特性不仅仅可以监听单 key，它还可以指定监听 key 范围、key 前缀，因此 etcd 还使用了区间树。当收到创建 watcher 请求的时候，它会把 watcher 监听的 key 范围插入到上面的区间树中，区间的值保存了监听同样 key 范围的 watcher 集合 &#x2F;watcherSet。</p>
 <p>当产生一个事件时，etcd 首先需要从 map 查找是否有 watcher 监听了单 key，其次它还需要从区间树找出与此 key 相交的所有区间，然后从区间的值获取监听的 watcher 集合。区间树支持快速查找一个 key 是否在某个区间内，时间复杂度 O(LogN)，因此 etcd 基于 map 和区间树实现了 watcher 与事件快速匹配，具备良好的扩展性。</p>
 </blockquote>
 </li>
@@ -326,12 +329,11 @@ gtag('config', 'UA-156665333-1');
 </ul>
 <p><strong>注意</strong>：</p>
 <p>若 watcher 监听的版本号已经小于当前 etcd server 压缩的版本号，历史变更数据就可能<br>已丢失，因此 etcd server 会返回 ErrCompacted 错误给 client。client 收到此错误后，需重新获取数据最新版本号后，再次 Watch。在业务开发过程中，使用 Watch API 最常见的一个错误之一就是未处理此错误。</p>
-<p>其次，Watch 返回的  <code>WatchChan</code>  有可能在运行过程中失败而关闭，此时  <code>WatchResponse.Canceled</code>  会被置为  <code>true</code>，<code>WatchResponse.Err()</code>  也会返回具体的错误信息。所以在 range WatchChan 的时候，每一次循环都要检查  <code>WatchResponse.Canceled</code>，在关闭的时候重新发起 Watch 或报错。</p>
+<p>其次，Watch 返回的  <code>WatchChan</code>  有可能在运行过程中失败而关闭，此时  <code>WatchResponse.Canceled</code>  会被置为  <code>true</code>，<code>WatchResponse.Err()</code>  也会返回具体的错误信息。所以在 range WatchChan 的时候，每一次循环都要检查  <code>WatchResponse.Canceled</code>，在关闭的时候重新发起 Watch 或报错。</p>
 <h3 id="选型分析"><a href="#选型分析" class="headerlink" title="选型分析"></a>选型分析</h3><p>方案选型可以从业务系统的需求和 etcd 的特性、性能，两个方面着手。</p>
 <h4 id="业务系统"><a href="#业务系统" class="headerlink" title="业务系统"></a>业务系统</h4><p>先看使用 etcd 提供服务的目标系统。如果你正在深入 Kubernetes 或开始使用服务网格，您可能会遇到术语“控制平面（<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Control_plane">control plane</a>）”和“数据平面（<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Forwarding_plane">data plane</a>）”。术语 “控制平面” 和 “数据平面” 都是关于关注点的分离，即系统内职责的明确分离。控制平面是一切与策略建立和下发有关的部分，而数据平面是一切与执行策略有关的部分。当控制平面出现故障，只会影响新的策略变更变更，但不会影响已有策略执行，即，数据平面的功能。</p>
-<p><img src="/images/etcd-implement-and-tech-selection/etcd%20实现与选型分析-20230126170738.png" alt=""></p>
+<p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-20230126170738.png"></p>
 <p>以 Kubernetes 为例，其核心服务包括：</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -339,8 +341,7 @@ gtag('config', 'UA-156665333-1');
 <th>描述</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>kube-apiserver</td>
 <td>提供了资源的唯一入口，并提供认证、授权、访问控制、API 注册和发现等</td>
 </tr>
@@ -360,13 +361,11 @@ gtag('config', 'UA-156665333-1');
 <td>kube-proxy</td>
 <td>负责为 Service 提供 cluster 内部的服务发现和负载均衡</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 <p>以上服务故障，并不会影响当前已有 Pod 正常对外提供服务。</p>
 <h4 id="Why-etcd"><a href="#Why-etcd" class="headerlink" title="Why etcd"></a>Why etcd</h4><p>再看 etcd 本身。要了解 etcd 适用的场景，质量最高的来源是其官网。</p>
 <blockquote>
-<p>介绍：<br>“etcd” 名字来源于两个想法：unix “/etc” 文件夹和 分布式（ “d”istributed）系统。“/etc” 文件夹是存储单个系统的配置数据的地方，而 etcd 存储大规模分布式系统的配置信息。因此，“d”istributed “/etc” 是 “etcd”。</p>
+<p>介绍：<br>“etcd” 名字来源于两个想法：unix “&#x2F;etc” 文件夹和 分布式（ “d”istributed）系统。“&#x2F;etc” 文件夹是存储单个系统的配置数据的地方，而 etcd 存储大规模分布式系统的配置信息。因此，“d”istributed “&#x2F;etc” 是 “etcd”。</p>
 <p>etcd 被设计为大规模分布式系统的通用基座。这类系统永远不容忍裂脑操作，并愿意牺牲可用性来实现该目标。</p>
 <p>分布式系统使用 etcd 用于配置管理、服务发现和协调分布式工作。etcd 的常见分布式模式包括领导者选举、分布式锁和监控机器活动。</p>
 <p>使用场景：</p>
@@ -384,7 +383,6 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <p>从基本介绍以及使用场景来看，etcd 的定位在于存储数据量小、更新频率低的数据，用于一致性要求高于可用性、无需水平扩展的场景。</p>
 <h4 id="性能"><a href="#性能" class="headerlink" title="性能"></a>性能</h4><h5 id="硬件推荐"><a href="#硬件推荐" class="headerlink" title="硬件推荐"></a>硬件推荐</h5><p>以 <strong><a target="_blank" rel="noopener" href="https://etcd.io/docs/v3.5/op-guide/hardware/">超大型集群</a></strong> 为例，一个超大型型集群服务的客户端超过 1500 个，每秒请求超过 10000 个，存储数据超过 1 GB。</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -393,11 +391,10 @@ gtag('config', 'UA-156665333-1');
 <th>CPU</th>
 <th>内存 (GB)</th>
 <th>最大并发 IOPS</th>
-<th>磁盘带宽 (MB/s)</th>
+<th>磁盘带宽 (MB&#x2F;s)</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>AWS</td>
 <td>m4.4xlarge</td>
 <td>16</td>
@@ -413,9 +410,7 @@ gtag('config', 'UA-156665333-1');
 <td>15,000</td>
 <td>250</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 <h5 id="性能指标"><a href="#性能指标" class="headerlink" title="性能指标"></a>性能指标</h5><p>压测的硬件配置：</p>
 <blockquote>
 <ul>
@@ -427,7 +422,6 @@ gtag('config', 'UA-156665333-1');
 </ul>
 </blockquote>
 <p><strong>写性能</strong></p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -442,8 +436,7 @@ gtag('config', 'UA-156665333-1');
 <th>平均服务 RSS</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>10,000</td>
 <td>8</td>
 <td>256</td>
@@ -476,11 +469,8 @@ gtag('config', 'UA-156665333-1');
 <td>20ms</td>
 <td>126MB</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 <p><strong>读性能</strong></p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -494,8 +484,7 @@ gtag('config', 'UA-156665333-1');
 <th>平均请求延迟</th>
 </tr>
 </thead>
-<tbody>
-<tr>
+<tbody><tr>
 <td>10,000</td>
 <td>8</td>
 <td>256</td>
@@ -535,9 +524,7 @@ gtag('config', 'UA-156665333-1');
 <td>185,758</td>
 <td>2.2ms</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 <h5 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h5><p>一般 etcd 的集群为 3 或 5 个节点，Key 数量为 10w~ 规模下，预估集群性能如下：</p>
 <ol>
 <li>写请求只有 Leader 才能处理，所以写性能不随节点数增加而增加，只取决于单机配置，处理量级大概为 1w~ QPS，平均延迟在 10ms~50ms。</li>
@@ -550,7 +537,7 @@ gtag('config', 'UA-156665333-1');
 <li>其次，谨慎将 etcd 用于对数据分片和水平扩展有要求的控制面系统。例如：跨可用区的服务发现，可以对服务类型进行区分，尽量减少多个可用区之间需要复制同步的服务数据量。</li>
 <li>最后，etcd 租约、变更通知等功能的复杂度偏高。技术可控要求较高的系统，应谨慎使用相关功能。</li>
 </ol>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/01-27-2023/etcd-implement-and-tech-selection.html">https://www.cyningsun.com/01-27-2023/etcd-implement-and-tech-selection.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/01-27-2023/etcd-implement-and-tech-selection.html">https://www.cyningsun.com/01-27-2023/etcd-implement-and-tech-selection.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -567,15 +554,15 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
-            <li><span><a href="/03-12-2023/how-to-store-objects-in-redis.html">如何使用 Redis 存储对象</a></span></li>
+            <li><span><a href="/05-05-2025/rocksdb-obsolete-files.html">深入理解 RocksDB 过期文件清理</a></span></li>
           
-            <li><span><a href="/02-14-2023/details-about-redis-cluster.html">Redis cluster 细节与技术选型</a></span></li>
+            <li><span><a href="/05-04-2025/rocksdb-sst-file-size.html">深入理解 RocksDB SST 文件大小控制</a></span></li>
           
-            <li><span><a href="/06-06-2021/mysql-design-guide.html">MySQL 设计与查询规范</a></span></li>
+            <li><span><a href="/12-11-2024/linux-page-cache-minibook-cn.html">译｜Linux Page Cache mini book</a></span></li>
           
-            <li><span><a href="/09-06-2020/redis-migrate-key-lost.html">记一次 Redis 迁移 —— Key 丢失问题排查</a></span></li>
+            <li><span><a href="/06-27-2024/iocost-block-io-control-for-containers-in-datacenters-cn.html">译｜IOCost: Block IO Control for Containers in Datacenters</a></span></li>
           
-            <li><span><a href="/08-25-2020/mysql-bplustree.html">B+树 —— 数据库的灵魂</a></span></li>
+            <li><span><a href="/05-18-2024/efficient-io-with-io_uring.html">译｜Efficient IO with io_uring</a></span></li>
           
   </ol>
 
@@ -606,12 +593,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

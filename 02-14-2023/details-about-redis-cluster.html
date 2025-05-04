@@ -198,12 +198,8 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <h3 id="重新分片-Resharding"><a href="#重新分片-Resharding" class="headerlink" title="重新分片 Resharding"></a>重新分片 Resharding</h3><p>当正在对 key 所属的 hash slots 进行重新分片时，<strong>多 key 操作可能变得不可用</strong>。</p>
 <blockquote>
-<pre><code>更具体地说，即使在重新分片期间，针对所有存在且仍哈希到同一 hash slot（重新分片的源节点或目标节点）的多 key 操作仍然可用。  
-
-对不存在的 key 或在重新分片期间被拆分到源节点和目标节点之间 key 的多 key 操作将产生 -TRYAGAIN 错误。客户端可以在一段时间后尝试该操作，或报告错误。  
-
-一旦指定 hash slot 的迁移终止，该 hash slot 的所有多 key 操作都将再次可用。
-</code></pre></blockquote>
+<p>    更具体地说，即使在重新分片期间，针对所有存在且仍哈希到同一 hash slot（重新分片的源节点或目标节点）的多 key 操作仍然可用。<br>    <br>    对不存在的 key 或在重新分片期间被拆分到源节点和目标节点之间 key 的多 key 操作将产生 -TRYAGAIN 错误。客户端可以在一段时间后尝试该操作，或报告错误。<br>    <br>    一旦指定 hash slot 的迁移终止，该 hash slot 的所有多 key 操作都将再次可用。</p>
+</blockquote>
 <p>同步搬迁遇到 <strong>Big key 会阻塞 Redis 处理请求，导致请求（延迟）毛刺</strong></p>
 <h3 id="从可读-Read-from-Slave"><a href="#从可读-Read-from-Slave" class="headerlink" title="从可读 Read from Slave"></a>从可读 Read from Slave</h3><p>因为 migrating 状态没有被同步到副本，所以当重新分片期间被拆分到源节点和目标节点之间 key 的多 key 操作，<strong>存在在另外一个节点的 key 读取到的数据为 nil</strong></p>
 <h3 id="复制-Replication"><a href="#复制-Replication" class="headerlink" title="复制 Replication"></a>复制 Replication</h3><p><strong>全量同步导致内存翻倍、数据复制导致 CPU 毛刺</strong></p>
@@ -231,13 +227,8 @@ gtag('config', 'UA-156665333-1');
 <blockquote>
 <p>当副本想要成为 Master 时，没有分配 slots 的 Master 不参与选举过程。</p>
 </blockquote>
-<h3 id="容灾-Disaster-recovery"><a href="#容灾-Disaster-recovery" class="headerlink" title="容灾 Disaster recovery"></a>容灾 Disaster recovery</h3><p>Redis 环境中的灾难恢复与备份基本相同，而且能够在许多不同的外部数据中心传输这些备份。即使在某些灾难性事件影响到运行 Redis 并生成其快照的主数据中心的情况下，也可以通过这种方式保护数据。<br>- 备份 RDB  </p>
-<pre><code>- RPO：小时级  
-- RTO：小时级  
-</code></pre><p>- 备份 AOF（Redis 7.0.0 以上）  </p>
-<pre><code>- RPO：分钟级  
-- RTO：分钟级
-</code></pre><blockquote>
+<h3 id="容灾-Disaster-recovery"><a href="#容灾-Disaster-recovery" class="headerlink" title="容灾 Disaster recovery"></a>容灾 Disaster recovery</h3><p>Redis 环境中的灾难恢复与备份基本相同，而且能够在许多不同的外部数据中心传输这些备份。即使在某些灾难性事件影响到运行 Redis 并生成其快照的主数据中心的情况下，也可以通过这种方式保护数据。<br>- 备份 RDB<br>    - RPO：小时级<br>    - RTO：小时级<br>- 备份 AOF（Redis 7.0.0 以上）<br>    - RPO：分钟级<br>    - RTO：分钟级</p>
+<blockquote>
 <p><strong>RPO 和 RTO 较高<br>异构 DR 实现难度高</strong></p>
 </blockquote>
 <h2 id="控制面"><a href="#控制面" class="headerlink" title="控制面"></a>控制面</h2><h3 id="重新分片-Resharding-1"><a href="#重新分片-Resharding-1" class="headerlink" title="重新分片 Resharding"></a>重新分片 Resharding</h3><p><strong>搬迁数据只能顺序进行，速度慢。</strong></p>
@@ -245,7 +236,7 @@ gtag('config', 'UA-156665333-1');
 <p><strong>因为 SET SLOT 是先生效再共识，迁移过程 SET SLOT 的操作需要严格有序，先设置 Dst Node 确认生效再设置 Src Node。</strong></p>
 <h3 id="移除节点-Forget-node"><a href="#移除节点-Forget-node" class="headerlink" title="移除节点 Forget node"></a>移除节点 Forget node</h3><p>移除节点需要在 <strong>1 分钟内通知所有节点，该节点下线。否则节点会可能再次加入集群</strong></p>
 <h3 id="监控指标-Metrics"><a href="#监控指标-Metrics" class="headerlink" title="监控指标 Metrics"></a>监控指标 Metrics</h3><p>Prometheus 一般 <strong>间隔</strong> 通过 Redis Exporter 调用 INFO 命令拉取 Redis 监控数据。<strong>有些指标是瞬时值，可能不会被记录下来</strong>。 例如 Loading 状态</p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/02-14-2023/details-about-redis-cluster.html">https://www.cyningsun.com/02-14-2023/details-about-redis-cluster.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/02-14-2023/details-about-redis-cluster.html">https://www.cyningsun.com/02-14-2023/details-about-redis-cluster.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -262,15 +253,15 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
-            <li><span><a href="/03-12-2023/how-to-store-objects-in-redis.html">如何使用 Redis 存储对象</a></span></li>
+            <li><span><a href="/05-05-2025/rocksdb-obsolete-files.html">深入理解 RocksDB 过期文件清理</a></span></li>
           
-            <li><span><a href="/01-27-2023/etcd-implement-and-tech-selection.html">etcd 实现与选型分析</a></span></li>
+            <li><span><a href="/05-04-2025/rocksdb-sst-file-size.html">深入理解 RocksDB SST 文件大小控制</a></span></li>
           
-            <li><span><a href="/06-06-2021/mysql-design-guide.html">MySQL 设计与查询规范</a></span></li>
+            <li><span><a href="/12-11-2024/linux-page-cache-minibook-cn.html">译｜Linux Page Cache mini book</a></span></li>
           
-            <li><span><a href="/09-06-2020/redis-migrate-key-lost.html">记一次 Redis 迁移 —— Key 丢失问题排查</a></span></li>
+            <li><span><a href="/06-27-2024/iocost-block-io-control-for-containers-in-datacenters-cn.html">译｜IOCost: Block IO Control for Containers in Datacenters</a></span></li>
           
-            <li><span><a href="/08-25-2020/mysql-bplustree.html">B+树 —— 数据库的灵魂</a></span></li>
+            <li><span><a href="/05-18-2024/efficient-io-with-io_uring.html">译｜Efficient IO with io_uring</a></span></li>
           
   </ol>
 
@@ -301,12 +292,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 
