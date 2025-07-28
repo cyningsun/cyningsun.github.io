@@ -185,16 +185,16 @@ gtag('config', 'UA-156665333-1');
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
-        <p>在 <a href="/07-27-2020/how-to-write-rpc-interface.html#认识资源">如何设计 RPC 接口</a> 中讲到一个观点：</p>
+        <p>在 <a href="/07-27-2020/how-to-write-rpc-interface.html#%E8%AE%A4%E8%AF%86%E8%B5%84%E6%BA%90">如何设计 RPC 接口</a> 中讲到一个观点：</p>
 <blockquote>
 <p>资源在用户侧以 <a href="/06-29-2020/how-to-write-restful-api.html">hyper media</a> 存在；资源流到服务中以对象来组织；资源落到存储里就变成了<code>id</code> + <code>content</code>。索引 <code>content</code> 的 id，一般又以 <code>单个</code> 和 <code>集合</code> 的形态存在，具体到数据库中，id 以 聚簇索引存在，content 以聚簇索引叶节点存在</p>
 <p>越来越多的产品按照先获取 <code>id</code> 再读取 <code>content</code> 来访问资源</p>
 </blockquote>
 <p>在REST论文中也有类似的描述：</p>
 <blockquote>
-<p>REST 对于信息的核心抽象是<em>资源</em>。任何能够被命名的信息都能够作为一个资源。资源 <em>R</em> 是一个随时间变化的成员函数 <em>M<strong>R</strong>(t)</em>，该函数将时间 <em>t</em> 映射到等价的一个实体或值的集合，集合中的值可能是<em>资源的表述</em> 和/或 <em>资源的标识符</em>。</p>
+<p>REST 对于信息的核心抽象是<em>资源</em>。任何能够被命名的信息都能够作为一个资源。资源 <em>R</em> 是一个随时间变化的成员函数 <em>M*<em>R</em></em>(t)<em>，该函数将时间 <em>t</em> 映射到等价的一个实体或值的集合，集合中的值可能是</em>资源的表述* 和&#x2F;或 <em>资源的标识符</em>。</p>
 </blockquote>
-<p><img src="/images/Data=ID+Content.png" alt="Data=ID+Content"></p>
+<p><img src="/images/resouce-id-design/Data=ID+Content.png" alt="Data=ID+Content"></p>
 <p>其中包含了以下层面的意思：</p>
 <ol>
 <li>服务是围绕资源建立的，服务存在的价值是对资源更新和组织</li>
@@ -210,16 +210,15 @@ gtag('config', 'UA-156665333-1');
 </ul>
 <p>针对以上问题，一般来说可以将元组利用一定的机制进行拼接组装，生成一个唯一的ID。最常见的例子是微信公众平台的OpenID：</p>
 <blockquote>
-<p>OpenID = WechatID (用户微信号) &amp; APPID (公众平台ID)（两个数据加密得到的字符串）</p>
+<p>OpenID &#x3D; WechatID (用户微信号) &amp; APPID (公众平台ID)（两个数据加密得到的字符串）</p>
 </blockquote>
 <p>然而特定的拼接方式仍然没有解决理解、通用性问题</p>
 <p>理解和通用性问题，其实有比较通用的解决方案。既以<code>名称-值</code> 对的形式，建立自描述（self-descriptive）的标识符。语言描述可能比较难以理解，那么还是以微信公众平台OpenID为例，如果标志符以下面形式组织将会更容易理解：</p>
 <blockquote>
-<p>wechatid=XXX&amp;appid=XXX（加密得到的字符串）</p>
+<p>wechatid&#x3D;XXX&amp;appid&#x3D;XXX（加密得到的字符串）</p>
 </blockquote>
 <p>但是以上组织方式引入了一个新的问题，到底该把哪些数据作为生成标识符的一部分呢？答案就是：集合（依据就是开头的片段）。资源可以由 <code>集合 ID</code> 和 <code>资源 ID</code> 组成；如果资源包含子资源，则子资源可以由 <code>父资源</code> 后跟 <code>子资源的 ID</code>。</p>
 <p>示例 1：存储服务具有一组 <code>buckets</code>，其中每个存储分区都有一组 <code>objects</code>：</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -230,19 +229,15 @@ gtag('config', 'UA-156665333-1');
 <th>资源 ID</th>
 </tr>
 </thead>
-<tbody>
-<tr>
-<td>//storage.googleapis.com</td>
-<td>/buckets</td>
-<td>/bucket-id</td>
-<td>/objects</td>
-<td>/object-id</td>
+<tbody><tr>
+<td>&#x2F;&#x2F;storage.googleapis.com</td>
+<td>&#x2F;buckets</td>
+<td>&#x2F;bucket-id</td>
+<td>&#x2F;objects</td>
+<td>&#x2F;object-id</td>
 </tr>
-</tbody>
-</table>
-</div>
+</tbody></table>
 <p>示例 2：电子邮件服务具有一组 <code>users</code>。每个用户都有一个 <code>settings</code> 子资源，而 <code>settings</code> 子资源拥有包括 <code>customFrom</code> 在内的许多其他子资源：</p>
-<div class="table-container">
 <table>
 <thead>
 <tr>
@@ -253,18 +248,15 @@ gtag('config', 'UA-156665333-1');
 <th>资源 ID</th>
 </tr>
 </thead>
-<tbody>
-<tr>
-<td>//mail.googleapis.com</td>
-<td>/users</td>
-<td>/name@example.com</td>
-<td>/settings</td>
-<td>/customFrom</td>
+<tbody><tr>
+<td>&#x2F;&#x2F;mail.googleapis.com</td>
+<td>&#x2F;users</td>
+<td>&#x2F;<a href="mailto:&#110;&#97;&#x6d;&#101;&#64;&#101;&#x78;&#97;&#109;&#112;&#108;&#101;&#x2e;&#99;&#x6f;&#x6d;">&#110;&#97;&#x6d;&#101;&#64;&#101;&#x78;&#97;&#109;&#112;&#108;&#101;&#x2e;&#99;&#x6f;&#x6d;</a></td>
+<td>&#x2F;settings</td>
+<td>&#x2F;customFrom</td>
 </tr>
-</tbody>
-</table>
-</div>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-09-2020/resouce-id-design.html">https://www.cyningsun.com/08-09-2020/resouce-id-design.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+</tbody></table>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/08-09-2020/resouce-id-design.html">https://www.cyningsun.com/08-09-2020/resouce-id-design.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -316,12 +308,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 
