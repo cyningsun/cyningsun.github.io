@@ -8,7 +8,7 @@
 <meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
 <meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
 
-<title>SGI-STL源码剖析之IntroSort</title>
+<title>SGI-STL源码剖析之 IntroSort</title>
 <meta property="og:site_name" content="有疑说">
 <meta property="article:publisher" content="https://www.cyningsun.com" />
 <meta property="article:author" content="https://www.cyningsun.com" />
@@ -181,7 +181,7 @@ gtag('config', 'UA-156665333-1');
 </div>
       <div class="container">
         <div id="article"  class="typo">
-    <h1>SGI-STL源码剖析之IntroSort</h1><br/>
+    <h1>SGI-STL源码剖析之 IntroSort</h1><br/>
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
@@ -191,7 +191,7 @@ gtag('config', 'UA-156665333-1');
 <h3 id="threshold（阈值）"><a href="#threshold（阈值）" class="headerlink" title="threshold（阈值）"></a>threshold（阈值）</h3><p>面对一个只有十来个元素的小序列，使用像 Quick sort 这样复杂而（可能）需要大量运算的排序算法，是否划算？ </p>
 <p>在小数据量的情况下，甚至简单如 Insertion Sort 者也可能快过 Quick Sort ——因为 Quick Sort 会为了极小的子序列而产生许多的函数递归调用。监狱这种情况，适度的评估序列的大小然后决定采用 Quick Sort 或者 Insertion Sort 是值得采纳的一种优化措施 </p>
 <h3 id="introsort"><a href="#introsort" class="headerlink" title="introsort"></a>introsort</h3><p>不适当的枢轴选择，导致不当的分割，导致 Quick Sort 恶化为 O(N^2) 。混合式排序算法 Introspective Sorting( 内省式排序 ), 简称 IntroSort ，其行为在绝大部分情况下几乎与 median-of-3 Quick Sort 完全相同。但是当分割行为 (partitioning) 有恶化为二次行为的倾向时，能够自我侦测，转而改用 Heap Sort 。使其效率维持在 Heap Sort 的 O(N*logN), 又比一开始就用 Heap Sort 来得好。 </p>
-<h3 id="SGI-STL-Sort-函数依赖关系"><a href="#SGI-STL-Sort-函数依赖关系" class="headerlink" title="SGI STL Sort 函数依赖关系"></a>SGI STL Sort 函数依赖关系</h3><p><img src="/images/stl-introsort.gif" alt="stl-introsort.png"></p>
+<h3 id="SGI-STL-Sort-函数依赖关系"><a href="#SGI-STL-Sort-函数依赖关系" class="headerlink" title="SGI STL Sort 函数依赖关系"></a>SGI STL Sort 函数依赖关系</h3><p><img src="/images/stl-introsort/stl-introsort.gif" alt="stl-introsort.png"></p>
 <h3 id="SGI-STL-Sort-源码"><a href="#SGI-STL-Sort-源码" class="headerlink" title="SGI STL Sort 源码"></a>SGI STL Sort 源码</h3><pre><code class="hljs c++"><span class="hljs-type">const</span> <span class="hljs-type">int</span> __stl_threhold=<span class="hljs-number">16</span>;         <span class="hljs-comment">// 阈值，用于评估序列大小</span>
 
 <span class="hljs-comment">// 千万注意： sort() 只适用于 RandomAccessIterator</span>
@@ -331,7 +331,8 @@ RandomAccessIterator __unguarded_partition (RandomAccessIterator first,
     ++first;                       <span class="hljs-comment">// 调整</span>
   &#125;
 &#125;</code></pre>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/04-09-2011/stl-introsort.html">https://www.cyningsun.com/04-09-2011/stl-introsort.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/04-09-2011/stl-introsort.html">https://www.cyningsun.com/04-09-2011/stl-introsort.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -352,9 +353,9 @@ RandomAccessIterator __unguarded_partition (RandomAccessIterator first,
           
             <li><span><a href="/05-07-2012/stl-permutation.html">STL算法我实现之排列</a></span></li>
           
-            <li><span><a href="/04-25-2011/stl-rotate.html">STL算法我实现之rotate</a></span></li>
+            <li><span><a href="/04-25-2011/stl-rotate.html">STL算法我实现之 rotate</a></span></li>
           
-            <li><span><a href="/04-08-2011/stl-list-sort.html">SGI-STL源码剖析之list::sort()</a></span></li>
+            <li><span><a href="/04-08-2011/stl-list-sort.html">SGI-STL源码剖析之 list::sort()</a></span></li>
           
             <li><span><a href="/04-04-2011/stl-heap.html">SGI-STL源码剖析之Heap</a></span></li>
           
@@ -387,12 +388,20 @@ RandomAccessIterator __unguarded_partition (RandomAccessIterator first,
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

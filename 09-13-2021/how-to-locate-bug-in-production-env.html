@@ -205,12 +205,12 @@ gtag('config', 'UA-156665333-1');
 <p>靠谱的使用数据的方式，应当是团队成员把相关的数据汇聚，根据业务架构形成 “马赛克调查墙”，基于 “马赛克调查墙” 确定方向，再进行假设。</p>
 <h3 id="轻视逻辑"><a href="#轻视逻辑" class="headerlink" title="轻视逻辑"></a>轻视逻辑</h3><p>很多很多人一上来就开始猜答案，基于他们认定的答案来提问，这是特别坏的一个习惯，因为这样找问题几乎就只能凭运气了。</p>
 <p>“分治”（Divide &amp; Conquer）是一种非常通用的解决方案。在一个多层系统中，整套系统需要多层组件共同协作完成。最好的办法通常是从系统的一端开始，逐个检查每一个组件，直到系统最底层。这样的策略非常适用于数据处理流水线。在大型系统中，逐个检查可能太慢了，可以采用对分法（bisection）将系统分为两部分，确认问题所在再重复进行。逐项排除、层层递进，才能系统的剥离出真相。</p>
-<p>还有一个常见的逻辑误区“相关性 = 因果性”。然而，相关性并不代表因果性。比如:</p>
+<p>还有一个常见的逻辑误区“相关性 &#x3D; 因果性”。然而，相关性并不代表因果性。比如:</p>
 <blockquote>
 <p>统计表明，游泳死亡人数越高，冰糕卖得越多，也就是游泳死亡人数和冰糕售出量之间呈正相关性，我们可以由此得出结论说吃冰糕就会增加游泳死亡风险吗？显然不可以！这两个事件显然都仅仅是夏天到了气温升高了所导致的，吃不吃冰糕跟游泳死亡风险根本没有任何因果关系。</p>
 </blockquote>
 <p>同理，跟 BUG 相关的异常数据，不代表数据的操作导致了 BUG。为了论证因果关系，需要更加严密的实证来说明。按照相关理论复现所有 BUG 表现的特性，且只表现这些特征。</p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/09-13-2021/how-to-locate-bug-in-production-env.html">https://www.cyningsun.com/09-13-2021/how-to-locate-bug-in-production-env.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/09-13-2021/how-to-locate-bug-in-production-env.html">https://www.cyningsun.com/09-13-2021/how-to-locate-bug-in-production-env.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -249,12 +249,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

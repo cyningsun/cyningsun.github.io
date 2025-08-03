@@ -196,6 +196,7 @@ gtag('config', 'UA-156665333-1');
 <h3 id="页框管理"><a href="#页框管理" class="headerlink" title="页框管理"></a>页框管理</h3><p>想要管理内存，首先要知道有哪些内存，并且把内存状态记录下来。物理内存默认以 4k 分割为一个个的单元，每个单元被称为页框（page frame）。内核使用 <code>struct page</code> 数组跟踪内存中每个页框的当前状态。数组的每个元素对应于物理内存中的一个页框，数组定义如下：</p>
 <pre><code class="hljs c"><span class="hljs-comment">// `struct page` 定义在 `linux/mm_types.h`</span>
 <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">page</span> *<span class="hljs-title">mem_map</span>;</span></code></pre>
+
 <p>例如，mem_map[0] 包含内存中第一个页框的信息</p>
 <blockquote>
 <p>名词说明：</p>
@@ -206,7 +207,7 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 <p>如此，内核就通过页框数组把所有的内存使用索引了起来，并且知道每个页的情况，例如：是否空闲、拥有者是谁。</p>
 <h3 id="为什么分区？"><a href="#为什么分区？" class="headerlink" title="为什么分区？"></a>为什么分区？</h3><p>然而对于内核来说仅有分页是不够的，内核也没办法 <strong>完全</strong> 直接访问内存，是什么原因呢？</p>
-<p>具体还是要从内存分配过程聊起来。进程申请内存的时候，会调用 malloc() 和 mmap() 等内存分配函数，最终会发起系统调用陷入内核态进行内存分配。但是，内存分配过程分配的只是虚拟地址空间，并没有给虚拟内存分配对应的物理内存。当进程访问没有建立映射关系的虚拟内存时，将触发一个缺页中断。当一个进程发生缺页中断的时候，进程会再次陷入内核态，查找/分配一个页框，建立映射关系（虚拟地址到物理地址）</p>
+<p>具体还是要从内存分配过程聊起来。进程申请内存的时候，会调用 malloc() 和 mmap() 等内存分配函数，最终会发起系统调用陷入内核态进行内存分配。但是，内存分配过程分配的只是虚拟地址空间，并没有给虚拟内存分配对应的物理内存。当进程访问没有建立映射关系的虚拟内存时，将触发一个缺页中断。当一个进程发生缺页中断的时候，进程会再次陷入内核态，查找&#x2F;分配一个页框，建立映射关系（虚拟地址到物理地址）</p>
 <p>可以看到进程在分配内的时候两次进入内核态，然而两次却完全不同。要理解这一点首先要熟悉两个概念 “进程上下文” vs “中断上下文”</p>
 <p>在 Linux 实现中，处理器在执行过程中总是处于以下三种状态：<br>（1）内核态，运行于进程上下文，内核代表进程运行于内核空间。<br>（2）内核态，运行于中断上下文，内核代表硬件运行于内核空间。<br>（3）用户态，运行于用户空间。</p>
 <p><img src="/images/memory-management-physical-memory/contexts.png" alt="contexts.png"></p>
@@ -214,7 +215,7 @@ gtag('config', 'UA-156665333-1');
 <blockquote>
 <p>当然，单独从实现来看，对于（1）、（2）两种情况，内核的上下文如果完完全全从进程上下文独立开也是可行的，甚至更为简单。但是从性能来看，当前的方案才是更优的。详情参考：<a target="_blank" rel="noopener" href="https://www.sciencedirect.com/topics/computer-science/kernel-address-space">《User Space on Top of Kernel Space Versus Separated Address Spaces》</a></p>
 </blockquote>
-<h3 id="分区地址映射"><a href="#分区地址映射" class="headerlink" title="分区地址映射"></a>分区地址映射</h3><p>32位系统中，内核模块的地址空间只有1G。但是，内核又要访问所有的 4G 内存。但内核访问物理内存与进程访问虚拟内存不同，虚实映射既消耗空间也消耗性能（详见：<a href="/12-02-2020/memory-management-summary.html#地址映射">地址映射</a>），且在内核场景下，内存移动与内存换出的需求并不高，也没有多进程隔离的需求（详见：<a href="https://www.cyningsun.com/12-02-2020/memory-management-summary.html#%E5%86%85%E5%AD%98%E5%85%B1%E4%BA%AB">内存共享</a>），映射的收益不大。</p>
+<h3 id="分区地址映射"><a href="#分区地址映射" class="headerlink" title="分区地址映射"></a>分区地址映射</h3><p>32位系统中，内核模块的地址空间只有1G。但是，内核又要访问所有的 4G 内存。但内核访问物理内存与进程访问虚拟内存不同，虚实映射既消耗空间也消耗性能（详见：<a href="/12-02-2020/memory-management-summary.html#%E5%9C%B0%E5%9D%80%E6%98%A0%E5%B0%84">地址映射</a>），且在内核场景下，内存移动与内存换出的需求并不高，也没有多进程隔离的需求（详见：<a href="https://www.cyningsun.com/12-02-2020/memory-management-summary.html#%E5%86%85%E5%AD%98%E5%85%B1%E4%BA%AB">内存共享</a>），映射的收益不大。</p>
 <p><img src="/images/memory-management-physical-memory/zones.png" alt="zones.png"></p>
 <p>因此，内核把页框分组，划分为不同的区（ZONE）。内核空间的前 896MB（不仅是内核代码，还有它的数据）被“直接”映射到物理内存。虚拟内核空间的最后 128MB 部分被映射到物理“高内存”（&gt; 896MB）的一些部分。物理内存的直接映射允许物理页面分配器的直接访问获得的页面，而无需任何映射操作。获取物理页的虚拟地址所需的唯一操作是添加固定偏移量。</p>
 <p>通过以上方式，既实现 4G 内存的访问，也保证了内核访问的性能。最终，物理内存的页框就被组织成了以下的形式<br><img src="/images/memory-management-physical-memory/physical-memory.png" alt="physical-memory.png"></p>
@@ -225,7 +226,7 @@ gtag('config', 'UA-156665333-1');
 <p>伙伴系统解决了内存外部碎片问题，而 SLAB 解决了内存的内部碎片问题。所谓外部碎片是指由于频繁地申请和释放页框而导致的某些小的连续页框，而内部碎片就是指被分配出去但是不能被利用的内存。</p>
 <p><img src="/images/memory-management-physical-memory/memory-allocator.png" alt="memory-allocator.png"></p>
 <p>两个系统的细节暂时按下，后续详聊。</p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/06-15-2021/memory-management-physical-memory.html">https://www.cyningsun.com/06-15-2021/memory-management-physical-memory.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/06-15-2021/memory-management-physical-memory.html">https://www.cyningsun.com/06-15-2021/memory-management-physical-memory.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -242,6 +243,12 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
+            <li><span><a href="/12-11-2024/linux-page-cache-minibook-cn.html">译｜Linux Page Cache mini book</a></span></li>
+          
+            <li><span><a href="/06-27-2024/iocost-block-io-control-for-containers-in-datacenters-cn.html">译｜IOCost: Block IO Control for Containers in Datacenters</a></span></li>
+          
+            <li><span><a href="/05-18-2024/efficient-io-with-io_uring.html">译｜Efficient IO with io_uring</a></span></li>
+          
             <li><span><a href="/12-02-2020/memory-management-summary.html">内存管理基础概念总述</a></span></li>
           
             <li><span><a href="/09-18-2020/learn-virtual-filesystem-from-lsof.html">从 lsof 开始，深入理解虚拟文件系统</a></span></li>
@@ -275,12 +282,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 
