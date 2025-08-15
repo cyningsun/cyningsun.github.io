@@ -168,7 +168,7 @@ gtag('config', 'UA-156665333-1');
     <hr />
     <div id="social-wrapper">
       <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
-      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
       <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
       <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
       <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
@@ -190,7 +190,7 @@ gtag('config', 'UA-156665333-1');
 <p>本文是一篇 AI 辅助创作的内容。作者的工作内容发生一些的变化，开始转变为不断提出问题、丰富和拓展内容、编辑校研内容。</p>
 <p>毫无疑问，“AI 辅助” 将变革当前的工作方式，未来已来。</p>
 </blockquote>
-<p>在 <a href="/07-27-2020/how-to-write-rpc-interface.html#认识资源">如何设计 RPC 接口</a> 中讲到一个观点：</p>
+<p>在 <a href="/07-27-2020/how-to-write-rpc-interface.html#%E8%AE%A4%E8%AF%86%E8%B5%84%E6%BA%90">如何设计 RPC 接口</a> 中讲到一个观点：</p>
 <blockquote>
 <p>资源在用户侧以 <a href="/06-29-2020/how-to-write-restful-api.html">hyper media</a> 存在；资源流到服务中以对象来组织；资源落到存储里就变成了<code>id</code> + <code>content</code>。索引 <code>content</code> 的 id，一般又以 <code>单个</code> 和 <code>集合</code> 的形态存在，具体到数据库中，id 以 聚簇索引存在，content 以聚簇索引叶节点存在</p>
 <p>越来越多的产品按照先获取 <code>id</code> 再读取 <code>content</code> 来访问资源</p>
@@ -237,9 +237,9 @@ gtag('config', 'UA-156665333-1');
 </ul>
 <h3 id="空间与性能"><a href="#空间与性能" class="headerlink" title="空间与性能"></a>空间与性能</h3><p>除了需求，考虑存储空间和存取性能</p>
 <p>对于存储空间而言，可以根据具体的数据结构来选择最合适的存储方式。如果数据结构比较简单，使用 JSON+String 可能是比较好的选择，因为 JSON 格式可以非常紧凑，而字符串类型也是 Redis 支持的最基本的数据类型之一，占用的空间比较小。如果数据结构比较复杂，可以考虑使用哈希来存储对象，因为哈希可以将多个属性存储在同一个键值对中，相比于多个字符串，可以减少存储空间的占用。</p>
-<p>对于存取性能而言，可以根据具体的应用场景来选择最合适的存储方式。如果需要快速地读取或更新对象的某些属性，可以考虑使用多个字符串或哈希，因为这些方式可以通过对单个属性进行操作来实现，相比于读取或更新整个对象，可以减少网络延迟和代码复杂度。如果需要快速地读取或更新整个对象，可以考虑使用 JSON+String，因为这种方式可以将整个对象序列化成一个字符串，只需要一次读取或更新操作即可。具体来说，三者读取一个对象的性能数据基本等价于 “GET/SET key vs HMGET/HMSET key field [field …] vs Opt(Pipline GET/SET, MGET/MSET) key [key …]“。</p>
+<p>对于存取性能而言，可以根据具体的应用场景来选择最合适的存储方式。如果需要快速地读取或更新对象的某些属性，可以考虑使用多个字符串或哈希，因为这些方式可以通过对单个属性进行操作来实现，相比于读取或更新整个对象，可以减少网络延迟和代码复杂度。如果需要快速地读取或更新整个对象，可以考虑使用 JSON+String，因为这种方式可以将整个对象序列化成一个字符串，只需要一次读取或更新操作即可。具体来说，三者读取一个对象的性能数据基本等价于 “GET&#x2F;SET key vs HMGET&#x2F;HMSET key field [field …] vs Opt(Pipline GET&#x2F;SET, MGET&#x2F;MSET) key [key …]“。</p>
 <h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>总体而言，JSON+String、Multiple String 和 Hash 都是在 Redis 中存储对象的有效方式，具体使用哪种方式取决于数据的结构和应用场景。如果数据结构简单，且需要跨多个语言和平台使用，那么使用 JSON+String 可能是比较好的选择。如果需要更灵活地管理对象的属性，或者需要根据需要读取或更新对象的某些属性，那么使用多个字符串或哈希可能更适合。在实际使用中，可以根据具体的数据结构和应用场景选择最适合的方式。</p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-12-2023/how-to-store-objects-in-redis.html">https://www.cyningsun.com/03-12-2023/how-to-store-objects-in-redis.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/03-12-2023/how-to-store-objects-in-redis.html">https://www.cyningsun.com/03-12-2023/how-to-store-objects-in-redis.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -256,15 +256,15 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
-            <li><span><a href="/02-14-2023/details-about-redis-cluster.html">Redis cluster 细节与技术选型</a></span></li>
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
           
-            <li><span><a href="/01-27-2023/etcd-implement-and-tech-selection.html">etcd 实现与选型分析</a></span></li>
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
           
-            <li><span><a href="/06-06-2021/mysql-design-guide.html">MySQL 设计与查询规范</a></span></li>
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
           
-            <li><span><a href="/09-06-2020/redis-migrate-key-lost.html">记一次 Redis 迁移 —— Key 丢失问题排查</a></span></li>
+            <li><span><a href="/05-05-2025/rocksdb-obsolete-files.html">深入理解 RocksDB 过期文件清理</a></span></li>
           
-            <li><span><a href="/08-25-2020/mysql-bplustree.html">B+树 —— 数据库的灵魂</a></span></li>
+            <li><span><a href="/05-04-2025/rocksdb-sst-file-size.html">深入理解 RocksDB SST 文件大小控制</a></span></li>
           
   </ol>
 
@@ -295,12 +295,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 
