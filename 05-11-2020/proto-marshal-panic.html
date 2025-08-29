@@ -168,7 +168,7 @@ gtag('config', 'UA-156665333-1');
     <hr />
     <div id="social-wrapper">
       <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
-      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
       <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
       <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
       <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
@@ -206,11 +206,13 @@ github.com/gogo/protobuf/proto.Marshal(<span class="hljs-number">0x14af2e0</span
 		...
 		
 	/usr/local/Cellar/<span class="hljs-keyword">go</span>@<span class="hljs-number">1.12</span>/<span class="hljs-number">1.12</span><span class="hljs-number">.13</span>/libexec/src/net/http/server.<span class="hljs-keyword">go</span>:<span class="hljs-number">2884</span> +<span class="hljs-number">0x2f4</span></code></pre>
+
 <p>由于报错的结构体是业务最常用的一个，且报错的接口逻辑较深，通读代码也没有发现明显的点（其实是代码量太大了，很难关注的到）。报错又出现在框架层，panic 调用栈并没有提供任何有效信息。</p>
 <h3 id="问题排查"><a href="#问题排查" class="headerlink" title="问题排查"></a>问题排查</h3><p>经过背景的一系列分析之后，所有的排查思路都被打断了。好在我们发现报错的错误类型是<code>index out of range</code>，通过阅读proto.Marshal的代码之后发现，此函数分为三步：</p>
 <pre><code class="hljs go">siz := info.Size(pb)
 b := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</span>, <span class="hljs-number">0</span>, siz)
 <span class="hljs-keyword">return</span> info.Marshal(b, pb, <span class="hljs-literal">false</span>)</code></pre>
+
 <ol>
 <li>先获取结构体 Size</li>
 <li>然后按照 Size 创建字节数组</li>
@@ -252,6 +254,9 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</spa
 	&#125;
 	<span class="hljs-keyword">return</span> ret.(*pb.Person),<span class="hljs-literal">true</span>
 &#125;</code></pre>
+
+
+
 <p><strong>并发访问</strong></p>
 <pre><code class="hljs go"><span class="hljs-keyword">const</span> letterBytes = <span class="hljs-string">&quot;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;</span>
 <span class="hljs-keyword">const</span> letterLength = <span class="hljs-built_in">len</span>(letterBytes)
@@ -297,6 +302,9 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</spa
 	fmt.Println(<span class="hljs-string">&quot;server is listening on 8080&quot;</span>)
 	http.ListenAndServe(<span class="hljs-string">&quot;:8080&quot;</span>, <span class="hljs-literal">nil</span>)
 &#125;</code></pre>
+
+
+
 <p><strong>压测脚本</strong></p>
 <pre><code class="hljs make"><span class="hljs-section">run:</span>
 	go run main.go &amp;&gt; normal.log
@@ -307,6 +315,9 @@ b := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</spa
 <span class="hljs-section">benchmark:</span>
 	wrk -t1 -c2 -d30s http://127.0.0.1:8080/read &amp;
 	wrk -t1 -c2 -d30s http://127.0.0.1:8080/write &amp;</code></pre>
+
+
+
 <p><strong>日志结果</strong></p>
 <pre><code class="hljs go">==================
 WARNING: DATA RACE
@@ -321,11 +332,12 @@ Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <
 
 ...
 </code></pre>
+
 <p>通过日志，可以很轻松的发现问题的原因。</p>
 <h3 id="总结优化"><a href="#总结优化" class="headerlink" title="总结优化"></a>总结优化</h3><p>以上过程促使我们优化非生产环境的运行脚本，通过编译参数控制 -race 参数的开关，当再遇到类似的问题时，可以快速复现、定位、修复。</p>
 <p><em>源码链接:</em></p>
 <p><a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test/tree/master/20200508-go-race">https://github.com/cyningsun/go-test/tree/master/20200508-go-race</a></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html">https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html">https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -381,12 +393,20 @@ Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 
