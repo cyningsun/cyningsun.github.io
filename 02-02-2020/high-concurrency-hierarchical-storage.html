@@ -168,7 +168,7 @@ gtag('config', 'UA-156665333-1');
     <hr />
     <div id="social-wrapper">
       <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
-      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
       <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
       <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
       <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
@@ -182,6 +182,13 @@ gtag('config', 'UA-156665333-1');
       <div class="container">
         <div id="article"  class="typo">
     <h1>缓存(1) —— 总述：分级存储</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-02-02
+         | 
+        Last Revised: 2025-10-30
+    </div>
+    
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
@@ -221,7 +228,7 @@ gtag('config', 'UA-156665333-1');
 <ul>
 <li><strong>CPU消耗型</strong>：也称为“计算密集型”，指服务使用CPU完成计算任务，受CPU速度限制。<em>CPU越快，任务处理越快。</em></li>
 <li><strong>内存消耗型</strong>：也称为“内存密集型”，指服务执行任务过程中受内存大小和访问速度限制。<em>内存越大、访问速度越快，任务处理速度越快。</em> 通常为搜索类、缓存类、内存数据库等需求大量内存的服务</li>
-<li><strong>I/O消耗型</strong>：也称为“I/O密集型”，指服务执行任务涉及到大量的网络传输或磁盘I/O，受I/O速度限制。<em>I/O越快，任务处理越快。</em> 一旦发生I/O，服务的工作线程(进程)就会处于等待状态，当I/O结束，数据准备好后，线程(进程)才会继续执行。</li>
+<li><strong>I&#x2F;O消耗型</strong>：也称为“I&#x2F;O密集型”，指服务执行任务涉及到大量的网络传输或磁盘I&#x2F;O，受I&#x2F;O速度限制。<em>I&#x2F;O越快，任务处理越快。</em> 一旦发生I&#x2F;O，服务的工作线程(进程)就会处于等待状态，当I&#x2F;O结束，数据准备好后，线程(进程)才会继续执行。</li>
 </ul>
 <p>一个服务可以既是“CPU消耗型“，同时也是“内存消耗型”，例如：搜索服务 —— 烧钱玩意儿，腾讯卖掉搜索给搜狗估计也是被烧的肉疼了吧 ：）。</p>
 <p>那为什么如此划分呢？</p>
@@ -232,26 +239,27 @@ gtag('config', 'UA-156665333-1');
 <h3 id="分层架构"><a href="#分层架构" class="headerlink" title="分层架构"></a>分层架构</h3><p>盘点下业界在高并发场景下，使用的存储方案(至少保证数据不丢失)：</p>
 <ol>
 <li>纯内存数据库：以 mongodb 为代表。成本高昂</li>
-<li>内存数据库 + 磁盘数据库：以 Redis/memcached + MySQL/TiDB 为代表。使用起来比较复杂，需要业务自己处理分级存储带来的问题</li>
-<li>高性能高可用分布式数据库：以 megastore（谷歌）/ paxosstore(微信) / Dynamo (亚马逊)，技术门槛比较高，大厂专属</li>
+<li>内存数据库 + 磁盘数据库：以 Redis&#x2F;memcached + MySQL&#x2F;TiDB 为代表。使用起来比较复杂，需要业务自己处理分级存储带来的问题</li>
+<li>高性能高可用分布式数据库：以 megastore（谷歌）&#x2F; paxosstore(微信) &#x2F; Dynamo (亚马逊)，技术门槛比较高，大厂专属</li>
 </ol>
 <p>可以看到绝大部分的互联网公司，还是依靠第二种方案扛住高并发的请求。那么应对高并发的架构中，就不能缺少存储层（也可以称为：持久层，数据访问层），否则业务代码会与存储管理的代码交叉耦合在一起</p>
 <p><img src="/images/high-concurrency-hierarchical-storage/layer-architecture.png" alt="layer-architecture.png"></p>
 <p>使用第二种方案，就免不了缓存的是是非非。既然缓存也是存储层级中的一层，所有的问题也就脱不开分级问题的范畴了，后续详聊。</p>
-<p><br/></p>
+<br/>
+
 <p>参考链接：</p>
 <ul>
-<li><a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/868568/what-do-the-terms-cpu-bound-and-i-o-bound-mean">What do the terms “CPU bound” and “I/O bound” mean?</a></li>
+<li><a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/868568/what-do-the-terms-cpu-bound-and-i-o-bound-mean">What do the terms “CPU bound” and “I&#x2F;O bound” mean?</a></li>
 <li><a target="_blank" rel="noopener" href="https://www.slideshare.net/kubecon/kubecon-eu-2016-a-practical-guide-to-container-scheduling">A Practical Guide to Container Scheduling</a></li>
 <li><a target="_blank" rel="noopener" href="https://www.oreilly.com/library/view/software-architecture-patterns/9781491971437/ch01.html">Software Architecture Patterns</a></li>
 </ul>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/02-02-2020/high-concurrency-hierarchical-storage.html">https://www.cyningsun.com/02-02-2020/high-concurrency-hierarchical-storage.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/02-02-2020/high-concurrency-hierarchical-storage.html">https://www.cyningsun.com/02-02-2020/high-concurrency-hierarchical-storage.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
 <div class="post-subject">
     
-    <a href="/subjects#缓存" rel="category"># 缓存</a>
+    <a href="/subjects#System design" rel="category"># System design</a>
     
 </div>
 
@@ -262,11 +270,15 @@ gtag('config', 'UA-156665333-1');
 
   <ol class="related">
       
+            <li><span><a href="/06-13-2023/heavy-hitter.html">如何应对系统热点的挑战</a></span></li>
+          
+            <li><span><a href="/03-12-2023/why-is-the-system-so-fragile.html">系统为何如此脆弱</a></span></li>
+          
+            <li><span><a href="/11-13-2022/design-patterns-for-container-based-distributed-systems-cn.html">译｜Design patterns for container-based distributed systems</a></span></li>
+          
             <li><span><a href="/02-18-2021/high-concurrency-cache-design.html">缓存(4) —— 结构化缓存</a></span></li>
           
-            <li><span><a href="/03-07-2020/high-concurrency-cache-consistent.html">缓存(3) —— 一致性</a></span></li>
-          
-            <li><span><a href="/02-27-2020/high-concurrency-cache-miss.html">缓存(2) —— 命中率</a></span></li>
+            <li><span><a href="/12-15-2020/system-design-concept-and-relation.html">系统设计之概念与关系</a></span></li>
           
   </ol>
 
@@ -297,12 +309,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

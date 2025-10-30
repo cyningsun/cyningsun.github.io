@@ -168,7 +168,7 @@ gtag('config', 'UA-156665333-1');
     <hr />
     <div id="social-wrapper">
       <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
-      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
       <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
       <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
       <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
@@ -182,10 +182,17 @@ gtag('config', 'UA-156665333-1');
       <div class="container">
         <div id="article"  class="typo">
     <h1>译 | SOLID Go Design</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2019-08-03
+         | 
+        Last Revised: 2025-10-30
+    </div>
+    
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
-    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Code-review"><span class="toc-text">Code review</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Bad-code"><span class="toc-text">Bad code</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Good-design"><span class="toc-text">Good design</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#SOLID"><span class="toc-text">SOLID</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%8D%95%E4%B8%80%E8%81%8C%E8%B4%A3%E5%8E%9F%E5%88%99%EF%BC%88Single-Responsibility-Principle%EF%BC%89"><span class="toc-text">单一职责原则（Single Responsibility Principle）</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#Coupling-amp-Cohesion"><span class="toc-text">Coupling &amp; Cohesion</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#Package-names"><span class="toc-text">Package names</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#Bad-package-names"><span class="toc-text">Bad package names</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#Go%E2%80%99s-UNIX-philosophy"><span class="toc-text">Go’s UNIX philosophy</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%BC%80%E6%94%BE-%E5%B0%81%E9%97%AD%E5%8E%9F%E5%88%99%EF%BC%88Open-Closed-Principle%EF%BC%89"><span class="toc-text">开放&#x2F;封闭原则（Open &#x2F; Closed Principle）</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E9%87%8C%E6%B0%8F%E6%9B%BF%E6%8D%A2%E5%8E%9F%E5%88%99%EF%BC%88Liskov-Substitution-Principle%EF%BC%89"><span class="toc-text">里氏替换原则（Liskov Substitution Principle）</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#Interfaces"><span class="toc-text">Interfaces</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#io-Reader"><span class="toc-text">io.Reader</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%8E%A5%E5%8F%A3%E9%9A%94%E7%A6%BB%E5%8E%9F%E5%88%99%EF%BC%88Interface-Segregation-Principle%EF%BC%89"><span class="toc-text">接口隔离原则（Interface Segregation Principle）</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%80%92%E7%BD%AE%E5%8E%9F%E5%88%99%EF%BC%88Dependency-Inversion-Principle%EF%BC%89"><span class="toc-text">依赖倒置原则（Dependency Inversion Principle）</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#SOLID-Go-Design"><span class="toc-text">SOLID Go Design</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%93%E5%B0%BE"><span class="toc-text">结尾</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E2%80%A6-one-more-thing"><span class="toc-text">… one more thing</span></a></li></ol>
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Code-review"><span class="toc-text">Code review</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Bad-code"><span class="toc-text">Bad code</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Good-design"><span class="toc-text">Good design</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#SOLID"><span class="toc-text">SOLID</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%8D%95%E4%B8%80%E8%81%8C%E8%B4%A3%E5%8E%9F%E5%88%99%EF%BC%88Single-Responsibility-Principle%EF%BC%89"><span class="toc-text">单一职责原则（Single Responsibility Principle）</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#Coupling-amp-Cohesion"><span class="toc-text">Coupling &amp; Cohesion</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#Package-names"><span class="toc-text">Package names</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#Bad-package-names"><span class="toc-text">Bad package names</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#Go%E2%80%99s-UNIX-philosophy"><span class="toc-text">Go’s UNIX philosophy</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%BC%80%E6%94%BE-x2F-%E5%B0%81%E9%97%AD%E5%8E%9F%E5%88%99%EF%BC%88Open-x2F-Closed-Principle%EF%BC%89"><span class="toc-text">开放&#x2F;封闭原则（Open &#x2F; Closed Principle）</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E9%87%8C%E6%B0%8F%E6%9B%BF%E6%8D%A2%E5%8E%9F%E5%88%99%EF%BC%88Liskov-Substitution-Principle%EF%BC%89"><span class="toc-text">里氏替换原则（Liskov Substitution Principle）</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#Interfaces"><span class="toc-text">Interfaces</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#io-Reader"><span class="toc-text">io.Reader</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%8E%A5%E5%8F%A3%E9%9A%94%E7%A6%BB%E5%8E%9F%E5%88%99%EF%BC%88Interface-Segregation-Principle%EF%BC%89"><span class="toc-text">接口隔离原则（Interface Segregation Principle）</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E4%BE%9D%E8%B5%96%E5%80%92%E7%BD%AE%E5%8E%9F%E5%88%99%EF%BC%88Dependency-Inversion-Principle%EF%BC%89"><span class="toc-text">依赖倒置原则（Dependency Inversion Principle）</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#SOLID-Go-Design"><span class="toc-text">SOLID Go Design</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%93%E5%B0%BE"><span class="toc-text">结尾</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E2%80%A6-one-more-thing"><span class="toc-text">… one more thing</span></a></li></ol>
  
         <h3 id="Code-review"><a href="#Code-review" class="headerlink" title="Code review"></a>Code review</h3><p>在座的各位有谁把 code review 作为日常工作的一部分？【整个房间举起了手，鼓舞人心】。好的，为什么要进行 code review ？【有人高呼“阻止不良代码”】</p>
 <p>如果代码审查是为了捕捉糟糕的代码，那么你如何知道你正在审查的代码是好还是糟糕？</p>
@@ -202,10 +209,10 @@ gtag('config', 'UA-156665333-1');
 <p>想必不会。</p>
 <h3 id="Good-design"><a href="#Good-design" class="headerlink" title="Good design"></a>Good design</h3><p>但这是一个进步，现在我们可以说“我不喜欢它，因为它太难修改”，或“我不喜欢它，因为我不知道代码试图做什么”，但如何正向引导呢？</p>
 <p>如果有一些方法可以描述糟糕的设计，以及优秀设计的特征，并且能够以客观的方式做到这一点，那不是很好吗？</p>
-<h4 id="SOLID"><a href="#SOLID" class="headerlink" title="SOLID"></a>SOLID</h4><p>2002年，Robert Martin 出版了他的书 <a target="_blank" rel="noopener" href="https://www.amazon.co.uk/dp/0135974445/ref=pd_lpo_sbs_dp_ss_2/253-1946330-6751666?pf_rd_m=A3P5ROKL5A1OLE&amp;pf_rd_s=lpo-top-stripe&amp;pf_rd_r=23C4AHYV7EXGYHKD6G8Q&amp;pf_rd_t=201&amp;pf_rd_p=569136327&amp;pf_rd_i=0132760584"><em>Agile Software Development, Principles, Patterns, and Practices</em></a> 其中描述了可重用软件设计的五个原则，并称之为 <a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/SOLID_(%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1"><code>SOLID</code></a>)（英文首字母缩写）原则:</p>
+<h4 id="SOLID"><a href="#SOLID" class="headerlink" title="SOLID"></a>SOLID</h4><p>2002年，Robert Martin 出版了他的书 <a target="_blank" rel="noopener" href="https://www.amazon.co.uk/dp/0135974445/ref=pd_lpo_sbs_dp_ss_2/253-1946330-6751666?pf_rd_m=A3P5ROKL5A1OLE&pf_rd_s=lpo-top-stripe&pf_rd_r=23C4AHYV7EXGYHKD6G8Q&pf_rd_t=201&pf_rd_p=569136327&pf_rd_i=0132760584"><em>Agile Software Development, Principles, Patterns, and Practices</em></a> 其中描述了可重用软件设计的五个原则，并称之为 <a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/SOLID_(%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1)"><code>SOLID</code></a>（英文首字母缩写）原则:</p>
 <ul>
 <li>单一职责原则（Single Responsibility Principle）</li>
-<li>开放/封闭原则（Open / Closed Principle）</li>
+<li>开放&#x2F;封闭原则（Open &#x2F; Closed Principle）</li>
 <li>里氏替换原则（Liskov Substitution Principle）</li>
 <li>接口隔离原则（Interface Segregation Principle）</li>
 <li>依赖倒置原则（Dependency Inversion Principle）</li>
@@ -244,11 +251,12 @@ gtag('config', 'UA-156665333-1');
 <p>我们看到所有像这样的包裹，就成了各种各样的垃圾场，因为它们有许多责任，所以经常毫无理由地改变。</p>
 <h6 id="Go’s-UNIX-philosophy"><a href="#Go’s-UNIX-philosophy" class="headerlink" title="Go’s UNIX philosophy"></a>Go’s UNIX philosophy</h6><p>在我看来，如果不提及 Doug McIlroy 的 Unix 哲学，任何关于解耦设计的讨论都将是不完整的；小而锋利的工具结合起来，解决更大的任务，通常是原始作者无法想象的任务。</p>
 <p>我认为 Go package 体现了 Unix 哲学的精神。实际上，每个 Go package 本身就是一个小的 Go 程序，一个单一的变更单元，具有单一的责任。</p>
-<h5 id="开放-封闭原则（Open-Closed-Principle）"><a href="#开放-封闭原则（Open-Closed-Principle）" class="headerlink" title="开放/封闭原则（Open / Closed Principle）"></a>开放/封闭原则（Open / Closed Principle）</h5><p>第二个原则，即 O，是 <code>Bertrand Meyer</code> 的开放/封闭原则，他在1988年写道：</p>
+<h5 id="开放-x2F-封闭原则（Open-x2F-Closed-Principle）"><a href="#开放-x2F-封闭原则（Open-x2F-Closed-Principle）" class="headerlink" title="开放&#x2F;封闭原则（Open &#x2F; Closed Principle）"></a>开放&#x2F;封闭原则（Open &#x2F; Closed Principle）</h5><p>第二个原则，即 O，是 <code>Bertrand Meyer</code> 的开放&#x2F;封闭原则，他在1988年写道：</p>
 <blockquote>
-<p>Software entities should be open for extension, but closed for modification. <code>– Bertrand Meyer, Object-Oriented Software Construction</code></p>
+<p>Software entities should be open for extension, but closed for modification. <code> – Bertrand Meyer, Object-Oriented Software Construction</code></p>
 </blockquote>
-<p>该建议如何适用于21年后写的语言？<br><pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+<p>该建议如何适用于21年后写的语言？</p>
+<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
 
 <span class="hljs-keyword">type</span> A <span class="hljs-keyword">struct</span> &#123;
         year <span class="hljs-type">int</span>
@@ -269,7 +277,8 @@ gtag('config', 'UA-156665333-1');
         b.year = <span class="hljs-number">2016</span>
         a.Greet() <span class="hljs-comment">// Hello GolangUK 2016</span>
         b.Greet() <span class="hljs-comment">// Welcome to GolangUK 2016</span>
-&#125;</code></pre></p>
+&#125;</code></pre>
+
 <p>我们有一个类型 A ，有一个字段 year 和一个方法 Greet。我们有第二种类型，B 它嵌入了一个 A，因为 A 嵌入，因此调用者看到 B 的方法覆盖了 A 的方法。因为A作为字段嵌入B ，B可以提供自己的 Greet 方法，掩盖了 A 的 Greet 方法。</p>
 <p>但嵌入不仅适用于方法，还可以访问嵌入类型的字段。如您所见，因为A和B都在同一个包中定义，所以 B 可以访问 A 的私有 year 字段，就像在 B 中声明一样。</p>
 <p>因此嵌入是一个强大的工具，允许 Go 的类型对扩展开放。</p>
@@ -307,6 +316,7 @@ gtag('config', 'UA-156665333-1');
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">PrintLegs</span><span class="hljs-params">(c Cat)</span></span> &#123;
         fmt.Printf(<span class="hljs-string">&quot;I have %d legs\n&quot;</span>, c.Legs())
 &#125;</code></pre>
+
 <p>接收器正是你传入它的函数，函数的第一个参数，并且因为Go不支持函数重载，OctoCat不能替代普通的Cat 。 这让我想到了下一个原则。</p>
 <h5 id="里氏替换原则（Liskov-Substitution-Principle）"><a href="#里氏替换原则（Liskov-Substitution-Principle）" class="headerlink" title="里氏替换原则（Liskov Substitution Principle）"></a>里氏替换原则（Liskov Substitution Principle）</h5><p>由Barbara Liskov 提出的里氏替换原则粗略地指出，如果两种类型表现出的行为使得调用者无法区分，则这两种类型是可替代的。</p>
 <p>在基于类的语言中，里氏替换原则通常被解释为，具有各种具体子类型的抽象基类的规范。 但是Go没有类或继承，因此无法根据抽象类层次结构实现替换。</p>
@@ -317,6 +327,7 @@ gtag('config', 'UA-156665333-1');
         <span class="hljs-comment">// Read reads up to len(buf) bytes into buf.</span>
         Read(buf []<span class="hljs-type">byte</span>) (n <span class="hljs-type">int</span>, err <span class="hljs-type">error</span>)
 &#125;</code></pre>
+
 <p>这令我很容易想到了我最喜欢的 Go 接口 <code>io.Reader</code>。</p>
 <p> <code>io.Reader</code> 接口非常简单; <code>Read</code> 将数据读入提供的缓冲区，并将读取的字节数和读取期间遇到的任何错误返回给调用者。看起来很简单，但非常强大。</p>
 <p>因为 <code>io.Reader</code> 可以处理任何表示为字节流的东西，所以我们几乎可以在任何东西上创建 <code>Reader</code>; 常量字符串，字节数组，标准输入，网络流，gzip的tar文件，通过ssh远程执行的命令的标准输出。</p>
@@ -337,23 +348,30 @@ gtag('config', 'UA-156665333-1');
 <p>Save的签名排除了将数据写入网络位置的选项。假设网络存储可能以后成为需求，此功能的签名必须改变，并影响其所有调用者。</p>
 <p>由于 <code>Save</code> 直接操作磁盘上的文件，因此测试起来很不方便。要验证其操作，测试必须在写入后读取文件的内容。 此外，测试必须确保将 <code>f</code> 写入临时位置并随后将其删除。</p>
 <p><code>*os.File</code> 还定义了许多与 <code>Save</code> 无关的方法，比如读取目录并检查路径是否是文件链接。 如果 <code>Save</code> 函数的签名能只描述 <code>*os.File</code> 相关的部分，将会很实用。</p>
-<p>我们如何处理这些问题呢？<br><pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied ReadWriterCloser.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(rwc io.ReadWriteCloser, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre></p>
+<p>我们如何处理这些问题呢？</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied ReadWriterCloser.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(rwc io.ReadWriteCloser, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre>
+
 <p>使用 <code>io.ReadWriteCloser</code> 我们可以应用接口隔离原则，使用更通用的文件类型的接口来重新定义 <code>Save</code>。</p>
 <p>通过此更改，任何实现了 <code>io.ReadWriteCloser</code> 接口的类型都可以代替之前的 <code>*os.File</code>。使得 <code>Save</code> 应用程序更广泛，并向 <code>Save</code> 调用者阐明，<code>*os.File</code> 类型的哪些方法与操作相关。</p>
 <p>做为<code>Save</code>的编写者，我不再可以选择调用 <code>*os.File</code> 的那些不相关的方法，因为它隐藏在 <code>io.ReadWriteCloser</code> 接口背后。我们可以进一步采用接口隔离原理。</p>
-<p>首先，如果 <code>Save</code> 遵循单一责任原则，它将不可能读取它刚刚编写的文件来验证其内容 - 这应该是另一段代码的责任。因此，我们可以将我们传递给 <code>Save</code> 的接口的规范缩小，仅写入和关闭。<br><pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied WriteCloser.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(wc io.WriteCloser, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre></p>
+<p>首先，如果 <code>Save</code> 遵循单一责任原则，它将不可能读取它刚刚编写的文件来验证其内容 - 这应该是另一段代码的责任。因此，我们可以将我们传递给 <code>Save</code> 的接口的规范缩小，仅写入和关闭。</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied WriteCloser.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(wc io.WriteCloser, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre>
+
 <p>其次，通过向 <code>Save</code> 提供一个关闭其流的机制，我们继续这种机制以使其看起来像文件类型的东西，这就产生一个问题，<code>wc</code> 会在什么情况下关闭。<code>Save</code> 可能会无条件地调用 <code>Close</code>，抑或在成功的情况下调用 <code>Close</code>。</p>
-<p>这给 <code>Save</code> 的调用者带来了问题，因为它可能希望在写入文档之后将其他数据写入流。<br><pre><code class="hljs go"><span class="hljs-keyword">type</span> NopCloser <span class="hljs-keyword">struct</span> &#123;
+<p>这给 <code>Save</code> 的调用者带来了问题，因为它可能希望在写入文档之后将其他数据写入流。</p>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> NopCloser <span class="hljs-keyword">struct</span> &#123;
         io.Writer
 &#125;
 
 <span class="hljs-comment">// Close has no effect on the underlying writer.</span>
-<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c *NopCloser)</span></span> Close() <span class="hljs-type">error</span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span> &#125;</code></pre><br>一个粗略的解决方案是定义一个新类型，它嵌入一个 <code>io.Writer</code> 并覆盖 <code>Close</code> 方法，以阻止<code>Save</code>方法关闭底层数据流。</p>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(c *NopCloser)</span></span> Close() <span class="hljs-type">error</span> &#123; <span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span> &#125;</code></pre>
+<p>一个粗略的解决方案是定义一个新类型，它嵌入一个 <code>io.Writer</code> 并覆盖 <code>Close</code> 方法，以阻止<code>Save</code>方法关闭底层数据流。</p>
 <p>但这样可能会违反里氏替换原则，因为NopCloser实际上并没有关闭任何东西。</p>
 <pre><code class="hljs go"><span class="hljs-comment">// Save writes the contents of doc to the supplied Writer.</span>
 <span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Save</span><span class="hljs-params">(w io.Writer, doc *Document)</span></span> <span class="hljs-type">error</span></code></pre>
+
 <p>一个更好的解决方案是重新定义 <code>Save</code> 只接收 <code>io.Writer</code>，完全剥离它除了将数据写入流之外做任何事情的责任。</p>
 <p>通过应用接口隔离原则，我们的Save功能，同时得到了一个在需求方面最具体的函数 - 它只需要一个可写的参数 - 并且具有最通用的功能，现在我们可以使用 <code>Save</code> 保存我们的数据到任何一个实现 <code>io.Writer</code> 的地方。</p>
 <blockquote>
@@ -374,7 +392,7 @@ gtag('config', 'UA-156665333-1');
 <h4 id="SOLID-Go-Design"><a href="#SOLID-Go-Design" class="headerlink" title="SOLID Go Design"></a>SOLID Go Design</h4><p>回顾一下，当应用于Go时，每个SOLID原则都是关于设计的强有力陈述，但综合起来它们具有中心主题。</p>
 <ul>
 <li>单一职责原则，鼓励您将功能，类型、方法结构化为具有自然内聚的包; 类型属于彼此，函数服务于单一目的。</li>
-<li>开放/封闭原则，鼓励您使用嵌入将简单类型组合成更复杂的类型。</li>
+<li>开放&#x2F;封闭原则，鼓励您使用嵌入将简单类型组合成更复杂的类型。</li>
 <li>里氏替换原则，鼓励您根据接口而不是具体类型来表达包之间的依赖关系。通过定义小型接口，我们可以更加确信，实现将忠实地满足他们的契约。</li>
 <li>接口隔离原则，进一步采用了这个想法，并鼓励您定义仅依赖于他们所需行为的函数和方法。如果您的函数仅需要具有单个接口类型的参数的方法，则该函数更可能只有一个责任。</li>
 <li>依赖倒置原则，鼓励您按照从编译时间到运行时间的时序，转移 package 所依赖的知识。在Go中，我们可以通过特定 package 使用的import语句的数量减少看到了这一点。</li>
@@ -412,7 +430,7 @@ gtag('config', 'UA-156665333-1');
 <p>因为通过做这些事情，我们可以建立一种Go开发人员的文化，他们关心设计用于持久的程序。</p>
 <p>谢谢。</p>
 <p><em>原文：<a target="_blank" rel="noopener" href="https://dave.cheney.net/2016/08/20/solid-go-design">SOLID Go Design</a></em></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-03-2019/solid-go-design-cn.html">https://www.cyningsun.com/08-03-2019/solid-go-design-cn.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/08-03-2019/solid-go-design-cn.html">https://www.cyningsun.com/08-03-2019/solid-go-design-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -468,12 +486,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

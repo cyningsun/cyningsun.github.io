@@ -168,7 +168,7 @@ gtag('config', 'UA-156665333-1');
     <hr />
     <div id="social-wrapper">
       <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
-      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
       <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
       <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
       <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
@@ -182,6 +182,13 @@ gtag('config', 'UA-156665333-1');
       <div class="container">
         <div id="article"  class="typo">
     <h1>监控告警成长之路</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-03-28
+         | 
+        Last Revised: 2025-10-30
+    </div>
+    
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
@@ -233,7 +240,7 @@ gtag('config', 'UA-156665333-1');
 <li>流量波动：在理想的世界里，流量是有起伏规律的，监控系统能够掌握这种规律，当流量上升时，告警阈值自动上升</li>
 <li>瞬态告警：每个人都会遇到这样的情况，同样的问题隔段时间就出现一次，持续时间不过几分钟，来得快去得也快。说实话，你已经忙得不可开交了，近期内也不大会去排除这种问题。是忽略呢？还是忽略呢？</li>
 <li>信息过载：典型的信息过载场景是，给所有需要的地方都加上了告警，以为这样即可高枕无忧了，结果随着而来的是，各种来源的告警轻松挤满你的收件箱。</li>
-<li>故障定位：在相对复杂的业务场景下，一个“告警事件” 除了包含“时间”(何时发生)、“地点”(哪个服务器/组件)、“内容”(包括错误码、状态值等)外，还包含地区、机房、服务、接口等，故障定位之路道阻且长。</li>
+<li>故障定位：在相对复杂的业务场景下，一个“告警事件” 除了包含“时间”(何时发生)、“地点”(哪个服务器&#x2F;组件)、“内容”(包括错误码、状态值等)外，还包含地区、机房、服务、接口等，故障定位之路道阻且长。</li>
 </ol>
 <p>那么目前我们解决的怎么样了呢？</p>
 <ul>
@@ -243,11 +250,13 @@ gtag('config', 'UA-156665333-1');
 <li>问题 5，目前仍然没有得到很好的解决，但是已经有了方案，将在后续进一步优化</li>
 </ul>
 <h3 id="未来之路"><a href="#未来之路" class="headerlink" title="未来之路"></a>未来之路</h3><p>基于 <a href="/02-22-2020/hidden-secret-to-understanding-prometheus.html">Prometheus 的数据平台能力</a>，可以构建出业务所有服务的调用的树状图，并且当时的错误变化情况，进行自动故障根源分析，这也是我们以后将要做的</p>
-<p><BR/><br>附：</p>
+<BR/>
+附：
+
 <p><img src="/images/site-reliability-engineering/overview.png" alt="overview"><br>（全局看板部分视图）</p>
 <p><img src="/images/site-reliability-engineering/detail1.png" alt="detail1"><br><img src="/images/site-reliability-engineering/detail2.png" alt="detail2"><br>（详细看板部分视图）</p>
 <p><strong>参考链接</strong><br><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/06c7dd803d4a">https://www.jianshu.com/p/06c7dd803d4a</a></p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/03-28-2020/site-reliability-engineering.html">https://www.cyningsun.com/03-28-2020/site-reliability-engineering.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/03-28-2020/site-reliability-engineering.html">https://www.cyningsun.com/03-28-2020/site-reliability-engineering.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -268,9 +277,9 @@ gtag('config', 'UA-156665333-1');
           
             <li><span><a href="/01-22-2020/use-prometheus-for-anomaly-detection.html">译｜How to use Prometheus for anomaly detection in GitLab</a></span></li>
           
-            <li><span><a href="/09-15-2019/micro-service-monitor-prometheus-client.html">Prometheus Client定制</a></span></li>
+            <li><span><a href="/09-15-2019/micro-service-monitor-prometheus-client.html">Prometheus Client 定制</a></span></li>
           
-            <li><span><a href="/09-13-2019/micro-service-monitor-prometheus-ha.html">高可用Prometheus集群</a></span></li>
+            <li><span><a href="/09-13-2019/micro-service-monitor-prometheus-ha.html">高可用 Prometheus 集群</a></span></li>
           
   </ol>
 
@@ -301,12 +310,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

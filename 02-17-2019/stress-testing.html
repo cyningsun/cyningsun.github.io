@@ -168,7 +168,7 @@ gtag('config', 'UA-156665333-1');
     <hr />
     <div id="social-wrapper">
       <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
-      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
       <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
       <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
       <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
@@ -182,6 +182,13 @@ gtag('config', 'UA-156665333-1');
       <div class="container">
         <div id="article"  class="typo">
     <h1>怎么做服务压测？</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2019-02-17
+         | 
+        Last Revised: 2025-10-30
+    </div>
+    
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
@@ -198,7 +205,7 @@ gtag('config', 'UA-156665333-1');
 </blockquote>
 </li>
 <li>容量规划的需要：什么系统，什么时候，需要多少服务器。<blockquote>
-<p>服务的责任人能够清晰的知道：什么时候该加机器、什么时候应该减机器？双11等大促场景需要准备多少机器，既能保障系统稳定性、又能节约成本 </p>
+<p>服务的责任人能够清晰的知道：什么时候该加机器、什么时候应该减机器？双11等大促场景需要准备多少机器，既能保障系统稳定性、又能节约成本</p>
 </blockquote>
 </li>
 </ul>
@@ -216,7 +223,7 @@ gtag('config', 'UA-156665333-1');
 <li>分析不够：对于占用较多的函数，不能深入找出原因，得到合理的解释。</li>
 </ol>
 <h3 id="单机处理能力"><a href="#单机处理能力" class="headerlink" title="单机处理能力"></a>单机处理能力</h3><p>一般来说服务的单机处理能力主要受设计方案、代码实现、硬件、第三方依赖共同决定。进入压测阶段，影响单机处理能力的，也就是硬件了，接下来我们了解下硬件</p>
-<h4 id="CPU"><a href="#CPU" class="headerlink" title="CPU"></a>CPU</h4><p>一般来说CPU核数越多，主频越高，服务的处理处理能力也就越高。当然，这里有个条件，就是每个CPU在处理的时候资源是独立的，否则当两个CPU同事都需要某一个资源时，其中一个就需要等待，直到资源闲置才能继续。因此，当服务中“锁”冲突严重时，CPU都浪费在线程/进程切换，CPU核数增加也无法带来处理性能的线性增长。此时就需要进行锁冲突优化，降低锁的粒度，甚至使用无锁服务。<br><img src="/images/stress-testing/lock.jpeg" alt="lock"></p>
+<h4 id="CPU"><a href="#CPU" class="headerlink" title="CPU"></a>CPU</h4><p>一般来说CPU核数越多，主频越高，服务的处理处理能力也就越高。当然，这里有个条件，就是每个CPU在处理的时候资源是独立的，否则当两个CPU同事都需要某一个资源时，其中一个就需要等待，直到资源闲置才能继续。因此，当服务中“锁”冲突严重时，CPU都浪费在线程&#x2F;进程切换，CPU核数增加也无法带来处理性能的线性增长。此时就需要进行锁冲突优化，降低锁的粒度，甚至使用无锁服务。<br><img src="/images/stress-testing/lock.jpeg" alt="lock"></p>
 <h4 id="内存"><a href="#内存" class="headerlink" title="内存"></a>内存</h4><p>内存也是影响服务性能的一个重要因素。当内存充足的时候，内存分配和释放的代价会影响服务的性能。当服务不足的时候，会出现Swap分区的换入换出</p>
 <h4 id="磁盘IO"><a href="#磁盘IO" class="headerlink" title="磁盘IO"></a>磁盘IO</h4><p>无论机械磁盘，还是固态硬盘读写，磁盘的读写速度与内存、CPU的速度都不在一个等级上。在一般的业务型服务中，经常会出现日志打印过多，磁盘IO瓶颈，导致服务处理能力与预期不符。</p>
 <blockquote>
@@ -234,14 +241,15 @@ gtag('config', 'UA-156665333-1');
 <li>容量评估：根据预估结果，计算服务需要分配多少机器</li>
 <li>场景压测：针对重点业务场景，进行全局性的压测，根据压测结果再次调整。</li>
 </ul>
-<p><br/></p>
+<br/>
+
 <p>参考链接：</p>
 <ul>
 <li><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/33923691">https://zhuanlan.zhihu.com/p/33923691</a></li>
 <li><a target="_blank" rel="noopener" href="https://github.com/brendangregg/FlameGraph">https://github.com/brendangregg/FlameGraph</a></li>
 <li><a target="_blank" rel="noopener" href="https://huoding.com/2016/08/18/531">https://huoding.com/2016/08/18/531</a></li>
 </ul>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/02-17-2019/stress-testing.html">https://www.cyningsun.com/02-17-2019/stress-testing.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/02-17-2019/stress-testing.html">https://www.cyningsun.com/02-17-2019/stress-testing.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -280,12 +288,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 

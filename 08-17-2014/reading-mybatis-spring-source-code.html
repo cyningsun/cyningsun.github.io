@@ -168,7 +168,7 @@ gtag('config', 'UA-156665333-1');
     <hr />
     <div id="social-wrapper">
       <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
-      <li> <a href="mailto:sunyinhangscut@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
       <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
       <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
       <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
@@ -182,6 +182,13 @@ gtag('config', 'UA-156665333-1');
       <div class="container">
         <div id="article"  class="typo">
     <h1>深入理解Mybatis-Spring工作原理</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2014-08-17
+         | 
+        Last Revised: 2025-10-30
+    </div>
+    
     <h2 id="tagline" class="serif"></h2>
     <div class="post">
         
@@ -192,6 +199,7 @@ gtag('config', 'UA-156665333-1');
 <pre><code class="hljs xml"><span class="hljs-tag">&lt;<span class="hljs-name">bean</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;org.mybatis.spring.mapper.MapperScannerConfigurer&quot;</span>&gt;</span>
   <span class="hljs-tag">&lt;<span class="hljs-name">property</span> <span class="hljs-attr">name</span>=<span class="hljs-string">&quot;basePackage&quot;</span> <span class="hljs-attr">value</span>=<span class="hljs-string">&quot;&quot;</span> /&gt;</span>
 <span class="hljs-tag">&lt;/<span class="hljs-name">bean</span>&gt;</span></code></pre>
+
 <p>入口类为MapperScannerConfigurer, 该类实现了BeanDefinitionRegistryPostProcessor接口用来查找Mapper类，然后将MapperFactoryBean设置为Mapper的<br>实现类。MapperFactoryBean是一个代理类，会根据Mapper信息通过sqlSession获取对应Mapper的实例。以上就是Mybatis-Spring的所有任务。</p>
 <h4 id="MapperScannerConfigurer如何查找Mapper"><a href="#MapperScannerConfigurer如何查找Mapper" class="headerlink" title="MapperScannerConfigurer如何查找Mapper"></a>MapperScannerConfigurer如何查找Mapper</h4><p>了解Mapper查找的原理，首先要了解BeanDefinitionRegistryPostProcessor接口。开发人员通过 XML 文件或者 Annotation 预定义配置 bean 的各种属性后，启动 Spring 容器，Spring 容器会首先解析这些配置属性，生成对应都 Bean Definition，装入到 DefaultListableBeanFactory 对象的属性容器中去。Spring 框架会根据配置，过滤出 BeanDefinitionRegistryPostProcessor 类型的 Bean 定义，并通过 Spring 框架生成其对应的 Bean 对象。Spring 容器会在实例化开发人员所定义的 Bean 前先调用该 processor 的 postProcessBeanDefinitionRegistry(…) 方法。此处可以操作和配置Bean Definition。下面是MapperScannerConfigurer的源码</p>
 <pre><code class="hljs java"> <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">postProcessBeanDefinitionRegistry</span><span class="hljs-params">(BeanDefinitionRegistry registry)</span> <span class="hljs-keyword">throws</span> BeansException &#123;
@@ -212,6 +220,7 @@ gtag('config', 'UA-156665333-1');
    scanner.registerFilters();
    scanner.scan(StringUtils.tokenizeToStringArray(<span class="hljs-built_in">this</span>.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
  &#125;</code></pre>
+
 <p>ClassPathMapperScanner继承了ClassPathBeanDefinitionScanner，scanner.scan()语句会调用ClassPathMapperScanner的doScan函数。然后此函数中将MapperFactoryBean设置为查找到的Mapper的实现类</p>
 <pre><code class="hljs java"><span class="hljs-keyword">public</span> Set&lt;BeanDefinitionHolder&gt; <span class="hljs-title function_">doScan</span><span class="hljs-params">(String... basePackages)</span> &#123;
    Set&lt;BeanDefinitionHolder&gt; beanDefinitions = <span class="hljs-built_in">super</span>.doScan(basePackages);
@@ -255,15 +264,17 @@ gtag('config', 'UA-156665333-1');
 
    <span class="hljs-keyword">return</span> beanDefinitions;
  &#125;</code></pre>
+
 <p>然后就是MapperFactoryBean根据实例化的信息创建对应的Mapper实例了</p>
 <pre><code class="hljs java"><span class="hljs-keyword">public</span> T <span class="hljs-title function_">getObject</span><span class="hljs-params">()</span> <span class="hljs-keyword">throws</span> Exception &#123;
   <span class="hljs-keyword">return</span> getSqlSession().getMapper(<span class="hljs-built_in">this</span>.mapperInterface);
 &#125;
 </code></pre>
+
 <p>就这样Mybatis-Spring省去了手工配置Mapper，帮助开发者实现自动的配置，使得开发快速。</p>
-<h4 id="Mybatis涉及的主要类"><a href="#Mybatis涉及的主要类" class="headerlink" title="Mybatis涉及的主要类"></a>Mybatis涉及的主要类</h4><p>MapperScannerConfigurer — ClassPathMapperScanner — MapperFactoryBean</p>
+<h4 id="Mybatis涉及的主要类"><a href="#Mybatis涉及的主要类" class="headerlink" title="Mybatis涉及的主要类"></a>Mybatis涉及的主要类</h4><p>MapperScannerConfigurer – ClassPathMapperScanner – MapperFactoryBean</p>
 <p>(完)</p>
-<p><strong>本文作者</strong>： cyningsun<br /><strong>本文地址</strong>： <a href="https://www.cyningsun.com/08-17-2014/reading-mybatis-spring-source-code.html">https://www.cyningsun.com/08-17-2014/reading-mybatis-spring-source-code.html</a> <br /><strong>版权声明</strong>：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/08-17-2014/reading-mybatis-spring-source-code.html">https://www.cyningsun.com/08-17-2014/reading-mybatis-spring-source-code.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
 
     </div>
     
@@ -302,12 +313,20 @@ gtag('config', 'UA-156665333-1');
       </div>
       <div class="container">
   <footer>
-    <p class="text-muted credit">Copyright ©2023 cyningsun
+    <p class="text-muted credit">Copyright ©2025 cyningsun
     <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
     <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
     <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
   </footer>
 </div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
     </div>
     <!-- Bootstrap core JavaScript-->
 
