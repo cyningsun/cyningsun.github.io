@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译 | Prefer table driven tests</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2019-07-24 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-01-25 00:00:00 +0800"/>
+
+<meta property="og:url" content="/07-24-2019/prefer-table-driven-tests-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="我是测试的忠实粉丝，特别是单元测试和TDD（当然前提是， 恰当的做好 ）。 围绕Go项目的一种实践是 table driven test 方法。 这篇文章探讨了编写 table driven test 的方式和原因。 假设我们有一个分割字符串的函数： // Split slices s into all substrings separated by sep">
+
+<meta name="keywords" content="TDD,testing">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译 | Prefer table driven tests</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2019-07-24
+         | 
+        Last Revised: 2020-01-25
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#Code-coverage"><span class="toc-text">Code coverage</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Spray-some-bashrc-on-that"><span class="toc-text">Spray some .bashrc on that</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Going-beyond-100-coverage"><span class="toc-text">Going beyond 100% coverage</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Introducing-table-driven-tests"><span class="toc-text">Introducing table driven tests</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Enumerating-test-cases"><span class="toc-text">Enumerating test cases</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Give-your-test-cases-names"><span class="toc-text">Give your test cases names</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Introducing-sub-tests"><span class="toc-text">Introducing sub tests</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Individual-sub-test-cases-can-be-executed-directly"><span class="toc-text">Individual sub test cases can be executed directly</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Comparing-what-we-got-with-what-we-wanted"><span class="toc-text">Comparing what we got with what we wanted</span></a></li></ol>
+ 
+        <p>我是测试的忠实粉丝，特别是<a target="_blank" rel="noopener" href="https://dave.cheney.net/2019/04/03/absolute-unit-test">单元测试</a>和TDD（当然前提是， <a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=EZ05e7EMOLM">恰当的做好</a> ）。 围绕Go项目的一种实践是 <code>table driven test</code> 方法。 这篇文章探讨了编写 <code>table driven test</code> 的方式和原因。</p>
+<p>假设我们有一个分割字符串的函数：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Split slices s into all substrings separated by sep and  </span>
+<span class="hljs-comment">// returns a slice of the substrings between those separators.  </span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Split</span><span class="hljs-params">(s, sep <span class="hljs-type">string</span>)</span></span> []<span class="hljs-type">string</span> &#123;  
+    <span class="hljs-keyword">var</span> result []<span class="hljs-type">string</span>  
+    i := strings.Index(s, sep)  
+    <span class="hljs-keyword">for</span> i &gt; <span class="hljs-number">-1</span> &#123;  
+        result = <span class="hljs-built_in">append</span>(result, s[:i])  
+        s = s[i+<span class="hljs-built_in">len</span>(sep):]  
+        i = strings.Index(s, sep)  
+    &#125;  
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">append</span>(result, s)  
+&#125;</code></pre>
+
+<p>在Go中，单元测试只是常规的Go函数（有一些规则），所以我们在同一目录的文件中，使用相同的包名 <code>strings</code>，开始为这个函数编写一个单元测试。</p>
+<pre><code class="hljs go"><span class="hljs-keyword">package</span> split  
+
+<span class="hljs-keyword">import</span> (  
+    <span class="hljs-string">&quot;reflect&quot;</span>  
+    <span class="hljs-string">&quot;testing&quot;</span>  
+)  
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    got := Split(<span class="hljs-string">&quot;a/b/c&quot;</span>, <span class="hljs-string">&quot;/&quot;</span>)  
+    want := []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;  
+    <span class="hljs-keyword">if</span> !reflect.DeepEqual(want, got) &#123;  
+         t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, want, got)  
+    &#125;  
+&#125;</code></pre>
+
+<p>测试只是常规的有一些规则的Go函数：</p>
+<ol>
+<li>测试函数的名称必须以Test开头。</li>
+<li>测试函数必须采用*testing.T 类型的一个参数。 *testing.T 是测试包本身注入的类型，用于提供打印，跳过和失败测试的方法。</li>
+</ol>
+<p>在我们的测试中，我们使用一些输入调用 <code>Split</code>，然后将其与我们预期的结果进行比较。</p>
+<h3 id="Code-coverage"><a href="#Code-coverage" class="headerlink" title="Code coverage"></a>Code coverage</h3><p>接下来的问题是，这个包的覆盖范围是什么？ 幸运的是，go tool 具有内置的分支覆盖。 我们可以像这样调用它：</p>
+<pre><code class="hljs sh">% go <span class="hljs-built_in">test</span> -coverprofile=c.out 
+PASS  
+coverage: 100.0% of statements  
+ok      <span class="hljs-built_in">split</span>   0.010s</code></pre>
+
+<p>结果表明，代码有100％的分支覆盖率，这并不奇怪，这段代码中只有一个分支。</p>
+<p>如果我们想深入了解覆盖率报告，那么 go tool 有几个选项来打印覆盖率报告。 我们可以使用 <code>go tool cover -func</code> 来细分每个函数的覆盖率：</p>
+<pre><code class="hljs sh">% **go tool cover -func=c.out**  
+<span class="hljs-built_in">split</span>/split.go:8:       Split          100.0%  
+total:                  (statements)   100.0%</code></pre>
+
+<p>如果在该软件包中只有一个功能，并不足令人兴奋，但我相信你会发现更多令人兴奋的软件包来测试。</p>
+<h4 id="Spray-some-bashrc-on-that"><a href="#Spray-some-bashrc-on-that" class="headerlink" title="Spray some .bashrc on that"></a>Spray some .bashrc on that</h4><p>这两个命令对我来说非常有用，因此我有一个shell alias，它可以一个命令运行测试覆盖率并得到报告：</p>
+<pre><code class="hljs sh"><span class="hljs-function"><span class="hljs-title">cover</span></span> () &#123;  
+    <span class="hljs-built_in">local</span> t=$(<span class="hljs-built_in">mktemp</span> -t cover)  
+    go <span class="hljs-built_in">test</span> <span class="hljs-variable">$COVERFLAGS</span> -coverprofile=<span class="hljs-variable">$t</span> <span class="hljs-variable">$@</span> \  
+        &amp;&amp; go tool cover -func=<span class="hljs-variable">$t</span> \  
+        &amp;&amp; <span class="hljs-built_in">unlink</span> <span class="hljs-variable">$t</span>  
+&#125;</code></pre>
+
+<h3 id="Going-beyond-100-coverage"><a href="#Going-beyond-100-coverage" class="headerlink" title="Going beyond 100% coverage"></a>Going beyond 100% coverage</h3><p>我们编写了一个测试用例，获得了100％的覆盖率，但这并不是故事的结尾。 我们有很好的分支覆盖，但我们可能需要测试一些边界条件。 例如，如果我们尝试将使用逗号分割字符串会发生什么？</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplitWrongSep</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    got := Split(<span class="hljs-string">&quot;a/b/c&quot;</span>, <span class="hljs-string">&quot;,&quot;</span>)  
+    want := []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;  
+    <span class="hljs-keyword">if</span> !reflect.DeepEqual(want, got) &#123;  
+        t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, want, got)  
+    &#125;  
+&#125;</code></pre>
+
+<p>抑或，如果源字符串中没有分隔符会发生什么？</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplitNoSep</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    got := Split(<span class="hljs-string">&quot;abc&quot;</span>, <span class="hljs-string">&quot;/&quot;</span>)  
+    want := []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;  
+    <span class="hljs-keyword">if</span> !reflect.DeepEqual(want, got) &#123;  
+        t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, want, got)  
+    &#125;  
+&#125;</code></pre>
+
+<p>我们开始构建一组运行边界条件的测试用例。 这相当不错。</p>
+<h3 id="Introducing-table-driven-tests"><a href="#Introducing-table-driven-tests" class="headerlink" title="Introducing table driven tests"></a>Introducing table driven tests</h3><p>然而，我们的测试中有很多重复。 对于每个测试用例，只有输入，预期输出和测试用例的名称发生变化。 其他一切都是样板。 我们想要设置所有的输入和预期输出，感受它们在单个测试套件的效果。 这是引入 table driven test 的好时机。</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    <span class="hljs-keyword">type</span> test <span class="hljs-keyword">struct</span> &#123;  
+        input <span class="hljs-type">string</span>  
+        sep   <span class="hljs-type">string</span>  
+        want  []<span class="hljs-type">string</span>  
+    &#125;  
+
+    tests := []test&#123;  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+    &#125;  
+
+    <span class="hljs-keyword">for</span> _, tc := <span class="hljs-keyword">range</span> tests &#123;  
+        got := Split(tc.input, tc.sep)  
+        <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
+            t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, tc.want, got)  
+        &#125;  
+    &#125;  
+&#125;</code></pre>
+
+<p>我们声明了一个结构来保存我们的测试输入和预期输出。 这是我们的表。<code>tests</code> 结构通常是局部声明，因为我们希望将此名称重用于此包中的其他测试。</p>
+<p>实际上，我们甚至不需要给类型命名，我们可以使用匿名结构字面值来减少样板文件，如下所示：</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    tests := []<span class="hljs-keyword">struct</span> &#123;  
+        input <span class="hljs-type">string</span>  
+        sep   <span class="hljs-type">string</span>  
+        want  []<span class="hljs-type">string</span>  
+    &#125;&#123;  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+    &#125;   
+
+    <span class="hljs-keyword">for</span> _, tc := <span class="hljs-keyword">range</span> tests &#123;  
+        got := Split(tc.input, tc.sep)  
+        <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
+            t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, tc.want, got)  
+        &#125;  
+    &#125;  
+&#125;</code></pre>
+
+<p>现在，添加一个新的测试是直截了当的事情; 只需在 <code>tests</code> 结构中添加另一行。 例如，如果我们的输入字符串有一个尾随分隔符会发生什么？</p>
+<pre><code class="hljs sh">&#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []string&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+&#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []string&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+&#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []string&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+**&#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []string&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;, // trailing sep**</code></pre>
+
+<p>但是，当我们运行 <code>go test</code>，我们得到了</p>
+<pre><code class="hljs sh">% go <span class="hljs-built_in">test</span>
+--- FAIL: TestSplit (0.00s)  
+    split_test.go:24: expected: [a b c], got: [a b c ]</code></pre>
+
+<p>抛开测试失败，有一些问题需要讨论。</p>
+<p>第一种，将每个测试从函数重写到表中的一行，我们已经丢失了失败测试的名称。 我们在测试文件中添加了一个注释来强调这种情况，但我们无法在 <code>go test</code> 输出中访问该注释。</p>
+<p>有几种方法可以解决这个问题。 你会在Go代码库中看到混合风格的使用，因为table testing的习惯用法随着人们对该类型的不断试验而不断发展。</p>
+<h3 id="Enumerating-test-cases"><a href="#Enumerating-test-cases" class="headerlink" title="Enumerating test cases"></a>Enumerating test cases</h3><p>由于测试存储在 slice 中，我们可以在失败消息中打印出测试用例的索引：</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    tests := []<span class="hljs-keyword">struct</span> &#123;  
+        input <span class="hljs-type">string</span>  
+        sep . <span class="hljs-type">string</span>  
+        want  []<span class="hljs-type">string</span>  
+    &#125;&#123;  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        &#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+    &#125;  
+
+    <span class="hljs-keyword">for</span> i, tc := <span class="hljs-keyword">range</span> tests &#123;  
+        got := Split(tc.input, tc.sep)  
+        <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
+            t.Fatalf(<span class="hljs-string">&quot;**test %d:** expected: %v, got: %v&quot;</span>, **i+<span class="hljs-number">1</span>**, tc.want, got)  
+        &#125;  
+    &#125;  
+&#125;</code></pre>
+
+<p>现在，当我们运行 <code>go test</code> 我们得到了这个：</p>
+<pre><code class="hljs sh">% go <span class="hljs-built_in">test</span>  
+--- FAIL: TestSplit (0.00s)  
+    split_test.go:24: **<span class="hljs-built_in">test</span> 4:** expected: [a b c], got: [a b c ]</code></pre>
+
+<p>这样好了一些。 现在我们知道第四个测试失败了，尽管我们不得不做了一点点捏造，因为 slice 索引和范围迭代是从 0 开始的。 这要求您的测试用例保持一致; 如果有些人从 0 开始报告而其他人使用 1 开始报告，那将会令人困惑。 并且，如果测试用例列表很长，则可能很难数大括号以确切地确定第4个测试用例由哪些结构构成。</p>
+<h3 id="Give-your-test-cases-names"><a href="#Give-your-test-cases-names" class="headerlink" title="Give your test cases names"></a>Give your test cases names</h3><p>另一种常见模式是在测试结构中包含名称字段。</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    tests := []<span class="hljs-keyword">struct</span> &#123;  
+        **name  <span class="hljs-type">string</span>**  
+        input <span class="hljs-type">string</span>  
+        sep   <span class="hljs-type">string</span>  
+        want  []<span class="hljs-type">string</span>  
+    &#125;&#123;  
+        &#123;name: <span class="hljs-string">&quot;simple&quot;</span>, input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        &#123;name: <span class="hljs-string">&quot;wrong sep&quot;</span>, input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        &#123;name: <span class="hljs-string">&quot;no sep&quot;</span>, input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        &#123;name: <span class="hljs-string">&quot;trailing sep&quot;</span>, input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+    &#125;  
+
+    <span class="hljs-keyword">for</span> _, tc := <span class="hljs-keyword">range</span> tests &#123;  
+        got := Split(tc.input, tc.sep)  
+        <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
+            t.Fatalf(<span class="hljs-string">&quot;**%s:** expected: %v, got: %v&quot;</span>, **tc.name**, tc.want, got)  
+        &#125;  
+    &#125;  
+&#125;</code></pre>
+
+<p>现在，当测试失败时，我们有一个描述性的名称，描述正在进行的测试。 我们不再需要尝试从输出中找出它 —— 现在还有一个字符串，我们可以搜索。</p>
+<pre><code class="hljs sh">% go <span class="hljs-built_in">test</span> 
+--- FAIL: TestSplit (0.00s)  
+    split_test.go:25: **trailing sep**: expected: [a b c], got: [a b c ]</code></pre>
+
+<p>我们可以使用 map 字面值语法来更详细地说明这一点：</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    tests := **<span class="hljs-keyword">map</span>[<span class="hljs-type">string</span>]<span class="hljs-keyword">struct</span> &#123;  
+        input <span class="hljs-type">string</span>  
+        sep   <span class="hljs-type">string</span>  
+        want  []<span class="hljs-type">string</span>  
+    &#125;**&#123;   
+        <span class="hljs-string">&quot;simple&quot;</span>:       &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,   
+        <span class="hljs-string">&quot;wrong sep&quot;</span>:    &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;no sep&quot;</span>:       &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;trailing sep&quot;</span>: &#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+    &#125;  
+
+    <span class="hljs-keyword">for</span> name, tc := <span class="hljs-keyword">range</span> tests &#123;  
+        got := Split(tc.input, tc.sep)  
+        <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
+            t.Fatalf(<span class="hljs-string">&quot;**%s:** expected: %v, got: %v&quot;</span>, **name**, tc.want, got)  
+        &#125;  
+    &#125;  
+&#125;</code></pre>
+
+<p>使用 map 字面值语法，我们不再将测试用例定义为结构的 slice，而是作为测试名到测试结构的 map。 使用可能会提高测试效果的 map 还有一个好处。</p>
+<p>map 迭代顺序是 <em>undefined</em> <a target="_blank" rel="noopener" href="https://golang.org/ref/spec#For_statements" title="请不要给我发电子邮件，认为地图迭代顺序是random. 事实并非如此."><sup>1</sup></a> 这意味着每次运行 <code>go test</code>，我们的测试都可能以不同的顺序运行。</p>
+<p>这对于发现在按语句顺序运行时测试通过的条件非常有用，但不适用于其他情况。如果您发现这种情况发生了，您可能是有一些全局状态，被一次测试改变，而后续测试取决于该修改。</p>
+<h3 id="Introducing-sub-tests"><a href="#Introducing-sub-tests" class="headerlink" title="Introducing sub tests"></a>Introducing sub tests</h3><p>在我们修复失败的测试之前，还有一些其他问题需要在我们的 table driven test 工具中解决。</p>
+<p>第一，我们在其中一个测试用例失败时调用t.Fatalf。 这意味着在第一次失败的测试用例之后我们停止测试其他情况。 因为测试用例是以未定义的顺序运行的，所以如果测试失败，那么知道它是唯一的失败还是只是第一次失败会更好。</p>
+<p>如果我们努力将每个测试用例写出来作为测试包的函数，测试包将为我们做到这一点，但是这很冗长。 好消息是，自从Go 1.7添加了一项新功能，让我们可以轻松地进行 table driven test。 它们被称为 <a target="_blank" rel="noopener" href="https://blog.golang.org/subtests">sub tests</a>。</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    tests := <span class="hljs-keyword">map</span>[<span class="hljs-type">string</span>]<span class="hljs-keyword">struct</span> &#123;  
+        input <span class="hljs-type">string</span>  
+        sep   <span class="hljs-type">string</span>  
+        want  []<span class="hljs-type">string</span>  
+    &#125;&#123;  
+        <span class="hljs-string">&quot;simple&quot;</span>:       &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;wrong sep&quot;</span>:    &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;no sep&quot;</span>:       &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;trailing sep&quot;</span>: &#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+    &#125;  
+
+    <span class="hljs-keyword">for</span> name, tc := <span class="hljs-keyword">range</span> tests &#123;  
+**t.Run(name, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+            got := Split(tc.input, tc.sep)  
+            <span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
+                t.Fatalf(<span class="hljs-string">&quot;expected: %v, got: %v&quot;</span>, tc.want, got)  
+            &#125;  
+        &#125;)**  
+    &#125;  
+&#125;</code></pre>
+
+<p>由于每个 sub test 现在都有一个名称，我们可以在任何测试运行中自动打印出该名称。</p>
+<pre><code class="hljs sh">% go <span class="hljs-built_in">test</span> 
+--- FAIL: TestSplit (0.00s)  
+    --- FAIL: **TestSplit/trailing_sep** (0.00s)  
+        split_test.go:25: expected: [a b c], got: [a b c ]  
+</code></pre>
+
+<p>每个 subtest 都是它自己的匿名函数，因此我们可以使用 <code>t.Fatalf</code>，<code>t.Skipf</code> 和所有其他 <code>testing.T</code> helper，同时保留table driven test 的紧凑性。</p>
+<h4 id="Individual-sub-test-cases-can-be-executed-directly"><a href="#Individual-sub-test-cases-can-be-executed-directly" class="headerlink" title="Individual sub test cases can be executed directly"></a>Individual sub test cases can be executed directly</h4><p>由于 sub tests 具有名称，因此您可以使用 <code>go test -run</code> flag 按名称运行一系列 sub tests。</p>
+<pre><code class="hljs sh">% **go <span class="hljs-built_in">test</span> -run=.*/trailing -v**  
+=== RUN   TestSplit  
+=== RUN   TestSplit/trailing_sep  
+--- FAIL: TestSplit (0.00s)  
+    --- FAIL: TestSplit/trailing_sep (0.00s)  
+        split_test.go:25: expected: [a b c], got: [a b c ]</code></pre>
+
+<h3 id="Comparing-what-we-got-with-what-we-wanted"><a href="#Comparing-what-we-got-with-what-we-wanted" class="headerlink" title="Comparing what we got with what we wanted"></a>Comparing what we got with what we wanted</h3><p>现在我们已准备好修复测试用例。 我们来看看错误。</p>
+<pre><code class="hljs sh">--- FAIL: TestSplit (0.00s)  
+    --- FAIL: TestSplit/trailing_sep (0.00s)  
+        split_test.go:25: expected: [a b c], got: [a b c ]</code></pre>
+
+<p>你能发现问题吗？ 很明显，切片是不同的，这就是 <code>reflect.DeepEqual</code> 令人烦恼的原因。 但是要找到实际的差异并不容易，你必须发现在 <code>c</code> 之后额外的空格。 在这个简单的例子中，这可能看起来很简单，但是当你比较两个复杂的深层嵌套的gRPC结构时，它是任何东西（不一定是空格）。</p>
+<p>如果我们切换到 <code>%#v</code> 语法以将值视为Go（ish）声明，则可以改进输出：</p>
+<pre><code class="hljs go">got := Split(tc.input, tc.sep)  
+<span class="hljs-keyword">if</span> !reflect.DeepEqual(tc.want, got) &#123;  
+    t.Fatalf(<span class="hljs-string">&quot;**expected: %#v, got: %#v**&quot;</span>, tc.want, got)  
+&#125;</code></pre>
+
+<p>现在，当我们运行测试时，很明显问题在于 slice 中有一个额外的空白元素。</p>
+<pre><code class="hljs sh">% go <span class="hljs-built_in">test</span> 
+--- FAIL: TestSplit (0.00s)  
+    --- FAIL: TestSplit/trailing_sep (0.00s)  
+        split_test.go:25: **expected: []string&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;, got: []string&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>, <span class="hljs-string">&quot;&quot;</span>&#125;**</code></pre>
+
+<p>但是在我们开始修复测试失败之前，我想多谈一点关于选择正确的方法来呈现测试失败的问题。我们的 <code>Split</code> 函数很简单，它接受一个原始的字符串并返回一段字符串，但是如果它处理结构，或者更糟的，指向结构的指针呢？</p>
+<p>下面是一个例子，其中 <code>%v</code> 不起作用：</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;  
+    <span class="hljs-keyword">type</span> T <span class="hljs-keyword">struct</span> &#123;  
+        I <span class="hljs-type">int</span>  
+    &#125;  
+    x := []*T&#123; &#123;<span class="hljs-number">1</span>&#125;, &#123;<span class="hljs-number">2</span>&#125;, &#123;<span class="hljs-number">3</span>&#125; &#125;
+    y := []*T&#123; &#123;<span class="hljs-number">1</span>&#125;, &#123;<span class="hljs-number">2</span>&#125;, &#123;<span class="hljs-number">4</span>&#125; &#125;
+    fmt.Printf(<span class="hljs-string">&quot;%v %v\n&quot;</span>, x, y)  
+    fmt.Printf(<span class="hljs-string">&quot;%#v %#v\n&quot;</span>, x, y)  
+&#125;</code></pre>
+
+<p>第一个 <code>fmt.Printf</code> 打印毫无帮助但符合预期的 addresses slice；<code>[0xc000096000 0xc000096008 0xc000096010] [0xc000096018 0xc000096020 0xc000096028]</code>。 但是，我们的 <code>%#v</code> 并没有做任何改进。打印一个 addresses slice 强制转换为 <code>*main.T</code>；<code>[]*main.T&#123;(*main.T)(0xc000096000), (*main.T)(0xc000096008), (*main.T)(0xc000096010)&#125; []*main.T&#123;(*main.T)(0xc000096018), (*main.T)(0xc000096020), (*main.T)(0xc000096028)&#125;</code></p>
+<p>由于使用任何 <code>fmt.Printf</code> verb 的局限性，我想从Google引入 <a target="_blank" rel="noopener" href="https://github.com/google/go-cmp">go-cmp</a> 库。</p>
+<p>cmp 库的目标是专门比较两个值。这类似于 <code>reflect.DeepEqual</code>，但它有更多的功能。所以，使用cmp pacakge，你可以编写如下：</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;  
+    <span class="hljs-keyword">type</span> T <span class="hljs-keyword">struct</span> &#123;  
+        I <span class="hljs-type">int</span>  
+    &#125;  
+    x := []*T&#123; &#123;<span class="hljs-number">1</span>&#125;, &#123;<span class="hljs-number">2</span>&#125;, &#123;<span class="hljs-number">3</span>&#125; &#125;
+    y := []*T&#123; &#123;<span class="hljs-number">1</span>&#125;, &#123;<span class="hljs-number">2</span>&#125;, &#123;<span class="hljs-number">4</span>&#125; &#125;
+    fmt.Println(cmp.Equal(x, y)) **<span class="hljs-comment">// false**  </span>
+&#125;</code></pre>
+
+<p>但是对于我们的测试函数来说，更有用的是 <code>cmp.Diff</code> 函数，它将产生一个文本描述，递归地描述两个值之间的区别。</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;  
+    <span class="hljs-keyword">type</span> T <span class="hljs-keyword">struct</span> &#123;  
+        I <span class="hljs-type">int</span>  
+    &#125;  
+    x := []*T&#123; &#123;<span class="hljs-number">1</span>&#125;, &#123;<span class="hljs-number">2</span>&#125;, &#123;<span class="hljs-number">3</span>&#125; &#125;
+    y := []*T&#123; &#123;<span class="hljs-number">1</span>&#125;, &#123;<span class="hljs-number">2</span>&#125;, &#123;<span class="hljs-number">4</span>&#125; &#125;
+    diff := cmp.Diff(x, y)  
+    fmt.Printf(diff)  
+&#125;</code></pre>
+
+<p>取而代之输出：</p>
+<pre><code class="hljs sh">% go run  
+&#123;[]*main.T&#125;[2].I:  
+         -: 3  
+         +: 4</code></pre>
+
+<p>以上表明，在类型 <code>T</code> 的 slice 第二个元素，<code>I</code> 字段应该是3，但实际上是4。</p>
+<p>综上所述，我们进行了 table driven go-cmp test</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">TestSplit</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+    tests := <span class="hljs-keyword">map</span>[<span class="hljs-type">string</span>]<span class="hljs-keyword">struct</span> &#123;  
+        input <span class="hljs-type">string</span>  
+        sep   <span class="hljs-type">string</span>  
+        want  []<span class="hljs-type">string</span>  
+    &#125;&#123;  
+        <span class="hljs-string">&quot;simple&quot;</span>:       &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;wrong sep&quot;</span>:    &#123;input: <span class="hljs-string">&quot;a/b/c&quot;</span>, sep: <span class="hljs-string">&quot;,&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a/b/c&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;no sep&quot;</span>:       &#123;input: <span class="hljs-string">&quot;abc&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;abc&quot;</span>&#125;&#125;,  
+        <span class="hljs-string">&quot;trailing sep&quot;</span>: &#123;input: <span class="hljs-string">&quot;a/b/c/&quot;</span>, sep: <span class="hljs-string">&quot;/&quot;</span>, want: []<span class="hljs-type">string</span>&#123;<span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-string">&quot;c&quot;</span>&#125;&#125;,  
+    &#125;  
+
+    <span class="hljs-keyword">for</span> name, tc := <span class="hljs-keyword">range</span> tests &#123;  
+        t.Run(name, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(t *testing.T)</span></span> &#123;  
+            got := Split(tc.input, tc.sep)  
+**diff := cmp.Diff(tc.want, got)  
+            <span class="hljs-keyword">if</span> diff != <span class="hljs-string">&quot;&quot;</span> &#123;  
+                t.Fatalf(diff)  
+            &#125;**  
+        &#125;)  
+    &#125;  
+&#125;</code></pre>
+
+<p>运行，我们得到</p>
+<pre><code class="hljs sh">% go <span class="hljs-built_in">test</span>  
+--- FAIL: TestSplit (0.00s)  
+    --- FAIL: TestSplit/trailing_sep (0.00s)  
+        split_test.go:27: &#123;[]string&#125;[?-&gt;3]:  
+                -: &lt;non-existent&gt;  
+                +: <span class="hljs-string">&quot;&quot;</span>  
+FAIL  
+<span class="hljs-built_in">exit</span> status 1  
+FAIL    <span class="hljs-built_in">split</span>   0.006s</code></pre>
+
+<p>使用 <code>cmp.Diff</code> 我们的测试工具不仅仅是告诉我们，我们得到的和想要的是不同的。我们的测试告诉我们，字符串的长度是不同的，结构中的第三个索引不应该存在，但是实际输出得到一个空字符串，“”。从此开始，修复测试失败是直接了当的。</p>
+<p><em>原文：<a target="_blank" rel="noopener" href="https://dave.cheney.net/2019/05/07/prefer-table-driven-tests">https://dave.cheney.net/2019/05/07/prefer-table-driven-tests</a></em></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/07-24-2019/prefer-table-driven-tests-cn.html">https://www.cyningsun.com/07-24-2019/prefer-table-driven-tests-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/08-03-2019/solid-go-design-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/07-21-2019/go-diagnostics-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

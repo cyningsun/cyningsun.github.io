@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解 RocksDB 过期文件清理</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2025-05-05 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-05-05 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-05-2025/rocksdb-obsolete-files.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="RocksDB 作为一个高性能的 KV 存储引擎，会产生多种类型的文件：SST 数据文件、WAL 日志文件、MANIFEST 元数据文件、LOG 运行日志等。随着数据库运行，这些文件会不断生成、更新和过期。尤其是一些极端情况下，会导致磁盘空间耗尽，数据库无法继续写入数据，引发服务中断。 不妨带着以下问题，来详细深入了解下具体的实现细节 compaction ">
+
+<meta name="keywords" content="Obsolete">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解 RocksDB 过期文件清理</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2025-05-05
+         | 
+        Last Revised: 2025-05-05
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E4%BB%80%E4%B9%88%E6%98%AF%E8%BF%87%E6%9C%9F%E6%96%87%E4%BB%B6"><span class="toc-text">一、什么是过期文件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E8%BF%87%E6%9C%9F%E6%96%87%E4%BB%B6%E6%B8%85%E7%90%86%E7%9A%84%E6%A0%B8%E5%BF%83%E6%9C%BA%E5%88%B6"><span class="toc-text">二、过期文件清理的核心机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-text">2.1 核心数据结构</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#JobContext"><span class="toc-text">JobContext</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DBImpl"><span class="toc-text">DBImpl</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E6%A0%B8%E5%BF%83%E5%87%BD%E6%95%B0"><span class="toc-text">2.2 核心函数</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-1-SST-%E6%96%87%E4%BB%B6%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">2.2.1 SST 文件生命周期</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-2-%E8%AF%86%E5%88%AB%E8%BF%87%E6%9C%9F%E6%96%87%E4%BB%B6%EF%BC%9AFindObsoleteFiles"><span class="toc-text">2.2.2 识别过期文件：FindObsoleteFiles</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#2-2-2-1-%E5%B8%B8%E8%A7%84%E6%B8%85%E7%90%86-vs-%E5%85%A8%E9%87%8F%E6%89%AB%E6%8F%8F-Full-Scan"><span class="toc-text">2.2.2.1 常规清理 vs. 全量扫描 (Full Scan)</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#2-2-2-2-%E8%BF%87%E6%9C%9F%E6%B8%85%E7%90%86%E8%A7%A6%E5%8F%91%E4%BA%8B%E4%BB%B6"><span class="toc-text">2.2.2.2 过期清理触发事件</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#2-2-2-3-%E2%80%9C%E5%91%A8%E6%9C%9F%E6%80%A7%E2%80%9D%E5%85%A8%E9%87%8F%E6%B8%85%E7%90%86"><span class="toc-text">2.2.2.3 “周期性”全量清理</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#2-2-2-4-%E6%96%87%E4%BB%B6%E5%9B%9E%E6%94%B6%E6%9C%BA%E5%88%B6"><span class="toc-text">2.2.2.4 文件回收机制</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-3-%E4%BB%8E-VersionSet-%E8%8E%B7%E5%8F%96%E8%BF%87%E6%9C%9F%E6%96%87%E4%BB%B6%EF%BC%9AGetObsoleteFiles"><span class="toc-text">2.2.3 从 VersionSet 获取过期文件：GetObsoleteFiles</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#2-2-3-1-pending-outputs-%E6%9C%BA%E5%88%B6"><span class="toc-text">2.2.3.1 pending_outputs_ 机制</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-2-4-%E5%88%A0%E9%99%A4%E8%BF%87%E6%9C%9F%E6%96%87%E4%BB%B6%EF%BC%9APurgeObsoleteFiles"><span class="toc-text">2.2.4 删除过期文件：PurgeObsoleteFiles</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#2-2-4-1-%E5%BC%82%E6%AD%A5%E5%88%A0%E9%99%A4%E6%9C%BA%E5%88%B6"><span class="toc-text">2.2.4.1 异步删除机制</span></a></li></ol></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E4%B8%8D%E5%90%8C%E7%B1%BB%E5%9E%8B%E6%96%87%E4%BB%B6%E7%9A%84%E6%B8%85%E7%90%86%E7%AD%96%E7%95%A5"><span class="toc-text">三、不同类型文件的清理策略</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E7%BB%9F%E8%AE%A1%E6%8C%87%E6%A0%87"><span class="toc-text">四、统计指标</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">五、总结</span></a></li></ol>
+ 
+        <p>RocksDB 作为一个高性能的 KV 存储引擎，会产生多种类型的文件：SST 数据文件、WAL 日志文件、MANIFEST 元数据文件、LOG 运行日志等。随着数据库运行，这些文件会不断生成、更新和过期。尤其是一些极端情况下，会导致<strong>磁盘空间耗尽</strong>，数据库无法继续写入数据，引发服务中断。</p>
+<p>不妨带着以下问题，来详细深入了解下具体的实现细节</p>
+<ol>
+<li>compaction 结束之后旧的 sst 文件、WAL 文件、LOG 文件是立刻删除，还是定时删除？</li>
+<li>compaction 进行到一半，进程因为发布、崩溃重启，此时 compaction 生成的还为 install 的 sst 文件会成为过期文件么？如果是，什么时间会清理？</li>
+<li>什么时候会强制触发全量清理？</li>
+<li>如果没有任何写入落盘，是否也会定时触发清理？</li>
+</ol>
+<h2 id="一、什么是过期文件"><a href="#一、什么是过期文件" class="headerlink" title="一、什么是过期文件"></a>一、什么是过期文件</h2><p>在 RocksDB 中，过期文件（Obsolete Files）指的是那些逻辑上已不再需要但物理上仍存在于磁盘上的文件。文件主要包括：</p>
+<ol>
+<li><strong>SST 文件 (kTableFile, kBlobFile)：</strong>  当 Compaction 操作将多个 SST 文件合并生成新的 SST 文件后，原来的输入 SST 文件就可能变为过期。当 Flush、Compaction 和 Ingestion 出现异常时，创建新的 SST 文件不会被正式添加到版本控制中，也会被视作过期。</li>
+<li><strong>WAL 文件 (kWalFile)：</strong>  当 WAL 文件中的所有数据变更都已成功刷入 MemTable 并最终持久化到 SST 文件后，该 WAL 文件就可能变为过期。</li>
+<li><strong>Manifest 文件 (kDescriptorFile)：</strong>  当数据库元信息更新，生成新的 Manifest 文件后，旧的 Manifest 文件就变为过期。</li>
+<li><strong>Info LOG 文件 (kInfoLogFile)：</strong>  RocksDB 会保留一定数量的 Info LOG 文件，旧的日志文件会根据配置被删除。</li>
+<li><strong>Options 文件 (kOptionsFile)：</strong>  记录数据库配置的文件，RocksDB 通常会保留最新的几个版本。</li>
+<li><strong>临时文件 (kTempFile)：</strong>  在 Flush、Compaction 或 Manifest 写入过程中产生的临时文件，操作完成后应被删除。</li>
+</ol>
+<h2 id="二、过期文件清理的核心机制"><a href="#二、过期文件清理的核心机制" class="headerlink" title="二、过期文件清理的核心机制"></a>二、过期文件清理的核心机制</h2><h3 id="2-1-核心数据结构"><a href="#2-1-核心数据结构" class="headerlink" title="2.1 核心数据结构"></a>2.1 核心数据结构</h3><h4 id="JobContext"><a href="#JobContext" class="headerlink" title="JobContext"></a>JobContext</h4><p><code>JobContext</code> 是清理过期文件的关键结构体，存储待清理文件的信息：</p>
+<pre><code class="hljs cpp"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">JobContext</span> &#123;
+  <span class="hljs-comment">// 检查是否有过时文件需要删除，通过检查各种过时文件列表是否为空来确定。</span>
+  <span class="hljs-function"><span class="hljs-keyword">inline</span> <span class="hljs-type">bool</span> <span class="hljs-title">HaveSomethingToDelete</span><span class="hljs-params">()</span> <span class="hljs-type">const</span> </span>&#123;
+    <span class="hljs-keyword">return</span> !(full_scan_candidate_files.<span class="hljs-built_in">empty</span>() &amp;&amp; sst_delete_files.<span class="hljs-built_in">empty</span>() &amp;&amp;
+             blob_delete_files.<span class="hljs-built_in">empty</span>() &amp;&amp; log_delete_files.<span class="hljs-built_in">empty</span>() &amp;&amp;
+             manifest_delete_files.<span class="hljs-built_in">empty</span>());
+  &#125;
+
+  <span class="hljs-comment">// 检查是否有任何资源需要清理，包括过时文件、内存表、日志写入器和快照等。</span>
+  <span class="hljs-function"><span class="hljs-keyword">inline</span> <span class="hljs-type">bool</span> <span class="hljs-title">HaveSomethingToClean</span><span class="hljs-params">()</span> <span class="hljs-type">const</span> </span>&#123;
+    <span class="hljs-type">bool</span> sv_have_sth = <span class="hljs-literal">false</span>;
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span>&amp; sv_ctx : superversion_contexts) &#123;
+      <span class="hljs-keyword">if</span> (sv_ctx.<span class="hljs-built_in">HaveSomethingToDelete</span>()) &#123;
+        sv_have_sth = <span class="hljs-literal">true</span>;
+        <span class="hljs-keyword">break</span>;
+      &#125;
+    &#125;
+    <span class="hljs-keyword">return</span> memtables_to_free.<span class="hljs-built_in">size</span>() &gt; <span class="hljs-number">0</span> || logs_to_free.<span class="hljs-built_in">size</span>() &gt; <span class="hljs-number">0</span> ||
+           job_snapshot != <span class="hljs-literal">nullptr</span> || sv_have_sth;
+  &#125;
+
+  <span class="hljs-comment">// 存储全扫描过程中识别出的所有潜在可删除文件的信息</span>
+  <span class="hljs-comment">// 当执行全目录扫描时，会将数据库目录中所有文件加入此列表，随后筛选哪些是过时的</span>
+  <span class="hljs-comment">// **包含信息**：文件名和完整路径</span>
+  std::vector&lt;CandidateFileInfo&gt; full_scan_candidate_files;
+
+  <span class="hljs-comment">// 专门存储已确定为过时的 SST 文件信息</span>
+  <span class="hljs-comment">// 压缩或版本控制过程中识别的不再需要的 SST 文件</span>
+  <span class="hljs-comment">// **包含信息**：文件编号、文件大小、文件路径等元数据</span>
+  std::vector&lt;ObsoleteFileInfo&gt; sst_delete_files;
+
+  <span class="hljs-comment">// 存储已确定为过时的 Blob 文件信息</span>
+  <span class="hljs-comment">// 当 Blob 文件中的数据被压缩或覆盖后，标记为过时</span>
+  <span class="hljs-comment">// **包含信息**：Blob 文件编号、文件路径和其他相关元数据</span>
+  std::vector&lt;ObsoleteBlobFileInfo&gt; blob_delete_files;
+
+  <span class="hljs-comment">// 存储需要删除的预写式日志（WAL）文件编号</span>
+  <span class="hljs-comment">// 当日志文件中的所有记录都已持久化到 SST 文件后，这些日志文件变为过时</span>
+  std::vector&lt;<span class="hljs-type">uint64_t</span>&gt; log_delete_files;
+
+  <span class="hljs-comment">// 存储在清理过程中需要保留的日志文件编号</span>
+  <span class="hljs-comment">// 这些文件虽然逻辑上已过时，但计划被重用，避免频繁创建新文件</span>
+  std::vector&lt;<span class="hljs-type">uint64_t</span>&gt; log_recycle_files;
+
+  <span class="hljs-comment">// 存储需要删除的过时清单文件的路径</span>
+  <span class="hljs-comment">// 当生成新的清单文件后，旧的清单文件成为过时文件</span>
+  std::vector&lt;std::string&gt; manifest_delete_files;
+
+  <span class="hljs-comment">// 存储不再需要的内存表指针，等待释放</span>
+  <span class="hljs-comment">// 当内存表被刷新到磁盘后，需要释放其占用的内存</span>
+  autovector&lt;MemTable*&gt; memtables_to_free;
+
+  <span class="hljs-comment">// 存储不再需要的日志写入器指针，等待释放</span>
+  <span class="hljs-comment">// 当对应的日志文件被关闭或不再使用时</span>
+  autovector&lt;log::Writer*&gt; logs_to_free;
+
+  <span class="hljs-comment">// 执行实际的资源清理工作，释放不再需要的内存和文件句柄，但不执行实际的文件删除操作（文件删除通常由专门的线程处理）。</span>
+  <span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">Clean</span><span class="hljs-params">()</span> </span>&#123;
+    <span class="hljs-comment">// free superversions</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; sv_context : superversion_contexts) &#123;
+      sv_context.<span class="hljs-built_in">Clean</span>();
+    &#125;
+    <span class="hljs-comment">// free pending memtables</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> m : memtables_to_free) &#123;
+      <span class="hljs-keyword">delete</span> m;
+    &#125;
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> l : logs_to_free) &#123;
+      <span class="hljs-keyword">delete</span> l;
+    &#125;
+
+    memtables_to_free.<span class="hljs-built_in">clear</span>();
+    logs_to_free.<span class="hljs-built_in">clear</span>();
+    job_snapshot.<span class="hljs-built_in">reset</span>();
+  &#125;
+
+  <span class="hljs-comment">// 省略其他成员...</span>
+&#125;;
+</code></pre>
+
+<h4 id="DBImpl"><a href="#DBImpl" class="headerlink" title="DBImpl"></a>DBImpl</h4><p><code>DBImpl</code> 类中包含多个与文件清理相关的成员：</p>
+<pre><code class="hljs cpp"><span class="hljs-keyword">class</span> <span class="hljs-title class_">DBImpl</span> : <span class="hljs-keyword">public</span> DB &#123;
+  <span class="hljs-comment">// 省略其他成员...</span>
+
+  <span class="hljs-comment">// `pending_outputs_` 实现一个安全机制，确保后台任务(如压缩、刷盘)创建的文件在任务完成前不会被误删除。它解决了多个并发后台操作之间的文件安全问题</span>
+  <span class="hljs-comment">// 当后台作业开始时，会捕获当前的文件号并添加到 `pending_outputs_` 中</span>
+  <span class="hljs-comment">// 由于 RocksDB 的文件号是单调递增的，这意味着 `pending_outputs_` 中的任何文件号都表示&quot;保护线&quot; - 任何编号大于等于这个值的文件都不应被删除</span>
+  <span class="hljs-comment">// `FindObsoleteFiles()`/`PurgeObsoleteFiles()` 在识别可删除文件时，会参考 `pending_outputs_`，确保不会删除编号大于列表中任何值的文件</span>
+  <span class="hljs-comment">// 后台任务完成后，从 `pending_outputs_` 中删除对应的文件号，允许这些文件在不再需要时被清理</span>
+  std::list&lt;<span class="hljs-type">uint64_t</span>&gt; pending_outputs_;
+
+  <span class="hljs-comment">// 踪已找到需要删除但尚未完成删除的文件批次数量</span>
+  <span class="hljs-comment">// 当 `FindObsoleteFiles` 识别出过时文件后，在 `PurgeObsoleteFiles` 真正删除前增加此计数</span>
+  <span class="hljs-type">int</span> pending_purge_obsolete_files_;
+
+  <span class="hljs-comment">// 存储待清理文件的详细信息(文件号、文件名、路径、类型等)</span>
+  <span class="hljs-comment">// `FindObsoleteFiles`收集要删除的文件，`PurgeObsoleteFiles`从此映射中读取并执行删除</span>
+  std::unordered_map&lt;<span class="hljs-type">uint64_t</span>, PurgeFileInfo&gt; purge_files_;
+
+  <span class="hljs-comment">// 记录已分配给特定任务上下文的文件号</span>
+  <span class="hljs-comment">// 确保正在进行删除操作的文件不会被其他任务处理</span>
+  std::unordered_set&lt;<span class="hljs-type">uint64_t</span>&gt; files_grabbed_for_purge_;
+
+  <span class="hljs-comment">// 维护当前活跃(未过时)的WAL日志文件列表</span>
+  <span class="hljs-comment">// 跟踪哪些日志文件仍在使用，防止被错误删除</span>
+  std::deque&lt;LogFileNumberSize&gt; alive_log_files_;
+
+  <span class="hljs-comment">// 存储尚未完全同步和当前正在写入的日志文件</span>
+  <span class="hljs-comment">// 管理活跃日志的生命周期，日志同步后可能成为过时候选</span>
+  std::deque&lt;LogWriterNumber&gt; logs_;
+
+  <span class="hljs-comment">// 存储可重用的日志文件号</span>
+  <span class="hljs-comment">// 避免频繁创建新文件，优先重用已有文件提高效率</span>
+  std::deque&lt;<span class="hljs-type">uint64_t</span>&gt; log_recycle_files_;
+
+  <span class="hljs-comment">// 存储需要在后台线程中删除的日志写入器</span>
+  <span class="hljs-comment">// 异步清理不再需要的日志文件，减少主线程阻塞</span>
+  autovector&lt;log::Writer*&gt; logs_to_free_;
+
+  <span class="hljs-comment">// 存储等待关闭的日志写入器队列</span>
+  <span class="hljs-comment">// 推迟日志文件的关闭操作，以优化I/O操作</span>
+  std::deque&lt;log::Writer*&gt; logs_to_free_queue_;
+
+  <span class="hljs-comment">// 记录后台任务正在使用的文件号，防止清理过程删除这些文件</span>
+  <span class="hljs-comment">// 保护正在创建或处理中的文件不被过早删除</span>
+  std::list&lt;<span class="hljs-type">uint64_t</span>&gt; pending_outputs_;
+
+  <span class="hljs-comment">// 控制是否允许删除过时文件的开关</span>
+  <span class="hljs-comment">// 在特定操作(如备份、快照)期间临时禁用文件删除</span>
+  <span class="hljs-type">int</span> disable_delete_obsolete_files_;
+
+  <span class="hljs-comment">// 记录上次执行完整扫描删除操作的时间戳</span>
+  <span class="hljs-comment">// 控制删除操作的频率，避免过于频繁的磁盘扫描</span>
+  <span class="hljs-type">uint64_t</span> delete_obsolete_files_last_run_;
+
+  <span class="hljs-comment">// 省略其他成员...</span>
+&#125;</code></pre>
+
+<h3 id="2-2-核心函数"><a href="#2-2-核心函数" class="headerlink" title="2.2 核心函数"></a>2.2 核心函数</h3><h4 id="2-2-1-SST-文件生命周期"><a href="#2-2-1-SST-文件生命周期" class="headerlink" title="2.2.1 SST 文件生命周期"></a>2.2.1 SST 文件生命周期</h4><p>RocksDB 使用引用计数机制管理 SST 文件生命周期。每个文件有一个引用计数器，当引用计数变为 0 时，文件被标记为可删除。</p>
+<p>关键数据结构：</p>
+<pre><code class="hljs cpp"><span class="hljs-keyword">class</span> <span class="hljs-title class_">Version</span> &#123;
+  <span class="hljs-comment">// 引用计数</span>
+  <span class="hljs-type">int</span> refs_;
+  
+  <span class="hljs-comment">// 层级化存储的文件</span>
+  std::vector&lt;FileMetaData*&gt; files_[num_levels_];
+&#125;;
+
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FileMetaData</span> &#123;
+  <span class="hljs-comment">// 文件的引用计数</span>
+  <span class="hljs-type">int</span> refs;
+  
+  <span class="hljs-comment">// 文件描述符</span>
+  FileDescriptor fd;
+&#125;;</code></pre>
+
+<p>RocksDB 使用 <code>VersionSet</code> 来管理数据库在不同时间点的状态快照，每个快照称为一个 <code>Version</code>。每个 <code>Version</code> 包含一组在该时间点“存活”的 SST 文件列表。SST 文件通过引用计数（<code>FileMetaData::refs</code>）来跟踪其被多少个 <code>Version</code> 引用。</p>
+<p>当一个 <code>Version</code> 不再被任何快照、迭代器或其他内部结构引用时，它的析构函数 <code>Version::~Version</code> 会被调用。 <code>Version</code> 析构函数会减少所有引用文件的计数。</p>
+<p>当文件的引用计数降为 0，说明没有任何版本在使用该文件，此时它会被添加到 <code>obsolete_files_</code> 列表中，等待后续的物理删除。</p>
+<pre><code class="hljs cpp">Version::~<span class="hljs-built_in">Version</span>() &#123;
+  <span class="hljs-comment">// 确保引用计数为0，即没有任何地方引用此版本</span>
+  <span class="hljs-built_in">assert</span>(refs_ == <span class="hljs-number">0</span>);
+
+  <span class="hljs-comment">// 从版本双向链表中移除自身</span>
+  prev_-&gt;next_ = next_;
+  next_-&gt;prev_ = prev_;
+
+  <span class="hljs-comment">// 遍历每个层级的所有文件，减少它们的引用计数</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> level = <span class="hljs-number">0</span>; level &lt; storage_info_.num_levels_; level++) &#123;
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">size_t</span> i = <span class="hljs-number">0</span>; i &lt; storage_info_.files_[level].<span class="hljs-built_in">size</span>(); i++) &#123;
+      FileMetaData* f = storage_info_.files_[level][i];
+      <span class="hljs-built_in">assert</span>(f-&gt;refs &gt; <span class="hljs-number">0</span>);
+      f-&gt;refs--;
+
+      <span class="hljs-comment">// 如果引用计数降为0，表示没有任何版本在使用此文件</span>
+      <span class="hljs-keyword">if</span> (f-&gt;refs &lt;= <span class="hljs-number">0</span>) &#123;
+        <span class="hljs-built_in">assert</span>(cfd_ != <span class="hljs-literal">nullptr</span>);
+        <span class="hljs-type">uint32_t</span> path_id = f-&gt;fd.<span class="hljs-built_in">GetPathId</span>();
+        <span class="hljs-built_in">assert</span>(path_id &lt; cfd_-&gt;<span class="hljs-built_in">ioptions</span>()-&gt;cf_paths.<span class="hljs-built_in">size</span>());
+
+        <span class="hljs-comment">// 将文件添加到版本集的过期文件列表中(obsolete_files_)</span>
+        vset_-&gt;obsolete_files_.<span class="hljs-built_in">push_back</span>(
+            <span class="hljs-built_in">ObsoleteFileInfo</span>(f, cfd_-&gt;<span class="hljs-built_in">ioptions</span>()-&gt;cf_paths[path_id].path,
+                           cfd_-&gt;<span class="hljs-built_in">GetFileMetadataCacheReservationManager</span>()));
+      &#125;
+    &#125;
+  &#125;
+&#125;</code></pre>
+
+<h4 id="2-2-2-识别过期文件：FindObsoleteFiles"><a href="#2-2-2-识别过期文件：FindObsoleteFiles" class="headerlink" title="2.2.2 识别过期文件：FindObsoleteFiles"></a>2.2.2 识别过期文件：FindObsoleteFiles</h4><p><code>FindObsoleteFiles</code> 负责识别哪些文件已经过期，需要在<strong>持有数据库互斥锁</strong>的情况下调用：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 该方法用于寻找过时文件，将它们添加到 job_context 中以便后续删除</span>
+<span class="hljs-comment">// * 将活跃的 SST 文件列表存储在 &#x27;sst_live&#x27; 和活跃的 blob 文件列表存储在 &#x27;blob_live&#x27;</span>
+<span class="hljs-comment">// 如果执行全量扫描:</span>
+<span class="hljs-comment">// * 将文件系统中所有文件的列表存储在 &#x27;full_scan_candidate_files&#x27;</span>
+<span class="hljs-comment">// 否则，从 VersionSet 获取过时文件</span>
+<span class="hljs-comment">//</span>
+<span class="hljs-comment">// no_full_scan = true -- 第一优先级：明确禁止全量扫描</span>
+<span class="hljs-comment">// force = true -- 第二优先级：强制全量扫描</span>
+<span class="hljs-comment">// force = false -- 第三优先级：除非到达周期（每 mutable_db_options_.delete_obsolete_files_period_micros 一次），否则不强制全量扫描</span>
+
+<span class="hljs-comment">// 函数声明：void FindObsoleteFiles(JobContext* job_context, bool force, bool no_full_scan = false);</span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">DBImpl::FindObsoleteFiles</span><span class="hljs-params">(JobContext* job_context, <span class="hljs-type">bool</span> force,</span></span>
+<span class="hljs-params"><span class="hljs-function">                               <span class="hljs-type">bool</span> no_full_scan)</span> </span>&#123;
+  mutex_.<span class="hljs-built_in">AssertHeld</span>();  <span class="hljs-comment">// 确认互斥锁已被持有</span>
+
+  <span class="hljs-comment">// 如果禁用了文件删除功能，则不执行任何操作</span>
+  <span class="hljs-keyword">if</span> (disable_delete_obsolete_files_ &gt; <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-keyword">return</span>;
+  &#125;
+
+  <span class="hljs-type">bool</span> doing_the_full_scan = <span class="hljs-literal">false</span>;  <span class="hljs-comment">// 是否执行全量扫描的标志</span>
+
+  <span class="hljs-comment">// 判断是否执行全量扫描的逻辑</span>
+  <span class="hljs-keyword">if</span> (no_full_scan) &#123;
+    doing_the_full_scan = <span class="hljs-literal">false</span>;  <span class="hljs-comment">// 如果明确指定不进行全量扫描，则不执行</span>
+  &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (force ||
+             mutable_db_options_.delete_obsolete_files_period_micros == <span class="hljs-number">0</span>) &#123;
+    doing_the_full_scan = <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 如果强制执行或删除周期设置为0，则执行全量扫描</span>
+  &#125; <span class="hljs-keyword">else</span> &#123;
+    <span class="hljs-type">const</span> <span class="hljs-type">uint64_t</span> now_micros = immutable_db_options_.clock-&gt;<span class="hljs-built_in">NowMicros</span>();
+    <span class="hljs-comment">// 根据上次扫描时间和配置的周期决定是否执行全量扫描</span>
+    <span class="hljs-keyword">if</span> ((delete_obsolete_files_last_run_ +
+         mutable_db_options_.delete_obsolete_files_period_micros) &lt;
+        now_micros) &#123;
+      doing_the_full_scan = <span class="hljs-literal">true</span>;
+      delete_obsolete_files_last_run_ = now_micros;  <span class="hljs-comment">// 更新上次扫描时间</span>
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">/****** SST/Blob 文件处理部分 ******/</span>
+  <span class="hljs-comment">// 设置最小的 pending output 文件号，防止删除正在被 compaction 线程写入的文件</span>
+  <span class="hljs-comment">// 注意：扫描期间不能释放 mutex_，否则可能出现竞态</span>
+  job_context-&gt;min_pending_output = <span class="hljs-built_in">MinObsoleteSstNumberToKeep</span>();
+
+  <span class="hljs-comment">// 获取过时文件。此函数还将更新 VersionSet 的 pending 文件列表</span>
+  versions_-&gt;<span class="hljs-built_in">GetObsoleteFiles</span>(
+      &amp;job_context-&gt;sst_delete_files, &amp;job_context-&gt;blob_delete_files,
+      &amp;job_context-&gt;manifest_delete_files, job_context-&gt;min_pending_output);
+
+  <span class="hljs-comment">// 将 job_context-&gt;sst_delete_files 和 job_context-&gt;blob_delete_files 中的元素</span>
+  <span class="hljs-comment">// 标记为&quot;已获取用于清理&quot;，其他线程调用 FindObsoleteFiles 时将不会将这些文件</span>
+  <span class="hljs-comment">// 添加到清理候选列表中，避免多线程重复处理</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span>&amp; sst_to_del : job_context-&gt;sst_delete_files) &#123;
+    <span class="hljs-built_in">MarkAsGrabbedForPurge</span>(sst_to_del.metadata-&gt;fd.<span class="hljs-built_in">GetNumber</span>());
+  &#125;
+
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span>&amp; blob_file : job_context-&gt;blob_delete_files) &#123;
+    <span class="hljs-built_in">MarkAsGrabbedForPurge</span>(blob_file.<span class="hljs-built_in">GetBlobFileNumber</span>());
+  &#125;
+
+  <span class="hljs-comment">// 存储当前的文件编号、日志编号等信息到 job_context</span>
+  job_context-&gt;manifest_file_number = versions_-&gt;<span class="hljs-built_in">manifest_file_number</span>();
+  job_context-&gt;pending_manifest_file_number =
+      versions_-&gt;<span class="hljs-built_in">pending_manifest_file_number</span>();
+  job_context-&gt;log_number = <span class="hljs-built_in">MinLogNumberToKeep</span>();  <span class="hljs-comment">// 获取需要保留的最小日志编号</span>
+  job_context-&gt;prev_log_number = versions_-&gt;<span class="hljs-built_in">prev_log_number</span>();
+
+  <span class="hljs-keyword">if</span> (doing_the_full_scan) &#123;
+    <span class="hljs-comment">// 如果执行全量扫描，收集所有活跃的文件</span>
+    versions_-&gt;<span class="hljs-built_in">AddLiveFiles</span>(&amp;job_context-&gt;sst_live, &amp;job_context-&gt;blob_live);
+    <span class="hljs-function">InfoLogPrefix <span class="hljs-title">info_log_prefix</span><span class="hljs-params">(!immutable_db_options_.db_log_dir.empty(),</span></span>
+<span class="hljs-params"><span class="hljs-function">                                  dbname_)</span></span>;
+    <span class="hljs-comment">// 收集所有数据库路径</span>
+    <span class="hljs-comment">// 多路径数据库路径支持 “热冷数据分层存储”&amp;“当单个存储设备容量不足时，可以将数据分散到多个设备”</span>
+    <span class="hljs-comment">//</span>
+    <span class="hljs-comment">// 举例：</span>
+    <span class="hljs-comment">// L0-L1层(热数据) → 快速SSD</span>
+    <span class="hljs-comment">// L2-L3层(温数据) → 普通SSD</span>
+    <span class="hljs-comment">// L4-L6层(冷数据) → 大容量HDD</span>
+    std::set&lt;std::string&gt; paths;
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">size_t</span> path_id = <span class="hljs-number">0</span>; path_id &lt; immutable_db_options_.db_paths.<span class="hljs-built_in">size</span>();
+         path_id++) &#123;
+      paths.<span class="hljs-built_in">insert</span>(immutable_db_options_.db_paths[path_id].path);
+    &#125;
+
+    <span class="hljs-comment">// 注意：如果列族选项中没有指定 cf_paths，使用 db_paths 作为 cf_paths 设置。</span>
+    <span class="hljs-comment">// 因此，在下面的代码中可能会有多个重复的 db_paths 文件。重复项在 PurgeObsoleteFiles 中标识唯一文件时会被删除。</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> cfd : *versions_-&gt;<span class="hljs-built_in">GetColumnFamilySet</span>()) &#123;
+      <span class="hljs-keyword">for</span> (<span class="hljs-type">size_t</span> path_id = <span class="hljs-number">0</span>; path_id &lt; cfd-&gt;<span class="hljs-built_in">ioptions</span>()-&gt;cf_paths.<span class="hljs-built_in">size</span>();
+           path_id++) &#123;
+        <span class="hljs-keyword">auto</span>&amp; path = cfd-&gt;<span class="hljs-built_in">ioptions</span>()-&gt;cf_paths[path_id].path;
+
+        <span class="hljs-keyword">if</span> (paths.<span class="hljs-built_in">find</span>(path) == paths.<span class="hljs-built_in">end</span>()) &#123;
+          paths.<span class="hljs-built_in">insert</span>(path);
+        &#125;
+      &#125;
+    &#125;
+
+    IOOptions io_opts;
+    io_opts.do_not_recurse = <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 不进行递归查询</span>
+    <span class="hljs-comment">// 遍历所有路径，查找潜在的过时文件</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; path : paths) &#123;
+      <span class="hljs-comment">// 获取目录中的所有文件列表</span>
+      <span class="hljs-comment">// 后续处理将排除仍然活跃的文件</span>
+      std::vector&lt;std::string&gt; files;
+      Status s = immutable_db_options_.fs-&gt;<span class="hljs-built_in">GetChildren</span>(
+          path, io_opts, &amp;files, <span class="hljs-comment">/*IODebugContext*=*/</span><span class="hljs-literal">nullptr</span>);
+      s.<span class="hljs-built_in">PermitUncheckedError</span>();  <span class="hljs-comment">// <span class="hljs-doctag">TODO:</span> 错误处理需要改进</span>
+      <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> std::string&amp; file : files) &#123;
+        <span class="hljs-type">uint64_t</span> number;
+        FileType type;
+        <span class="hljs-comment">// 如果无法解析文件名，跳过</span>
+        <span class="hljs-comment">// 如果文件已被其他压缩任务获取用于清除，或已安排清除，也跳过</span>
+        <span class="hljs-comment">// 避免在竞态条件下重复删除相同的文件</span>
+        <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">ParseFileName</span>(file, &amp;number, info_log_prefix.prefix, &amp;type) ||
+            !<span class="hljs-built_in">ShouldPurge</span>(number)) &#123;
+          <span class="hljs-keyword">continue</span>;
+        &#125;
+
+        <span class="hljs-comment">// 将文件添加到候选清除文件列表</span>
+        job_context-&gt;full_scan_candidate_files.<span class="hljs-built_in">emplace_back</span>(<span class="hljs-string">&quot;/&quot;</span> + file, path);
+      &#125;
+    &#125;
+
+    <span class="hljs-comment">/****** WAL 路径单独配置时，WAL 文件处理部分 ******/</span>
+    <span class="hljs-comment">// 添加 wal_dir 中的日志文件</span>
+    <span class="hljs-keyword">if</span> (!immutable_db_options_.<span class="hljs-built_in">IsWalDirSameAsDBPath</span>(dbname_)) &#123;
+      std::vector&lt;std::string&gt; log_files;
+      Status s = immutable_db_options_.fs-&gt;<span class="hljs-built_in">GetChildren</span>(
+          immutable_db_options_.wal_dir, io_opts, &amp;log_files,
+          <span class="hljs-comment">/*IODebugContext*=*/</span><span class="hljs-literal">nullptr</span>);
+      s.<span class="hljs-built_in">PermitUncheckedError</span>();  <span class="hljs-comment">// <span class="hljs-doctag">TODO:</span> 错误处理需要改进</span>
+      <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> std::string&amp; log_file : log_files) &#123;
+        job_context-&gt;full_scan_candidate_files.<span class="hljs-built_in">emplace_back</span>(
+            log_file, immutable_db_options_.wal_dir);
+      &#125;
+    &#125;
+
+    <span class="hljs-comment">/****** LOG 文件处理部分 ******/</span>
+    <span class="hljs-comment">// 添加 db_log_dir 中的信息日志文件</span>
+    <span class="hljs-keyword">if</span> (!immutable_db_options_.db_log_dir.<span class="hljs-built_in">empty</span>() &amp;&amp;
+        immutable_db_options_.db_log_dir != dbname_) &#123;
+      std::vector&lt;std::string&gt; info_log_files;
+      Status s = immutable_db_options_.fs-&gt;<span class="hljs-built_in">GetChildren</span>(
+          immutable_db_options_.db_log_dir, io_opts, &amp;info_log_files,
+          <span class="hljs-comment">/*IODebugContext*=*/</span><span class="hljs-literal">nullptr</span>);
+      s.<span class="hljs-built_in">PermitUncheckedError</span>();  <span class="hljs-comment">// <span class="hljs-doctag">TODO:</span> 错误处理需要改进</span>
+      <span class="hljs-keyword">for</span> (std::string&amp; log_file : info_log_files) &#123;
+        job_context-&gt;full_scan_candidate_files.<span class="hljs-built_in">emplace_back</span>(
+            log_file, immutable_db_options_.db_log_dir);
+      &#125;
+    &#125;
+  &#125; <span class="hljs-keyword">else</span> &#123;
+    <span class="hljs-comment">// 如果不执行全量扫描，直接从待删除文件列表中移除在任何版本中出现的文件</span>
+    <span class="hljs-comment">// 因为候选文件通常只占所有文件的一小部分，所以与构建所有文件的映射相比，</span>
+    <span class="hljs-comment">// 直接检查它们是否在任何版本中出现更高效</span>
+    versions_-&gt;<span class="hljs-built_in">RemoveLiveFiles</span>(job_context-&gt;sst_delete_files,
+                               job_context-&gt;blob_delete_files);
+  &#125;
+
+  <span class="hljs-comment">// 在可能释放互斥锁和等待条件变量之前，增加 pending_purge_obsolete_files_</span>
+  <span class="hljs-comment">// 这样另一个执行 `GetSortedWals` 的线程将等待直到这个线程完成执行</span>
+  <span class="hljs-comment">// 因为另一个线程将等待 `pending_purge_obsolete_files_`</span>
+  <span class="hljs-comment">// 如果没有需要删除的内容，必须递减 pending_purge_obsolete_files_</span>
+  ++pending_purge_obsolete_files_;
+
+  <span class="hljs-comment">// 设置一个延迟执行的清理操作，确保在没有需要删除的内容时减少 pending_purge_obsolete_files_</span>
+  <span class="hljs-function">Defer <span class="hljs-title">cleanup</span><span class="hljs-params">([job_context, <span class="hljs-keyword">this</span>]() &#123;</span></span>
+<span class="hljs-params"><span class="hljs-function">    assert(job_context != <span class="hljs-literal">nullptr</span>);</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-keyword">if</span> (!job_context-&gt;HaveSomethingToDelete()) &#123;</span></span>
+<span class="hljs-params"><span class="hljs-function">      mutex_.AssertHeld();</span></span>
+<span class="hljs-params"><span class="hljs-function">      --pending_purge_obsolete_files_;</span></span>
+<span class="hljs-params"><span class="hljs-function">    &#125;</span></span>
+<span class="hljs-params"><span class="hljs-function">  &#125;)</span></span>;
+
+  <span class="hljs-comment">// 当在恢复期间调用时，logs_ 为空，此时还没有任何需要跟踪的过时日志</span>
+  log_write_mutex_.<span class="hljs-built_in">Lock</span>();
+
+  <span class="hljs-keyword">if</span> (alive_log_files_.<span class="hljs-built_in">empty</span>() || logs_.<span class="hljs-built_in">empty</span>()) &#123;
+    mutex_.<span class="hljs-built_in">AssertHeld</span>();
+    <span class="hljs-comment">// 如果数据库是 DBImplSecondary，可能会到达这里</span>
+    log_write_mutex_.<span class="hljs-built_in">Unlock</span>();
+    <span class="hljs-keyword">return</span>;
+  &#125;
+
+  <span class="hljs-comment">/****** 物理日志文件处理部分 ******/</span>
+  <span class="hljs-type">bool</span> mutex_unlocked = <span class="hljs-literal">false</span>;
+  <span class="hljs-keyword">if</span> (!alive_log_files_.<span class="hljs-built_in">empty</span>() &amp;&amp; !logs_.<span class="hljs-built_in">empty</span>()) &#123;
+    <span class="hljs-type">uint64_t</span> min_log_number = job_context-&gt;log_number;
+    <span class="hljs-type">size_t</span> num_alive_log_files = alive_log_files_.<span class="hljs-built_in">size</span>();
+    <span class="hljs-comment">// 查找新的过时日志文件</span>
+    <span class="hljs-keyword">while</span> (alive_log_files_.<span class="hljs-built_in">begin</span>()-&gt;number &lt; min_log_number) &#123;
+      <span class="hljs-keyword">auto</span>&amp; earliest = *alive_log_files_.<span class="hljs-built_in">begin</span>();
+      <span class="hljs-comment">// 如果配置了日志文件回收，且回收列表未满，则添加到回收列表</span>
+      <span class="hljs-keyword">if</span> (immutable_db_options_.recycle_log_file_num &gt;
+          log_recycle_files_.<span class="hljs-built_in">size</span>()) &#123;
+        <span class="hljs-built_in">ROCKS_LOG_INFO</span>(immutable_db_options_.info_log,
+                       <span class="hljs-string">&quot;adding log %&quot;</span> PRIu64 <span class="hljs-string">&quot; to recycle list\n&quot;</span>,
+                       earliest.number);
+        <span class="hljs-comment">// 放入回收列表以便复用</span>
+        log_recycle_files_.<span class="hljs-built_in">push_back</span>(earliest.number);
+      &#125; <span class="hljs-keyword">else</span> &#123;
+        <span class="hljs-comment">// 否则添加到待删除列表</span>
+        job_context-&gt;log_delete_files.<span class="hljs-built_in">push_back</span>(earliest.number);
+      &#125;
+      <span class="hljs-keyword">if</span> (job_context-&gt;size_log_to_delete == <span class="hljs-number">0</span>) &#123;
+        job_context-&gt;prev_total_log_size = total_log_size_;
+        job_context-&gt;num_alive_log_files = num_alive_log_files;
+      &#125;
+      <span class="hljs-comment">// 更新统计信息</span>
+      job_context-&gt;size_log_to_delete += earliest.size;
+      total_log_size_ -= earliest.size;
+      <span class="hljs-comment">// 从活跃列表中移除</span>
+      alive_log_files_.<span class="hljs-built_in">pop_front</span>();
+
+      <span class="hljs-comment">// 当前日志应该始终保持活跃状态，因为它不可能有 number &lt; MinLogNumber()</span>
+      <span class="hljs-built_in">assert</span>(alive_log_files_.<span class="hljs-built_in">size</span>());
+    &#125;
+    log_write_mutex_.<span class="hljs-built_in">Unlock</span>();
+    mutex_.<span class="hljs-built_in">Unlock</span>();
+    mutex_unlocked = <span class="hljs-literal">true</span>;
+    <span class="hljs-built_in">TEST_SYNC_POINT_CALLBACK</span>(<span class="hljs-string">&quot;FindObsoleteFiles::PostMutexUnlock&quot;</span>, <span class="hljs-literal">nullptr</span>);
+    log_write_mutex_.<span class="hljs-built_in">Lock</span>();
+    <span class="hljs-comment">/****** 日志 Writer 对象处理部分 ******/</span>
+    <span class="hljs-keyword">while</span> (!logs_.<span class="hljs-built_in">empty</span>() &amp;&amp; logs_.<span class="hljs-built_in">front</span>().number &lt; min_log_number) &#123;
+      <span class="hljs-keyword">auto</span>&amp; log = logs_.<span class="hljs-built_in">front</span>();
+      <span class="hljs-keyword">if</span> (log.<span class="hljs-built_in">IsSyncing</span>()) &#123;
+        <span class="hljs-comment">// 如果日志正在同步，等待同步完成</span>
+        log_sync_cv_.<span class="hljs-built_in">Wait</span>();
+        <span class="hljs-comment">// 等待期间 logs_ 可能已更改，继续下一轮循环</span>
+        <span class="hljs-keyword">continue</span>;
+      &#125;
+      logs_to_free_.<span class="hljs-built_in">push_back</span>(log.<span class="hljs-built_in">ReleaseWriter</span>());
+      logs_.<span class="hljs-built_in">pop_front</span>();
+    &#125;
+    <span class="hljs-comment">// 当前日志不可能过时</span>
+    <span class="hljs-built_in">assert</span>(!logs_.<span class="hljs-built_in">empty</span>());
+  &#125;
+
+  <span class="hljs-comment">// 清理 DB::Write() 操作</span>
+  <span class="hljs-built_in">assert</span>(job_context-&gt;logs_to_free.<span class="hljs-built_in">empty</span>());
+  job_context-&gt;logs_to_free = logs_to_free_;
+
+  logs_to_free_.<span class="hljs-built_in">clear</span>();
+  log_write_mutex_.<span class="hljs-built_in">Unlock</span>();
+  <span class="hljs-keyword">if</span> (mutex_unlocked) &#123;
+    mutex_.<span class="hljs-built_in">Lock</span>();
+  &#125;
+  job_context-&gt;log_recycle_files.<span class="hljs-built_in">assign</span>(log_recycle_files_.<span class="hljs-built_in">begin</span>(),
+                                        log_recycle_files_.<span class="hljs-built_in">end</span>());
+&#125;</code></pre>
+
+<h5 id="2-2-2-1-常规清理-vs-全量扫描-Full-Scan"><a href="#2-2-2-1-常规清理-vs-全量扫描-Full-Scan" class="headerlink" title="2.2.2.1 常规清理 vs. 全量扫描 (Full Scan)"></a>2.2.2.1 常规清理 vs. 全量扫描 (Full Scan)</h5><p><code>FindObsoleteFiles</code> 方法区分<strong>常规清理</strong>和<strong>全量扫描</strong>，在持有锁的情况下，是基于性能和可靠性之间的权衡设计。<strong>常规清理模式主要依赖 RocksDB 的内存状态来识别过时文件，该模式只检查那些已经在版本控制系统（<code>VersionSet</code>）中被标记为过时的文件。全量扫描模式会扫描数据库目录中的所有物理文件，需要遍历文件系统中的所有文件，这是一个 I&#x2F;O 密集型操作。</strong></p>
+<p>在以下情况下，文件可能不会被正确标记为过时，但仍然需要清理：</p>
+<ul>
+<li>进程在 compaction&#x2F;flush&#x2F;ingestion 中途崩溃，留下未完成的临时文件</li>
+<li>软件版本升级或 bug 修复，导致旧版本产生的一些文件未被跟踪</li>
+</ul>
+<p>全量扫描可以识别这些 “ 孤儿 “ 文件，防止长期的空间泄漏。在 <code>DBImpl::Open</code> 方法中，我们可以看到 RocksDB 会主动触发清理：</p>
+<pre><code class="hljs cpp"><span class="hljs-function">Status <span class="hljs-title">DBImpl::Open</span><span class="hljs-params">(<span class="hljs-type">const</span> DBOptions&amp; db_options, <span class="hljs-type">const</span> std::string&amp; dbname,</span></span>
+<span class="hljs-params"><span class="hljs-function">                    <span class="hljs-type">const</span> std::vector&lt;ColumnFamilyDescriptor&gt;&amp; column_families,</span></span>
+<span class="hljs-params"><span class="hljs-function">                    std::vector&lt;ColumnFamilyHandle*&gt;* handles, DB** dbptr,</span></span>
+<span class="hljs-params"><span class="hljs-function">                    <span class="hljs-type">const</span> <span class="hljs-type">bool</span> seq_per_batch, <span class="hljs-type">const</span> <span class="hljs-type">bool</span> batch_per_txn)</span> </span>&#123;
+  <span class="hljs-comment">// 省略其他代码...</span>
+  
+  <span class="hljs-keyword">if</span> (s.<span class="hljs-built_in">ok</span>()) &#123;
+    <span class="hljs-comment">// Persist RocksDB Options before scheduling the compaction.</span>
+    <span class="hljs-comment">// The WriteOptionsFile() will release and lock the mutex internally.</span>
+    persist_options_status =
+        impl-&gt;<span class="hljs-built_in">WriteOptionsFile</span>(<span class="hljs-literal">true</span> <span class="hljs-comment">/*db_mutex_already_held*/</span>);
+    *dbptr = impl;
+    impl-&gt;opened_successfully_ = <span class="hljs-literal">true</span>;
+    impl-&gt;<span class="hljs-built_in">DeleteObsoleteFiles</span>();
+  &#125;
+  
+  <span class="hljs-comment">// 省略其他代码...</span>
+&#125;</code></pre>
+
+<p>确保即使是上次异常退出留下的未完成 compaction 文件也能被及时清理。</p>
+<h5 id="2-2-2-2-过期清理触发事件"><a href="#2-2-2-2-过期清理触发事件" class="headerlink" title="2.2.2.2 过期清理触发事件"></a>2.2.2.2 过期清理触发事件</h5><p>RocksDB 在多个关键点触发过期文件清理，保证及时释放磁盘空间：</p>
+<p><strong>迭代器销毁时：ForwardIterator::SVCleanup</strong></p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">ForwardIterator::SVCleanup</span><span class="hljs-params">(DBImpl* db, SuperVersion* sv,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                <span class="hljs-type">bool</span> background_purge_on_iterator_cleanup)</span> </span>&#123;
+  <span class="hljs-comment">// 省略其他代码...</span>
+  db-&gt;<span class="hljs-built_in">FindObsoleteFiles</span>(&amp;job_context, <span class="hljs-literal">false</span>, <span class="hljs-literal">true</span>);
+  <span class="hljs-keyword">if</span> (job_context.<span class="hljs-built_in">HaveSomethingToDelete</span>()) &#123;
+    db-&gt;<span class="hljs-built_in">PurgeObsoleteFiles</span>(job_context, background_purge_on_iterator_cleanup);
+  &#125;
+  <span class="hljs-comment">// 省略其他代码...</span>
+&#125;</code></pre>
+
+<p>当迭代器被销毁时，它可能持有对某些版本的引用。一旦释放这些引用，可能导致某些 SST 文件变为过期状态。迭代器销毁时会检查并清理这些文件。如果设置了 <code>background_purge_on_iterator_cleanup=true</code>，清理操作会在后台执行，避免阻塞用户线程。</p>
+<p><strong>范围删除后：DBImpl::DeleteFilesInRanges</strong></p>
+<pre><code class="hljs cpp"><span class="hljs-function">Status <span class="hljs-title">DBImpl::DeleteFilesInRanges</span><span class="hljs-params">(ColumnFamilyHandle* column_family,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                   <span class="hljs-type">const</span> RangePtr* ranges, <span class="hljs-type">size_t</span> n,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                   <span class="hljs-type">bool</span> include_end)</span> </span>&#123;
+  <span class="hljs-comment">// 省略其他代码...</span>
+  <span class="hljs-built_in">FindObsoleteFiles</span>(&amp;job_context, <span class="hljs-literal">false</span>);
+  <span class="hljs-keyword">if</span> (job_context.<span class="hljs-built_in">HaveSomethingToDelete</span>()) &#123;
+    <span class="hljs-comment">// Call PurgeObsoleteFiles() without holding mutex.</span>
+    <span class="hljs-built_in">PurgeObsoleteFiles</span>(job_context);
+  &#125;
+  <span class="hljs-comment">// 省略其他代码...</span>
+&#125;</code></pre>
+
+<p>执行范围删除（DeleteFilesInRanges）后，会有大量 SST 文件变为过期，此时会触发文件清理。</p>
+<p><strong>启用文件删除功能时：DBImpl::EnableFileDeletions</strong></p>
+<pre><code class="hljs cpp"><span class="hljs-function">Status <span class="hljs-title">DBImpl::EnableFileDeletions</span><span class="hljs-params">(<span class="hljs-type">bool</span> force)</span> </span>&#123;
+  <span class="hljs-comment">// 省略其他代码...</span>
+  <span class="hljs-built_in">FindObsoleteFiles</span>(&amp;job_context, <span class="hljs-literal">true</span>);
+  <span class="hljs-keyword">if</span> (saved_counter == <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-built_in">ROCKS_LOG_INFO</span>(immutable_db_options_.info_log, <span class="hljs-string">&quot;File Deletions Enabled&quot;</span>);
+    <span class="hljs-keyword">if</span> (job_context.<span class="hljs-built_in">HaveSomethingToDelete</span>()) &#123;
+      <span class="hljs-built_in">PurgeObsoleteFiles</span>(job_context);
+    &#125;
+  &#125;
+  <span class="hljs-comment">// 省略其他代码...</span>
+&#125;</code></pre>
+
+<p>RocksDB 允许暂时禁用文件删除（例如在备份或创建快照时）。当文件删除功能被重新启用时，会清理之前累积的过期文件。</p>
+<p>不同线程同时需要暂停文件删除时，每个线程都会调用 <code>DisableFileDeletions()</code>，导致计数器累加。RocksDB 内部不同组件可能各自调用 <code>DisableFileDeletions()</code>，例如：</p>
+<ul>
+<li>快照创建过程</li>
+<li>备份操作进行时</li>
+<li>某些迭代器依赖特定文件时</li>
+</ul>
+<p>计数器设计是有意为之，确保只有当所有禁用请求都被释放后（计数器回到 0），才会重新启用文件删除。</p>
+<p><strong>刷盘操作后：DBImpl::BackgroundCallFlush</strong></p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">DBImpl::BackgroundCallFlush</span><span class="hljs-params">(Env::Priority thread_pri)</span> </span>&#123;
+  <span class="hljs-comment">// 省略其他代码...</span>
+  <span class="hljs-comment">// If flush failed, we want to delete all temporary files that we might</span>
+  <span class="hljs-comment">// have created. Thus, we force full scan in FindObsoleteFiles()</span>
+  <span class="hljs-built_in">FindObsoleteFiles</span>(&amp;job_context, !s.<span class="hljs-built_in">ok</span>() &amp;&amp; !s.<span class="hljs-built_in">IsShutdownInProgress</span>() &amp;&amp;
+                            !s.<span class="hljs-built_in">IsColumnFamilyDropped</span>());
+  <span class="hljs-keyword">if</span> (job_context.<span class="hljs-built_in">HaveSomethingToClean</span>() || job_context.<span class="hljs-built_in">HaveSomethingToDelete</span>() || !log_buffer.<span class="hljs-built_in">IsEmpty</span>()) &#123;
+    mutex_.<span class="hljs-built_in">Unlock</span>();
+    <span class="hljs-keyword">if</span> (job_context.<span class="hljs-built_in">HaveSomethingToDelete</span>()) &#123;
+      <span class="hljs-built_in">PurgeObsoleteFiles</span>(job_context);
+    &#125;
+  &#125;
+  <span class="hljs-comment">// 省略其他代码...</span>
+&#125;</code></pre>
+
+<p>当内存表刷新到磁盘形成 SST 文件后，对应的 WAL 文件可能变为过期，此时会触发清理。</p>
+<p><strong>Compact 操作后：DBImpl::CompactFiles</strong></p>
+<pre><code class="hljs cpp"><span class="hljs-function">Status <span class="hljs-title">DBImpl::CompactFiles</span><span class="hljs-params">(<span class="hljs-type">const</span> CompactionOptions&amp; compact_options,</span></span>
+<span class="hljs-params"><span class="hljs-function">                            ColumnFamilyHandle* column_family,</span></span>
+<span class="hljs-params"><span class="hljs-function">                            <span class="hljs-type">const</span> std::vector&lt;std::string&gt;&amp; input_file_names,</span></span>
+<span class="hljs-params"><span class="hljs-function">                            <span class="hljs-type">const</span> <span class="hljs-type">int</span> output_level, <span class="hljs-type">const</span> <span class="hljs-type">int</span> output_path_id,</span></span>
+<span class="hljs-params"><span class="hljs-function">                            std::vector&lt;std::string&gt;* <span class="hljs-type">const</span> output_file_names,</span></span>
+<span class="hljs-params"><span class="hljs-function">                            CompactionJobInfo* compaction_job_info)</span> </span>&#123;
+    <span class="hljs-comment">// If !s.ok(), this means that Compaction failed. In that case, we want</span>
+    <span class="hljs-comment">// to delete all obsolete files we might have created and we force</span>
+    <span class="hljs-comment">// FindObsoleteFiles(). This is because job_context does not</span>
+    <span class="hljs-comment">// catch all created files if compaction failed.</span>
+    <span class="hljs-built_in">FindObsoleteFiles</span>(&amp;job_context, !s.<span class="hljs-built_in">ok</span>());
+  <span class="hljs-comment">// delete unnecessary files if any, this is done outside the mutex</span>
+  <span class="hljs-keyword">if</span> (job_context.<span class="hljs-built_in">HaveSomethingToClean</span>() ||
+      job_context.<span class="hljs-built_in">HaveSomethingToDelete</span>() || !log_buffer.<span class="hljs-built_in">IsEmpty</span>()) &#123;
+    <span class="hljs-keyword">if</span> (job_context.<span class="hljs-built_in">HaveSomethingToDelete</span>()) &#123;
+      <span class="hljs-comment">// no mutex is locked here.  No need to Unlock() and Lock() here.</span>
+      <span class="hljs-built_in">PurgeObsoleteFiles</span>(job_context);
+    &#125;
+    job_context.<span class="hljs-built_in">Clean</span>();
+  &#125;
+&#125;</code></pre>
+
+<p>压缩是 RocksDB 中导致文件过期的主要操作。压缩会将多个小文件合并为较少的大文件，原来的小文件变为过期文件需要清理。</p>
+<p><strong>主动清理：<code>DBImpl::DeleteObsoleteFiles</code></strong></p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">DBImpl::DeleteObsoleteFiles</span><span class="hljs-params">()</span> </span>&#123;
+  <span class="hljs-comment">// 省略其他代码...</span>
+  <span class="hljs-function">JobContext <span class="hljs-title">job_context</span><span class="hljs-params">(next_job_id_.fetch_add(<span class="hljs-number">1</span>))</span></span>;
+  <span class="hljs-built_in">FindObsoleteFiles</span>(&amp;job_context, <span class="hljs-literal">true</span>);
+  <span class="hljs-keyword">if</span> (job_context.<span class="hljs-built_in">HaveSomethingToDelete</span>()) &#123;
+    <span class="hljs-type">bool</span> defer_purge = immutable_db_options_.avoid_unnecessary_blocking_io;
+    <span class="hljs-built_in">PurgeObsoleteFiles</span>(job_context, defer_purge);
+  &#125;
+  <span class="hljs-comment">// 省略其他代码...</span>
+&#125;</code></pre>
+
+<h5 id="2-2-2-3-“周期性”全量清理"><a href="#2-2-2-3-“周期性”全量清理" class="headerlink" title="2.2.2.3 “周期性”全量清理"></a>2.2.2.3 “周期性”全量清理</h5><p>在 <code>DBImpl::FindObsoleteFiles</code> 中，有一段“周期性”执行全量扫描的代码：</p>
+<pre><code class="hljs cpp"><span class="hljs-keyword">if</span> ((delete_obsolete_files_last_run_ +
+     mutable_db_options_.delete_obsolete_files_period_micros) &lt;
+    now_micros) &#123;
+  doing_the_full_scan = <span class="hljs-literal">true</span>;
+  delete_obsolete_files_last_run_ = now_micros;
+&#125;</code></pre>
+
+<p>这段代码容易产生误解，看起来像是定时任务的实现。但实际上，该参数 <code>delete_obsolete_files_period_micros</code>（默认 6 小时）只是用来判断<strong>已触发</strong>的 <code>FindObsoleteFiles</code> 调用是否应执行全量扫描。它不会自动创建调用 <code>FindObsoleteFiles</code> 的计时器或后台任务。<strong>如果数据库长时间没有任何过期清理触发事件，那么即使超过 <code>delete_obsolete_files_period_micros</code> 设置的时间（默认 6 小时），也不会自动触发全量扫描来清理过期文件。积累的过期文件会直至下一次触发事件发生，才会实际删除。</strong></p>
+<h5 id="2-2-2-4-文件回收机制"><a href="#2-2-2-4-文件回收机制" class="headerlink" title="2.2.2.4 文件回收机制"></a>2.2.2.4 文件回收机制</h5><p>RocksDB 支持 WAL 文件回收，避免频繁创建新文件：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 如果配置了日志文件回收，且回收列表未满</span>
+<span class="hljs-keyword">if</span> (immutable_db_options_.recycle_log_file_num &gt; log_recycle_files_.<span class="hljs-built_in">size</span>()) &#123;
+  log_recycle_files_.<span class="hljs-built_in">push_back</span>(earliest.number);
+&#125; <span class="hljs-keyword">else</span> &#123;
+  <span class="hljs-comment">// 否则添加到待删除列表</span>
+  job_context-&gt;log_delete_files.<span class="hljs-built_in">push_back</span>(earliest.number);
+&#125;</code></pre>
+
+<h4 id="2-2-3-从-VersionSet-获取过期文件：GetObsoleteFiles"><a href="#2-2-3-从-VersionSet-获取过期文件：GetObsoleteFiles" class="headerlink" title="2.2.3 从 VersionSet 获取过期文件：GetObsoleteFiles"></a>2.2.3 从 VersionSet 获取过期文件：GetObsoleteFiles</h4><p><code>VersionSet::GetObsoleteFiles</code> 负责从 <code>VersionSet</code> 获取过时文件列表，并根据 <code>min_pending_output</code> 进行过滤：</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">VersionSet::GetObsoleteFiles</span><span class="hljs-params">(std::vector&lt;ObsoleteFileInfo&gt;* files,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                  std::vector&lt;ObsoleteBlobFileInfo&gt;* blob_files,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                  std::vector&lt;std::string&gt;* manifest_filenames,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                  <span class="hljs-type">uint64_t</span> min_pending_output)</span> </span>&#123;
+  <span class="hljs-comment">// 确保传入的参数指针非空</span>
+  <span class="hljs-built_in">assert</span>(files);
+  <span class="hljs-built_in">assert</span>(blob_files);
+  <span class="hljs-built_in">assert</span>(manifest_filenames);
+  <span class="hljs-comment">// 确保传入的容器为空</span>
+  <span class="hljs-built_in">assert</span>(files-&gt;<span class="hljs-built_in">empty</span>());
+  <span class="hljs-built_in">assert</span>(blob_files-&gt;<span class="hljs-built_in">empty</span>());
+  <span class="hljs-built_in">assert</span>(manifest_filenames-&gt;<span class="hljs-built_in">empty</span>());
+
+  <span class="hljs-comment">// 用于临时保存不能立即删除的过时SST文件</span>
+  std::vector&lt;ObsoleteFileInfo&gt; pending_files;
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; f : obsolete_files_) &#123;
+    <span class="hljs-comment">// 如果文件号小于min_pending_output，表示该文件可以安全删除</span>
+    <span class="hljs-comment">// 因为不会有正在进行的写操作使用这个文件号</span>
+    <span class="hljs-keyword">if</span> (f.metadata-&gt;fd.<span class="hljs-built_in">GetNumber</span>() &lt; min_pending_output) &#123;
+      <span class="hljs-comment">// 添加到可删除文件列表中</span>
+      files-&gt;<span class="hljs-built_in">emplace_back</span>(std::<span class="hljs-built_in">move</span>(f));
+    &#125; <span class="hljs-keyword">else</span> &#123;
+      <span class="hljs-comment">// 文件号大于或等于min_pending_output，表示可能有待处理的操作</span>
+      <span class="hljs-comment">// 将其保留在待处理队列中</span>
+      pending_files.<span class="hljs-built_in">emplace_back</span>(std::<span class="hljs-built_in">move</span>(f));
+    &#125;
+  &#125;
+  <span class="hljs-comment">// 更新obsolete_files_，只保留那些暂时不能删除的文件</span>
+  obsolete_files_.<span class="hljs-built_in">swap</span>(pending_files);
+
+  <span class="hljs-comment">// 处理过时的Blob文件，逻辑与处理SST文件类似</span>
+  std::vector&lt;ObsoleteBlobFileInfo&gt; pending_blob_files;
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; blob_file : obsolete_blob_files_) &#123;
+    <span class="hljs-comment">// 同样判断文件号是否小于min_pending_output</span>
+    <span class="hljs-keyword">if</span> (blob_file.<span class="hljs-built_in">GetBlobFileNumber</span>() &lt; min_pending_output) &#123;
+      <span class="hljs-comment">// 可以安全删除的Blob文件</span>
+      blob_files-&gt;<span class="hljs-built_in">emplace_back</span>(std::<span class="hljs-built_in">move</span>(blob_file));
+    &#125; <span class="hljs-keyword">else</span> &#123;
+      <span class="hljs-comment">// 暂时不能删除的Blob文件</span>
+      pending_blob_files.<span class="hljs-built_in">emplace_back</span>(std::<span class="hljs-built_in">move</span>(blob_file));
+    &#125;
+  &#125;
+  <span class="hljs-comment">// 更新obsolete_blob_files_，只保留那些暂时不能删除的Blob文件</span>
+  obsolete_blob_files_.<span class="hljs-built_in">swap</span>(pending_blob_files);
+
+  <span class="hljs-comment">// 处理过时的MANIFEST文件</span>
+  <span class="hljs-comment">// 所有过时的MANIFEST文件都可以直接删除</span>
+  <span class="hljs-comment">// 将obsolete_manifests_中的内容移到manifest_filenames中，并清空obsolete_manifests_</span>
+  obsolete_manifests_.<span class="hljs-built_in">swap</span>(*manifest_filenames);
+&#125;</code></pre>
+
+<h5 id="2-2-3-1-pending-outputs-机制"><a href="#2-2-3-1-pending-outputs-机制" class="headerlink" title="2.2.3.1 pending_outputs_ 机制"></a>2.2.3.1 <code>pending_outputs_</code> 机制</h5><p>compaction 在开始时，会将“下一个将要分配的 file_number” 记录到 <code>pending_outputs_</code> 中。</p>
+<pre><code class="hljs cpp">std::list&lt;<span class="hljs-type">uint64_t</span>&gt;::<span class="hljs-function">iterator</span>
+<span class="hljs-function"><span class="hljs-title">DBImpl::CaptureCurrentFileNumberInPendingOutputs</span><span class="hljs-params">()</span> </span>&#123;
+  <span class="hljs-comment">// 需要记住插入的迭代器，因为在后台作业完成后，需要从 pending_output 中删除该元素。</span>
+  pending_outputs_.<span class="hljs-built_in">push_back</span>(versions_-&gt;<span class="hljs-built_in">current_next_file_number</span>());
+  <span class="hljs-keyword">auto</span> pending_outputs_inserted_elem = pending_outputs_.<span class="hljs-built_in">end</span>();
+  --pending_outputs_inserted_elem;
+  <span class="hljs-keyword">return</span> pending_outputs_inserted_elem;
+&#125;</code></pre>
+
+<p>机制的目的是<strong>保护所有大于等于这个 file number 的文件在该任务执行期间不会被误删</strong>。它与文件在 <code>VersionSet</code> 中的逻辑引用<strong>无关</strong>。即使 compaction 还在运行，并且它的 <code>pending_outputs_</code> file number 的文件被物理删除，但这并不意味着 <code>VersionSet</code> 中的任何 <code>Version</code> 仍然在逻辑上引用 file number 的文件。</p>
+<p>compaction 任务结束后会从 <code>pending_outputs_</code> 释放对应的 file_number，允许 file_number 及之后的文件被清理</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">DBImpl::ReleaseFileNumberFromPendingOutputs</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">    std::unique_ptr&lt;std::list&lt;<span class="hljs-type">uint64_t</span>&gt;::iterator&gt;&amp; v)</span> </span>&#123;
+  <span class="hljs-keyword">if</span> (v.<span class="hljs-built_in">get</span>() != <span class="hljs-literal">nullptr</span>) &#123;
+    pending_outputs_.<span class="hljs-built_in">erase</span>(*v.<span class="hljs-built_in">get</span>());
+    v.<span class="hljs-built_in">reset</span>();
+  &#125;
+&#125;</code></pre>
+
+<p>举例场景如下：</p>
+<ol>
+<li>当前的 file number 是 13（<code>versions_-&gt;current_next_file_number()</code>）。</li>
+<li>compaction (1) 启动，此时会把 13 的 file number（准确说是“下一个将要分配的 file number”，即 <code>versions_-&gt;current_next_file_number()</code>）加入 <code>pending_outputs_</code>，</li>
+<li>compaction (2) 创建了 file 13。</li>
+<li>compaction (3) 消耗了 file 13，并生成了 file 15。此时 file 13 已经没有引用，被加入 <code>VersionSet::obsolete_files_</code>，表示它可以被删除。</li>
+<li>FindObsoleteFiles() 检查到 file 13 在 <code>obsolete_files_</code> 集合中，于是将其移出 <code>obsolete_files_</code>，准备删除。</li>
+<li>PurgeObsoleteFiles() 尝试删除 file 13，但由于 compaction (1) 还在运行，<code>pending_outputs_</code> 仍然阻挡着 file 13 的删除。此时 file 13 已经不在 <code>obsolete_files_</code> 集合中，但也没有被真正删除，导致它永远不会被清理。</li>
+</ol>
+<blockquote>
+<p><strong>file 13 虽然是 compaction (2) 生成的，但它的 file number 可能早于 compaction (2) 启动时记录到 <code>pending_outputs_</code> 的 file number</strong>，因为 file number 的分配是全局递增的，多个 compaction&#x2F;flush 任务并发时，file number 分配顺序和任务实际完成顺序可能不同。</p>
+</blockquote>
+<p><code>pending_outputs_</code> 和 <code>obsolete_files_</code> 之间存在协作关系：一旦从 <code>obsolete_files_</code> 移除（<code>FindObsoleteFiles()</code> 逻辑）后，但文件因为 <code>pending_outputs_</code> 的存在被阻挡删除（<code>PurgeObsoleteFiles()</code> 逻辑），如果没有额外机制跟踪，就会出现“文件既不在 <code>obsolete_files_</code>，也没被删除”的死角，造成空间泄漏。 <a target="_blank" rel="noopener" href="https://github.com/facebook/rocksdb/commit/863009b5a594fd4ecd7ed38ba1540f8cbc15011e#diff-69c1d266e43d561de12a9ef15cd32ae400d7623580e1e94f1c1cd22a9958efe6">Fix deleting obsolete files# 863009b</a></p>
+<h4 id="2-2-4-删除过期文件：PurgeObsoleteFiles"><a href="#2-2-4-删除过期文件：PurgeObsoleteFiles" class="headerlink" title="2.2.4 删除过期文件：PurgeObsoleteFiles"></a>2.2.4 删除过期文件：PurgeObsoleteFiles</h4><p><code>PurgeObsoleteFiles</code> 执行实际的文件删除操作，<strong>不需要持有数据库互斥锁</strong>，降低了锁持有的时间：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 删除不属于活跃文件列表的文件，同时删除在sst_delete_files和log_delete_files中标记的文件。</span>
+<span class="hljs-comment">// 调用此方法时不需要持有互斥锁。</span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">DBImpl::PurgeObsoleteFiles</span><span class="hljs-params">(JobContext&amp; state, <span class="hljs-type">bool</span> schedule_only)</span> </span>&#123;
+  <span class="hljs-comment">// 同步点，用于测试</span>
+  <span class="hljs-built_in">TEST_SYNC_POINT</span>(<span class="hljs-string">&quot;DBImpl::PurgeObsoleteFiles:Begin&quot;</span>);
+
+  <span class="hljs-comment">// 断言确保我们有东西要删除</span>
+  <span class="hljs-built_in">assert</span>(state.<span class="hljs-built_in">HaveSomethingToDelete</span>());
+
+  <span class="hljs-comment">// FindObsoleteFiles()应该已经填充了manifest_file_number，确保它不为0</span>
+  <span class="hljs-built_in">assert</span>(state.manifest_file_number != <span class="hljs-number">0</span>);
+
+  <span class="hljs-comment">// 将活跃文件列表转换为无序集合，不需要持有互斥锁；set操作较慢</span>
+  <span class="hljs-comment">// 这些集合用于快速查找文件是否是活跃的</span>
+  <span class="hljs-function">std::unordered_set&lt;<span class="hljs-type">uint64_t</span>&gt; <span class="hljs-title">sst_live_set</span><span class="hljs-params">(state.sst_live.begin(),</span></span>
+<span class="hljs-params"><span class="hljs-function">                                          state.sst_live.end())</span></span>;
+  <span class="hljs-function">std::unordered_set&lt;<span class="hljs-type">uint64_t</span>&gt; <span class="hljs-title">blob_live_set</span><span class="hljs-params">(state.blob_live.begin(),</span></span>
+<span class="hljs-params"><span class="hljs-function">                                           state.blob_live.end())</span></span>;
+  <span class="hljs-function">std::unordered_set&lt;<span class="hljs-type">uint64_t</span>&gt; <span class="hljs-title">log_recycle_files_set</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">      state.log_recycle_files.begin(), state.log_recycle_files.end())</span></span>;
+
+  <span class="hljs-comment">// 准备候选文件列表，这包括全扫描找到的候选文件</span>
+  <span class="hljs-keyword">auto</span> candidate_files = state.full_scan_candidate_files;
+  <span class="hljs-comment">// 预先分配足够空间以避免频繁的内存重分配</span>
+  candidate_files.<span class="hljs-built_in">reserve</span>(
+      candidate_files.<span class="hljs-built_in">size</span>() + state.sst_delete_files.<span class="hljs-built_in">size</span>() +
+      state.blob_delete_files.<span class="hljs-built_in">size</span>() + state.log_delete_files.<span class="hljs-built_in">size</span>() +
+      state.manifest_delete_files.<span class="hljs-built_in">size</span>());
+
+  <span class="hljs-comment">// 将要删除的SST文件添加到候选列表</span>
+  <span class="hljs-comment">// 我们可能在生成文件名时忽略dbname</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; file : state.sst_delete_files) &#123;
+    <span class="hljs-comment">// 如果不只是删除元数据，将文件添加到候选列表</span>
+    <span class="hljs-keyword">if</span> (!file.only_delete_metadata) &#123;
+      candidate_files.<span class="hljs-built_in">emplace_back</span>(
+          <span class="hljs-built_in">MakeTableFileName</span>(file.metadata-&gt;fd.<span class="hljs-built_in">GetNumber</span>()), file.path);
+    &#125;
+    <span class="hljs-comment">// 如果文件有table_reader_handle，释放它</span>
+    <span class="hljs-keyword">if</span> (file.metadata-&gt;table_reader_handle) &#123;
+      table_cache_-&gt;<span class="hljs-built_in">Release</span>(file.metadata-&gt;table_reader_handle);
+    &#125;
+    <span class="hljs-comment">// 删除文件元数据</span>
+    file.<span class="hljs-built_in">DeleteMetadata</span>();
+  &#125;
+
+  <span class="hljs-comment">// 将要删除的BLOB文件添加到候选列表</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span>&amp; blob_file : state.blob_delete_files) &#123;
+    candidate_files.<span class="hljs-built_in">emplace_back</span>(<span class="hljs-built_in">BlobFileName</span>(blob_file.<span class="hljs-built_in">GetBlobFileNumber</span>()),
+                               blob_file.<span class="hljs-built_in">GetPath</span>());
+  &#125;
+
+  <span class="hljs-comment">// 获取WAL目录</span>
+  <span class="hljs-keyword">auto</span> wal_dir = immutable_db_options_.<span class="hljs-built_in">GetWalDir</span>();
+  <span class="hljs-comment">// 将要删除的WAL文件添加到候选列表</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> file_num : state.log_delete_files) &#123;
+    <span class="hljs-keyword">if</span> (file_num &gt; <span class="hljs-number">0</span>) &#123;
+      candidate_files.<span class="hljs-built_in">emplace_back</span>(<span class="hljs-built_in">LogFileName</span>(file_num), wal_dir);
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// 将要删除的manifest文件添加到候选列表</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span>&amp; filename : state.manifest_delete_files) &#123;
+    candidate_files.<span class="hljs-built_in">emplace_back</span>(filename, dbname_);
+  &#125;
+
+  <span class="hljs-comment">// 对候选文件列表进行排序和去重，避免尝试删除同一个文件两次</span>
+  std::<span class="hljs-built_in">sort</span>(candidate_files.<span class="hljs-built_in">begin</span>(), candidate_files.<span class="hljs-built_in">end</span>(),
+            [](<span class="hljs-type">const</span> JobContext::CandidateFileInfo&amp; lhs,
+               <span class="hljs-type">const</span> JobContext::CandidateFileInfo&amp; rhs) &#123;
+              <span class="hljs-comment">// 先按文件名排序</span>
+              <span class="hljs-keyword">if</span> (lhs.file_name &lt; rhs.file_name) &#123;
+                <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+              &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (lhs.file_name &gt; rhs.file_name) &#123;
+                <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+              &#125; <span class="hljs-keyword">else</span> &#123;
+                <span class="hljs-comment">// 如果文件名相同，按文件路径排序</span>
+                <span class="hljs-built_in">return</span> (lhs.file_path &lt; rhs.file_path);
+              &#125;
+            &#125;);
+
+  <span class="hljs-comment">// 去除重复的文件条目</span>
+  candidate_files.<span class="hljs-built_in">erase</span>(
+      std::<span class="hljs-built_in">unique</span>(candidate_files.<span class="hljs-built_in">begin</span>(), candidate_files.<span class="hljs-built_in">end</span>()),
+      candidate_files.<span class="hljs-built_in">end</span>());
+
+  <span class="hljs-comment">// 如果之前有WAL文件，记录删除日志信息</span>
+  <span class="hljs-keyword">if</span> (state.prev_total_log_size &gt; <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-built_in">ROCKS_LOG_INFO</span>(immutable_db_options_.info_log,
+                 <span class="hljs-string">&quot;[JOB %d] Try to delete WAL files size %&quot;</span> PRIu64
+                 <span class="hljs-string">&quot;, prev total WAL file size %&quot;</span> PRIu64
+                 <span class="hljs-string">&quot;, number of live WAL files %&quot;</span> ROCKSDB_PRIszt <span class="hljs-string">&quot;.\n&quot;</span>,
+                 state.job_id, state.size_log_to_delete,
+                 state.prev_total_log_size, state.num_alive_log_files);
+  &#125;
+
+  <span class="hljs-comment">// 用于保存旧的info log文件</span>
+  std::vector&lt;std::string&gt; old_info_log_files;
+  <span class="hljs-comment">// 创建信息日志前缀</span>
+  <span class="hljs-function">InfoLogPrefix <span class="hljs-title">info_log_prefix</span><span class="hljs-params">(!immutable_db_options_.db_log_dir.empty(),</span></span>
+<span class="hljs-params"><span class="hljs-function">                              dbname_)</span></span>;
+
+  <span class="hljs-comment">// candidate_files中最近两个OPTIONS文件的文件编号</span>
+  <span class="hljs-comment">// 此时，candidate_files中不能有重复的文件编号</span>
+  <span class="hljs-type">uint64_t</span> optsfile_num1 = std::numeric_limits&lt;<span class="hljs-type">uint64_t</span>&gt;::<span class="hljs-built_in">min</span>();
+  <span class="hljs-type">uint64_t</span> optsfile_num2 = std::numeric_limits&lt;<span class="hljs-type">uint64_t</span>&gt;::<span class="hljs-built_in">min</span>();
+
+  <span class="hljs-comment">// 遍历候选文件找出最近的两个OPTIONS文件</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span>&amp; candidate_file : candidate_files) &#123;
+    <span class="hljs-type">const</span> std::string&amp; fname = candidate_file.file_name;
+    <span class="hljs-type">uint64_t</span> number;
+    FileType type;
+    <span class="hljs-comment">// 解析文件名，如果不是OPTIONS文件则跳过</span>
+    <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">ParseFileName</span>(fname, &amp;number, info_log_prefix.prefix, &amp;type) ||
+        type != kOptionsFile) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+    <span class="hljs-comment">// 更新最近的两个OPTIONS文件编号</span>
+    <span class="hljs-keyword">if</span> (number &gt; optsfile_num1) &#123;
+      optsfile_num2 = optsfile_num1;
+      optsfile_num1 = number;
+    &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (number &gt; optsfile_num2) &#123;
+      optsfile_num2 = number;
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// 在尝试删除WAL文件前先关闭它们</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span> w : state.logs_to_free) &#123;
+    <span class="hljs-comment">// <span class="hljs-doctag">TODO:</span> 可能需要检查Close()的返回值</span>
+    <span class="hljs-keyword">auto</span> s = w-&gt;<span class="hljs-built_in">Close</span>();
+    s.<span class="hljs-built_in">PermitUncheckedError</span>();  <span class="hljs-comment">// 允许未检查的错误</span>
+  &#125;
+
+  <span class="hljs-comment">// 检查是否拥有表和日志文件</span>
+  <span class="hljs-type">bool</span> own_files = <span class="hljs-built_in">OwnTablesAndLogs</span>();
+  <span class="hljs-comment">// 记录要删除的文件编号</span>
+  std::unordered_set&lt;<span class="hljs-type">uint64_t</span>&gt; files_to_del;
+
+  <span class="hljs-comment">// 遍历所有候选文件，决定哪些需要删除</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span>&amp; candidate_file : candidate_files) &#123;
+    <span class="hljs-type">const</span> std::string&amp; to_delete = candidate_file.file_name;
+    <span class="hljs-type">uint64_t</span> number;
+    FileType type;
+    <span class="hljs-comment">// 如果无法识别文件，则跳过</span>
+    <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">ParseFileName</span>(to_delete, &amp;number, info_log_prefix.prefix, &amp;type)) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+
+    <span class="hljs-comment">// 默认保留文件</span>
+    <span class="hljs-type">bool</span> keep = <span class="hljs-literal">true</span>;
+    <span class="hljs-comment">// 根据文件类型决定是否要保留</span>
+    <span class="hljs-keyword">switch</span> (type) &#123;
+      <span class="hljs-keyword">case</span> kWalFile:  <span class="hljs-comment">// WAL文件</span>
+        <span class="hljs-comment">// 保留条件：文件编号&gt;=log_number 或 文件编号==prev_log_number 或 在回收文件集中</span>
+        keep = ((number &gt;= state.log_number) ||
+                (number == state.prev_log_number) ||
+                (log_recycle_files_set.<span class="hljs-built_in">find</span>(number) !=
+                 log_recycle_files_set.<span class="hljs-built_in">end</span>()));
+        <span class="hljs-keyword">break</span>;
+      <span class="hljs-keyword">case</span> kDescriptorFile:  <span class="hljs-comment">// 描述符文件(manifest)</span>
+        <span class="hljs-comment">// 保留我的manifest文件和任何更新的版本（可能在manifest滚动期间发生）</span>
+        keep = (number &gt;= state.manifest_file_number);
+        <span class="hljs-keyword">break</span>;
+      <span class="hljs-keyword">case</span> kTableFile:  <span class="hljs-comment">// SST表文件</span>
+        <span class="hljs-comment">// 如果第二个条件不存在，会导致DontDeletePendingOutputs失败</span>
+        <span class="hljs-comment">// 保留条件：在活跃SST集中 或 文件编号&gt;=min_pending_output</span>
+        keep = (sst_live_set.<span class="hljs-built_in">find</span>(number) != sst_live_set.<span class="hljs-built_in">end</span>()) ||
+               number &gt;= state.min_pending_output;
+        <span class="hljs-keyword">if</span> (!keep) &#123;
+          files_to_del.<span class="hljs-built_in">insert</span>(number);  <span class="hljs-comment">// 记录要删除的文件编号</span>
+        &#125;
+        <span class="hljs-keyword">break</span>;
+      <span class="hljs-keyword">case</span> kBlobFile:  <span class="hljs-comment">// Blob文件</span>
+        <span class="hljs-comment">// 保留条件：文件编号&gt;=min_pending_output 或 在活跃的blob文件集中</span>
+        keep = number &gt;= state.min_pending_output ||
+               (blob_live_set.<span class="hljs-built_in">find</span>(number) != blob_live_set.<span class="hljs-built_in">end</span>());
+        <span class="hljs-keyword">if</span> (!keep) &#123;
+          files_to_del.<span class="hljs-built_in">insert</span>(number);  <span class="hljs-comment">// 记录要删除的文件编号</span>
+        &#125;
+        <span class="hljs-keyword">break</span>;
+      <span class="hljs-keyword">case</span> kTempFile:  <span class="hljs-comment">// 临时文件</span>
+        <span class="hljs-comment">// 当前正在写入的任何临时文件必须记录在pending_outputs_中，</span>
+        <span class="hljs-comment">// 它被插入到&quot;live&quot;集合中。</span>
+        <span class="hljs-comment">// 此外，SetCurrentFile在写出新的manifest时会创建一个临时文件，</span>
+        <span class="hljs-comment">// 等于state.pending_manifest_file_number，我们不应该删除那个文件</span>
+        <span class="hljs-comment">//</span>
+        <span class="hljs-comment">// TODO(yhchiang): 仔细修改第三个条件以安全地移除临时options文件</span>
+        keep = (sst_live_set.<span class="hljs-built_in">find</span>(number) != sst_live_set.<span class="hljs-built_in">end</span>()) ||
+               (blob_live_set.<span class="hljs-built_in">find</span>(number) != blob_live_set.<span class="hljs-built_in">end</span>()) ||
+               (number == state.pending_manifest_file_number) ||
+               (to_delete.<span class="hljs-built_in">find</span>(kOptionsFileNamePrefix) != std::string::npos);
+        <span class="hljs-keyword">break</span>;
+      <span class="hljs-keyword">case</span> kInfoLogFile:  <span class="hljs-comment">// 信息日志文件</span>
+        keep = <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 总是保留</span>
+        <span class="hljs-keyword">if</span> (number != <span class="hljs-number">0</span>) &#123;
+          old_info_log_files.<span class="hljs-built_in">push_back</span>(to_delete);  <span class="hljs-comment">// 收集旧的日志文件</span>
+        &#125;
+        <span class="hljs-keyword">break</span>;
+      <span class="hljs-keyword">case</span> kOptionsFile:  <span class="hljs-comment">// 选项文件</span>
+        <span class="hljs-comment">// 保留最近的两个OPTIONS文件</span>
+        keep = (number &gt;= optsfile_num2);
+        <span class="hljs-keyword">break</span>;
+      <span class="hljs-keyword">case</span> kCurrentFile:   <span class="hljs-comment">// CURRENT文件</span>
+      <span class="hljs-keyword">case</span> kDBLockFile:    <span class="hljs-comment">// 数据库锁文件</span>
+      <span class="hljs-keyword">case</span> kIdentityFile:  <span class="hljs-comment">// 身份文件</span>
+      <span class="hljs-keyword">case</span> kMetaDatabase:  <span class="hljs-comment">// 元数据库</span>
+        keep = <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 这些特殊文件总是保留</span>
+        <span class="hljs-keyword">break</span>;
+    &#125;
+
+    <span class="hljs-comment">// 如果需要保留，跳到下一个文件</span>
+    <span class="hljs-keyword">if</span> (keep) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+
+    <span class="hljs-comment">// 确定要删除的文件名和要同步的目录</span>
+    std::string fname;
+    std::string dir_to_sync;
+    <span class="hljs-keyword">if</span> (type == kTableFile) &#123;  <span class="hljs-comment">// SST文件</span>
+      <span class="hljs-comment">// 从缓存中移除</span>
+      TableCache::<span class="hljs-built_in">Evict</span>(table_cache_.<span class="hljs-built_in">get</span>(), number);
+      fname = <span class="hljs-built_in">MakeTableFileName</span>(candidate_file.file_path, number);
+      dir_to_sync = candidate_file.file_path;
+    &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (type == kBlobFile) &#123;  <span class="hljs-comment">// Blob文件</span>
+      fname = <span class="hljs-built_in">BlobFileName</span>(candidate_file.file_path, number);
+      dir_to_sync = candidate_file.file_path;
+    &#125; <span class="hljs-keyword">else</span> &#123;  <span class="hljs-comment">// 其他类型文件</span>
+      <span class="hljs-comment">// 确定同步目录</span>
+      dir_to_sync = (type == kWalFile) ? wal_dir : dbname_;
+      <span class="hljs-comment">// 构建完整文件路径，处理路径分隔符</span>
+      fname = dir_to_sync +
+              ((!dir_to_sync.<span class="hljs-built_in">empty</span>() &amp;&amp; dir_to_sync.<span class="hljs-built_in">back</span>() == <span class="hljs-string">&#x27;/&#x27;</span>) ||
+                       (!to_delete.<span class="hljs-built_in">empty</span>() &amp;&amp; to_delete.<span class="hljs-built_in">front</span>() == <span class="hljs-string">&#x27;/&#x27;</span>)
+                   ? <span class="hljs-string">&quot;&quot;</span>  <span class="hljs-comment">// 如果目录以/结尾或文件名以/开头，不添加额外的/</span>
+                   : <span class="hljs-string">&quot;/&quot;</span>) +  <span class="hljs-comment">// 否则添加/</span>
+              to_delete;
+    &#125;
+
+    <span class="hljs-comment">// 对于WAL文件，如果配置了TTL或大小限制，尝试归档而不是删除</span>
+    <span class="hljs-keyword">if</span> (type == kWalFile &amp;&amp; (immutable_db_options_.WAL_ttl_seconds &gt; <span class="hljs-number">0</span> ||
+                           immutable_db_options_.WAL_size_limit_MB &gt; <span class="hljs-number">0</span>)) &#123;
+      wal_manager_.<span class="hljs-built_in">ArchiveWALFile</span>(fname, number);
+      <span class="hljs-keyword">continue</span>;  <span class="hljs-comment">// 已归档，不需要进一步处理</span>
+    &#125;
+
+    <span class="hljs-comment">// 如果我不拥有这些文件，例如，secondary实例使用max_open_files = -1，</span>
+    <span class="hljs-comment">// 则无需删除或安排删除这些文件，因为它们将由其所有者删除，例如primary实例</span>
+    <span class="hljs-keyword">if</span> (!own_files) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+
+    <span class="hljs-comment">// 根据schedule_only决定是安排删除还是立即删除</span>
+    <span class="hljs-keyword">if</span> (schedule_only) &#123;
+      <span class="hljs-comment">// 如果是安排删除，需要获取互斥锁</span>
+      <span class="hljs-function">InstrumentedMutexLock <span class="hljs-title">guard_lock</span><span class="hljs-params">(&amp;mutex_)</span></span>;
+      <span class="hljs-comment">// 将文件安排到待删除队列</span>
+      <span class="hljs-built_in">SchedulePendingPurge</span>(fname, dir_to_sync, type, number, state.job_id);
+    &#125; <span class="hljs-keyword">else</span> &#123;
+      <span class="hljs-comment">// 立即删除文件</span>
+      <span class="hljs-built_in">DeleteObsoleteFileImpl</span>(state.job_id, fname, dir_to_sync, type, number);
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// 删除完过期文件后，从files_grabbed_for_purge_中移除它们</span>
+  &#123;
+    <span class="hljs-function">InstrumentedMutexLock <span class="hljs-title">guard_lock</span><span class="hljs-params">(&amp;mutex_)</span></span>;
+    autovector&lt;<span class="hljs-type">uint64_t</span>&gt; to_be_removed;
+    <span class="hljs-comment">// 查找已删除文件的编号</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> fn : files_grabbed_for_purge_) &#123;
+      <span class="hljs-keyword">if</span> (files_to_del.<span class="hljs-built_in">count</span>(fn) != <span class="hljs-number">0</span>) &#123;
+        to_be_removed.<span class="hljs-built_in">emplace_back</span>(fn);
+      &#125;
+    &#125;
+    <span class="hljs-comment">// 从files_grabbed_for_purge_中移除已删除的文件</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> fn : to_be_removed) &#123;
+      files_grabbed_for_purge_.<span class="hljs-built_in">erase</span>(fn);
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// 删除旧的info log文件</span>
+  <span class="hljs-type">size_t</span> old_info_log_file_count = old_info_log_files.<span class="hljs-built_in">size</span>();
+  <span class="hljs-keyword">if</span> (old_info_log_file_count != <span class="hljs-number">0</span> &amp;&amp;
+      old_info_log_file_count &gt;= immutable_db_options_.keep_log_file_num) &#123;
+    <span class="hljs-comment">// 只保留配置的数量的日志文件，删除多余的</span>
+    std::<span class="hljs-built_in">sort</span>(old_info_log_files.<span class="hljs-built_in">begin</span>(), old_info_log_files.<span class="hljs-built_in">end</span>());
+    <span class="hljs-comment">// 计算需要删除的文件数量</span>
+    <span class="hljs-type">size_t</span> end =
+        old_info_log_file_count - immutable_db_options_.keep_log_file_num;
+    <span class="hljs-comment">// 删除多余的日志文件</span>
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt;= end; i++) &#123;
+      std::string&amp; to_delete = old_info_log_files.<span class="hljs-built_in">at</span>(i);
+      std::string full_path_to_delete =
+          (immutable_db_options_.db_log_dir.<span class="hljs-built_in">empty</span>()
+               ? dbname_  <span class="hljs-comment">// 如果没有专门的日志目录，使用DB目录</span>
+               : immutable_db_options_.db_log_dir) +
+          <span class="hljs-string">&quot;/&quot;</span> + to_delete;
+      <span class="hljs-comment">// 记录删除信息</span>
+      <span class="hljs-built_in">ROCKS_LOG_INFO</span>(immutable_db_options_.info_log,
+                   <span class="hljs-string">&quot;[JOB %d] Delete info log file %s\n&quot;</span>, state.job_id,
+                   full_path_to_delete.<span class="hljs-built_in">c_str</span>());
+      <span class="hljs-comment">// 执行删除</span>
+      Status s = env_-&gt;<span class="hljs-built_in">DeleteFile</span>(full_path_to_delete);
+      <span class="hljs-keyword">if</span> (!s.<span class="hljs-built_in">ok</span>()) &#123;
+        <span class="hljs-comment">// 处理删除失败的情况</span>
+        <span class="hljs-keyword">if</span> (env_-&gt;<span class="hljs-built_in">FileExists</span>(full_path_to_delete).<span class="hljs-built_in">IsNotFound</span>()) &#123;
+          <span class="hljs-comment">// 文件不存在的情况</span>
+          <span class="hljs-built_in">ROCKS_LOG_INFO</span>(
+              immutable_db_options_.info_log,
+              <span class="hljs-string">&quot;[JOB %d] Tried to delete non-existing info log file %s FAILED &quot;</span>
+              <span class="hljs-string">&quot;-- %s\n&quot;</span>,
+              state.job_id, to_delete.<span class="hljs-built_in">c_str</span>(), s.<span class="hljs-built_in">ToString</span>().<span class="hljs-built_in">c_str</span>());
+        &#125; <span class="hljs-keyword">else</span> &#123;
+          <span class="hljs-comment">// 其他删除失败情况</span>
+          <span class="hljs-built_in">ROCKS_LOG_ERROR</span>(immutable_db_options_.info_log,
+                        <span class="hljs-string">&quot;[JOB %d] Delete info log file %s FAILED -- %s\n&quot;</span>,
+                        state.job_id, to_delete.<span class="hljs-built_in">c_str</span>(),
+                        s.<span class="hljs-built_in">ToString</span>().<span class="hljs-built_in">c_str</span>());
+        &#125;
+      &#125;
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// 让WAL管理器清理过期的WAL文件</span>
+  wal_manager_.<span class="hljs-built_in">PurgeObsoleteWALFiles</span>();
+  <span class="hljs-comment">// 刷新日志</span>
+  <span class="hljs-built_in">LogFlush</span>(immutable_db_options_.info_log);
+
+  <span class="hljs-comment">// 获取互斥锁并减少pending_purge_obsolete_files_计数</span>
+  <span class="hljs-function">InstrumentedMutexLock <span class="hljs-title">l</span><span class="hljs-params">(&amp;mutex_)</span></span>;
+  --pending_purge_obsolete_files_;
+  <span class="hljs-built_in">assert</span>(pending_purge_obsolete_files_ &gt;= <span class="hljs-number">0</span>);
+
+  <span class="hljs-comment">// 如果只是安排删除，调用SchedulePurge()</span>
+  <span class="hljs-keyword">if</span> (schedule_only) &#123;
+    <span class="hljs-comment">// 必须在持有互斥锁的情况下从pending_purge_obsolete_files_变为bg_purge_scheduled_</span>
+    <span class="hljs-comment">// （用于GetSortedWalFiles()等）</span>
+    <span class="hljs-built_in">SchedulePurge</span>();
+  &#125;
+
+  <span class="hljs-comment">// 如果没有更多待清理的文件，通知所有等待的线程</span>
+  <span class="hljs-keyword">if</span> (pending_purge_obsolete_files_ == <span class="hljs-number">0</span>) &#123;
+    bg_cv_.<span class="hljs-built_in">SignalAll</span>();
+  &#125;
+
+  <span class="hljs-comment">// 同步点，用于测试</span>
+  <span class="hljs-built_in">TEST_SYNC_POINT</span>(<span class="hljs-string">&quot;DBImpl::PurgeObsoleteFiles:End&quot;</span>);
+&#125;</code></pre>
+
+<h5 id="2-2-4-1-异步删除机制"><a href="#2-2-4-1-异步删除机制" class="headerlink" title="2.2.4.1 异步删除机制"></a>2.2.4.1 异步删除机制</h5><p>为避免阻塞主线程，RocksDB 支持将文件删除操作安排到后台线程：</p>
+<pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (schedule_only) &#123;
+  <span class="hljs-comment">// 安排后台删除</span>
+  <span class="hljs-function">InstrumentedMutexLock <span class="hljs-title">guard_lock</span><span class="hljs-params">(&amp;mutex_)</span></span>;
+  <span class="hljs-built_in">SchedulePendingPurge</span>(fname, dir_to_sync, type, number, state.job_id);
+&#125; <span class="hljs-keyword">else</span> &#123;
+  <span class="hljs-comment">// 立即删除</span>
+  <span class="hljs-built_in">DeleteObsoleteFileImpl</span>(state.job_id, fname, dir_to_sync, type, number);
+&#125;</code></pre>
+
+<h2 id="三、不同类型文件的清理策略"><a href="#三、不同类型文件的清理策略" class="headerlink" title="三、不同类型文件的清理策略"></a>三、不同类型文件的清理策略</h2><p>RocksDB 对不同文件类型有不同的删除策略。</p>
+<p><strong>1 WAL (Write-Ahead Log) 文件 (kWalFile)</strong></p>
+<p><strong>会被删除的 WAL 文件：</strong></p>
+<ul>
+<li>文件号小于当前的 <code>log_number</code></li>
+<li>不是前一个日志文件（<code>prev_log_number</code>）</li>
+<li>不在日志回收列表中（<code>log_recycle_files_set</code>）</li>
+</ul>
+<pre><code class="hljs cpp">keep = ((number &gt;= state.log_number) ||
+        (number == state.prev_log_number) ||
+        (log_recycle_files_set.<span class="hljs-built_in">find</span>(number) != log_recycle_files_set.<span class="hljs-built_in">end</span>()));</code></pre>
+
+<p><strong>特殊处理：</strong></p>
+<ul>
+<li>如果设置了 WAL TTL 或大小限制，过期的 WAL 文件不会被直接删除，而是被移动到归档目录：</li>
+</ul>
+<pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (type == kWalFile &amp;&amp; (immutable_db_options_.WAL_ttl_seconds &gt; <span class="hljs-number">0</span> ||
+                         immutable_db_options_.WAL_size_limit_MB &gt; <span class="hljs-number">0</span>)) &#123;
+  wal_manager_.<span class="hljs-built_in">ArchiveWALFile</span>(fname, number);
+  <span class="hljs-keyword">continue</span>;
+&#125;</code></pre>
+
+<p><strong>2 SST (Static Sorted Table) 文件 (kTableFile)</strong></p>
+<p><strong>会被删除的 SST 文件：</strong></p>
+<ul>
+<li>不在活跃文件集合中（<code>sst_live_set</code>）</li>
+<li>文件号小于最小待处理输出号（<code>min_pending_output</code>）</li>
+</ul>
+<pre><code class="hljs cpp">keep = (sst_live_set.<span class="hljs-built_in">find</span>(number) != sst_live_set.<span class="hljs-built_in">end</span>()) ||
+       number &gt;= state.min_pending_output;</code></pre>
+
+<p><strong>删除前处理：</strong></p>
+<ul>
+<li>从 TableCache 中驱逐该文件：<code>TableCache::Evict(table_cache_.get(), number);</code></li>
+</ul>
+<p><strong>3 Blob 文件 (kBlobFile)</strong></p>
+<p><strong>会被删除的 Blob 文件：</strong></p>
+<ul>
+<li>不在活跃 Blob 文件集合中（<code>blob_live_set</code>）</li>
+<li>文件号小于最小待处理输出号（<code>min_pending_output</code>）</li>
+</ul>
+<pre><code class="hljs cpp">keep = number &gt;= state.min_pending_output ||
+       (blob_live_set.<span class="hljs-built_in">find</span>(number) != blob_live_set.<span class="hljs-built_in">end</span>());</code></pre>
+
+<p><strong>4 清单文件 (kDescriptorFile)</strong></p>
+<p><strong>会被删除的清单文件：</strong></p>
+<ul>
+<li>文件号小于当前清单文件号（<code>manifest_file_number</code>）</li>
+</ul>
+<pre><code class="hljs cpp">keep = (number &gt;= state.manifest_file_number);</code></pre>
+
+<p><strong>5 临时文件 (kTempFile)</strong></p>
+<p><strong>会被删除的临时文件：</strong></p>
+<ul>
+<li>不在活跃 SST 文件集合中</li>
+<li>不在活跃 Blob 文件集合中</li>
+<li>不是待处理的清单文件</li>
+<li>不是选项文件（不包含 <code>kOptionsFileNamePrefix</code>）</li>
+</ul>
+<pre><code class="hljs cpp">keep = (sst_live_set.<span class="hljs-built_in">find</span>(number) != sst_live_set.<span class="hljs-built_in">end</span>()) ||
+       (blob_live_set.<span class="hljs-built_in">find</span>(number) != blob_live_set.<span class="hljs-built_in">end</span>()) ||
+       (number == state.pending_manifest_file_number) ||
+       (to_delete.<span class="hljs-built_in">find</span>(kOptionsFileNamePrefix) != std::string::npos);</code></pre>
+
+<p><strong>6 信息日志文件 (kInfoLogFile)</strong></p>
+<p><strong>处理逻辑：</strong></p>
+<ul>
+<li>默认所有日志文件都标记为保留（<code>keep = true</code>）</li>
+<li>但如果日志文件总数超过配置的保留数量（<code>keep_log_file_num</code>），则删除最旧的日志文件</li>
+</ul>
+<pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (old_info_log_file_count != <span class="hljs-number">0</span> &amp;&amp;
+    old_info_log_file_count &gt;= immutable_db_options_.keep_log_file_num) &#123;
+  std::<span class="hljs-built_in">sort</span>(old_info_log_files.<span class="hljs-built_in">begin</span>(), old_info_log_files.<span class="hljs-built_in">end</span>());
+  <span class="hljs-type">size_t</span> end = old_info_log_file_count - immutable_db_options_.keep_log_file_num;
+  <span class="hljs-comment">// 删除最旧的文件，直到文件数等于keep_log_file_num</span>
+&#125;</code></pre>
+
+<p><strong>7 选项文件 (kOptionsFile)</strong></p>
+<p><strong>会被删除的选项文件：</strong></p>
+<ul>
+<li>不是最新的两个选项文件（<code>optsfile_num1</code> 和 <code>optsfile_num2</code>）</li>
+</ul>
+<pre><code class="hljs cpp">keep = (number &gt;= optsfile_num2);</code></pre>
+
+<p><strong>8 其他常驻文件类型</strong></p>
+<p><strong>永不删除的文件类型：</strong></p>
+<ul>
+<li>当前文件 (kCurrentFile)</li>
+<li>数据库锁文件 (kDBLockFile)</li>
+<li>标识文件 (kIdentityFile)</li>
+<li>元数据库 (kMetaDatabase)</li>
+</ul>
+<pre><code class="hljs cpp">keep = <span class="hljs-literal">true</span>;</code></pre>
+
+<h2 id="四、统计指标"><a href="#四、统计指标" class="headerlink" title="四、统计指标"></a>四、统计指标</h2><p><strong>rocksdb.min-obsolete-sst-number-to-keep</strong></p>
+<ul>
+<li>定义位置：DB::Properties::kMinObsoleteSstNumberToKeep</li>
+<li>含义：表示数据库需要保留的最小过时 SST 文件编号。低于此编号的过时 SST 文件可以安全地删除。</li>
+</ul>
+<p><strong>rocksdb.obsolete-sst-files-size</strong></p>
+<ul>
+<li>定义位置：DB::Properties::kObsoleteSstFilesSize</li>
+<li>含义：表示数据库中所有过时 SST 文件的总大小（以字节为单位）。那些逻辑上不再需要的文件，但由于后台任务仍在使用，暂时还不能物理删除的文件。<strong>如果有未成功计入版本的文件（由于崩溃、异常），它们不会计入该属性中，直到系统将它们识别为 “ 垃圾文件 “ 并添加到 <code>obsolete_files_</code> 列表。</strong></li>
+</ul>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>RocksDB 的过期文件清理机制依赖于正确的状态转换，当磁盘利用率因为 compaction 增长到接近 100%，系统处于资源耗尽状态时，依赖被动触发的机制可能无法正常工作。此时就需要提供主动触发清理的调用，或者重启数据库以触发正常的清理、恢复流程。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-05-2025/rocksdb-obsolete-files.html">https://www.cyningsun.com/05-05-2025/rocksdb-obsolete-files.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-30-2025/rocksdb-memtable-flush.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/05-04-2025/rocksdb-sst-file-size.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>记一次 Redis 延时毛刺问题定位</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-12-22 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2024-01-20 00:00:00 +0800"/>
+
+<meta property="og:url" content="/12-22-2023/redis-latency-spike.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景该问题发生于八月份，业务发现部分线上集群出现 10 分钟一次的耗时毛刺。整个系统的架构很简单： 在 Redis Proxy 可以观察到明显的请求耗时毛刺，因此可以确定问题确实出现在 Redis Proxy 调用 Redis 的某个环节 然而，为了定位该问题，仍然花费了很长的时间： 该问题非必现，且不固定于某台机器 问题发现时，相同&amp;#x2F;类似毛刺现象">
+
+<meta name="keywords" content="ebpf,perf trace,接口、请求、延迟、时延毛刺,系统调用">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>记一次 Redis 延时毛刺问题定位</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-12-22
+         | 
+        Last Revised: 2024-01-20
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D"><span class="toc-text">问题定位</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%B9%E5%9B%A0%E5%88%86%E6%9E%90"><span class="toc-text">根因分析</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#seq-file"><span class="toc-text">seq_file</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#smaps"><span class="toc-text">smaps</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#smaps-rollup"><span class="toc-text">smaps_rollup</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%9A%E4%BD%8D%E7%AD%96%E7%95%A5-x2F-%E5%B7%A5%E5%85%B7"><span class="toc-text">定位策略&#x2F;工具</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%94%A8%E6%88%B7%E7%A9%BA%E9%97%B4%E8%80%97%E6%97%B6"><span class="toc-text">用户空间耗时</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%86%85%E6%A0%B8%E7%A9%BA%E9%97%B4%E8%80%97%E6%97%B6"><span class="toc-text">内核空间耗时</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>该问题发生于八月份，业务发现部分线上集群出现 10 分钟一次的耗时毛刺。整个系统的架构很简单：</p>
+<p><img src="/images/redis-latency-spike/%E8%AE%B0%E4%B8%80%E6%AC%A1%20Redis%20%E5%BB%B6%E6%97%B6%E6%AF%9B%E5%88%BA%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D-20231222123441.jpeg"></p>
+<p>在 Redis Proxy  可以观察到明显的请求耗时毛刺，因此可以确定问题确实出现在 Redis Proxy 调用 Redis 的某个环节</p>
+<p><img src="/images/redis-latency-spike/%E8%AE%B0%E4%B8%80%E6%AC%A1%20Redis%20%E5%BB%B6%E6%97%B6%E6%AF%9B%E5%88%BA%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D-20231222123441-1.png"></p>
+<p>然而，为了定位该问题，仍然花费了很长的时间：</p>
+<ul>
+<li>该问题非必现，且不固定于某台机器</li>
+<li>问题发现时，相同&#x2F;类似毛刺现象涉及众多集群</li>
+<li>在线的 Redis 版本缺少 P99 指标（耗时指标仅包括执行耗时，不包括包括等待耗时）耗时毛刺被平均之后无法观察到</li>
+</ul>
+<h3 id="问题定位"><a href="#问题定位" class="headerlink" title="问题定位"></a>问题定位</h3><p>由于无法利用现有指标缩小问题的范围，只能按照可能性从高到底排查：业务请求 &gt; 网络 &gt; 系统 &gt; 应用。</p>
+<ul>
+<li>业务层面：部分集群发现少量 LUA script 相关的慢速日志</li>
+<li>网络层面：使用 mtr 观测出现问题的时间点网络状态，并排查上层交换机之后未见异常</li>
+<li>系统层面：根据业务反馈之前有类似故障出现，原因是 <a target="_blank" rel="noopener" href="https://github.com/Atoptool/atop/commit/604b563a223130d9bcce3d3358537a6c5ce05e7a">atop</a> 采集进程 PSS 导致延迟增加。该 case 可以稳定复现，现象略有不同；抽查有异常机器检查未发现有安装 atop。</li>
+<li>应用层：相关集群已经较长时间没有版本更新，使用 perf record 很难发现毛刺类型问题</li>
+</ul>
+<p>在针对某一个集群的 master failover 到其他节点，请求延迟毛刺消失。对比前后两台机器发现 atop 进程的差异。</p>
+<pre><code class="hljs sh">$&gt; ps aux|grep atop
+root       2442  0.0  0.0   2500  1628 ?        S&lt;    2022  42:21 /usr/sbin/atopacctd
+root      11530  0.0  0.0  18024  2068 pts/0    S+   22:08   0:00 grep --color=auto atop
+root     182181  1.5  0.0  33784 33184 ?        S&lt;Ls 00:00  20:51 /usr/bin/atop -R -w /var/log/atop/atop_20230807 600
+
+$&gt; ps aux|grep atop
+root     403334  0.0  0.0  16572  2016 pts/0    S+   22:09   0:00 grep --color=auto atop</code></pre>
+
+<p>停止所有 atop 之后，请求延迟消失</p>
+<p><img src="/images/redis-latency-spike/%E8%AE%B0%E4%B8%80%E6%AC%A1%20Redis%20%E5%BB%B6%E6%97%B6%E6%AF%9B%E5%88%BA%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D-20231222123441-2.jpeg"></p>
+<p>原来，线上部分机器部署的 <a target="_blank" rel="noopener" href="https://github.com/Atoptool/atop/commit/604b563a223130d9bcce3d3358537a6c5ce05e7a">atop 版本</a> 默认启用了 -R 选项。在 atop 读 &#x2F;proc&#x2F;${pid}&#x2F;smaps 时，会遍历整个进程的页表，期间会持有内存页表的锁。如果在此期间进程发生虚拟内存地址分配，也需要获取锁，就需要等待锁释放。具体到应用层面就是请求耗时毛刺。</p>
+<p>除了 atop，<a target="_blank" rel="noopener" href="https://github.com/google/cadvisor/commit/7ab5e27909c5b72363641ed6e683be42488e0365#diff-28d7cc5aa0eb19db1d3a6d3d16080b4a1940e691ec501ccbd2af273de8034508R366">cadvisor</a> 等应用也会读取 &#x2F;proc&#x2F;${pid}&#x2F;smaps，虽然默认关闭。由于关闭的方式是通过 <a target="_blank" rel="noopener" href="https://github.com/google/cadvisor/commit/7ab5e27909c5b72363641ed6e683be42488e0365#diff-cec39746c40e86227962aa52ed9ac22cf95c1504cef42cb16c0dd5c16a8cf6ca">disable_metrics</a> 来指定关闭。如果自定义参数时遗漏相关参数，还是会打开该功能触发耗时毛刺</p>
+<h3 id="根因分析"><a href="#根因分析" class="headerlink" title="根因分析"></a>根因分析</h3><p>当读取 &#x2F;proc&#x2F;${pid}&#x2F;smaps 获得某个进程虚拟内存区间信息时，究竟发生了什么？</p>
+<h4 id="seq-file"><a href="#seq-file" class="headerlink" title="seq_file"></a>seq_file</h4><p><img src="/images/redis-latency-spike/%E8%AE%B0%E4%B8%80%E6%AC%A1%20Redis%20%E5%BB%B6%E6%97%B6%E6%AF%9B%E5%88%BA%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D-20231222123441-3.jpeg"></p>
+<p>Linux 使用文件将内核里面数据结构通过文件导出到用户空间， smaps 使用到的文件类型就是 <code>seq_file</code> 文件。</p>
+<pre><code class="hljs c"><span class="hljs-comment">// linux/include/linux/seq_file.h</span>
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">seq_file</span> &#123;</span>
+    <span class="hljs-type">char</span> *buf;    <span class="hljs-comment">// 指向包含要读取或写入的数据的缓冲区</span>
+    <span class="hljs-type">size_t</span> size;  <span class="hljs-comment">// 缓冲区的大小</span>
+    <span class="hljs-type">size_t</span> from;  <span class="hljs-comment">// 缓冲区中读取或写入的起始位置</span>
+    <span class="hljs-type">size_t</span> count; <span class="hljs-comment">// 读取或写入的字节数</span>
+    <span class="hljs-type">size_t</span> pad_until;  <span class="hljs-comment">// 将输出填充到某个位置</span>
+    <span class="hljs-type">loff_t</span> index; <span class="hljs-comment">// 序列中的当前位置</span>
+    <span class="hljs-type">loff_t</span> read_pos;   <span class="hljs-comment">// 当前的读取位置</span>
+    u64 version;  <span class="hljs-comment">// 文件版本</span>
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mutex</span> <span class="hljs-title">lock</span>;</span> <span class="hljs-comment">// 锁，确保对 seq_file 操作是线程安全的</span>
+    <span class="hljs-type">const</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">seq_operations</span> *<span class="hljs-title">op</span>;</span> <span class="hljs-comment">// 该结构定义了可以对 proc 执行的操作</span>
+    <span class="hljs-type">int</span> poll_event;    <span class="hljs-comment">// 用于 poll 和 select 系统调用</span>
+    <span class="hljs-type">const</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">file</span> *<span class="hljs-title">file</span>;</span> <span class="hljs-comment">// 指向文件结构的指针，即 seq_file 关联的 proc</span>
+    <span class="hljs-type">void</span> *private; <span class="hljs-comment">// 私有数据字段，存储特定于文件的数据</span>
+&#125;;
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">seq_operations</span> &#123;</span>
+    <span class="hljs-comment">// 开始读数据项，通常需要加锁，以防止并行访问数据</span>
+	<span class="hljs-type">void</span> * (*start) (<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">loff_t</span> *pos);
+	
+	<span class="hljs-comment">// 停止读数据项，通常需要解锁</span>
+	<span class="hljs-type">void</span> (*stop) (<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">void</span> *v);
+    
+    <span class="hljs-comment">// 找到下一个要处理的数据项</span>
+	<span class="hljs-type">void</span> * (*next) (<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">void</span> *v, <span class="hljs-type">loff_t</span> *pos);
+    
+    <span class="hljs-comment">// 打印数据项到临时缓冲区</span>
+	<span class="hljs-type">int</span> (*show) (<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">void</span> *v);
+&#125;;</code></pre>
+
+<p><code>seq_file</code> 使用 file 存储需要关联的进程，<code>seq_operations</code> 定义读取进程数据的操作。使用全局函数 <code>seq_open</code> 把进程与 <code>seq_operations</code> 关联起来</p>
+<blockquote>
+<p>用户态： open(“&#x2F;proc&#x2F;pid&#x2F;smaps”) –&gt;  内核态： proc_pid_smaps_operations.open()<br>用户态： read(fd)                             –&gt;  内核态：  proc_pid_smaps_operations.read()</p>
+</blockquote>
+<h4 id="smaps"><a href="#smaps" class="headerlink" title="smaps"></a>smaps</h4><p><img src="/images/redis-latency-spike/%E8%AE%B0%E4%B8%80%E6%AC%A1%20Redis%20%E5%BB%B6%E6%97%B6%E6%AF%9B%E5%88%BA%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D-20231222123441-4.jpeg"></p>
+<p>具体到 smaps，也是一样的实现 file 相关的方法，在内核中是定义在 <strong>proc_pid_smaps_operations</strong> 结构：</p>
+<pre><code class="hljs c"><span class="hljs-comment">// linux/fs/proc/base.c</span>
+
+REG(<span class="hljs-string">&quot;smaps&quot;</span>,      S_IRUGO, proc_pid_smaps_operations)
+
+
+<span class="hljs-comment">// linux/fs/proc/task_mmu.c</span>
+<span class="hljs-comment">// `file_operations` 结构的一个实例，定义 `/proc/PID/smaps` 文件的操作，当操作`/proc/PID/smaps` 文件时被调用</span>
+<span class="hljs-type">const</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">file_operations</span> <span class="hljs-title">proc_pid_smaps_operations</span> =</span> &#123;
+	.open		= pid_smaps_open, <span class="hljs-comment">// 打开文件的函数</span>
+	.read		= seq_read,       <span class="hljs-comment">// 读取文件的函数</span>
+	.llseek		= seq_lseek,      <span class="hljs-comment">// 定位文件的函数</span>
+	.release	= proc_map_release, <span class="hljs-comment">// 释放文件的函数</span>
+&#125;;</code></pre>
+
+<p>其中 open() 函数最终会返回一个文件描述符 fd 供后续 read(fd) 函数使用。</p>
+<pre><code class="hljs c++"><span class="hljs-comment">// linux/fs/proc/task_mmu.c    pid_smaps_open()</span>
+<span class="hljs-comment">//     ---&gt;linux/fs/proc/task_mmu.c    do_maps_open()</span>
+<span class="hljs-comment">//         ---&gt;linux/fs/proc/task_mmu.c    proc_maps_open()</span>
+
+<span class="hljs-comment">// `seq_operations`结构的实例，定义了一系列的操作函数，在处理`/proc/PID/smaps`文件时被调用</span>
+<span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">seq_operations</span> proc_pid_smaps_op = &#123;
+	.start	= m_start,  <span class="hljs-comment">// 开始操作的函数</span>
+	.next	= m_next,   <span class="hljs-comment">// 下一步操作的函数</span>
+	.stop	= m_stop,   <span class="hljs-comment">// 停止操作的函数</span>
+	.show	= show_smap <span class="hljs-comment">// 显示操作的函数</span>
+&#125;;
+
+<span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">pid_smaps_open</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> inode *inode, <span class="hljs-keyword">struct</span> file *file)</span></span>
+<span class="hljs-function"></span>&#123;
+	<span class="hljs-keyword">return</span> <span class="hljs-built_in">do_maps_open</span>(inode, file, &amp;proc_pid_smaps_op);
+&#125;
+
+<span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">do_maps_open</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> inode *inode, <span class="hljs-keyword">struct</span> file *file,</span></span>
+<span class="hljs-params"><span class="hljs-function">			<span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> seq_operations *ops)</span></span>
+<span class="hljs-function"></span>&#123;
+	<span class="hljs-keyword">return</span> <span class="hljs-built_in">proc_maps_open</span>(inode, file, ops,
+				<span class="hljs-built_in">sizeof</span>(<span class="hljs-keyword">struct</span> proc_maps_private));
+&#125;
+
+<span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">proc_maps_open</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> inode *inode, <span class="hljs-keyword">struct</span> file *file,</span></span>
+<span class="hljs-params"><span class="hljs-function">			<span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> seq_operations *ops, <span class="hljs-type">int</span> psize)</span></span>
+<span class="hljs-function"></span>&#123;
+    <span class="hljs-comment">// 调用`__seq_open_private`函数来打开一个序列文件，并返回一个指向`proc_maps_private`结构的指针。该结构包含了处理`/proc/PID/maps`文件所需的私有数据</span>
+	<span class="hljs-keyword">struct</span> <span class="hljs-title class_">proc_maps_private</span> *priv = __seq_open_private(file, ops, psize);
+
+	<span class="hljs-keyword">if</span> (!priv)
+		<span class="hljs-keyword">return</span> -ENOMEM;
+        
+	priv-&gt;inode = inode; <span class="hljs-comment">// 将输入参数`inode`赋值给`priv-&gt;inode`</span>
+	
+	<span class="hljs-comment">// 调用`proc_mem_open`函数以读取模式打开`inode`指向的内存对象，并将返回的内存描述符赋值给`priv-&gt;mm`</span>
+	priv-&gt;mm = <span class="hljs-built_in">proc_mem_open</span>(inode, PTRACE_MODE_READ);
+	<span class="hljs-keyword">if</span> (<span class="hljs-built_in">IS_ERR</span>(priv-&gt;mm)) &#123;
+		<span class="hljs-type">int</span> err = <span class="hljs-built_in">PTR_ERR</span>(priv-&gt;mm);
+
+		<span class="hljs-built_in">seq_release_private</span>(inode, file);
+		<span class="hljs-keyword">return</span> err;
+	&#125;
+
+	<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+&#125;
+
+<span class="hljs-comment">// 打开序列文件并分配私有数据所需的基本操作</span>
+<span class="hljs-type">void</span> *__seq_open_private(<span class="hljs-keyword">struct</span> file *f, <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> seq_operations *ops,
+		<span class="hljs-type">int</span> psize)
+&#123;
+	<span class="hljs-type">int</span> rc;
+	<span class="hljs-type">void</span> *<span class="hljs-keyword">private</span>;
+	<span class="hljs-keyword">struct</span> <span class="hljs-title class_">seq_file</span> *seq;
+
+	<span class="hljs-keyword">private</span> = <span class="hljs-built_in">kzalloc</span>(psize, GFP_KERNEL);
+	<span class="hljs-keyword">if</span> (<span class="hljs-keyword">private</span> == <span class="hljs-literal">NULL</span>)
+		<span class="hljs-keyword">goto</span> out;
+
+	rc = <span class="hljs-built_in">seq_open</span>(f, ops); <span class="hljs-comment">// 调用`seq_open`函数打开一个序列文件</span>
+	<span class="hljs-keyword">if</span> (rc &lt; <span class="hljs-number">0</span>)
+		<span class="hljs-keyword">goto</span> out_free;、
+		
+	seq = f-&gt;private_data; <span class="hljs-comment">// 获取文件的私有数据，并将其转换为`seq_file`结构的指针</span>
+	seq-&gt;<span class="hljs-keyword">private</span> = <span class="hljs-keyword">private</span>;
+	<span class="hljs-keyword">return</span> <span class="hljs-keyword">private</span>;
+
+out_free:
+	<span class="hljs-built_in">kfree</span>(<span class="hljs-keyword">private</span>);
+out:
+	<span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;
+&#125;
+
+<span class="hljs-comment">/**</span>
+<span class="hljs-comment"> *	seq_open -	initialize sequential file</span>
+<span class="hljs-comment"> *	@file: file we initialize</span>
+<span class="hljs-comment"> *	@op: method table describing the sequence</span>
+<span class="hljs-comment"> *</span>
+<span class="hljs-comment"> *	seq_open() sets @file, associating it with a sequence described</span>
+<span class="hljs-comment"> *	by @op.  @op-&gt;start() sets the iterator up and returns the first</span>
+<span class="hljs-comment"> *	element of sequence. @op-&gt;stop() shuts it down.  @op-&gt;next()</span>
+<span class="hljs-comment"> *	returns the next element of sequence.  @op-&gt;show() prints element</span>
+<span class="hljs-comment"> *	into the buffer.  In case of error -&gt;start() and -&gt;next() return</span>
+<span class="hljs-comment"> *	ERR_PTR(error).  In the end of sequence they return %NULL. -&gt;show()</span>
+<span class="hljs-comment"> *	returns 0 in case of success and negative number in case of error.</span>
+<span class="hljs-comment"> *	Returning SEQ_SKIP means &quot;discard this element and move on&quot;.</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">seq_open</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> file *file, <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> seq_operations *op)</span></span>
+<span class="hljs-function"></span>&#123;
+	<span class="hljs-keyword">struct</span> <span class="hljs-title class_">seq_file</span> *p = file-&gt;private_data;
+
+	<span class="hljs-keyword">if</span> (!p) &#123;
+		p = <span class="hljs-built_in">kmalloc</span>(<span class="hljs-built_in">sizeof</span>(*p), GFP_KERNEL);
+		<span class="hljs-keyword">if</span> (!p)
+			<span class="hljs-keyword">return</span> -ENOMEM;
+		file-&gt;private_data = p;
+	&#125;
+	<span class="hljs-built_in">memset</span>(p, <span class="hljs-number">0</span>, <span class="hljs-built_in">sizeof</span>(*p));
+	<span class="hljs-built_in">mutex_init</span>(&amp;p-&gt;lock); <span class="hljs-comment">// 初始化`seq_file`结构的锁</span>
+	p-&gt;op = op; <span class="hljs-comment">// 将输入参数`op`赋值给`seq_file`结构的`op`成员</span>
+	
+    <span class="hljs-comment">// ... </span>
+    
+	<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+&#125;
+
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">mm_struct</span> *<span class="hljs-built_in">proc_mem_open</span>(<span class="hljs-keyword">struct</span> inode *inode, <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> mode)
+&#123;
+	<span class="hljs-comment">// 调用`get_proc_task`函数获取`inode`对应的进程的任务结构</span>
+	<span class="hljs-keyword">struct</span> <span class="hljs-title class_">task_struct</span> *task = <span class="hljs-built_in">get_proc_task</span>(inode);
+	<span class="hljs-keyword">struct</span> <span class="hljs-title class_">mm_struct</span> *mm = <span class="hljs-built_in">ERR_PTR</span>(-ESRCH);
+	
+    <span class="hljs-comment">// ... </span>
+    
+	<span class="hljs-keyword">return</span> mm;
+&#125;</code></pre>
+
+<p><code>pid_smaps_open</code> 函数通过参数 inode 找到进程相关的结构并放到 file 的私有数据结构。</p>
+<p>当 <code>read</code> 时，调用 <code>seq_read()</code> 函数，它是内核的一个通用架构的函数，特定的 proc 文件（如：smaps）需要提供自己特有的操作方法供通用的 <code>seq_read()</code> 调用。smaps 即是 <code>pid_smaps_open()</code> 函数的 <code>file_operations</code> 参数 <code>&amp;proc_pid_smaps_op</code>，专门为读取进程虚拟内存区(vma)信息的方法。</p>
+<pre><code class="hljs c"><span class="hljs-comment">/**</span>
+<span class="hljs-comment"> *	seq_read -	-&gt;read() method for sequential files.</span>
+<span class="hljs-comment"> *	@file: the file to read from</span>
+<span class="hljs-comment"> *	@buf: the buffer to read to</span>
+<span class="hljs-comment"> *	@size: the maximum number of bytes to read</span>
+<span class="hljs-comment"> *	@ppos: the current position in the file</span>
+<span class="hljs-comment"> *</span>
+<span class="hljs-comment"> *	Ready-made -&gt;f_op-&gt;read()</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-type">ssize_t</span> <span class="hljs-title function_">seq_read</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> file *file, <span class="hljs-type">char</span> __user *buf, <span class="hljs-type">size_t</span> size, <span class="hljs-type">loff_t</span> *ppos)</span>
+&#123;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">seq_file</span> *<span class="hljs-title">m</span> =</span> file-&gt;private_data;
+	<span class="hljs-type">size_t</span> copied = <span class="hljs-number">0</span>;
+	<span class="hljs-type">loff_t</span> pos;
+	<span class="hljs-type">size_t</span> n;
+	<span class="hljs-type">void</span> *p;
+	<span class="hljs-type">int</span> err = <span class="hljs-number">0</span>;
+
+	mutex_lock(&amp;m-&gt;lock); <span class="hljs-comment">// 锁定`seq_file`结构，以确保线程安全</span>
+
+	<span class="hljs-comment">/*</span>
+<span class="hljs-comment">	 * seq_file-&gt;op-&gt;..m_start/m_stop/m_next may do special actions</span>
+<span class="hljs-comment">	 * or optimisations based on the file-&gt;f_version, so we want to</span>
+<span class="hljs-comment">	 * pass the file-&gt;f_version to those methods.</span>
+<span class="hljs-comment">	 *</span>
+<span class="hljs-comment">	 * seq_file-&gt;version is just copy of f_version, and seq_file</span>
+<span class="hljs-comment">	 * methods can treat it simply as file version.</span>
+<span class="hljs-comment">	 * It is copied in first and copied out after all operations.</span>
+<span class="hljs-comment">	 * It is convenient to have it as  part of structure to avoid the</span>
+<span class="hljs-comment">	 * need of passing another argument to all the seq_file methods.</span>
+<span class="hljs-comment">	 */</span>
+	m-&gt;version = file-&gt;f_version;
+
+	<span class="hljs-comment">/* Don&#x27;t assume *ppos is where we left it */</span>
+	<span class="hljs-keyword">if</span> (unlikely(*ppos != m-&gt;read_pos)) &#123;
+		<span class="hljs-keyword">while</span> ((err = traverse(m, *ppos)) == -EAGAIN)
+			;
+		<span class="hljs-keyword">if</span> (err) &#123;
+			<span class="hljs-comment">/* With prejudice... */</span>
+			m-&gt;read_pos = <span class="hljs-number">0</span>;
+			m-&gt;version = <span class="hljs-number">0</span>;
+			m-&gt;index = <span class="hljs-number">0</span>;
+			m-&gt;count = <span class="hljs-number">0</span>;
+			<span class="hljs-keyword">goto</span> Done;
+		&#125; <span class="hljs-keyword">else</span> &#123;
+			m-&gt;read_pos = *ppos;
+		&#125;
+	&#125;
+
+	<span class="hljs-comment">/* grab buffer if we didn&#x27;t have one */</span>
+	<span class="hljs-comment">// 如果`seq_file`结构没有缓冲区，需要分配一个</span>
+	<span class="hljs-keyword">if</span> (!m-&gt;buf) &#123;
+		m-&gt;buf = seq_buf_alloc(m-&gt;size = PAGE_SIZE);
+		<span class="hljs-keyword">if</span> (!m-&gt;buf)
+			<span class="hljs-keyword">goto</span> Enomem;
+	&#125;
+	<span class="hljs-comment">/* if not empty - flush it first */</span>
+	<span class="hljs-comment">// 如果`seq_file`结构的缓冲区不为空，需要先将其内容复制到用户空间</span>
+	<span class="hljs-keyword">if</span> (m-&gt;count) &#123;
+		n = min(m-&gt;count, size);
+		err = copy_to_user(buf, m-&gt;buf + m-&gt;from, n);
+		<span class="hljs-keyword">if</span> (err)
+			<span class="hljs-keyword">goto</span> Efault;
+		m-&gt;count -= n;
+		m-&gt;from += n;
+		size -= n;
+		buf += n;
+		copied += n;
+		<span class="hljs-keyword">if</span> (!m-&gt;count)
+			m-&gt;index++;
+		<span class="hljs-keyword">if</span> (!size)
+			<span class="hljs-keyword">goto</span> Done;
+	&#125;
+	<span class="hljs-comment">/* we need at least one record in buffer */</span>
+	pos = m-&gt;index;
+	p = m-&gt;op-&gt;start(m, &amp;pos);
+	<span class="hljs-comment">// 从序列文件中读取记录，直到出错或缓冲区满</span>
+	<span class="hljs-keyword">while</span> (<span class="hljs-number">1</span>) &#123;
+		err = PTR_ERR(p);
+		<span class="hljs-keyword">if</span> (!p || IS_ERR(p))
+			<span class="hljs-keyword">break</span>;
+		err = m-&gt;op-&gt;show(m, p);
+		<span class="hljs-keyword">if</span> (err &lt; <span class="hljs-number">0</span>)
+			<span class="hljs-keyword">break</span>;
+		<span class="hljs-keyword">if</span> (unlikely(err))
+			m-&gt;count = <span class="hljs-number">0</span>;
+		<span class="hljs-keyword">if</span> (unlikely(!m-&gt;count)) &#123;
+			p = m-&gt;op-&gt;next(m, p, &amp;pos);
+			m-&gt;index = pos;
+			<span class="hljs-keyword">continue</span>;
+		&#125;
+		<span class="hljs-keyword">if</span> (m-&gt;count &lt; m-&gt;size)
+			<span class="hljs-keyword">goto</span> Fill;
+		m-&gt;op-&gt;stop(m, p);
+		kvfree(m-&gt;buf);
+		m-&gt;count = <span class="hljs-number">0</span>;
+		m-&gt;buf = seq_buf_alloc(m-&gt;size &lt;&lt;= <span class="hljs-number">1</span>);
+		<span class="hljs-keyword">if</span> (!m-&gt;buf)
+			<span class="hljs-keyword">goto</span> Enomem;
+		m-&gt;version = <span class="hljs-number">0</span>;
+		pos = m-&gt;index;
+		p = m-&gt;op-&gt;start(m, &amp;pos);
+	&#125;
+	m-&gt;op-&gt;stop(m, p);
+	m-&gt;count = <span class="hljs-number">0</span>;
+	<span class="hljs-keyword">goto</span> Done;
+Fill:
+	<span class="hljs-comment">/* they want more? let&#x27;s try to get some more */</span>
+	<span class="hljs-comment">// 尝试获取更多的记录，直到出错、缓冲区溢出或缓冲区满</span>
+	<span class="hljs-keyword">while</span> (m-&gt;count &lt; size) &#123;
+		<span class="hljs-type">size_t</span> offs = m-&gt;count;
+		<span class="hljs-type">loff_t</span> next = pos;
+		p = m-&gt;op-&gt;next(m, p, &amp;next);
+		<span class="hljs-keyword">if</span> (!p || IS_ERR(p)) &#123;
+			err = PTR_ERR(p);
+			<span class="hljs-keyword">break</span>;
+		&#125;
+		err = m-&gt;op-&gt;show(m, p);
+		<span class="hljs-keyword">if</span> (seq_has_overflowed(m) || err) &#123;
+			m-&gt;count = offs;
+			<span class="hljs-keyword">if</span> (likely(err &lt;= <span class="hljs-number">0</span>))
+				<span class="hljs-keyword">break</span>;
+		&#125;
+		pos = next;
+	&#125;
+	m-&gt;op-&gt;stop(m, p);
+	n = min(m-&gt;count, size);
+	err = copy_to_user(buf, m-&gt;buf, n);
+	<span class="hljs-keyword">if</span> (err)
+		<span class="hljs-keyword">goto</span> Efault;
+	copied += n;
+	m-&gt;count -= n;
+	<span class="hljs-keyword">if</span> (m-&gt;count)
+		m-&gt;from = n;
+	<span class="hljs-keyword">else</span>
+		pos++;
+	m-&gt;index = pos;
+Done:
+	<span class="hljs-keyword">if</span> (!copied)
+		copied = err;
+	<span class="hljs-keyword">else</span> &#123;
+		*ppos += copied;
+		m-&gt;read_pos += copied;
+	&#125;
+	file-&gt;f_version = m-&gt;version;
+	mutex_unlock(&amp;m-&gt;lock); <span class="hljs-comment">// 解锁`seq_file`结构</span>
+	<span class="hljs-keyword">return</span> copied;
+Enomem:
+	err = -ENOMEM;
+	<span class="hljs-keyword">goto</span> Done;
+Efault:
+	err = -EFAULT;
+	<span class="hljs-keyword">goto</span> Done;
+&#125;</code></pre>
+
+<p>seq_read() 函数的参数：文件对应的内核数据结构 file，用户态 buf 用于存放读取到的信息，size 和ppos 分别是大小和偏移。通用的 seq_read() 函数要将进程的 vma 信息读取给用户的 buf</p>
+<p>在开始读取时，<code>m_start</code> 会调用 <code>mmap_read_lock_killable</code> 给整个 mm 结构体加锁；在读取结束时， <code>m_stop</code> 会调用 <code>mmap_read_unlock</code> 解锁。通过 <code>m_next</code> 和 <code>show_smap</code> 每次读取一个 VMA，最终完成所有所有区域的打印。</p>
+<pre><code class="hljs c"><span class="hljs-comment">// linux/fs/proc/task_mmu.c</span>
+
+<span class="hljs-type">static</span> <span class="hljs-type">void</span> *<span class="hljs-title function_">m_start</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">loff_t</span> *ppos)</span>
+&#123;
+	<span class="hljs-comment">// 获取`seq_file`结构的私有数据，并将其转换为`proc_maps_private`结构的指针</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">proc_maps_private</span> *<span class="hljs-title">priv</span> =</span> m-&gt;private;
+	<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> last_addr = *ppos;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mm_struct</span> *<span class="hljs-title">mm</span>;</span>
+
+	<span class="hljs-comment">/* See m_next(). Zero at the start or after lseek. */</span>
+	<span class="hljs-keyword">if</span> (last_addr == <span class="hljs-number">-1UL</span>)
+		<span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;
+
+	<span class="hljs-comment">// 调用`get_proc_task`函数来获取`inode`对应的进程的任务结构</span>
+	priv-&gt;task = get_proc_task(priv-&gt;inode);
+	<span class="hljs-keyword">if</span> (!priv-&gt;task)
+		<span class="hljs-keyword">return</span> ERR_PTR(-ESRCH);
+
+	mm = priv-&gt;mm;
+	<span class="hljs-keyword">if</span> (!mm || !mmget_not_zero(mm)) &#123;
+		put_task_struct(priv-&gt;task);
+		priv-&gt;task = <span class="hljs-literal">NULL</span>;
+		<span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;
+	&#125;
+	
+	<span class="hljs-comment">// 尝试获取内存描述符的读锁。如果无法获取，函数释放内存描述符和任务结构并返回错误指针</span>
+	<span class="hljs-keyword">if</span> (mmap_read_lock_killable(mm)) &#123;
+		mmput(mm);
+		put_task_struct(priv-&gt;task);
+		priv-&gt;task = <span class="hljs-literal">NULL</span>;
+		<span class="hljs-keyword">return</span> ERR_PTR(-EINTR);
+	&#125;
+	
+	<span class="hljs-comment">// 初始化虚拟内存区域的迭代器</span>
+	vma_iter_init(&amp;priv-&gt;iter, mm, last_addr);
+	hold_task_mempolicy(priv); <span class="hljs-comment">// 获取任务的内存策略</span>
+	<span class="hljs-keyword">if</span> (last_addr == <span class="hljs-number">-2UL</span>)
+		<span class="hljs-keyword">return</span> get_gate_vma(mm);
+		
+	<span class="hljs-comment">// 获取虚拟内存区域</span>
+	<span class="hljs-keyword">return</span> proc_get_vma(priv, ppos);
+&#125;
+
+<span class="hljs-type">static</span> <span class="hljs-type">void</span> *<span class="hljs-title function_">m_next</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">void</span> *v, <span class="hljs-type">loff_t</span> *ppos)</span>
+&#123;
+	<span class="hljs-keyword">if</span> (*ppos == <span class="hljs-number">-2UL</span>) &#123;
+		*ppos = <span class="hljs-number">-1UL</span>;
+		<span class="hljs-keyword">return</span> <span class="hljs-literal">NULL</span>;
+	&#125;
+	<span class="hljs-keyword">return</span> proc_get_vma(m-&gt;private, ppos);
+&#125;
+
+<span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title function_">m_stop</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">void</span> *v)</span>
+&#123;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">proc_maps_private</span> *<span class="hljs-title">priv</span> =</span> m-&gt;private;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mm_struct</span> *<span class="hljs-title">mm</span> =</span> priv-&gt;mm;
+
+	<span class="hljs-keyword">if</span> (!priv-&gt;task)
+		<span class="hljs-keyword">return</span>;
+
+	release_task_mempolicy(priv); <span class="hljs-comment">// 释放任务的内存策略</span>
+	mmap_read_unlock(mm); <span class="hljs-comment">// 解锁内存描述符的读锁</span>
+	mmput(mm); <span class="hljs-comment">// 减少内存描述符的引用计数，如果引用计数为零，释放内存描述符</span>
+	put_task_struct(priv-&gt;task); <span class="hljs-comment">// 减少任务结构的引用计数，如果引用计数为零，释放任务结构</span>
+	priv-&gt;task = <span class="hljs-literal">NULL</span>;
+&#125;
+
+
+<span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">show_smap</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">void</span> *v)</span>
+&#123;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">vm_area_struct</span> *<span class="hljs-title">vma</span> =</span> v;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mem_size_stats</span> <span class="hljs-title">mss</span>;</span>
+
+	<span class="hljs-built_in">memset</span>(&amp;mss, <span class="hljs-number">0</span>, <span class="hljs-keyword">sizeof</span>(mss));
+
+	smap_gather_stats(vma, &amp;mss, <span class="hljs-number">0</span>);
+
+	show_map_vma(m, vma);
+
+	SEQ_PUT_DEC(<span class="hljs-string">&quot;Size:           &quot;</span>, vma-&gt;vm_end - vma-&gt;vm_start);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nKernelPageSize: &quot;</span>, vma_kernel_pagesize(vma));
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nMMUPageSize:    &quot;</span>, vma_mmu_pagesize(vma));
+	seq_puts(m, <span class="hljs-string">&quot; kB\n&quot;</span>);
+
+	__show_smap(m, &amp;mss, <span class="hljs-literal">false</span>);
+
+	seq_printf(m, <span class="hljs-string">&quot;THPeligible:    %8u\n&quot;</span>,
+		   hugepage_vma_check(vma, vma-&gt;vm_flags, <span class="hljs-literal">true</span>, <span class="hljs-literal">false</span>, <span class="hljs-literal">true</span>));
+
+	<span class="hljs-keyword">if</span> (arch_pkeys_enabled())
+		seq_printf(m, <span class="hljs-string">&quot;ProtectionKey:  %8u\n&quot;</span>, vma_pkey(vma));
+	show_smap_vma_flags(m, vma);
+
+	<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+&#125;
+
+<span class="hljs-comment">/* Show the contents common for smaps and smaps_rollup */</span>
+<span class="hljs-type">static</span> <span class="hljs-type">void</span> __show_smap(<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> mem_size_stats *mss,
+	<span class="hljs-type">bool</span> rollup_mode)
+&#123;
+	SEQ_PUT_DEC(<span class="hljs-string">&quot;Rss:            &quot;</span>, mss-&gt;resident);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nPss:            &quot;</span>, mss-&gt;pss &gt;&gt; PSS_SHIFT);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nPss_Dirty:      &quot;</span>, mss-&gt;pss_dirty &gt;&gt; PSS_SHIFT);
+	<span class="hljs-keyword">if</span> (rollup_mode) &#123;
+		<span class="hljs-comment">/*</span>
+<span class="hljs-comment">		 * These are meaningful only for smaps_rollup, otherwise two of</span>
+<span class="hljs-comment">		 * them are zero, and the other one is the same as Pss.</span>
+<span class="hljs-comment">		 */</span>
+		SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nPss_Anon:       &quot;</span>,
+			mss-&gt;pss_anon &gt;&gt; PSS_SHIFT);
+		SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nPss_File:       &quot;</span>,
+			mss-&gt;pss_file &gt;&gt; PSS_SHIFT);
+		SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nPss_Shmem:      &quot;</span>,
+			mss-&gt;pss_shmem &gt;&gt; PSS_SHIFT);
+	&#125;
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nShared_Clean:   &quot;</span>, mss-&gt;shared_clean);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nShared_Dirty:   &quot;</span>, mss-&gt;shared_dirty);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nPrivate_Clean:  &quot;</span>, mss-&gt;private_clean);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nPrivate_Dirty:  &quot;</span>, mss-&gt;private_dirty);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nReferenced:     &quot;</span>, mss-&gt;referenced);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nAnonymous:      &quot;</span>, mss-&gt;anonymous);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nKSM:            &quot;</span>, mss-&gt;ksm);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nLazyFree:       &quot;</span>, mss-&gt;lazyfree);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nAnonHugePages:  &quot;</span>, mss-&gt;anonymous_thp);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nShmemPmdMapped: &quot;</span>, mss-&gt;shmem_thp);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nFilePmdMapped:  &quot;</span>, mss-&gt;file_thp);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nShared_Hugetlb: &quot;</span>, mss-&gt;shared_hugetlb);
+	seq_put_decimal_ull_width(m, <span class="hljs-string">&quot; kB\nPrivate_Hugetlb: &quot;</span>,
+				  mss-&gt;private_hugetlb &gt;&gt; <span class="hljs-number">10</span>, <span class="hljs-number">7</span>);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nSwap:           &quot;</span>, mss-&gt;swap);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nSwapPss:        &quot;</span>,
+					mss-&gt;swap_pss &gt;&gt; PSS_SHIFT);
+	SEQ_PUT_DEC(<span class="hljs-string">&quot; kB\nLocked:         &quot;</span>,
+					mss-&gt;pss_locked &gt;&gt; PSS_SHIFT);
+	seq_puts(m, <span class="hljs-string">&quot; kB\n&quot;</span>);
+&#125;
+
+<span class="hljs-type">static</span> <span class="hljs-keyword">struct</span> vm_area_struct *<span class="hljs-title function_">proc_get_vma</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> proc_maps_private *priv,</span>
+<span class="hljs-params">						<span class="hljs-type">loff_t</span> *ppos)</span>
+&#123;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">vm_area_struct</span> *<span class="hljs-title">vma</span> =</span> vma_next(&amp;priv-&gt;iter);
+
+	<span class="hljs-keyword">if</span> (vma) &#123;
+		*ppos = vma-&gt;vm_start;
+	&#125; <span class="hljs-keyword">else</span> &#123;
+		*ppos = <span class="hljs-number">-2UL</span>;
+		vma = get_gate_vma(priv-&gt;mm);
+	&#125;
+
+	<span class="hljs-keyword">return</span> vma;
+&#125;
+
+
+<span class="hljs-comment">// linux/include/linux/mmap_lock.h</span>
+<span class="hljs-type">static</span> <span class="hljs-keyword">inline</span> <span class="hljs-type">int</span> <span class="hljs-title function_">mmap_read_lock_killable</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> mm_struct *mm)</span>
+&#123;
+	<span class="hljs-type">int</span> ret;
+
+	__mmap_lock_trace_start_locking(mm, <span class="hljs-literal">false</span>);
+	ret = down_read_killable(&amp;mm-&gt;mmap_lock);
+	__mmap_lock_trace_acquire_returned(mm, <span class="hljs-literal">false</span>, ret == <span class="hljs-number">0</span>);
+	<span class="hljs-keyword">return</span> ret;
+&#125;
+
+<span class="hljs-type">static</span> <span class="hljs-keyword">inline</span> <span class="hljs-type">void</span> <span class="hljs-title function_">mmap_read_unlock</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> mm_struct *mm)</span>
+&#123;
+	__mmap_lock_trace_released(mm, <span class="hljs-literal">false</span>);
+	up_read(&amp;mm-&gt;mmap_lock);
+&#125;
+</code></pre>
+
+<p>smaps 读取的重点在于:</p>
+<ul>
+<li>mmap_lock 锁粒度： 该锁的粒度很大，当进程发生 vma 操作都需要持有该锁，如内存分配和释放。</li>
+<li>遍历 VMA 耗时：如果进程的内存比较大，就会长时间持有该锁，影响进程的内存管理。</li>
+</ul>
+<h4 id="smaps-rollup"><a href="#smaps-rollup" class="headerlink" title="smaps_rollup"></a>smaps_rollup</h4><p>有时只是想获取一下进程的 PSS 占用，是不是可以省去遍历 VMA 的部分呢？   google 的优化是增加 <a target="_blank" rel="noopener" href="https://patchwork.kernel.org/project/linux-fsdevel/patch/20170810001557.147285-1-dancol@google.com/#20801969">&#x2F;proc&#x2F;pid&#x2F;smaps_rollup</a>，据 Patch 描述性能改善了 12 倍，节省几百毫秒。</p>
+<blockquote>
+<p>By using smaps_rollup instead of smaps, a caller can avoid the<br>significant overhead of formatting, reading, and parsing each of a<br>large process’s potentially very numerous memory mappings. For<br>sampling system_server’s PSS in Android, we measured a 12x speedup,<br>representing a savings of several hundred milliseconds.</p>
+</blockquote>
+<p><code>smaps_rollup</code> 的具体实现如下，可以看到持锁的粒度和时长都大大降低，当有写入请求等待锁时，还会临时释放锁。</p>
+<pre><code class="hljs c"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title function_">show_smaps_rollup</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> seq_file *m, <span class="hljs-type">void</span> *v)</span>
+&#123;
+	<span class="hljs-comment">// 获取`seq_file`结构的私有数据，并将其转换为`proc_maps_private`结构的指针</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">proc_maps_private</span> *<span class="hljs-title">priv</span> =</span> m-&gt;private;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mem_size_stats</span> <span class="hljs-title">mss</span> =</span> &#123;&#125;;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">mm_struct</span> *<span class="hljs-title">mm</span> =</span> priv-&gt;mm;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">vm_area_struct</span> *<span class="hljs-title">vma</span>;</span>
+	<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> vma_start = <span class="hljs-number">0</span>, last_vma_end = <span class="hljs-number">0</span>;
+	<span class="hljs-type">int</span> ret = <span class="hljs-number">0</span>;
+	VMA_ITERATOR(vmi, mm, <span class="hljs-number">0</span>);
+	<span class="hljs-comment">// 调用`get_proc_task`函数来获取`inode`对应的进程的任务结构</span>
+	priv-&gt;task = get_proc_task(priv-&gt;inode);
+	<span class="hljs-keyword">if</span> (!priv-&gt;task)
+		<span class="hljs-keyword">return</span> -ESRCH;
+	<span class="hljs-keyword">if</span> (!mm || !mmget_not_zero(mm)) &#123;
+		ret = -ESRCH;
+		<span class="hljs-keyword">goto</span> out_put_task;
+	&#125;
+	<span class="hljs-comment">// 尝试获取内存描述符的读锁。如果无法获取，函数返回错误码</span>
+	ret = mmap_read_lock_killable(mm);
+	<span class="hljs-keyword">if</span> (ret)
+		<span class="hljs-keyword">goto</span> out_put_mm;
+	hold_task_mempolicy(priv); <span class="hljs-comment">// 获取任务的内存策略</span>
+	vma = vma_next(&amp;vmi); <span class="hljs-comment">// 获取下一个虚拟内存区域</span>
+	<span class="hljs-keyword">if</span> (unlikely(!vma))
+		<span class="hljs-keyword">goto</span> empty_set;
+	vma_start = vma-&gt;vm_start;
+	<span class="hljs-comment">// 遍历所有的虚拟内存区域，并收集统计信息</span>
+	<span class="hljs-keyword">do</span> &#123;
+		<span class="hljs-comment">// 调用`smap_gather_stats`函数来收集当前VMA的统计信息</span>
+		smap_gather_stats(vma, &amp;mss, <span class="hljs-number">0</span>);
+		last_vma_end = vma-&gt;vm_end;
+		<span class="hljs-comment">/*</span>
+<span class="hljs-comment">		 * Release mmap_lock temporarily if someone wants to</span>
+<span class="hljs-comment">		 * access it for write request.</span>
+<span class="hljs-comment">		 */</span>
+		 <span class="hljs-comment">// 如果内存映射的锁存在争用，需要暂时释放锁以允许其他线程进行写操作</span>
+		<span class="hljs-keyword">if</span> (mmap_lock_is_contended(mm)) &#123;
+			vma_iter_invalidate(&amp;vmi);
+			mmap_read_unlock(mm);
+			ret = mmap_read_lock_killable(mm);
+			<span class="hljs-keyword">if</span> (ret) &#123;
+				release_task_mempolicy(priv);
+				<span class="hljs-keyword">goto</span> out_put_mm;
+			&#125;
+			<span class="hljs-comment">/*</span>
+<span class="hljs-comment">			 * After dropping the lock, there are four cases to</span>
+<span class="hljs-comment">			 * consider. See the following example for explanation.</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 *   +------+------+-----------+</span>
+<span class="hljs-comment">			 *   | VMA1 | VMA2 | VMA3      |</span>
+<span class="hljs-comment">			 *   +------+------+-----------+</span>
+<span class="hljs-comment">			 *   |      |      |           |</span>
+<span class="hljs-comment">			 *  4k     8k     16k         400k</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 * Suppose we drop the lock after reading VMA2 due to</span>
+<span class="hljs-comment">			 * contention, then we get:</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 *	last_vma_end = 16k</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 * 1) VMA2 is freed, but VMA3 exists:</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 *    vma_next(vmi) will return VMA3.</span>
+<span class="hljs-comment">			 *    In this case, just continue from VMA3.</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 * 2) VMA2 still exists:</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 *    vma_next(vmi) will return VMA3.</span>
+<span class="hljs-comment">			 *    In this case, just continue from VMA3.</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 * 3) No more VMAs can be found:</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 *    vma_next(vmi) will return NULL.</span>
+<span class="hljs-comment">			 *    No more things to do, just break.</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 * 4) (last_vma_end - 1) is the middle of a vma (VMA&#x27;):</span>
+<span class="hljs-comment">			 *</span>
+<span class="hljs-comment">			 *    vma_next(vmi) will return VMA&#x27; whose range</span>
+<span class="hljs-comment">			 *    contains last_vma_end.</span>
+<span class="hljs-comment">			 *    Iterate VMA&#x27; from last_vma_end.</span>
+<span class="hljs-comment">			 */</span>
+			vma = vma_next(&amp;vmi); <span class="hljs-comment">// 获取下一个VMA</span>
+			<span class="hljs-comment">/* Case 3 above */</span>
+			<span class="hljs-keyword">if</span> (!vma) <span class="hljs-comment">// 如果没有更多的VMA，跳出循环</span>
+				<span class="hljs-keyword">break</span>;
+			<span class="hljs-comment">/* Case 1 and 2 above */</span>
+			<span class="hljs-keyword">if</span> (vma-&gt;vm_start &gt;= last_vma_end) <span class="hljs-comment">// 如果下一个 VMA 的开始地址大于或等于上一个 VMA 的结束地址，跳过当前迭代</span>
+				<span class="hljs-keyword">continue</span>;
+			<span class="hljs-comment">/* Case 4 above */</span>
+			<span class="hljs-keyword">if</span> (vma-&gt;vm_end &gt; last_vma_end) <span class="hljs-comment">// 如果下一个 VMA 的结束地址大于上一个 VMA 的结束地址，从上一个 VMA 的结束地址开始收集下一个 VMA 的统计信息</span>
+				smap_gather_stats(vma, &amp;mss, last_vma_end);
+		&#125;
+	&#125; for_each_vma(vmi, vma);
+empty_set:
+	<span class="hljs-comment">// 显示虚拟内存区域的头部前缀</span>
+	show_vma_header_prefix(m, vma_start, last_vma_end, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+	seq_pad(m, <span class="hljs-string">&#x27; &#x27;</span>);
+	seq_puts(m, <span class="hljs-string">&quot;[rollup]\n&quot;</span>);
+	<span class="hljs-comment">// 显示内存映射的统计信息</span>
+	__show_smap(m, &amp;mss, <span class="hljs-literal">true</span>);
+	release_task_mempolicy(priv); <span class="hljs-comment">// 释放任务的内存策略</span>
+	mmap_read_unlock(mm); <span class="hljs-comment">// 解锁内存描述符的读锁</span>
+out_put_mm:
+	<span class="hljs-comment">// 减少内存描述符的引用计数，如果引用计数为零，释放内存描述符</span>
+	mmput(mm); 
+out_put_task:
+	<span class="hljs-comment">// 减少任务结构的引用计数，如果引用计数为零，释放任务结构</span>
+	put_task_struct(priv-&gt;task);
+	priv-&gt;task = <span class="hljs-literal">NULL</span>;
+	<span class="hljs-keyword">return</span> ret;
+&#125;</code></pre>
+
+<h3 id="定位策略-x2F-工具"><a href="#定位策略-x2F-工具" class="headerlink" title="定位策略&#x2F;工具"></a>定位策略&#x2F;工具</h3><p>正如前面提到，整个故障定位过程耗时较长，定位方式也不具备普适性。针对延迟毛刺性问题，是否有什么普适的定位方法呢？</p>
+<p>首先，定位非必现的问题，首要条件就是获取问题发生的现场快照，获取更多的问题细节。针对非必现的问题最好的方式，就是在可能出现问题的现场部署合适的脚本获取现场快照。</p>
+<p>其次，最重要的是定位工具。本问题之所以定位耗时较长，是因为没有使用合适的工具缩小故障的范围。就进程的调用耗时而言，由两部分耗时组成：<strong>用户空间</strong>和<strong>内核空间</strong>。</p>
+<p><img src="/images/redis-latency-spike/%E8%AE%B0%E4%B8%80%E6%AC%A1%20Redis%20%E5%BB%B6%E6%97%B6%E6%AF%9B%E5%88%BA%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D-20231222123441-7.png"></p>
+<h4 id="用户空间耗时"><a href="#用户空间耗时" class="headerlink" title="用户空间耗时"></a>用户空间耗时</h4><p>由于在线的 Redis 版本缺少 P99 指标，可以使用 <a target="_blank" rel="noopener" href="https://github.com/iovisor/bcc/blob/master/tools/funcslower.py">funcslower(bcc)</a> 可以定位或排除 Redis 执行毛刺，将范围缩小到网络或者单机问题。</p>
+<pre><code class="hljs sh">$&gt; funcslower -UK -u 5000 -p 324568 <span class="hljs-string">&#x27;/var/lib/docker/overlay2/69e6c3d262a1aed8db1a8b16ddfc34c7c78999f527e028857dc2e5248ae5704a/merged/usr/local/bin/redis-server:processCommand&#x27;</span></code></pre>
+
+<h4 id="内核空间耗时"><a href="#内核空间耗时" class="headerlink" title="内核空间耗时"></a>内核空间耗时</h4><p>使用系统调用性能测试工具，通过查看系统调用的长尾延迟，可以确定系统层面是否存在问题。满足要求的工具可能有：</p>
+<p><strong>syscount(bcc)</strong></p>
+<p>syscount  并不能直接查看 outliner，但可以通过对比不同时间区间的延迟变化发现问题。使用它在问题现场，抓取到延迟前后 <code>mmap</code> 系统调用前后变化，问题出现前耗时为 11 us，问题发生时耗时为 177 ms，如下所示：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># ebpf 抓取故障前后 mmap 耗时</span>
+$&gt; syscount -L -i 30  -p <span class="hljs-variable">$PID</span>
+[21:39:27]
+SYSCALL                   COUNT        TIME (us)
+epoll_pwait               24952      4322184.374
+write                     34458       331600.262
+<span class="hljs-built_in">read</span>                      26400        59001.053
+open                         50          527.602
+epoll_ctl                    70           93.506
+getpid                       50           39.793
+close                        50           35.262
+munmap                        1           26.372
+getpeername                  12           15.252
+mmap                          1           11.003
+
+[21:40:14]
+SYSCALL                   COUNT        TIME (us)
+epoll_pwait               24371      4189948.513
+write                     34110       296551.821
+mmap                          1       177477.938
+<span class="hljs-built_in">read</span>                      25878        57099.880
+open                         48          504.271
+epoll_ctl                    68          104.834
+getpid                       49           45.939
+close                        49           37.919
+getpeername                   8           13.127
+accept                        2            7.896
+</code></pre>
+
+<p><strong>perf trace</strong></p>
+<p>另外一个更好用的工具是 perf trace，相较于 syscount 提供了 histogram 图，可以直观的发现长尾问题，使用示例如下所示（非问题现场）：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># perf trace 示例</span>
+$&gt; perf trace -p <span class="hljs-variable">$PID</span> -s
+
+   syscall            calls    total       min       avg       max      stddev
+                               (msec)    (msec)    (msec)    (msec)        (%)
+   --------------- -------- --------- --------- --------- ---------     ------
+   epoll_pwait        53841 14561.545     0.000     0.270     4.538      0.53%
+   write              56177   757.799     0.005     0.013     0.047      0.09%
+   <span class="hljs-built_in">read</span>               55591   219.250     0.001     0.004     0.702      0.67%
+   open                 170     2.468     0.012     0.015     0.043      1.69%
+   getpid               171     1.668     0.002     0.010     1.069     63.91%
+   mmap                  76     0.795     0.007     0.010     0.018      2.14%
+   munmap                77     0.643     0.003     0.008     0.030      7.91%
+   epoll_ctl            151     0.533     0.001     0.004     0.014      4.26%
+   close                173     0.291     0.001     0.002     0.012      3.87%
+   getpeername           24     0.064     0.002     0.003     0.004      4.76%
+   accept                 8     0.045     0.003     0.006     0.011     18.34%
+   setsockopt            20     0.040     0.001     0.002     0.003      5.50%
+   fcntl                 16     0.029     0.001     0.002     0.006     15.83%
+   getrusage              3     0.008     0.001     0.003     0.006     48.77%
+   getcwd                 1     0.006     0.006     0.006     0.006      0.00%</code></pre>
+
+<p>定位到 mmap 耗时异常之后，其实相关工作就可以交给内核同事处理了，毕竟术业有专攻。要想查看慢在哪里，可以通过 <code>func_graph</code> 工具定位到耗时异常的函数</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># tracer: function_graph</span>
+<span class="hljs-comment">#</span>
+<span class="hljs-comment"># CPU  DURATION                  FUNCTION CALLS</span>
+<span class="hljs-comment"># |     |   |                     |   |   |   |</span>
+
+ 0)               |  <span class="hljs-function"><span class="hljs-title">sys_open</span></span>() &#123;
+ 0)               |    <span class="hljs-function"><span class="hljs-title">do_sys_open</span></span>() &#123;
+ 0)               |      <span class="hljs-function"><span class="hljs-title">getname</span></span>() &#123;
+ 0)               |        <span class="hljs-function"><span class="hljs-title">kmem_cache_alloc</span></span>() &#123;
+ 0)   1.382 us    |          __might_sleep();
+ 0)   2.478 us    |        &#125;
+ 0)               |        <span class="hljs-function"><span class="hljs-title">strncpy_from_user</span></span>() &#123;
+ 0)               |          <span class="hljs-function"><span class="hljs-title">might_fault</span></span>() &#123;
+ 0)   1.389 us    |            __might_sleep();
+ 0)   2.553 us    |          &#125;
+ 0)   3.807 us    |        &#125;
+ 0)   7.876 us    |      &#125;
+ 0)               |      <span class="hljs-function"><span class="hljs-title">alloc_fd</span></span>() &#123;
+ 0)   0.668 us    |        _spin_lock();
+ 0)   0.570 us    |        expand_files();
+ 0)   0.586 us    |        _spin_unlock();</code></pre>
+
+<p>针对于 mmap_lock 的锁占用，要想排查持有该锁的进程列表。在内核高版本中封装了 mmap_lock 相关函数，并在其中增加了 tracepoint，可以使用 bpftrace 等工具统计持有写锁的进程、调用栈等</p>
+<pre><code class="hljs sh">$&gt; perf list |grep mmap
+  mmap:vm_unmapped_area                              [Tracepoint event]
+  mmap_lock:mmap_lock_acquire_returned               [Tracepoint event]
+  mmap_lock:mmap_lock_released                       [Tracepoint event]
+  mmap_lock:mmap_lock_start_locking                  [Tracepoint event]
+  syscalls:sys_enter_mmap                            [Tracepoint event]
+  syscalls:sys_exit_mmap                             [Tracepoint event]
+
+$&gt; bpftrace -e <span class="hljs-string">&#x27;tracepoint:mmap_lock:mmap_lock_start_locking /args-&gt;write == true/&#123; @[comm, kstack] = count();&#125;&#x27;</span></code></pre>
+
+<p>相关 perf 命令来自 <a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/S0sc2aysc6aZ5kZCcpMVTw">字节跳动SYSTech</a> 分享，遗憾的是由于发生问题的内核版本较旧，并未实操相关该定位过程。</p>
+<p>当然，从 <a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/ZRzESgyyAL06-d8MZSjxMQ">持锁</a>这个更宽泛的观测纬度来看，可以找出有相关动作的进程，如下所示：</p>
+<pre><code class="hljs sh">$&gt; trace <span class="hljs-string">&#x27;rwsem_down_read_slowpath(struct rw_semaphore *sem, int state) &quot;count=0x%lx owner=%s&quot;, sem-&gt;count.counter, ((struct task_struct *)((sem-&gt;owner.counter)&amp;~0x7))-&gt;comm&#x27;</span>
+/virtual/main.c:44:66: warning: comparison of array <span class="hljs-string">&#x27;((struct task_struct *)((sem-&gt;owner.counter) &amp; ~7))-&gt;comm&#x27;</span> not equal to a null pointer is always <span class="hljs-literal">true</span> [-Wtautological-pointer-compare]
+        <span class="hljs-keyword">if</span> (((struct task_struct *)((sem-&gt;owner.counter)&amp;~<span class="hljs-number">0</span>x7))-&gt;<span class="hljs-built_in">comm</span> != 0) &#123;
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~    ~
+1 warning generated.
+PID     TID     COMM            FUNC             -
+195453  195458  monitor         rwsem_down_read_slowpath count=0x100 owner=
+195453  195458  monitor         rwsem_down_read_slowpath count=0x101 owner=ip
+195453  195756  monitor         rwsem_down_read_slowpath count=0x101 owner=sh
+195453  195458  monitor         rwsem_down_read_slowpath count=0x101 owner=python
+195453  195458  monitor         rwsem_down_read_slowpath count=0x101 owner=python
+195453  195458  monitor         rwsem_down_read_slowpath count=0x101 owner=python
+212360  212360  runc            rwsem_down_read_slowpath count=0x100 owner=
+212360  212360  runc            rwsem_down_read_slowpath count=0x101 owner=runc
+...</code></pre>
+
+<p>然而，加锁解锁耗时跟持锁耗时是两个完全不同的概念，因此并不能直接定位到持锁耗时较长的进程，所以仍需额外的工作进一步排查。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>下次遇到同步调用场景下的延迟毛刺，就可以选择合适的工具根据函数执行耗时快速定位。然而采用 streaming 模式的异步请求&#x2F;响应的延迟问题，仍然需要再深入学习探索。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/12-22-2023/redis-latency-spike.html">https://www.cyningsun.com/12-22-2023/redis-latency-spike.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Performance" rel="category"># Performance</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/04-13-2025/flamegraph-summary.html">Flame Graph 机制小结</a></span></li>
+          
+            <li><span><a href="/09-17-2024/redis-latency-irqoff.html">Redis 延迟毛刺问题定位-软中断篇</a></span></li>
+          
+            <li><span><a href="/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">译｜Thinking Clearly about Performance (Part 2)</a></span></li>
+          
+            <li><span><a href="/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">译｜Thinking Clearly about Performance (Part 1)</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-18-2024/efficient-io-with-io_uring.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/10-08-2023/dive-into-dns-resolution.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解 Redis cluster GOSSIP 协议</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-07-04 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2023-07-04 00:00:00 +0800"/>
+
+<meta property="og:url" content="/07-04-2023/redis-cluster-gossip.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景GOSSIP 是一种分布式系统中常用的协议，用于在节点之间传播信息，维护集群拓扑结构。通过 GOSSIP 协议，Redis Cluster 中的每个节点都与其他节点进行通信，并共享集群的状态信息，最终达到所有节点拥有相同的集群状态。 在 Redis Cluster 中，Slot 和 Node 是两个关键概念，用于实现数据分片和高可用性。它们分别代表以下内">
+
+<meta name="keywords" content="Redis cluster,GOSSIP">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解 Redis cluster GOSSIP 协议</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-07-04
+         | 
+        Last Revised: 2023-07-04
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%8F%E8%AE%AE%E7%AE%80%E5%8C%96"><span class="toc-text">协议简化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#POV-%E6%9B%B4%E6%96%B0"><span class="toc-text">POV 更新</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%9B%86%E7%BE%A4%E7%AE%A1%E7%90%86%E7%BC%BA%E9%99%B7"><span class="toc-text">集群管理缺陷</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>GOSSIP 是一种分布式系统中常用的协议，用于在节点之间传播信息，维护集群拓扑结构。通过 GOSSIP 协议，Redis Cluster 中的每个节点都与其他节点进行通信，并共享集群的状态信息，最终达到所有节点拥有相同的集群状态。</p>
+<p>在 Redis Cluster 中，Slot 和 Node 是两个关键概念，用于实现数据分片和高可用性。它们分别代表以下内容：</p>
+<ol>
+<li>Slot（槽）：Slot 是 Redis Cluster 分割数据的基本单位。数据被分成 16384 个槽，每个槽都可以存储一个键值对。槽的范围是从 0 到 16383。Redis Cluster 使用哈希函数将键映射到特定的槽，从而决定了数据在集群中的分布。</li>
+<li>Node（节点）：Node 是 Redis Cluster 中的一个实例或服务节点。每个节点都是一个独立的 Redis 服务，并负责管理一部分槽的数据。每个节点可以担任主节点或从节点的角色。主节点负责处理客户端请求和写入操作，而从节点复制主节点的数据，并处理读取请求。</li>
+</ol>
+<p>区分两个概念是为了实现水平扩展，当集群需要扩展时，可以添加新的节点并将一部分槽分配给它。</p>
+<p>GOSSIP 协议的核心作用也跟这两个概念强相关，通过 GOSSIP：</p>
+<ol>
+<li>构建和维护了集群的槽分配图，包括槽的分配情况（即每个节点负责哪些槽），使得每个节点能够了解其他节点负责的槽信息。</li>
+<li>构建和维护了集群的拓扑视图，包括节点的 ID、IP 地址、端口等，使得每个节点了解集群中其他节点的位置和角色。</li>
+<li>负责集群的故障转移，包括节点的状态（flags）、GOSSIP 更新时间，使得每个节点能够共同感知故障，进行故障转移和数据恢复。</li>
+</ol>
+<h3 id="协议简化"><a href="#协议简化" class="headerlink" title="协议简化"></a>协议简化</h3><p>在大规模的集群中，节点的数量可能非常多，节点之间的通信变得非常复杂。由于 GOSSIP 的理解难度，当集群出现问题时，排查和复现问题的难度非常高。为了更好的理解 GOSSIP 协议，就需要有合适的策略将问题简化。</p>
+<p><img src="/images/redis-cluster-gossip/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20Redis%20cluster%20GOSSIP%20%E5%8D%8F%E8%AE%AE-20230704203154.png" alt="深入理解 Redis cluster GOSSIP 协议-20230704203154"></p>
+<p>观察 Redis cluster 集群的拓扑，表现出高度的对称性。在数学中，如果一个问题具有对称性，可以利用该性质来简化计算或者找到更简洁的解决方案。利用对称性，可以对集群拓扑进行两次简化，假设集群节点数为 N：</p>
+<ul>
+<li>第一次：将 N^N 的通信问题简化为 1^N 问题。即，如何更新 N 个节点中关于一个节点的 POV 信息（Point-of-view）</li>
+<li>第二次：将  1^N 的通信问题简化为 1^1 问题。即，如何更新一个节点中关于另外一个节点的 POV 信息（Point-of-view）</li>
+</ul>
+<p>最终将 GOSSIP 简化为如下拓扑，其中 Node B 是 GOSSIP 消息的发送方，Node A 是消息接收方：</p>
+<p><img src="/images/redis-cluster-gossip/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20Redis%20cluster%20GOSSIP%20%E5%8D%8F%E8%AE%AE-20230704203154-1.png" alt="深入理解 Redis cluster GOSSIP 协议-20230704203154-1"></p>
+<h3 id="POV-更新"><a href="#POV-更新" class="headerlink" title="POV 更新"></a>POV 更新</h3><p>从 Redis 源代码易知，GOSSIP 消息主要包括消息头（<code>clusterMsg</code> ）和消息体（<code>clusterMsgData</code>）两部分，结构体定义如下：</p>
+<pre><code class="hljs c"><span class="hljs-comment">// 集群消息的结构（消息头，header）</span>
+<span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> &#123;</span>
+    <span class="hljs-type">char</span> sig[<span class="hljs-number">4</span>];        <span class="hljs-comment">/* Siganture &quot;RCmb&quot; (Redis Cluster message bus). */</span>
+    <span class="hljs-comment">// 消息的长度（包括这个消息头的长度和消息正文的长度）</span>
+    <span class="hljs-type">uint32_t</span> totlen;    <span class="hljs-comment">/* Total length of this message */</span>
+    <span class="hljs-type">uint16_t</span> ver;       <span class="hljs-comment">/* Protocol version, currently set to 0. */</span>
+    <span class="hljs-type">uint16_t</span> notused0;  <span class="hljs-comment">/* 2 bytes not used. */</span>
+
+    <span class="hljs-comment">// 消息的类型</span>
+    <span class="hljs-type">uint16_t</span> type;      <span class="hljs-comment">/* Message type */</span>
+
+    <span class="hljs-comment">// 消息正文包含的节点信息数量</span>
+    <span class="hljs-comment">// 只在发送 MEET 、 PING 和 PONG 这三种 Gossip 协议消息时使用</span>
+    <span class="hljs-type">uint16_t</span> count;     <span class="hljs-comment">/* Only used for some kind of messages. */</span>
+
+    <span class="hljs-comment">// 消息发送者的配置纪元</span>
+    <span class="hljs-type">uint64_t</span> currentEpoch;  <span class="hljs-comment">/* The epoch accordingly to the sending node. */</span>
+
+    <span class="hljs-comment">// 如果消息发送者是一个主节点，那么这里记录的是消息发送者的配置纪元</span>
+    <span class="hljs-comment">// 如果消息发送者是一个从节点，那么这里记录的是消息发送者正在复制的主节点的配置纪元</span>
+    <span class="hljs-type">uint64_t</span> configEpoch;   <span class="hljs-comment">/* The config epoch if it&#x27;s a master, or the last</span>
+<span class="hljs-comment">                               epoch advertised by its master if it is a</span>
+<span class="hljs-comment">                               slave. */</span>
+
+    <span class="hljs-comment">// 节点的复制偏移量</span>
+    <span class="hljs-type">uint64_t</span> offset;    <span class="hljs-comment">/* Master replication offset if node is a master or</span>
+<span class="hljs-comment">                           processed replication offset if node is a slave. */</span>
+
+    <span class="hljs-comment">// 消息发送者的名字（ID）</span>
+    <span class="hljs-type">char</span> sender[REDIS_CLUSTER_NAMELEN]; <span class="hljs-comment">/* Name of the sender node */</span>
+
+    <span class="hljs-comment">// 消息发送者目前的槽指派信息</span>
+    <span class="hljs-type">unsigned</span> <span class="hljs-type">char</span> myslots[REDIS_CLUSTER_SLOTS/<span class="hljs-number">8</span>];
+
+    <span class="hljs-comment">// 如果消息发送者是一个从节点，那么这里记录的是消息发送者正在复制的主节点的名字</span>
+    <span class="hljs-comment">// 如果消息发送者是一个主节点，那么这里记录的是 REDIS_NODE_NULL_NAME</span>
+    <span class="hljs-comment">// （一个 40 字节长，值全为 0 的字节数组）</span>
+    <span class="hljs-type">char</span> slaveof[REDIS_CLUSTER_NAMELEN];
+
+    <span class="hljs-type">char</span> notused1[<span class="hljs-number">32</span>];  <span class="hljs-comment">/* 32 bytes reserved for future usage. */</span>
+
+    <span class="hljs-comment">// 消息发送者的端口号</span>
+    <span class="hljs-type">uint16_t</span> port;      <span class="hljs-comment">/* Sender TCP base port */</span>
+
+    <span class="hljs-comment">// 消息发送者的标识值</span>
+    <span class="hljs-type">uint16_t</span> flags;     <span class="hljs-comment">/* Sender node flags */</span>
+
+    <span class="hljs-comment">// 消息发送者所处集群的状态</span>
+    <span class="hljs-type">unsigned</span> <span class="hljs-type">char</span> state; <span class="hljs-comment">/* Cluster state from the POV of the sender */</span>
+
+    <span class="hljs-comment">// 消息标志</span>
+    <span class="hljs-type">unsigned</span> <span class="hljs-type">char</span> mflags[<span class="hljs-number">3</span>]; <span class="hljs-comment">/* Message flags: CLUSTERMSG_FLAG[012]_... */</span>
+
+    <span class="hljs-comment">// 消息的正文（Body），包括 PING/PONG/UPDATE/MODULE/FAIL/PUBLISH 等类型</span>
+    <span class="hljs-class"><span class="hljs-keyword">union</span> <span class="hljs-title">clusterMsgData</span> <span class="hljs-title">data</span>;</span>
+
+&#125; clusterMsg;</code></pre>
+
+<p>POV 的是 <code>clusterState</code>，结构体定义如下：</p>
+<pre><code class="hljs c"><span class="hljs-comment">// 集群状态，每个节点都保存着一个这样的状态，记录了它们眼中的集群的样子。</span>
+<span class="hljs-keyword">typedef</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">clusterState</span> &#123;</span>
+
+    <span class="hljs-comment">// 指向当前节点的指针</span>
+    clusterNode *myself;  <span class="hljs-comment">/* This node */</span>
+	
+    <span class="hljs-comment">// 集群当前的配置纪元，用于实现故障转移</span>
+    <span class="hljs-type">uint64_t</span> currentEpoch;
+	
+    <span class="hljs-comment">// 集群当前的状态：是在线还是下线</span>
+    <span class="hljs-type">int</span> state;            <span class="hljs-comment">/* REDIS_CLUSTER_OK, REDIS_CLUSTER_FAIL, ... */</span>
+	
+    <span class="hljs-comment">// 集群中至少处理着一个槽的节点的数量。</span>
+    <span class="hljs-type">int</span> size;             <span class="hljs-comment">/* Num of master nodes with at least one slot */</span>
+	
+    <span class="hljs-comment">// 集群节点名单（包括 myself 节点）</span>
+    <span class="hljs-comment">// 字典的键为节点的名字，字典的值为 clusterNode 结构</span>
+    dict *nodes;          <span class="hljs-comment">/* Hash table of name -&gt; clusterNode structures */</span>
+    <span class="hljs-comment">// ...</span>
+    
+    <span class="hljs-comment">// 负责处理各个槽的节点</span>
+    <span class="hljs-comment">// 例如 slots[i] = clusterNode_A 表示槽 i 由节点 A 处理</span>
+    clusterNode *slots[REDIS_CLUSTER_SLOTS];
+    
+    <span class="hljs-comment">// ....</span>
+    
+&#125; clusterState;</code></pre>
+
+<p>将抽象的结构体定义转换为更容易理解的图形：</p>
+<p><img src="/images/redis-cluster-gossip/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20Redis%20cluster%20GOSSIP%20%E5%8D%8F%E8%AE%AE-20230704203154-2.png" alt="深入理解 Redis cluster GOSSIP 协议-20230704203154-2"></p>
+<p>再看 Redis 对 GOSSIP 消息的处理，消息头和消息体的处理是不一样的。消息头<a target="_blank" rel="noopener" href="https://github.com/redis/redis/blob/a51eb05b1895babb17c37c36b963e2bcbd5496d5/src/cluster.c#L2496">更新消息发送者槽位分配图</a>，而消息体<a target="_blank" rel="noopener" href="https://github.com/redis/redis/blob/a51eb05b1895babb17c37c36b963e2bcbd5496d5/src/cluster.c#L1950C6-L1950C33">更新集群拓扑及故障转移状态</a></p>
+<h3 id="集群管理缺陷"><a href="#集群管理缺陷" class="headerlink" title="集群管理缺陷"></a>集群管理缺陷</h3><p>自 Redis 3.0 支持 <code>Redis cluster</code> 之后，集群管理的机制几乎没有太大变化。由于缺少理论的支持，社区也出现过集群管理相关的缺陷——集群槽分配不一致，（<a target="_blank" rel="noopener" href="https://github.com/redis/redis/issues/2969">Issue #2969</a>、<a target="_blank" rel="noopener" href="https://github.com/redis/redis/issues/3776">Issue #3776</a>、<a target="_blank" rel="noopener" href="https://github.com/redis/redis/issues/6339">Issue #6339</a>），但由于其中的复杂度，该问题并没有得到很好的解决，相关的的测试用例（<a target="_blank" rel="noopener" href="https://github.com/redis/redis/blob/a51eb05b1895babb17c37c36b963e2bcbd5496d5/tests/cluster/tests/21-many-slot-migration.tcl#L6">21-many-slot-migration.tcl</a>）一直没有启用。官方的临时解决方案是提供了问题检测和修复的命令行工具 <a target="_blank" rel="noopener" href="https://github.com/redis/redis/issues/2969#issuecomment-390729389">redis-cli –cluster</a>。</p>
+<p>同样的问题，在我们的生产环境也数次出现，急需解决。根据本文上述的分析，回看<a target="_blank" rel="noopener" href="https://github.com/redis/redis/blob/a51eb05b1895babb17c37c36b963e2bcbd5496d5/src/cluster.c#L2164">槽位的更新逻辑</a></p>
+<pre><code class="hljs c"><span class="hljs-comment">/* We rebind the slot to the new node claiming it if:</span>
+<span class="hljs-comment"> * 1) The slot was unassigned or the new node claims it with a</span>
+<span class="hljs-comment"> *    greater configEpoch.</span>
+<span class="hljs-comment"> * 2) We are not currently importing the slot. */</span>
+<span class="hljs-keyword">if</span> (server.cluster-&gt;slots[j] == <span class="hljs-literal">NULL</span> ||
+    server.cluster-&gt;slots[j]-&gt;configEpoch &lt; senderConfigEpoch)
+&#123;
+    <span class="hljs-comment">// ...</span>
+				
+    <span class="hljs-keyword">if</span> (server.cluster-&gt;slots[j] == curmaster) &#123;
+        newmaster = sender;
+        migrated_our_slots++;
+    &#125;
+    clusterDelSlot(j);
+    clusterAddSlot(sender,j);
+    clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|
+                         CLUSTER_TODO_UPDATE_STATE|
+                         CLUSTER_TODO_FSYNC_CONFIG);
+&#125;</code></pre>
+
+<p>可知两点：</p>
+<ul>
+<li>槽位总是被新 Master 认领走，已经失去槽位的旧 Master 不会对其有任何更新操作。</li>
+<li>槽位总是被其归属节点的 configEpoch 看守。由于 Redis 是单线程执行，可以一定程度的将 configEpoch 理解为槽位更新的看守。</li>
+</ul>
+<p>槽位的归属总是跟 configEpoch 息息相关，要理解缺陷出现的原因，就一定要去理解 configEpoch 是怎么更新的。</p>
+<p>检索 configEpoch 更新的逻辑可知，Redis 节点仅在以下情况更新自己的 config  Epoch（操作总是 currentEpoch++；  configEpoch &#x3D; currentEpoch）：</p>
+<ul>
+<li><p>从节点晋升为主节点<br>   当从节点晋升为新的主节点时，它会将自己的 configEpoch 设为当前集群的 currentEpoch（当前纪元）+ 1。新的主节点就拥有了一个独立且更高的 configEpoch，以表示它接管了原主节点的角色。</p>
+</li>
+<li><p>故障转移<br>  当执行故障转移时，即使用 <code>CLUSTER FAILOVER</code> 命令时，从节点会请求成为新的主节点。currentEpoch 会增加1，更新为自己的 configEpoch，以表示集群配置的变更。</p>
+</li>
+<li><p>槽位迁移<br>  当槽位迁移完成时，<code>IMPORTING</code> 的节点（接收槽位的节点）会在迁移完成后将 currentEpoch 增加 1 ，更新为自己的 configEpoch，以表示它接管了相应的槽位</p>
+</li>
+<li><p>configEpoch 冲突<br>  当节点从 GOSSIP 消息中发现其他节点的 configEpoch 与其 configEpoch 冲突（相同）时。解决冲突的方式是，此节点与具有冲突纪元的其他节点（“发送方”节点）Node ID 字典序较小的节点，将 currentEpoch 增加 1，更新为自己的 configEpoch</p>
+<p>  当创建新集群时，所有节点都以相同的 configEpoch 开始（默认是0）。冲突解决函数可以让节点在启动时自动以不同的 configEpoch 结束。</p>
+</li>
+</ul>
+<p>总而言之，configEpoch 更新时，槽位归属并不总是更新；反之，槽位归属更新时，configEpoch 必然更新。</p>
+<p>根据以上知识，侧重 configEpoch 与 槽位的更新重新调整 <strong>POV 更新</strong> 如下图：</p>
+<p><img src="/images/redis-cluster-gossip/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20Redis%20cluster%20GOSSIP%20%E5%8D%8F%E8%AE%AE-20230704203154-3.png" alt="深入理解 Redis cluster GOSSIP 协议-20230704203154-3"></p>
+<p>在第三种情况下，Redis cluster 的集群管理操作总是有一定概率出现无法恢复的冲突。即</p>
+<blockquote>
+<p>在 POV 中，如果旧的 Master 有一个已经迁出的槽位尚未被新 Master 认领，单独更新 configEpoch 之后，槽位将被旧 Master 的新 configEpoch 看守起来。</p>
+<p>旧 Master 在将此槽位迁到新 Master 之后，其 configEpoch 可能再次增加。即，旧 Master 的 configEpoch 比新 Master 的 configEpoch 更大。新 Master 就无法认领该槽位。最终造成该槽位的归属错乱。</p>
+</blockquote>
+<p>具体示例、解释可以参考 <a target="_blank" rel="noopener" href="https://github.com/redis/redis/pull/12336">Pull Request #12336</a>。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>由于 Redis 高性能的要求，Redis 的分布式注定无法使用 Raft 等强一致的协议同步进行一致性协商。虽然 Redis cluster GOSSIP 较为复杂且缺少理论论证，仍然成为目前为止去中心化架构下的最佳选择（社区更偏爱去中心化，头部科技公司反之）。理解 Redis cluster GOSSIP 协议，是使用该架构开发者的必修课。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/07-04-2023/redis-cluster-gossip.html">https://www.cyningsun.com/07-04-2023/redis-cluster-gossip.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/08-20-2023/go-redis-connection-timeout.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/06-13-2023/heavy-hitter.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

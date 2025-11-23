@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Go 语言没有引用类型，指针也与众不同</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-08-16 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2021-08-16 00:00:00 +0800"/>
+
+<meta property="og:url" content="/08-16-2021/go-has-no-reference-and-safe-pointer.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="面向对象编程强调数据和操作绑定，方法是有状态的，本身可能会修改数据。因此编程时确定方法是否会修改原始数据尤其关键。多数从其他语言转到 Go 语言的开发者，都会首先了解 Go 语言传递参数的时候到底是 “传值” 还是 “传引用”。如果第一门开发语言是 C 语言或者 C++ 的开发者，还会区分下什么时候 “传指针”。 概念什么是内存？可以把内存想想为一系列单元格">
+
+<meta name="keywords" content="pointer,reference">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Go 语言没有引用类型，指针也与众不同</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2021-08-16
+         | 
+        Last Revised: 2021-08-16
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A6%82%E5%BF%B5"><span class="toc-text">概念</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E5%86%85%E5%AD%98%EF%BC%9F"><span class="toc-text">什么是内存？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E5%8F%98%E9%87%8F%EF%BC%9F"><span class="toc-text">什么是变量？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E6%8C%87%E9%92%88%EF%BC%9F"><span class="toc-text">什么是指针？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E5%BC%95%E7%94%A8%EF%BC%9F"><span class="toc-text">什么是引用？</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Go-%E8%AF%AD%E8%A8%80%E6%B2%A1%E6%9C%89%E5%BC%95%E7%94%A8%E7%B1%BB%E5%9E%8B"><span class="toc-text">Go 语言没有引用类型</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8C%87%E9%92%88%E6%98%AF%E7%B1%BB%E5%9E%8B%E5%90%97%EF%BC%9F"><span class="toc-text">指针是类型吗？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8C%87%E9%92%88%E6%80%BB%E7%BB%93"><span class="toc-text">指针总结</span></a></li></ol>
+ 
+        <p>面向对象编程强调数据和操作绑定，方法是有状态的，本身可能会修改数据。因此编程时确定方法是否会修改原始数据尤其关键。多数从其他语言转到 Go 语言的开发者，都会首先了解 Go 语言传递参数的时候到底是 “传值” 还是 “传引用”。如果第一门开发语言是 C 语言或者 C++ 的开发者，还会区分下什么时候 “传指针”。</p>
+<h3 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h3><h4 id="什么是内存？"><a href="#什么是内存？" class="headerlink" title="什么是内存？"></a>什么是内存？</h4><p>可以把内存想想为一系列单元格，一个个排列成一行，每个单元格都有一个唯一的编号。编号顺序递增，代表内存的位置，也即是内存地址。</p>
+<p><img src="/images/go-has-no-reference-and-safe-pointer/pointer-memory.png" alt="pointer-memory.png"></p>
+<p>每个单元格都可以存放一个值，可以通过编号读取和替换单元格内的先前写入的值。</p>
+<h4 id="什么是变量？"><a href="#什么是变量？" class="headerlink" title="什么是变量？"></a>什么是变量？</h4><p>糟糕的是，如果直接使用编号编程，就需要开发者自己管理内存，也难以和其他程序同时运行，极大的增加了编写大型程序的难度。</p>
+<p>为了解决这个问题，就需要引入“变量”的概念。变量只是编号的假名、标签或昵称。</p>
+<p><img src="/images/go-has-no-reference-and-safe-pointer/pointer-memory-multiply.png" alt="pointer-memory-multiply.png"></p>
+<pre><code class="hljs go"><span class="hljs-keyword">var</span> a = <span class="hljs-number">6</span>
+<span class="hljs-keyword">var</span> b = a * <span class="hljs-number">3</span></code></pre>
+
+<h4 id="什么是指针？"><a href="#什么是指针？" class="headerlink" title="什么是指针？"></a>什么是指针？</h4><p>而指针的值是另一个变量的编号。指针指向变量的内存地址，就像变量代表值的内存地址一样。</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+        a := <span class="hljs-number">200</span>
+        b := &amp;a
+        *b++
+        fmt.Println(a)
+&#125;</code></pre>
+
+<p><img src="/images/go-has-no-reference-and-safe-pointer/pointer-memory-variable.png" alt="pointer-memory-variable.png"></p>
+<h4 id="什么是引用？"><a href="#什么是引用？" class="headerlink" title="什么是引用？"></a>什么是引用？</h4><p>在 C++ 语言中，为现有变量声明别名，称为引用变量。如代码所示，a、b、c 三个变量均共享同一内存地址</p>
+<pre><code class="hljs C++"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;stdio.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>&#123;
+        <span class="hljs-type">int</span> a = <span class="hljs-number">10</span>;
+        <span class="hljs-type">int</span> &amp;b = a;
+        <span class="hljs-type">int</span> &amp;c = b;
+
+        <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;%p %p %p\n&quot;</span>, &amp;a, &amp;b, &amp;c); <span class="hljs-comment">// 0x7ffe114f0b14 0x7ffe114f0b14 0x7ffe114f0b14</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+&#125;</code></pre>
+
+<h3 id="Go-语言没有引用类型"><a href="#Go-语言没有引用类型" class="headerlink" title="Go 语言没有引用类型"></a>Go 语言没有引用类型</h3><p>Go 程序可以创建指向统一内存地址的变量，但无法创建共享相同内存地址的两个变量。如代码所示，b 和 c 具有相同的值（a的地址）但是，b 和 c 的内存地址是唯一的。更新 b 的内容对 c 没有影响。</p>
+<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> <span class="hljs-string">&quot;fmt&quot;</span>
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+        <span class="hljs-keyword">var</span> a <span class="hljs-type">int</span>
+        <span class="hljs-keyword">var</span> b, c = &amp;a, &amp;a
+        fmt.Println(b, c)   <span class="hljs-comment">// 0x1040a124 0x1040a124</span>
+        fmt.Println(&amp;b, &amp;c) <span class="hljs-comment">// 0x1040c108 0x1040c110</span>
+&#125;</code></pre>
+
+<p><a target="_blank" rel="noopener" href="https://github.com/golang/go/commit/b34f0551387fcf043d65cd7d96a0214956578f94">2013年4月3日，“引用类型”的概念已从 Go 规范中完全删除</a>,现在 Go 规范中的“引用”，没有一个代表“引用类型”的概念。</p>
+<h3 id="指针是类型吗？"><a href="#指针是类型吗？" class="headerlink" title="指针是类型吗？"></a>指针是类型吗？</h3><p>指针是类型吗？这个问题可能在 C 或 C++ 中会有比较大的分歧，但是在 Go 语言中十分明确，毫无疑问：<a target="_blank" rel="noopener" href="https://golang.org/ref/spec#Pointer_types">是的</a>。</p>
+<blockquote>
+<p>A pointer type denotes the set of all pointers to variables of a given type, called the base type of the pointer. The value of an uninitialized pointer is nil.</p>
+</blockquote>
+<p>既然有类型，就有类型的实例：值，类型和值是截然不同的两个概念。显然，在 Go 语言中，当谈到指针时，包含 “指针类型” 和 “指针值”。</p>
+<p>同时，为了避免指针引入的风险， Go 语言对指针做了不少的约束，如下：</p>
+<ol>
+<li>指针值不支持数学运算</li>
+</ol>
+<pre><code class="hljs go"><span class="hljs-keyword">var</span> p *<span class="hljs-type">int</span>
+p++</code></pre>
+
+<p>你不能更改指针指向的位置，除非赋值另外一个地址给它。同时也就不支持 <a target="_blank" rel="noopener" href="https://maryash.github.io/135/slides/7.2%20Arrays%20and%20Pointers.pdf">Array-Pointer Duality</a>。</p>
+<ol start="2">
+<li>base type 不同的指针值，无法直接互相赋值</li>
+</ol>
+<pre><code class="hljs go"><span class="hljs-keyword">type</span> MyInt <span class="hljs-type">int64</span>
+<span class="hljs-keyword">type</span> Ta    *<span class="hljs-type">int64</span>
+<span class="hljs-keyword">type</span> Tb    *MyInt
+
+<span class="hljs-comment">// 4 nil pointers of different types.</span>
+<span class="hljs-keyword">var</span> pa0 Ta
+<span class="hljs-keyword">var</span> pa1 *<span class="hljs-type">int64</span>
+<span class="hljs-keyword">var</span> pb0 Tb
+<span class="hljs-keyword">var</span> pb1 *MyInt
+
+   <span class="hljs-comment">// None of the following 3 lines compile ok.</span>
+<span class="hljs-comment">/*</span>
+<span class="hljs-comment">_ = pa0 == pb0</span>
+<span class="hljs-comment">_ = pa1 == pb1</span>
+<span class="hljs-comment">_ = pa0 == Tb(nil)</span>
+<span class="hljs-comment">*/</span></code></pre>
+
+<ol start="3">
+<li>返回局部变量的指针是安全的</li>
+</ol>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">f</span><span class="hljs-params">()</span></span> *<span class="hljs-type">int</span> &#123; 
+  i := <span class="hljs-number">1</span>
+  <span class="hljs-keyword">return</span> &amp;i
+&#125;</code></pre>
+
+<h3 id="指针总结"><a href="#指针总结" class="headerlink" title="指针总结"></a>指针总结</h3><p>使用过 C&#x2F;C++ 语言的开发者，习惯使用的不安全的指针是 <code>unsafe.Pointer</code>，而非普通的指针。</p>
+<pre><code class="hljs C++"><span class="hljs-type">int</span>* valFirst
+<span class="hljs-type">intptr_t</span> valSecond
+<span class="hljs-type">void</span>* valThird</code></pre>
+
+<p>vs</p>
+<pre><code class="hljs go"><span class="hljs-type">int</span>* valFirst
+<span class="hljs-keyword">type</span> intptr_t *<span class="hljs-type">int</span>
+intptr_t valSecond
+unsafe.Pointer valThird</code></pre>
+
+<p>对比服用，效果更佳。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/08-16-2021/go-has-no-reference-and-safe-pointer.html">https://www.cyningsun.com/08-16-2021/go-has-no-reference-and-safe-pointer.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+            <li><span><a href="/07-19-2021/go-higher-order-function.html">Go 函数式编程：Higher-order function</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-08-2021/go-accept-interfaces-return-structs.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

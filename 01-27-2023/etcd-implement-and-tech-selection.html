@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>etcd 实现与选型分析</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-01-27 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2023-01-27 00:00:00 +0800"/>
+
+<meta property="og:url" content="/01-27-2023/etcd-implement-and-tech-selection.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景随着在 Kubernetes 场景打磨下不断成长， etcd 逐渐成为技术圈众所周知的开源产品。 多版本并发控制 事务 租约 变更通知 etcd 因其丰富的功能，并被越来越多的选择，甚至于被当作 “银弹” 过度使用。本文的重点在于了解其发展历程、实现细节，并针对技术方案选型给出自己的理解。 本文所有内容基于 etcd v3.5.0 起源2013 年，有一">
+
+<meta name="keywords" content="etcd 选型,etcd 实现,etcd 源码分析">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>etcd 实现与选型分析</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-01-27
+         | 
+        Last Revised: 2023-01-27
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B5%B7%E6%BA%90"><span class="toc-text">起源</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%97%B6%E9%97%B4%E7%BA%BF"><span class="toc-text">时间线</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9F%BA%E7%A1%80%E6%9E%B6%E6%9E%84"><span class="toc-text">基础架构</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%9B%86%E7%BE%A4%E6%9E%B6%E6%9E%84"><span class="toc-text">集群架构</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8D%95%E6%9C%BA%E6%9E%B6%E6%9E%84"><span class="toc-text">单机架构</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E5%B7%A5%E4%BD%9C%E6%B5%81"><span class="toc-text">核心工作流</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%86%99%E5%85%A5"><span class="toc-text">数据写入</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%A4%8D%E5%88%B6%E7%8A%B6%E6%80%81%E6%9C%BA"><span class="toc-text">复制状态机</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%A7%9F%E7%BA%A6"><span class="toc-text">租约</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8F%98%E6%9B%B4%E9%80%9A%E7%9F%A5"><span class="toc-text">变更通知</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90"><span class="toc-text">选型分析</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%9A%E5%8A%A1%E7%B3%BB%E7%BB%9F"><span class="toc-text">业务系统</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Why-etcd"><span class="toc-text">Why etcd</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%80%A7%E8%83%BD"><span class="toc-text">性能</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%A1%AC%E4%BB%B6%E6%8E%A8%E8%8D%90"><span class="toc-text">硬件推荐</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E6%8C%87%E6%A0%87"><span class="toc-text">性能指标</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">适用场景</span></a></li></ol></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>随着在 Kubernetes 场景打磨下不断成长， etcd 逐渐成为技术圈众所周知的开源产品。</p>
+<ul>
+<li>多版本并发控制</li>
+<li>事务</li>
+<li>租约</li>
+<li>变更通知</li>
+</ul>
+<p>etcd 因其丰富的功能，并被越来越多的选择，甚至于被当作 “银弹” 过度使用。本文的重点在于了解其发展历程、实现细节，并针对技术方案选型给出自己的理解。</p>
+<blockquote>
+<p>本文所有内容基于 etcd v3.5.0</p>
+</blockquote>
+<h4 id="起源"><a href="#起源" class="headerlink" title="起源"></a>起源</h4><p>2013 年，有一个叫 CoreOS 的创业团队，需要一个协调服务来存储服务配置信息、提供分布式锁等能力，来构建一款叫做 Container Linux 的产品。当分析过需求场景、痛点和核心目标，并评估社区开源的选项之后，CoreOS 团队最终选择自己造轮子，从 0 到 1 开发 etcd 以满足其需求。</p>
+<h4 id="时间线"><a href="#时间线" class="headerlink" title="时间线"></a>时间线</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-1674747425540.png"></p>
+<h3 id="基础架构"><a href="#基础架构" class="headerlink" title="基础架构"></a>基础架构</h3><h4 id="集群架构"><a href="#集群架构" class="headerlink" title="集群架构"></a>集群架构</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-20230126170737%201.png"></p>
+<p><strong>架构说明</strong></p>
+<ul>
+<li>集群由一个 Leader 节点和 多个 Follower 节点组成，通过 Raft 协议达成共识</li>
+<li>写请求：只有 Leader 节点能处理写请求，如果当前节点只是一个 Follower，则它会把请求转发给 Leader 处理。</li>
+<li>读请求：<ul>
+<li>串行读：直接读状态机数据返回、无需通过 Raft 协议与集群进行交互。</li>
+<li>线性读：如果当前节点只是一个 Follower，它首先会从 Leader 获取集群最新的已提交的日志索引 (committed index)。然后等待直到状态机已应用索引 (applied index) 大于等于 Leader 的已提交索引时 (committed Index)，再读取数据返回。</li>
+</ul>
+</li>
+</ul>
+<h4 id="单机架构"><a href="#单机架构" class="headerlink" title="单机架构"></a>单机架构</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-20230126170737-1.png"></p>
+<p><strong>架构说明</strong></p>
+<ul>
+<li><strong>Client（客户端层）</strong>：包含 Client v2 和 v3 两个⼤版本 API 客户端。</li>
+<li><strong>API（网络层）</strong>：<ol>
+<li>包含 Client 访问 Server、Server 节点之间的通信协议</li>
+<li>Client 访问 Server 协议有两个版本：v2 API 采⽤ HTTP&#x2F;1.x 协议，v3 API 采用 gRPC 协议</li>
+<li>Server 节点之间使用 HTTP 协议，通过 Raft 算法实现数据复制和 Leader 选举等功能</li>
+</ol>
+</li>
+<li><strong>Raft（一致性算法层）</strong>：维护节点的 Raft 状态机、Raft 日志等保障 etcd 多节点间的数据⼀致性</li>
+<li><strong>Server（业务逻辑层）</strong>：<ol>
+<li>包括：Auth 鉴权模块、Quota 配额模块、KV 模块、Raftnode 一致性模块、Rafthttp 一致性通信模块、Lease 租约模块、Apply 持久化应用模块、MVCC 多版本并发控制模块、Watch 变更通知模块等</li>
+<li>MVCC 模块主要由 treeIndex B 树索引模块和 boltdb B+ 树数据库模块组成</li>
+</ol>
+</li>
+<li><strong>Storage</strong>：存储层<ol>
+<li>包含 WAL 预写⽇志模块、Snapshot 快照模块、boltdb 数据库模块</li>
+<li>WAL 保障异常后数据不丢失，boltdb 则保存了集群元数据和写⼊的数据</li>
+</ol>
+</li>
+</ul>
+<h3 id="核心工作流"><a href="#核心工作流" class="headerlink" title="核心工作流"></a>核心工作流</h3><h4 id="数据写入"><a href="#数据写入" class="headerlink" title="数据写入"></a>数据写入</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-1674748261952.png"></p>
+<p><strong>步骤</strong>：</p>
+<ol>
+<li>客户端发送一个 Put 请求给 KVServer。</li>
+<li>KVServer 将请求数据进行适当的封装处理之后，调用 Raft 模块的 Propose 接口方法（步骤 2），由 raft 模块来处理写请求。</li>
+<li>Raft 模块将记录 (entry) 添加到当前节点的 raftLog (步骤 3），并通知 RaftNode 模块执行相关操作 (步骤 4）</li>
+<li>RaftNode 模块<ul>
+<li>首先，广播给其他节点(Follower)（步骤 5）</li>
+<li>同时，将记录保存到本地 WAL 文件中（步骤 6）</li>
+<li>最后，告诉 Raft 模块开始等待其他节点提交响应（步骤 7）</li>
+</ul>
+</li>
+<li>其它节点(Follower)接收到记录，并写到本地 raftlog 之后，就会给 Leader 发送一个响应。当 Leader 接收到超过半数节点的响应后，就认为这条记录已经 commit ，会更新本地 raftlog 的 commitID（步骤 8）。</li>
+<li>一旦记录被 Raft 模块 commit 了，就开始通知 RaftNode 模块执行相关操作（步骤 9）。 RaftNode 模块应用（apply）数据记录（步骤 10），同时也将 commitID 广播给其它节点（步骤 11），然后通知 Raft 模块数据已经提交（步骤 12）。</li>
+<li>MVCC 模块异步 将数据应用（apply）到本地存储（步骤 13），并通知 KVServer。</li>
+<li>最后 KVServer 将结果返回给 client，整个过程就处理结束了。</li>
+</ol>
+<p>从上面的流程可以看出，一条记录首先是写入本地的 raftlog。然后发送给其它节点，当超过半数的节点接收到这条记录时，那么该记录就被认为已经 commit 了。最后才能被 KVServer apply。 所以下面的条件永远成立：</p>
+<pre><code class="hljs abnf">ApplyId &lt;<span class="hljs-operator">=</span> CommitId &lt;<span class="hljs-operator">=</span> RaftLogId</code></pre>
+
+<h5 id="复制状态机"><a href="#复制状态机" class="headerlink" title="复制状态机"></a>复制状态机</h5><p>etcd 使用 <strong>Raft 协议来维护集群内各个节点状态的一致性</strong>。每个 etcd 节点都维护了一个状态机，并且任意时刻至多存在一个有效的主节点。主节点处理所有来自客户端写操作，通过 Raft 协议保证写操作对状态机的改动会可靠的同步到其他节点。</p>
+<p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-20230126170737-3.png"><br>步骤：</p>
+<ol>
+<li>Client 客户端向 KVServer 发送请求</li>
+<li>Server 接收到请求后，向 Raft 模块提交 Proposal</li>
+<li>Raft 模块获取到 Proposal 后，会为 Proposal 生成日志条目，并追加到本地日志</li>
+<li>Leader 会向 Follower 广播消息，为每个 Follower 生成追加的 RPC 消息，包括复制给 Follower 的日志条目</li>
+<li>Follower 会持久化消息到 WAL 日志中，并追加到日志存储</li>
+<li>Follower 向 Leader 回复一个应答日志条目的消息，告知 Leader 当前已复制日志的最大索引</li>
+<li>Leader 在收到 Follower 的应答后，将已复制日志的最大索引信息更新到跟踪 Follower 进展的 Match Index 字段</li>
+<li>Leader 根据 Follower 的 MatchIndex 信息，计算出一个位置。如果该位置已经被一半以上的节点持久化，那么这个日志之前的日志条目都可以标记为已提交</li>
+<li>Leader 发送消息到 Follower 节点时，告知目前已经提交的索引位置</li>
+<li>各个节点根据已提交的日志条目，将内容应用（apply）到存储、状态机</li>
+</ol>
+<h4 id="租约"><a href="#租约" class="headerlink" title="租约"></a>租约</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-1674749248679.png"><br><strong>创建租约</strong>：</p>
+<ul>
+<li>当 LeaseServer 收到 Client 的创建一个 Lease 请求后，会通过 Raft 模块<br>完成日志同步</li>
+<li>随后 Apply 模块通过 Lessor 模块的 Grant 接口执行日志条目内容。<ul>
+<li>首先 Lessor 的 Grant 接口会把 Lease 保存到内存的 ItemMap 数据结构中</li>
+<li>然后它需要持久化 Lease，将 Lease 数据保存到 boltdb 的 Lease bucket</li>
+<li>最终返回一个唯一的 LeaseID 给 client。</li>
+</ul>
+</li>
+</ul>
+<p><strong>附加租约</strong>：</p>
+<ul>
+<li>当用户新增一个带 租约的 Key 时，MVCC 模块它会通过 Lessor 模块的 Attach 方法，将 key 关联到 Lease 的 key 内存集合 ItemMap。</li>
+</ul>
+<p><strong>淘汰租约</strong>：</p>
+<ul>
+<li>淘汰过期 Lease 的工作由 Lessor 模块的一个异步 goroutine 负责。它会定时从最小堆中取出已过期的 Lease，执行删除 Lease 和其关联的 key 列表数据的 RevokeExpiredLease 任务。</li>
+<li>Lessor 模块会将已确认过期的 LeaseID，保存在一个名为 expiredC 的 channel 中，而<br>etcd server 的主循环会定期从 channel 中获取 LeaseID，发起 revoke 请求，通过 Raft<br>Log 传递给 Follower 节点。</li>
+<li>各个节点收到 revoke Lease 请求后，获取关联到此 Lease 上的 key 列表，从 boltdb 中 删除 key，从 Lessor 的 Lease map 内存中删除此 Lease 对象，最后还需要从 boltdb 的 Lease bucket 中删除这个 Lease。</li>
+</ul>
+<p><strong>注意</strong>：</p>
+<p>租约影响性能因素源自多方面：</p>
+<ul>
+<li>首先是 TTL，TTL 过长会导致节点异常后，无法及时从 etcd 中删除，影响服务可用性，而过短，则要求 client 频繁发送续期请求。</li>
+<li>其次是 Lease 数，如果 Lease 成千上万个，那么 etcd 可能无法支撑如此大规模的 Lease 数，导致高负载。</li>
+<li>再次，Lease 过期会触发写请求，再加上变更通知产生的读请求，对 etcd server 压力非常大。</li>
+<li>最后，如果因为网络异常无法续期，导致数据过期。网络恢复正常，同一份数据再次写入，将导致 DB 大小迅速增加（历史版本数据并没有真正删除，数据库压缩才会实际删除）。</li>
+</ul>
+<p>从实际使用场景上来，为了降低 Lease TTL 过期带来的影响，可以将 Lease 与 Key 独立开，由系统自行控制和判定存活状态和 Key 的删除。</p>
+<p>为了降低 etcd server 的压力可以把多个 kv 关联在一个 lease 上的，比如：</p>
+<blockquote>
+<p>kubernetes 场景中有大量的 event，如果一个 event 一个 Lease， Lease 数量是非常多的，Lease 过期会触发大量写请求，再加上变更通知产生的读请求，对 etcd server 压力非常大。</p>
+<p>为了解决这个问题对 etcd server 性能的影响，Lease 过期淘汰会默认限速每秒 1000 个。因此 kubernetes 场景为了优化 Lease 数，会将最近一分钟内产生的 event key 列表，复用在同一个 Lease，大大降低了 Lease 数。</p>
+</blockquote>
+<h4 id="变更通知"><a href="#变更通知" class="headerlink" title="变更通知"></a>变更通知</h4><p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-1674749229867.png"></p>
+<p><strong>概念</strong>：</p>
+<p>etcd 通过对 watcher 进行分类，来实现事件的可靠性：</p>
+<ul>
+<li>synced watcher，此类 watcher 监听的数据都已经同步完毕，在等待新的变更。</li>
+<li>unsynced watcher，此类 watcher 监听的数据还未同步完成，落后于当前最新数据变更，正在努力追赶。</li>
+<li>victim watcher，此类 slower watcher 的推送 channel buffer 堆满，etcd 会将其移动到专门的队列中异步机制重试。</li>
+</ul>
+<p><strong>订阅流程</strong>：</p>
+<ul>
+<li><p>当 Client 发起一个 watch key 请求的时候，etcd 的 WatchServer 收到 watch 请求后，会创建一个 serverWatchStream, 它负责接收 client 的 gRPC Stream 的 create&#x2F;cancel watcher 请求 (recvLoop goroutine)，并将从 MVCC 模块接收的 Watch 事件转发给 client(sendLoop goroutine)。</p>
+</li>
+<li><p>当 serverWatchStream 收到 create watcher 请求后，serverWatchStream 会调用 MVCC 模块的 WatchStream 子模块分配一个 watcher id，并将 watcher 注册到 MVCC 的 WatchableKV 模块。</p>
+</li>
+<li><p>etcd 启动后，WatchableKV 模块会运行 syncWatchersLoop 和 syncVictimsLoop goroutine，分别负责不同场景下的事件推送。</p>
+<blockquote>
+<p>etcd 使用 map 记录了监听单个 key 的 watcher，但是你要注意的是 Watch 特性不仅仅可以监听单 key，它还可以指定监听 key 范围、key 前缀，因此 etcd 还使用了区间树。当收到创建 watcher 请求的时候，它会把 watcher 监听的 key 范围插入到上面的区间树中，区间的值保存了监听同样 key 范围的 watcher 集合 &#x2F;watcherSet。</p>
+<p>当产生一个事件时，etcd 首先需要从 map 查找是否有 watcher 监听了单 key，其次它还需要从区间树找出与此 key 相交的所有区间，然后从区间的值获取监听的 watcher 集合。区间树支持快速查找一个 key 是否在某个区间内，时间复杂度 O(LogN)，因此 etcd 基于 map 和区间树实现了 watcher 与事件快速匹配，具备良好的扩展性。</p>
+</blockquote>
+</li>
+</ul>
+<p><strong>推送流程</strong>：</p>
+<ul>
+<li>当你创建完成 watcher 后，此时你执行 put hello 修改操作时，如上图所示，请求经过后的 mvccpb.KeyValue 保存到一个 changes 数组中。</li>
+<li>在 put 事务结束时，它会将 KeyValue 转换成 Event 事件，然后回调 watchableStore.notify 函数。notify 会匹配出监听过此 key 并处于 synced watcherGroup 中的 watcher，同时事件中的版本号要大于等于 watcher 监听的最小版本号，才能将事件发送到此 watcher 的事件 channel 中。</li>
+</ul>
+<p><strong>注意</strong>：</p>
+<p>若 watcher 监听的版本号已经小于当前 etcd server 压缩的版本号，历史变更数据就可能<br>已丢失，因此 etcd server 会返回 ErrCompacted 错误给 client。client 收到此错误后，需重新获取数据最新版本号后，再次 Watch。在业务开发过程中，使用 Watch API 最常见的一个错误之一就是未处理此错误。</p>
+<p>其次，Watch 返回的  <code>WatchChan</code>  有可能在运行过程中失败而关闭，此时  <code>WatchResponse.Canceled</code>  会被置为  <code>true</code>，<code>WatchResponse.Err()</code>  也会返回具体的错误信息。所以在 range WatchChan 的时候，每一次循环都要检查  <code>WatchResponse.Canceled</code>，在关闭的时候重新发起 Watch 或报错。</p>
+<h3 id="选型分析"><a href="#选型分析" class="headerlink" title="选型分析"></a>选型分析</h3><p>方案选型可以从业务系统的需求和 etcd 的特性、性能，两个方面着手。</p>
+<h4 id="业务系统"><a href="#业务系统" class="headerlink" title="业务系统"></a>业务系统</h4><p>先看使用 etcd 提供服务的目标系统。如果你正在深入 Kubernetes 或开始使用服务网格，您可能会遇到术语“控制平面（<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Control_plane">control plane</a>）”和“数据平面（<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Forwarding_plane">data plane</a>）”。术语 “控制平面” 和 “数据平面” 都是关于关注点的分离，即系统内职责的明确分离。控制平面是一切与策略建立和下发有关的部分，而数据平面是一切与执行策略有关的部分。当控制平面出现故障，只会影响新的策略变更变更，但不会影响已有策略执行，即，数据平面的功能。</p>
+<p><img src="/images/etcd-implement-and-tech-selection/etcd%20%E5%AE%9E%E7%8E%B0%E4%B8%8E%E9%80%89%E5%9E%8B%E5%88%86%E6%9E%90-20230126170738.png"></p>
+<p>以 Kubernetes 为例，其核心服务包括：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>kube-apiserver</td>
+<td>提供了资源的唯一入口，并提供认证、授权、访问控制、API 注册和发现等</td>
+</tr>
+<tr>
+<td>kube-scheduler</td>
+<td>负责资源的调度，按照预定的调度策略将 Pod 调度到相应的机器上</td>
+</tr>
+<tr>
+<td>kube-controller-manager</td>
+<td>负责维护集群的状态，比如故障检测、自动扩展、滚动更新等</td>
+</tr>
+<tr>
+<td>etcd</td>
+<td>存储整个集群的状态</td>
+</tr>
+<tr>
+<td>kube-proxy</td>
+<td>负责为 Service 提供 cluster 内部的服务发现和负载均衡</td>
+</tr>
+</tbody></table>
+<p>以上服务故障，并不会影响当前已有 Pod 正常对外提供服务。</p>
+<h4 id="Why-etcd"><a href="#Why-etcd" class="headerlink" title="Why etcd"></a>Why etcd</h4><p>再看 etcd 本身。要了解 etcd 适用的场景，质量最高的来源是其官网。</p>
+<blockquote>
+<p>介绍：<br>“etcd” 名字来源于两个想法：unix “&#x2F;etc” 文件夹和 分布式（ “d”istributed）系统。“&#x2F;etc” 文件夹是存储单个系统的配置数据的地方，而 etcd 存储大规模分布式系统的配置信息。因此，“d”istributed “&#x2F;etc” 是 “etcd”。</p>
+<p>etcd 被设计为大规模分布式系统的通用基座。这类系统永远不容忍裂脑操作，并愿意牺牲可用性来实现该目标。</p>
+<p>分布式系统使用 etcd 用于配置管理、服务发现和协调分布式工作。etcd 的常见分布式模式包括领导者选举、分布式锁和监控机器活动。</p>
+<p>使用场景：</p>
+<ul>
+<li>CoreOS 的 Container Linux：在 Container Linux 上运行的应用程序可以获得自动、零停机的 Linux 内核更新。Container Linux 使用 Locksmith 来协调更新。Locksmith 在 etcd 上实现了分布式信号量，以确保在任何给定时间只有集群的一个子集在重新启动。</li>
+<li>Kubernetes 将配置数据存储到 etcd 中，用于服务发现和集群管理；etcd 的一致性对于正确调度和操作服务至关重要。Kubernetes API 服务器将集群状态持久化为 etcd。它使用 etcd 的 watch API 来监视集群并生效关键的配置变更。( 2016 年 Kubernetes 1.6 发布，默认启用 etcd v3，助力 Kubernetes 支撑 <strong>5000</strong> 节点集群规模)</li>
+</ul>
+<p>其他：</p>
+<ul>
+<li>最大可靠数据库大小： 数 GB</li>
+<li>因为缺少数据分片，复制无法水平扩展</li>
+<li>租约提供了一种用于减少中止请求数量的优化机制。</li>
+</ul>
+<p>——— 来源：<a target="_blank" rel="noopener" href="https://etcd.io/docs/v3.5/learning/why/">etcd versus other key-value stores | etcd</a></p>
+</blockquote>
+<p>从基本介绍以及使用场景来看，etcd 的定位在于存储数据量小、更新频率低的数据，用于一致性要求高于可用性、无需水平扩展的场景。</p>
+<h4 id="性能"><a href="#性能" class="headerlink" title="性能"></a>性能</h4><h5 id="硬件推荐"><a href="#硬件推荐" class="headerlink" title="硬件推荐"></a>硬件推荐</h5><p>以 <strong><a target="_blank" rel="noopener" href="https://etcd.io/docs/v3.5/op-guide/hardware/">超大型集群</a></strong> 为例，一个超大型型集群服务的客户端超过 1500 个，每秒请求超过 10000 个，存储数据超过 1 GB。</p>
+<table>
+<thead>
+<tr>
+<th>云厂商</th>
+<th>机型</th>
+<th>CPU</th>
+<th>内存 (GB)</th>
+<th>最大并发 IOPS</th>
+<th>磁盘带宽 (MB&#x2F;s)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AWS</td>
+<td>m4.4xlarge</td>
+<td>16</td>
+<td>64</td>
+<td>16,000</td>
+<td>250</td>
+</tr>
+<tr>
+<td>GCE</td>
+<td>n1-standard-16 + 500GB PD SSD</td>
+<td>16</td>
+<td>60</td>
+<td>15,000</td>
+<td>250</td>
+</tr>
+</tbody></table>
+<h5 id="性能指标"><a href="#性能指标" class="headerlink" title="性能指标"></a>性能指标</h5><p>压测的硬件配置：</p>
+<blockquote>
+<ul>
+<li>Google Cloud Compute Engine</li>
+<li>3 machines of 8 vCPUs + 16GB Memory + 50GB SSD</li>
+<li>1 machine(client) of 16 vCPUs + 30GB Memory + 50GB SSD</li>
+<li>Ubuntu 17.04</li>
+<li>etcd 3.2.0, go 1.8.3</li>
+</ul>
+</blockquote>
+<p><strong>写性能</strong></p>
+<table>
+<thead>
+<tr>
+<th>Key 数量</th>
+<th>Key 大小 (byte)</th>
+<th>Value 大小 (byte)</th>
+<th>连接数</th>
+<th>Client 数</th>
+<th>目标 etcd server</th>
+<th>平均写 QPS</th>
+<th>平均请求延迟</th>
+<th>平均服务 RSS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>10,000</td>
+<td>8</td>
+<td>256</td>
+<td>1</td>
+<td>1</td>
+<td>leader only</td>
+<td>583</td>
+<td>1.6ms</td>
+<td>48 MB</td>
+</tr>
+<tr>
+<td>100,000</td>
+<td>8</td>
+<td>256</td>
+<td>100</td>
+<td>1000</td>
+<td>leader only</td>
+<td>44,341</td>
+<td>22ms</td>
+<td>124MB</td>
+</tr>
+<tr>
+<td>100,000</td>
+<td>8</td>
+<td>256</td>
+<td>100</td>
+<td>1000</td>
+<td>all members</td>
+<td>50,104</td>
+<td>20ms</td>
+<td>126MB</td>
+</tr>
+</tbody></table>
+<p><strong>读性能</strong></p>
+<table>
+<thead>
+<tr>
+<th>请求数</th>
+<th>Key 大小 (byte)</th>
+<th>Value 大小 (byte)</th>
+<th>连接数</th>
+<th>Client 数</th>
+<th>一致性</th>
+<th>平均读 QPS</th>
+<th>平均请求延迟</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>10,000</td>
+<td>8</td>
+<td>256</td>
+<td>1</td>
+<td>1</td>
+<td>Linearizable</td>
+<td>1,353</td>
+<td>0.7ms</td>
+</tr>
+<tr>
+<td>10,000</td>
+<td>8</td>
+<td>256</td>
+<td>1</td>
+<td>1</td>
+<td>Serializable</td>
+<td>2,909</td>
+<td>0.3ms</td>
+</tr>
+<tr>
+<td>100,000</td>
+<td>8</td>
+<td>256</td>
+<td>100</td>
+<td>1000</td>
+<td>Linearizable</td>
+<td>141,578</td>
+<td>5.5ms</td>
+</tr>
+<tr>
+<td>100,000</td>
+<td>8</td>
+<td>256</td>
+<td>100</td>
+<td>1000</td>
+<td>Serializable</td>
+<td>185,758</td>
+<td>2.2ms</td>
+</tr>
+</tbody></table>
+<h5 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h5><p>一般 etcd 的集群为 3 或 5 个节点，Key 数量为 10w~ 规模下，预估集群性能如下：</p>
+<ol>
+<li>写请求只有 Leader 才能处理，所以写性能不随节点数增加而增加，只取决于单机配置，处理量级大概为 1w~ QPS，平均延迟在 10ms~50ms。</li>
+<li>串行读取所有节点均可处理，无需共识，处理量级大概为 10w~ QPS，平均延迟在 5ms 以内。</li>
+<li>线性读取所有节点均可处理，但需要请求 Leader 获取 ReadIndex，性能会稍差，节点数对其提升有限，且容易受写请求影响，处理量级大概为 10w QPS，平均延迟在 10ms 以内。</li>
+</ol>
+<h4 id="适用场景"><a href="#适用场景" class="headerlink" title="适用场景"></a>适用场景</h4><p>综合目标系统和 etcd 本身的细节来看：</p>
+<ol>
+<li>首先，不建议将 etcd 用于目标系统的数据面。例如，配置中心产品，不适合使用 etcd 作为存储；</li>
+<li>其次，谨慎将 etcd 用于对数据分片和水平扩展有要求的控制面系统。例如：跨可用区的服务发现，可以对服务类型进行区分，尽量减少多个可用区之间需要复制同步的服务数据量。</li>
+<li>最后，etcd 租约、变更通知等功能的复杂度偏高。技术可控要求较高的系统，应谨慎使用相关功能。</li>
+</ol>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/01-27-2023/etcd-implement-and-tech-selection.html">https://www.cyningsun.com/01-27-2023/etcd-implement-and-tech-selection.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/02-14-2023/details-about-redis-cluster.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/11-13-2022/design-patterns-for-container-based-distributed-systems-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

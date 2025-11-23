@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>CSS标准(1)-特性和值</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2014-04-18 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-09-05 00:00:00 +0800"/>
+
+<meta property="og:url" content="/04-18-2014/css-standard-one.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="选择器的特异度1.第一等：代表内联样式，如: style&amp;#x3D;””，权值为1000。2.第二等：代表ID选择器，如：#content，权值为100。3.第三等：代表类，伪类和属性选择器，如.content，权值为10。4.第四等：代表类型选择器和伪元素选择器，如div p，权值为1。 * &amp;#123;&amp;#125; /* a=0 b=0 c=0 d=0 ">
+
+<meta name="keywords" content="css">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>CSS标准(1)-特性和值</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2014-04-18
+         | 
+        Last Revised: 2020-09-05
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%89%E6%8B%A9%E5%99%A8%E7%9A%84%E7%89%B9%E5%BC%82%E5%BA%A6"><span class="toc-text">选择器的特异度</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CSS-%E5%B1%82%E5%8F%A0%E9%A1%BA%E5%BA%8F-Cascading-order"><span class="toc-text">CSS 层叠顺序( Cascading order )</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#CSS-%E5%B0%BA%E5%AF%B8"><span class="toc-text">CSS 尺寸</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5"><span class="toc-text">参考链接</span></a></li></ol>
+ 
+        <h3 id="选择器的特异度"><a href="#选择器的特异度" class="headerlink" title="选择器的特异度"></a>选择器的特异度</h3><p>1.第一等：代表内联样式，如: style&#x3D;””，权值为1000。<br>2.第二等：代表ID选择器，如：#content，权值为100。<br>3.第三等：代表类，伪类和属性选择器，如.content，权值为10。<br>4.第四等：代表类型选择器和伪元素选择器，如div p，权值为1。   </p>
+<pre><code class="hljs css">* &#123;&#125; <span class="hljs-comment">/* a=0 b=0 c=0 d=0 -&gt; specificity = 0,0,0,0 */</span>
+<span class="hljs-selector-tag">li</span> &#123;&#125; <span class="hljs-comment">/* a=0 b=0 c=0 d=1 -&gt; specificity = 0,0,0,1 */</span>
+<span class="hljs-selector-tag">li</span><span class="hljs-selector-pseudo">:first</span>-line &#123;&#125; <span class="hljs-comment">/* a=0 b=0 c=0 d=2 -&gt; specificity = 0,0,0,2 */</span>
+<span class="hljs-selector-tag">ul</span> <span class="hljs-selector-tag">li</span> &#123;&#125; <span class="hljs-comment">/* a=0 b=0 c=0 d=2 -&gt; specificity = 0,0,0,2 */</span>
+<span class="hljs-selector-tag">ul</span> <span class="hljs-selector-tag">ol</span>+<span class="hljs-selector-tag">li</span> &#123;&#125; <span class="hljs-comment">/* a=0 b=0 c=0 d=3 -&gt; specificity = 0,0,0,3 */</span>
+<span class="hljs-selector-tag">h1</span> + *<span class="hljs-selector-attr">[rel=up]</span>&#123;&#125; <span class="hljs-comment">/* a=0 b=0 c=1 d=1 -&gt; specificity = 0,0,1,1 */</span>
+<span class="hljs-selector-tag">ul</span> <span class="hljs-selector-tag">ol</span> <span class="hljs-selector-tag">li</span><span class="hljs-selector-class">.red</span> &#123;&#125; <span class="hljs-comment">/* a=0 b=0 c=1 d=3 -&gt; specificity = 0,0,1,3 */</span>
+<span class="hljs-selector-tag">li</span><span class="hljs-selector-class">.red</span><span class="hljs-selector-class">.level</span> &#123;&#125; <span class="hljs-comment">/* a=0 b=0 c=2 d=1 -&gt; specificity = 0,0,2,1 */</span>
+<span class="hljs-selector-id">#x34y</span> &#123;&#125; <span class="hljs-comment">/* a=0 b=1 c=0 d=0 -&gt; specificity = 0,1,0,0 */</span>
+style=&quot;&quot; <span class="hljs-comment">/* a=1 b=0 c=0 d=0 -&gt; specificity = 1,0,0,0 */</span></code></pre>
+<p>现在，应用上面的规则，计算例子中各个样式的特殊性的值，结果为：</p>
+<iframe width="100%" height="200" src="http://jsfiddle.net/cyningsun/tDEXp/embedded/result,html,css/" allowfullscreen="allowfullscreen" frameborder="0"></iframe>
+
+<h3 id="CSS-层叠顺序-Cascading-order"><a href="#CSS-层叠顺序-Cascading-order" class="headerlink" title="CSS 层叠顺序( Cascading order )"></a>CSS 层叠顺序( Cascading order )</h3><p>1.根据 CSS 样式的来源和重要性(是否含 !important )，给出了优先级的升序排列：  </p>
+<blockquote>
+<p>1.用户端声明( UA declarations )<br>2.一般用户声明( user normal declarations )<br>3.一般作者声明( author normal declarations )<br>4.加了 ‘!important’ 的作者声明( author important declarations )<br>5.加了 ‘!important’ 的用户声明( user important declarations ) </p>
+</blockquote>
+<p>2.拥有相同重要性和来源的规则，按照 CSS specificity 来排序。<br>3.最后，根据先后次序来排列：如果两条规则具有相同的权重，相同的来源和相同的选择器特殊性，则后出现的规则超越先出现的规则.  </p>
+<h3 id="CSS-尺寸"><a href="#CSS-尺寸" class="headerlink" title="CSS 尺寸"></a>CSS 尺寸</h3><p><strong>em</strong>：em指字体高，任意浏览器的默认字体高都是16px。所以未经调整的浏览器都符合：1em&#x3D;16px。那么12px&#x3D;0.75em。但是em并不是固定的，它会继承父级元素的字体大小。<br><strong>pt</strong>：pt是一个绝对值,它等于1&#x2F;72英寸。在css中pt要在屏幕上显示，必须先把以 pt 为单位的长度转换为以像素为单位的长度。例如，无论在哪个操作系统中，Firefox 浏览器默认的 DPI 都是 96，那么实际上 9pt &#x3D; 9 * 1&#x2F;72 * 96 &#x3D; 12px。  </p>
+<blockquote>
+<p>虽然pt是绝对单位，但是那只是针对输出设备而言的，在文字排版工具（word，abobe）中是非常有用的字体单位。不管显示器的分辨率是多少，打印在纸面上的结果是一样的。但是网页主要为了屏幕显示，而不是为了打印等其他需要的。</p>
+</blockquote>
+<p><strong>px</strong>：px就是对应设备的物理像素，然而如果输出设备的解析度与电脑显示器大不相同，输出效果就会有问题。CSS规定，在这种情况下，浏览器应该对像素值进行缩放调节，以保持阅读体验的大体一致。也就是要保持一定像素的长度在不同设备输出上看上去的大小总是差不多。CSS转换是按照“参考像素”（reference pixel）来进行。 眼睛看到的大小，取决于可视角度。而可视角度取决于物体的实际大小以及物体与眼睛的距离。10米远处一个1米见方的东西，与1米远处的10厘米见方的东西，看上去的大小差不多是一样的.(如下图)<br><img src="/images/css-standard/px.jpg" alt="css-px"></p>
+<p>因此CSS规范使用视角来定义“参考像素”，1参考像素即为从一臂之遥看解析度为96DPI的设备输出（即1英寸96点）时，1点（即1&#x2F;96英寸）的视角。px可被视为一个基准单位——与桌面分辨率一致，如果是液晶屏，则几乎总是与液晶屏物理分辨率一致——也就是说网页设计者设定的1px，就是“最终看到这个网页的用户的显示器上的1个点距”！反倒是那些绝对单位，其实一点也不绝对。因为绝对单位比如cm或者pt，显示在屏幕上时最后还是要换算为像素，而且这种换算不是按照像素的实际物理长度来换算的（浏览器不用知道，也不可能知道当前这台显示器的1px物理长度到底是多少），而是按照桌面设定的DPI计算的。</p>
+<h3 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h3><p><a target="_blank" rel="noopener" href="http://hax.iteye.com/blog/374323">http://hax.iteye.com/blog/374323</a><br><a target="_blank" rel="noopener" href="http://www.zhihu.com/question/20088580/answer/13935004">http://www.zhihu.com/question/20088580/answer/13935004</a>        </p>
+<p>(完)</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/04-18-2014/css-standard-one.html">https://www.cyningsun.com/04-18-2014/css-standard-one.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-18-2014/basic-knowledge-about-android-screen.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-17-2014/multiplexing-in-thrift-enhancing-thrift-to-meet-enterprise-expectations.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

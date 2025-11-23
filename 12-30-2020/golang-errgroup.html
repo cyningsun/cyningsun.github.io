@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Golang Concurrency：sync.errgroup</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-12-30 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-12-31 00:00:00 +0800"/>
+
+<meta property="og:url" content="/12-30-2020/golang-errgroup.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景在开发中，经常会遇到一个接口需要组合多种数据返回的情况，并且所有数据必须全部成功，否则就需要返回错误。以下图的微博举例： 一条微博由两部分数据组成：博主 + 微博。如果需要完整显示这条微博，两者缺一不可。微博的URL为 https://weibo.com/1227368500/H3GIgngon，构成为：协议:&amp;#x2F;&amp;#x2F;域名&amp;#x2F;用">
+
+<meta name="keywords" content="Concurrency,并发控制,Parallelism,errgroup">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Golang Concurrency：sync.errgroup</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-12-30
+         | 
+        Last Revised: 2020-12-31
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在开发中，经常会遇到一个接口需要组合多种数据返回的情况，并且所有数据必须全部成功，否则就需要返回错误。以下图的微博举例：</p>
+<p><img src="/images/golang-errgroup/weibo.png" alt="golang-errgroup"></p>
+<p>一条微博由两部分数据组成：<code>博主</code> + <code>微博</code>。如果需要完整显示这条微博，两者缺一不可。微博的URL为 <a target="_blank" rel="noopener" href="https://weibo.com/1227368500/H3GIgngon"><code>https://weibo.com/1227368500/H3GIgngon</code></a>，构成为：协议:&#x2F;&#x2F;域名&#x2F;用户ID&#x2F;微博mid。由于提前知道 <code>博主ID</code> 和 <code>微博ID</code>，因此在读取的时候可以并发两个请求分别获取 <code>博主</code> 和 <code>微博</code> 数据。</p>
+<h3 id="并发控制"><a href="#并发控制" class="headerlink" title="并发控制"></a>并发控制</h3><p>在并发获取数据的时候，会遇到两种异常情况：</p>
+<ol>
+<li>请求出错</li>
+<li>请求超时</li>
+</ol>
+<p>由于两部分数据缺一不可，无论哪个请求出现异常，此时再继续处理该请求都毫无意义，此时最好的做法是：</p>
+<ol>
+<li>停止仍在处理中的请求</li>
+<li>将第一个异常返回给用户</li>
+</ol>
+<p><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Fail-fast">快速失败(Fail-fast)</a> 带来的好处显而易见：</p>
+<ol>
+<li>停止无效的请求，减少资源资源</li>
+<li>快速返回，方便用户再次重试，降低偶然出错的影响</li>
+</ol>
+<h3 id="sync-errgroup"><a href="#sync-errgroup" class="headerlink" title="sync.errgroup"></a>sync.errgroup</h3><p>那么，Go 语言中该怎么实现呢？ golang 提供了一个很好用的小组件：<code>errgroup</code>。仍然以微博为例，来演示如何使用该函数：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> (
+	<span class="hljs-string">&quot;context&quot;</span>
+	<span class="hljs-string">&quot;fmt&quot;</span>
+	<span class="hljs-string">&quot;golang.org/x/sync/errgroup&quot;</span>
+	<span class="hljs-string">&quot;os&quot;</span>
+)
+
+<span class="hljs-keyword">var</span> (
+	Blogger   = find(<span class="hljs-string">&quot;1227368500&quot;</span>)
+	Weibo = find(<span class="hljs-string">&quot;H3GIgngon&quot;</span>)
+)
+
+<span class="hljs-keyword">type</span> Result <span class="hljs-type">string</span>
+<span class="hljs-keyword">type</span> Find <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-type">string</span>)</span></span> (Result, <span class="hljs-type">error</span>)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">find</span><span class="hljs-params">(kind <span class="hljs-type">string</span>)</span></span> Find &#123;
+	<span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(_ context.Context, query <span class="hljs-type">string</span>)</span></span> (Result, <span class="hljs-type">error</span>) &#123;
+		<span class="hljs-keyword">return</span> Result(fmt.Sprintf(<span class="hljs-string">&quot;%s result for %q&quot;</span>, kind, query)), <span class="hljs-literal">nil</span>
+	&#125;
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+	SinaWeibo := <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(ctx context.Context, query <span class="hljs-type">string</span>)</span></span> ([]Result, <span class="hljs-type">error</span>) &#123;
+		g, ctx := errgroup.WithContext(ctx)
+
+		finds := []Find&#123;Blogger, Weibo&#125;
+		results := <span class="hljs-built_in">make</span>([]Result, <span class="hljs-built_in">len</span>(finds))
+		<span class="hljs-keyword">for</span> i, find := <span class="hljs-keyword">range</span> finds &#123;
+			i, find := i, find <span class="hljs-comment">// https://golang.org/doc/faq#closures_and_goroutines</span>
+			g.Go(<span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> <span class="hljs-type">error</span> &#123;
+				result, err := find(ctx, query)
+				<span class="hljs-keyword">if</span> err == <span class="hljs-literal">nil</span> &#123;
+					results[i] = result
+				&#125;
+				<span class="hljs-keyword">return</span> err
+			&#125;)
+		&#125;
+		<span class="hljs-keyword">if</span> err := g.Wait(); err != <span class="hljs-literal">nil</span> &#123;
+			<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, err
+		&#125;
+		<span class="hljs-keyword">return</span> results, <span class="hljs-literal">nil</span>
+	&#125;
+
+	results, err := SinaWeibo(context.Background(), <span class="hljs-string">&quot;https://weibo.com/1227368500/H3GIgngon&quot;</span>)
+	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+		fmt.Fprintln(os.Stderr, err)
+		<span class="hljs-keyword">return</span>
+	&#125;
+	<span class="hljs-keyword">for</span> _, result := <span class="hljs-keyword">range</span> results &#123;
+		fmt.Println(result)
+	&#125;
+
+&#125;</code></pre>
+
+<p><code>errgroup</code> 使用 Context 来控制超时，使用 Go() 函数返回的第一个错误来停止所有协程。使用 <code>errgroup</code> 尤其需要小心踩坑 <a target="_blank" rel="noopener" href="https://golang.org/doc/faq#closures_and_goroutines"><code>闭包</code></a> 问题</p>
+<h3 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h3><p>那么 <code>errgroup</code> 究竟是如何实现的呢？<code>errgroup</code> 简单的令人惊讶，却功能强大。代码+注释不过六十余行，值得仔细品味。源码如下：</p>
+<pre><code class="hljs go"><span class="hljs-comment">// Package errgroup provides synchronization, error propagation, and Context</span>
+<span class="hljs-comment">// cancelation for groups of goroutines working on subtasks of a common task.</span>
+<span class="hljs-keyword">package</span> errgroup
+
+<span class="hljs-keyword">import</span> (
+	<span class="hljs-string">&quot;context&quot;</span>
+	<span class="hljs-string">&quot;sync&quot;</span>
+)
+
+<span class="hljs-comment">// A Group is a collection of goroutines working on subtasks that are part of</span>
+<span class="hljs-comment">// the same overall task.</span>
+<span class="hljs-comment">//</span>
+<span class="hljs-comment">// A zero Group is valid and does not cancel on error.</span>
+<span class="hljs-keyword">type</span> Group <span class="hljs-keyword">struct</span> &#123;
+	cancel <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span>
+
+	wg sync.WaitGroup
+
+	errOnce sync.Once
+	err     <span class="hljs-type">error</span>
+&#125;
+
+<span class="hljs-comment">// WithContext returns a new Group and an associated Context derived from ctx.</span>
+<span class="hljs-comment">//</span>
+<span class="hljs-comment">// The derived Context is canceled the first time a function passed to Go</span>
+<span class="hljs-comment">// returns a non-nil error or the first time Wait returns, whichever occurs</span>
+<span class="hljs-comment">// first.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">WithContext</span><span class="hljs-params">(ctx context.Context)</span></span> (*Group, context.Context) &#123;
+	ctx, cancel := context.WithCancel(ctx)
+	<span class="hljs-keyword">return</span> &amp;Group&#123;cancel: cancel&#125;, ctx
+&#125;
+
+<span class="hljs-comment">// Wait blocks until all function calls from the Go method have returned, then</span>
+<span class="hljs-comment">// returns the first non-nil error (if any) from them.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> Wait() <span class="hljs-type">error</span> &#123;
+	g.wg.Wait()
+	<span class="hljs-keyword">if</span> g.cancel != <span class="hljs-literal">nil</span> &#123;
+		g.cancel()
+	&#125;
+	<span class="hljs-keyword">return</span> g.err
+&#125;
+
+<span class="hljs-comment">// Go calls the given function in a new goroutine.</span>
+<span class="hljs-comment">//</span>
+<span class="hljs-comment">// The first call to return a non-nil error cancels the group; its error will be</span>
+<span class="hljs-comment">// returned by Wait.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> Go(f <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> <span class="hljs-type">error</span>) &#123;
+	g.wg.Add(<span class="hljs-number">1</span>)
+
+	<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123;
+		<span class="hljs-keyword">defer</span> g.wg.Done()
+
+		<span class="hljs-keyword">if</span> err := f(); err != <span class="hljs-literal">nil</span> &#123;
+			g.errOnce.Do(<span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123;
+				g.err = err
+				<span class="hljs-keyword">if</span> g.cancel != <span class="hljs-literal">nil</span> &#123;
+					g.cancel()
+				&#125;
+			&#125;)
+		&#125;
+	&#125;()
+&#125;</code></pre>
+
+
+<h3 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h3><ol>
+<li>除了官方实现，其实 bilbil 也有类似实现 <a target="_blank" rel="noopener" href="https://github.com/bilibili/kratos/blob/master/pkg/sync/errgroup/errgroup.go">bilbil&#x2F;kratos</a>。为什么官方库却没有选择实现以下两个功能？：<blockquote>
+<ul>
+<li>最大并发限制</li>
+<li>panic 恢复</li>
+</ul>
+</blockquote>
+</li>
+<li>同样以微博为例，用户访问微博的时候，同样需要获取“评论数”、“点赞数”、“是否已关注”。不同的是，这些数据并非关键数据，获取失败却不影响用户查看微博。因此，在<strong>官宣恋情婚讯</strong> 的高峰期，其实可以尽力提供服务。那么非关键数据，如何实现 <strong>尽力</strong> 并发获取？</li>
+</ol>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/12-30-2020/golang-errgroup.html">https://www.cyningsun.com/12-30-2020/golang-errgroup.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/01-11-2021/golang-concurrency-singleflight.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/12-27-2020/optimal-logging-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

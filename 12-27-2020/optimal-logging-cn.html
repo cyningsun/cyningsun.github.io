@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜Optimal Logging</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-12-27 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-12-27 00:00:00 +0800"/>
+
+<meta property="og:url" content="/12-27-2020/optimal-logging-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="找到系统故障的根本原因，需要多长时间？5分钟？还是5天？如果你的答案接近5分钟，那么你的生产系统和测试很大可能有非常好的日志记录。更常见的情况是，诸如日志、异常处理、甚至测试这类非核心的工作，被当作一种出现问题后的补救方式。同异常处理和测试一样，在系统和测试中都需要日志记录的策略。永远不要低估日志的作用。最佳的日志记录，甚至可以替代调试器。以下是这些年来对我">
+
+<meta name="keywords" content="Logging,日志">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜Optimal Logging</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-12-27
+         | 
+        Last Revised: 2020-12-27
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <p>找到系统故障的根本原因，需要多长时间？5分钟？还是5天？如果你的答案接近5分钟，那么你的生产系统和测试很大可能有非常好的日志记录。更常见的情况是，诸如日志、异常处理、甚至测试这类非核心的工作，被当作一种出现问题后的补救方式。同异常处理和测试一样，在系统和测试中都需要日志记录的策略。永远不要低估日志的作用。最佳的日志记录，甚至可以替代调试器。以下是这些年来对我有用的一些指导原则。</p>
+<h3 id="保持适度"><a href="#保持适度" class="headerlink" title="保持适度"></a>保持适度</h3><p>切勿记录过多。日志占用大量的磁盘空间说明你没有想过应该记录什么。如果记录太多，则需要设计复杂的方法以减少磁盘访问、保留日志历史记录、归档大量数据以及查询大型日志数据集。更重要的是，很难在啰嗦的数据中找出有价值的信息。</p>
+<p>记录太少比记录太多更糟糕，记录的过少。日志记录通常有两个主要目标：帮助进行错误调查和事件确认。如果您的日志无法解释错误的原因或某个事务是否发生，则说明日志记录太少。</p>
+<p>要记录的：</p>
+<ul>
+<li>重要启动配置</li>
+<li>错误</li>
+<li>警告</li>
+<li>对持久化数据的更改</li>
+<li>主要系统组件间的请求和响应</li>
+<li>重要的状态变化</li>
+<li>用户交互</li>
+<li>具有已知失败风险的调用</li>
+<li>可能需要一定时间才能满足条件的等待</li>
+<li>长时间运行任务的定期进度</li>
+<li>逻辑的重要分支点和导致分支的条件</li>
+<li>高层级函数的”处理步骤”和”事件”的摘要——避免在低层级函数中记录复杂过程的每个步骤。</li>
+</ul>
+<p>不适合记录的：</p>
+<ul>
+<li>函数入口——不要记录函数入口，除非重要或者以调试级别记录日志。</li>
+<li>循环中的数据——避免在循环的多次迭代中记录日志。在小循环的迭代或大循环中定期记录日志是可以的。</li>
+<li>大型消息或文件的内容——以对调试有用的方式截断或汇总数据。</li>
+<li>良性错误——那些不是真正错误的错误会让阅读日志的人感到困惑。当异常处理是成功的执行流程的一部分，有时会发生。</li>
+<li>重复的错误——不要重复的记录相同或相似的错误。这样会快速的填满日志，并且隐藏掉真正的问题。错误类型的频率最好通过监控来处理。日志只需要捕获部分错误的详细信息</li>
+</ul>
+<h3 id="多个日志级别"><a href="#多个日志级别" class="headerlink" title="多个日志级别"></a>多个日志级别</h3><p>不要以同一日志级别记录所有内容。大多数日志库都提供几种日志级别，可以在系统启动时启用某些级别。这样可以方便的控制日志详细程度。</p>
+<p>典型的级别有：</p>
+<ul>
+<li>Debug：详细，只有在开发或调试时有用。</li>
+<li>Info：最常见的级别。</li>
+<li>Warning：奇怪或意外但可接受的状态。</li>
+<li>Error：有错误发生，但进程可以恢复。</li>
+<li>Critical：进程无法恢复，系统将关闭或者重启。</li>
+</ul>
+<p>实际上，只需要两种日志配置：</p>
+<ul>
+<li>生产：除调试级别外，所有级别都已启用。如果生产中出了问题，日志应该能揭示原因。</li>
+<li>开发、调试：编写新代码或是尝试复现问题时，打开全部级别。</li>
+</ul>
+<h3 id="测试日志同样重要"><a href="#测试日志同样重要" class="headerlink" title="测试日志同样重要"></a>测试日志同样重要</h3><p>测试和生产代码的日志质量同样重要。当测试失败时，日志应当明确的显示失败是来自测试还是生产系统。如果做不到，那么测试的日志是有问题的。</p>
+<p>测试日志应该包括：</p>
+<ul>
+<li>测试执行环境</li>
+<li>初始状态</li>
+<li>设置步骤</li>
+<li>测试用例步骤</li>
+<li>与系统的交互</li>
+<li>期望的结果</li>
+<li>实际的结果</li>
+<li>清理步骤</li>
+</ul>
+<h3 id="利用临时日志队列实现基于条件的详细程度控制"><a href="#利用临时日志队列实现基于条件的详细程度控制" class="headerlink" title="利用临时日志队列实现基于条件的详细程度控制"></a>利用临时日志队列实现基于条件的详细程度控制</h3><p>当发生错误时，日志应该包含很多细节。不幸的是，一旦遇到错误，导致错误发生的详细信息可能已经无法获得了。另外，如果遵从“不要过多记录日志”的建议，在错误记录之前的日志记录可能无法提供足够的细节。一个解决这个问题的好方法是，在内存中创建临时的日志队列。在事务处理的整个过程中，将每一步的详尽信息追加到队列中。如果事务成功完成，则丢弃队列记录摘要。如果遇到错误，请记录整个队列的内容和错误。该技术对于系统交互的测试日志记录特别有用。</p>
+<h3 id="失败和不可靠都是机遇"><a href="#失败和不可靠都是机遇" class="headerlink" title="失败和不可靠都是机遇"></a>失败和不可靠都是机遇</h3><p>当生产问题出现时，你会专注于寻找和修复问题，但你还应该想到日志。如果你费了很大力气才找到错误的原因，这将是个非常好的机会来改善你的日志。在解决问题之前，先修复日志，以便日志清楚地显示原因。如果该问题再发生，就更容易识别了。</p>
+<p>如果无法复现问题，或者有一个不可靠的测试。增强日志，以便在问题再次发生时跟踪问题。</p>
+<p>在整个开发过程中，应该使用失败来改进日志记录。在编写新代码时，尽量避免使用调试器，只使用日志。日志能够显示发生了什么吗？如果不能，日志记录就不充分。</p>
+<h3 id="最好记录性能数据"><a href="#最好记录性能数据" class="headerlink" title="最好记录性能数据"></a>最好记录性能数据</h3><p>记录的计时数据可以帮助调试性能问题。例如，在大型系统中确定超时的原因可能非常困难，除非您可以跟踪每个重要处理步骤所花费的时间。这可以通过记录调用的开始和结束时间来轻松完成，可能会比较耗时的调用包括：</p>
+<ul>
+<li>重要的系统调用</li>
+<li>网络请求</li>
+<li>CPU密集运算</li>
+<li>连接设备的交互</li>
+<li>事务</li>
+</ul>
+<h3 id="在多线程-x2F-进程中追踪痕迹"><a href="#在多线程-x2F-进程中追踪痕迹" class="headerlink" title="在多线程&#x2F;进程中追踪痕迹"></a>在多线程&#x2F;进程中追踪痕迹</h3><p>为涉及跨多个线程和&#x2F;或进程处理的事务创建唯一标识符。事务的发起方应该创建ID，并且将它传递给为事务执行工作的每个组件。在记录有关事务的信息时，每个组件都应该记录这个ID。在并发处理多个事务时，跟踪特定事务更加容易。</p>
+<h3 id="监控和日志相辅相成"><a href="#监控和日志相辅相成" class="headerlink" title="监控和日志相辅相成"></a>监控和日志相辅相成</h3><p>生产服务应该同时具有日志记录和监控功能。监控提供系统状态的实时统计摘要。在某些请求类型出现一定比例失败、遇到异常流量模式、性能下降或者其他异常情况发生时，向你发出警报。在某些情况下，仅此信息就可以显示问题的原因。但是，在大多数情况下，监控警报只是启动调查的触发器。监控显示问题的症状；日志提供单个事务的详细信息和状态，据此您可以完全理解问题的原因。</p>
+<p><em>原文： <a target="_blank" rel="noopener" href="https://testing.googleblog.com/2013/06/optimal-logging.html">Optimal Logging</a></em></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/12-27-2020/optimal-logging-cn.html">https://www.cyningsun.com/12-27-2020/optimal-logging-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/12-30-2020/golang-errgroup.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/12-15-2020/system-design-concept-and-relation.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

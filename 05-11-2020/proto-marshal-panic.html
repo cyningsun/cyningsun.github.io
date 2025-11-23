@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>使用 go race 排查 protobuf Marshal Panic</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-05-11 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-09-06 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-11-2020/proto-marshal-panic.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景介绍在斋月节大促压测期间，有一个业务压测发现，有一个RPC调用，在高并发的情况下出现panic，而panic的位置是在微服务框架序列化的位置(proto.Marshal)。但是由于框架在近期没有做什么变更，而且业务最近也没上线什么新的需求。所有的Panic仅在并发量较高的时候偶然出现，并且被框架的recover捕获，因此判定此问题已经在线上很久，只是由于">
+
+<meta name="keywords" content="protobuf,Panic,Crash,golang,race">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>使用 go race 排查 protobuf Marshal Panic</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-05-11
+         | 
+        Last Revised: 2020-09-06
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF%E4%BB%8B%E7%BB%8D"><span class="toc-text">背景介绍</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5"><span class="toc-text">问题排查</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E5%8F%8D%E6%80%9D"><span class="toc-text">问题反思</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93%E4%BC%98%E5%8C%96"><span class="toc-text">总结优化</span></a></li></ol>
+ 
+        <h3 id="背景介绍"><a href="#背景介绍" class="headerlink" title="背景介绍"></a>背景介绍</h3><p>在斋月节大促压测期间，有一个业务压测发现，有一个RPC调用，在高并发的情况下出现panic，而panic的位置是在微服务框架序列化的位置(proto.Marshal)。但是由于框架在近期没有做什么变更，而且业务最近也没上线什么新的需求。所有的Panic仅在并发量较高的时候偶然出现，并且被框架的recover捕获，因此判定此问题已经在线上很久，只是由于出现的概率较低没有被发现。</p>
+<p>示例代码：</p>
+<pre><code class="hljs go"><span class="hljs-number">2020</span>/<span class="hljs-number">05</span>/<span class="hljs-number">11</span> <span class="hljs-number">19</span>:<span class="hljs-number">56</span>:<span class="hljs-number">32</span> http: <span class="hljs-built_in">panic</span> serving <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>:<span class="hljs-number">59816</span>: runtime <span class="hljs-type">error</span>: index out of <span class="hljs-keyword">range</span>
+goroutine <span class="hljs-number">20</span> [running]:
+net/http.(*conn).serve.func1(<span class="hljs-number">0xc00015e0a0</span>)
+	/usr/local/Cellar/<span class="hljs-keyword">go</span>@<span class="hljs-number">1.12</span>/<span class="hljs-number">1.12</span><span class="hljs-number">.13</span>/libexec/src/net/http/server.<span class="hljs-keyword">go</span>:<span class="hljs-number">1769</span> +<span class="hljs-number">0x139</span>
+<span class="hljs-built_in">panic</span>(<span class="hljs-number">0x13c1cc0</span>, <span class="hljs-number">0x175ad90</span>)
+	/usr/local/Cellar/<span class="hljs-keyword">go</span>@<span class="hljs-number">1.12</span>/<span class="hljs-number">1.12</span><span class="hljs-number">.13</span>/libexec/src/runtime/<span class="hljs-built_in">panic</span>.<span class="hljs-keyword">go</span>:<span class="hljs-number">522</span> +<span class="hljs-number">0x1b5</span>
+github.com/cyningsun/<span class="hljs-keyword">go</span>-test/<span class="hljs-number">20200508</span>-<span class="hljs-keyword">go</span>-race/pb.encodeVarintPerson(<span class="hljs-number">0xc000228ec0</span>, <span class="hljs-number">0x3c</span>, <span class="hljs-number">0x3c</span>, <span class="hljs-number">0x3c</span>, <span class="hljs-number">0x1f</span>, <span class="hljs-number">0x3b</span>)
+	/Users/yinhang.sun/Documents/workspace/src/github.com/cyningsun/<span class="hljs-keyword">go</span>-test/<span class="hljs-number">20200508</span>-<span class="hljs-keyword">go</span>-race/pb/person.pb.<span class="hljs-keyword">go</span>:<span class="hljs-number">146</span> +<span class="hljs-number">0x6a</span>
+
+		...
+		
+	/Users/yinhang.sun/Documents/workspace/src/github.com/cyningsun/<span class="hljs-keyword">go</span>-test/<span class="hljs-number">20200508</span>-<span class="hljs-keyword">go</span>-race/pb/person.pb.<span class="hljs-keyword">go</span>:<span class="hljs-number">47</span> +<span class="hljs-number">0x5b</span>
+github.com/gogo/protobuf/proto.Marshal(<span class="hljs-number">0x14af2e0</span>, <span class="hljs-number">0xc0000bc040</span>, <span class="hljs-number">0x1</span>, <span class="hljs-number">0x140e400</span>, <span class="hljs-number">0xc0000bc040</span>, <span class="hljs-number">0xc00015c001</span>, <span class="hljs-number">0x0</span>)
+
+		...
+		
+	/usr/local/Cellar/<span class="hljs-keyword">go</span>@<span class="hljs-number">1.12</span>/<span class="hljs-number">1.12</span><span class="hljs-number">.13</span>/libexec/src/net/http/server.<span class="hljs-keyword">go</span>:<span class="hljs-number">2884</span> +<span class="hljs-number">0x2f4</span></code></pre>
+
+<p>由于报错的结构体是业务最常用的一个，且报错的接口逻辑较深，通读代码也没有发现明显的点（其实是代码量太大了，很难关注的到）。报错又出现在框架层，panic 调用栈并没有提供任何有效信息。</p>
+<h3 id="问题排查"><a href="#问题排查" class="headerlink" title="问题排查"></a>问题排查</h3><p>经过背景的一系列分析之后，所有的排查思路都被打断了。好在我们发现报错的错误类型是<code>index out of range</code>，通过阅读proto.Marshal的代码之后发现，此函数分为三步：</p>
+<pre><code class="hljs go">siz := info.Size(pb)
+b := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</span>, <span class="hljs-number">0</span>, siz)
+<span class="hljs-keyword">return</span> info.Marshal(b, pb, <span class="hljs-literal">false</span>)</code></pre>
+
+<ol>
+<li>先获取结构体 Size</li>
+<li>然后按照 Size 创建字节数组</li>
+<li>将数据序列化到字节数组中</li>
+</ol>
+<p>因此，合理猜测是再获取 Size之后，Marshal之前，结构体的大小发生了变化。将 protobuf 的类型分类，可以排除固定长度的数值类型，剩下就是变长的 string 类型和 bytes 类型。虽然有了这个推论，由于发生panic的结构体十分复杂，还是很难定位到具体是哪个字段变化导致的。最后没有办法只有使用很笨的方法，修改 vendor 中的 protobuf 代码，添加日志，使用二分法，在info.Size()和info.Marshal()中打印字段的偏移量，并且在proto.Marshal中直接捕获发生panic的协程再打印数据，避免全部打印时panic请求与日志无法对应。然后对比排查，最终定位到了出现问题的字段，然后根据相关字段搜索相关代码，最终定位到了问题所在。</p>
+<h3 id="问题反思"><a href="#问题反思" class="headerlink" title="问题反思"></a>问题反思</h3><p>修复完问题之后，促使我们反思，难道排查类似的问题一定要如此艰难么，有没有什么通用的方案来排查类似的问题呢。从问题源头出发，该问题本质来说还是数据的协程并发访问题，有了这个结论再看我们手头的已有工具，golang race 工具 出现在眼前。</p>
+<p>理论上讲，可以在非生产环境打开 race 参数，辅助定位问题。说做就做，按照问题的原因，编写测试复现的test case</p>
+<p><strong>进程缓存</strong></p>
+<pre><code class="hljs go"><span class="hljs-keyword">const</span> Max = <span class="hljs-type">uint64</span>(<span class="hljs-number">1</span>)
+<span class="hljs-keyword">type</span> PersonCache <span class="hljs-keyword">struct</span> &#123;
+	c *gocache.Cache
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">NewPersonCache</span><span class="hljs-params">()</span></span> *PersonCache &#123;
+	one := &amp;PersonCache&#123;c:gocache.New(time.Minute, time.Hour)&#125;
+	<span class="hljs-keyword">go</span> one.load()
+	<span class="hljs-keyword">return</span> one
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *PersonCache)</span></span> load() &#123;
+	<span class="hljs-keyword">for</span> i:=<span class="hljs-type">uint64</span>(<span class="hljs-number">0</span>); i &lt; Max; i++&#123;
+		r :=  i % <span class="hljs-number">100</span>
+		key := strconv.FormatUint(r,<span class="hljs-number">10</span>)
+		newOne := &amp;pb.Person&#123;
+			Id:                   proto.Uint64(r),
+			Name:                 proto.String(<span class="hljs-string">&quot;init Name&quot;</span>),
+			Age:                  proto.Uint32(rand.Uint32()),
+			Address:   proto.String(<span class="hljs-string">&quot;init address&quot;</span>),
+		&#125;
+		p.c.Set(key, newOne, time.Minute)
+	&#125;
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(p *PersonCache)</span></span> Get(key <span class="hljs-type">string</span>) (*pb.Person,<span class="hljs-type">bool</span>) &#123;
+	ret, ok := p.c.Get(key)
+	<span class="hljs-keyword">if</span> !ok &#123;
+		<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span>, <span class="hljs-literal">false</span>
+	&#125;
+	<span class="hljs-keyword">return</span> ret.(*pb.Person),<span class="hljs-literal">true</span>
+&#125;</code></pre>
+
+
+
+<p><strong>并发访问</strong></p>
+<pre><code class="hljs go"><span class="hljs-keyword">const</span> letterBytes = <span class="hljs-string">&quot;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;</span>
+<span class="hljs-keyword">const</span> letterLength = <span class="hljs-built_in">len</span>(letterBytes)
+
+<span class="hljs-keyword">var</span> (
+	c = cache.NewPersonCache()
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">randString</span><span class="hljs-params">(n <span class="hljs-type">int</span>)</span></span> <span class="hljs-type">string</span> &#123;
+	b := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</span>, n)
+	<span class="hljs-keyword">for</span> i := <span class="hljs-keyword">range</span> b &#123;
+		b[i] = letterBytes[rand.Intn(<span class="hljs-built_in">len</span>(letterBytes))]
+	&#125;
+	<span class="hljs-keyword">return</span> <span class="hljs-type">string</span>(b)
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Write</span><span class="hljs-params">(w http.ResponseWriter, req *http.Request)</span></span> &#123;
+	r := rand.Uint64() % cache.Max
+	key := strconv.FormatUint(r, <span class="hljs-number">10</span>)
+	p, ok := c.Get(key)
+	<span class="hljs-keyword">if</span> !ok &#123;
+		<span class="hljs-keyword">return</span>
+	&#125;
+	p.Name = proto.String(randString(rand.Int()%letterLength))
+	time.Sleep(time.Nanosecond)
+	p.Address = proto.String(randString(rand.Int()%letterLength))
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Read</span><span class="hljs-params">(w http.ResponseWriter, req *http.Request)</span></span> &#123;
+	r :=  rand.Uint64() % cache.Max
+	key := strconv.FormatUint(r,<span class="hljs-number">10</span>)
+	p,ok := c.Get(key)
+	<span class="hljs-keyword">if</span> !ok &#123;
+		<span class="hljs-keyword">return</span>
+	&#125;
+	b,_ := proto.Marshal(p)
+	w.Write(b)
+&#125;
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+	http.HandleFunc(<span class="hljs-string">&quot;/read&quot;</span>, Read)
+	http.HandleFunc(<span class="hljs-string">&quot;/write&quot;</span>, Write)
+	fmt.Println(<span class="hljs-string">&quot;server is listening on 8080&quot;</span>)
+	http.ListenAndServe(<span class="hljs-string">&quot;:8080&quot;</span>, <span class="hljs-literal">nil</span>)
+&#125;</code></pre>
+
+
+
+<p><strong>压测脚本</strong></p>
+<pre><code class="hljs make"><span class="hljs-section">run:</span>
+	go run main.go &amp;&gt; normal.log
+
+<span class="hljs-section">racerun:</span>
+	go run -race main.go &amp;&gt; race.log 
+
+<span class="hljs-section">benchmark:</span>
+	wrk -t1 -c2 -d30s http://127.0.0.1:8080/read &amp;
+	wrk -t1 -c2 -d30s http://127.0.0.1:8080/write &amp;</code></pre>
+
+
+
+<p><strong>日志结果</strong></p>
+<pre><code class="hljs go">==================
+WARNING: DATA RACE
+Read at <span class="hljs-number">0x00c000188140</span> by goroutine <span class="hljs-number">11</span>:
+  github.com/cyningsun/<span class="hljs-keyword">go</span>-test/<span class="hljs-number">20200508</span>-<span class="hljs-keyword">go</span>-race/pb.(*Person).Size()
+	
+...
+
+Previous write at <span class="hljs-number">0x00c000188140</span> by goroutine <span class="hljs-number">55</span>:
+  main.Write()
+      /Users/yinhang.sun/Documents/workspace/src/github.com/cyningsun/<span class="hljs-keyword">go</span>-test/<span class="hljs-number">20200508</span>-<span class="hljs-keyword">go</span>-race/main.<span class="hljs-keyword">go</span>:<span class="hljs-number">39</span> +<span class="hljs-number">0x271</span>
+
+...
+</code></pre>
+
+<p>通过日志，可以很轻松的发现问题的原因。</p>
+<h3 id="总结优化"><a href="#总结优化" class="headerlink" title="总结优化"></a>总结优化</h3><p>以上过程促使我们优化非生产环境的运行脚本，通过编译参数控制 -race 参数的开关，当再遇到类似的问题时，可以快速复现、定位、修复。</p>
+<p><em>源码链接:</em></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/cyningsun/go-test/tree/master/20200508-go-race">https://github.com/cyningsun/go-test/tree/master/20200508-go-race</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html">https://www.cyningsun.com/05-11-2020/proto-marshal-panic.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-23-2020/why-version-is-important-when-coaching.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/05-03-2020/mobile-application-access-tech.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

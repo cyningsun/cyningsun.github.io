@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解Mybatis工作原理</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2014-10-15 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-01-25 00:00:00 +0800"/>
+
+<meta property="og:url" content="/10-15-2014/reading-mybatis-source-code.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="基本原理本文中Mybatis基本原理切入，同时摘录Mybatis的源码，理解Mybatis框架的工作原理。首先看一段JDBC代码： Class.forName(&amp;quot;com.mysql.jdbc.Driver&amp;quot;); String url = &amp;quot;jdbc:mysql://localhost:3306/localdb&amp;quot;; Co">
+
+<meta name="keywords" content="mybatis">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解Mybatis工作原理</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2014-10-15
+         | 
+        Last Revised: 2020-01-25
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86"><span class="toc-text">基本原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90"><span class="toc-text">源码解析</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%90%AF%E5%8A%A8%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90"><span class="toc-text">启动配置解析</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#SQL-%E5%8F%82%E6%95%B0-%E8%A7%A3%E6%9E%90%E4%B8%8E%E6%89%A7%E8%A1%8C"><span class="toc-text">SQL(参数)解析与执行</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BB%93%E6%9E%9C%E9%9B%86%E6%98%A0%E5%B0%84"><span class="toc-text">结果集映射</span></a></li></ol></li></ol>
+ 
+        <h3 id="基本原理"><a href="#基本原理" class="headerlink" title="基本原理"></a>基本原理</h3><p>本文中Mybatis基本原理切入，同时摘录Mybatis的源码，理解Mybatis框架的工作原理。首先看一段JDBC代码：</p>
+<pre><code class="hljs java">Class.forName(<span class="hljs-string">&quot;com.mysql.jdbc.Driver&quot;</span>);
+<span class="hljs-type">String</span> <span class="hljs-variable">url</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;jdbc:mysql://localhost:3306/localdb&quot;</span>;
+<span class="hljs-type">Connection</span> <span class="hljs-variable">con</span> <span class="hljs-operator">=</span> DriverManager.getConnection(url, <span class="hljs-string">&quot;root&quot;</span>,<span class="hljs-string">&quot;password&quot;</span>);			
+<span class="hljs-type">String</span> <span class="hljs-variable">sql</span> <span class="hljs-operator">=</span> <span class="hljs-string">&quot;SELECT name FROM t_test_employee WHERE id = ?&quot;</span>;
+<span class="hljs-type">PreparedStatement</span> <span class="hljs-variable">ps</span> <span class="hljs-operator">=</span> con.prepareStatement(sql);
+ps.setString(<span class="hljs-number">1</span>, <span class="hljs-string">&quot;123&quot;</span>);
+<span class="hljs-type">ResultSet</span> <span class="hljs-variable">rs</span> <span class="hljs-operator">=</span> ps.executeQuery();
+<span class="hljs-keyword">while</span>(rs.next())&#123;
+	System.out.println(<span class="hljs-string">&quot;name=&quot;</span> + rs.getString(<span class="hljs-number">1</span>));
+&#125;
+con.close();</code></pre>
+<p>大家应该比较熟悉这段代码，典型的jdbc流程: 建立连接-&gt;传递sql-&gt;传递参数-&gt;sql执行-&gt;处理结果-&gt;关闭连接。ORM框架的本质是抽取共性、封装逻辑。现在，如果我们来设计一个ORM框架该如何设计？<br>仔细考虑JDBC流程，可以发现流程中需要用户配置的输入和输出是变化的(如下，括号中部分)，而其他部分则是固定不变的逻辑。</p>
+<blockquote>
+<p>建立连接(数据源配置信息)-&gt;传递sql(sql语句)-&gt;传递参数(sql参数)-&gt;sql执行-&gt;处理结果(映射关系)-&gt;关闭连接</p>
+</blockquote>
+<p>数据源配置信息:配置文件，在启动时从配置文件中读取并建立数据源对象<br>Sql语句：配置文件(代码)，在启动时抽取解析，以&lt;Key,SQL&gt;的形式存储<br>Sql参数：java bean对象，在执行前从对象中抽取<br>映射关系：配置文件(代码)，根据映射关系读取结果集并创建java bean返回。    </p>
+<p>不难想象，Mybatis会在启动时”读取配置数据(builder)”，”建立数据源(datasource)”; 然后程序开始执行，传递sql语句的”Key”和java bean; 最后”执行SQL，处理结果(executor)”。 当然，Mybatis也要负责”连接管理(session)”和”事务管理(transaction)”等内容。</p>
+<h3 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h3><p>Mybatis的配置分为两种：基于XML配置和基于注解配置。两者的原理大同小异，在此仅以“基于注解配置”为例解析Mybatis。</p>
+<h4 id="启动配置解析"><a href="#启动配置解析" class="headerlink" title="启动配置解析"></a>启动配置解析</h4><p>“基于注解配置”一般使用Mybatis-Spring，其工作原理详见<a target="_blank" rel="noopener" href="http://cyningsun.github.io/08-17-2014/reading-mybatis-spring-source-code.html">深入理解Mybatis-Spring工作原理</a>，可以看到启动后所有Mapper的实现类被设置为了MapperFactoryBean，。MapperFactoryBean是一个工厂类，它通过SqlSession-Configuration-MapperRegistry得到Mapper的代理类MapperProxy，以实例化Mapper属性。</p>
+<h4 id="SQL-参数-解析与执行"><a href="#SQL-参数-解析与执行" class="headerlink" title="SQL(参数)解析与执行"></a>SQL(参数)解析与执行</h4><p>Mapper执行时调用MapperProxy的invoke方法，MapperProxy创建MapperMethod对象用于执行具体SQL，通过annotation获取得到参数化的sql语句，通过传递的参数获取SQL参数。</p>
+<pre><code class="hljs java"> <span class="hljs-keyword">public</span> <span class="hljs-title function_">MapperMethod</span><span class="hljs-params">(Class&lt;?&gt; mapperInterface, Method method, Configuration config)</span> &#123;
+<span class="hljs-comment">//解析annotation中的SQL语句</span>
+   <span class="hljs-built_in">this</span>.command = <span class="hljs-keyword">new</span> <span class="hljs-title class_">SqlCommand</span>(config, mapperInterface, method);
+<span class="hljs-comment">//处理sql，建立①param数组</span>
+   <span class="hljs-built_in">this</span>.method = <span class="hljs-keyword">new</span> <span class="hljs-title class_">MethodSignature</span>(config, method);
+ &#125;
+ 
+  <span class="hljs-keyword">public</span> Object <span class="hljs-title function_">execute</span><span class="hljs-params">(SqlSession sqlSession, Object[] args)</span> &#123;
+   Object result;
+   <span class="hljs-keyword">if</span> (SqlCommandType.INSERT == command.getType()) &#123; <span class="hljs-comment">//判断sql类型</span>
+  <span class="hljs-comment">//使用①param数组建立param-Object对应关系</span>
+     <span class="hljs-type">Object</span> <span class="hljs-variable">param</span> <span class="hljs-operator">=</span> method.convertArgsToSqlCommandParam(args);
+  <span class="hljs-comment">//执行sql并处理结果集的映射</span>
+     result = rowCountResult(sqlSession.insert(command.getName(), param));
+   &#125;
+...
+
+<span class="hljs-comment">//XXXExecutor.java</span>
+<span class="hljs-keyword">public</span> <span class="hljs-type">int</span> <span class="hljs-title function_">doUpdate</span><span class="hljs-params">(MappedStatement ms, Object parameter)</span> <span class="hljs-keyword">throws</span> SQLException &#123;
+   <span class="hljs-type">Statement</span> <span class="hljs-variable">stmt</span> <span class="hljs-operator">=</span> <span class="hljs-literal">null</span>;
+   <span class="hljs-keyword">try</span> &#123;
+     <span class="hljs-type">Configuration</span> <span class="hljs-variable">configuration</span> <span class="hljs-operator">=</span> ms.getConfiguration();
+     <span class="hljs-type">StatementHandler</span> <span class="hljs-variable">handler</span> <span class="hljs-operator">=</span> configuration.newStatementHandler(<span class="hljs-built_in">this</span>, ms, parameter, RowBounds.DEFAULT, <span class="hljs-literal">null</span>, <span class="hljs-literal">null</span>);
+  <span class="hljs-comment">//使用TypeHandler处理参数</span>
+     stmt = prepareStatement(handler, ms.getStatementLog());
+     <span class="hljs-keyword">return</span> handler.update(stmt);
+   &#125; <span class="hljs-keyword">finally</span> &#123;
+     closeStatement(stmt);
+   &#125;
+ &#125;</code></pre>
+
+<h4 id="结果集映射"><a href="#结果集映射" class="headerlink" title="结果集映射"></a>结果集映射</h4><p>略。</p>
+<p>以上即是Mybatis的大致原理，更详细的当然就是RTFC咯。Mybatis的实现很明了，功能相对简单，还有更多的东西可以去扩展，譬如：多数据源、数据库切分、缓存、连接管理等等。</p>
+<p>(完)</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/10-15-2014/reading-mybatis-source-code.html">https://www.cyningsun.com/10-15-2014/reading-mybatis-source-code.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/06-13-2015/vim-quickfix.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/09-22-2014/business-modeling.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

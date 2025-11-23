@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解 RocksDB Memtable Flush 机制</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2025-05-30 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-05-29 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-30-2025/rocksdb-memtable-flush.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="一、引言在 RocksDB 的核心机制中，Flush 操作扮演着至关重要的角色，它是连接内存数据结构 (Memtable) 和持久化存储 (SST 文件) 的桥梁。该机制不仅影响写入性能和内存使用效率，更直接关系到数据安全性和系统恢复速度。 本文将基于 RocksDB v8.8.1 详细介绍在未启用 atomic_flush 的情况下，深入解析 RocksD">
+
+<meta name="keywords" content="flush,memtable">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解 RocksDB Memtable Flush 机制</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2025-05-30
+         | 
+        Last Revised: 2025-05-29
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%BC%95%E8%A8%80"><span class="toc-text">一、引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E5%9F%BA%E7%A1%80%E6%A6%82%E5%BF%B5"><span class="toc-text">二、基础概念</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-Memtable-%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">2.1 Memtable 的生命周期</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%86%99%E5%85%A5%E7%BC%93%E5%86%B2%E5%8C%BA%E6%9C%BA%E5%88%B6"><span class="toc-text">2.2 写入缓冲区机制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-Flush-%E4%B8%8E-WAL-%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">2.3 Flush 与 WAL 的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E7%9B%B8%E5%85%B3%E9%85%8D%E7%BD%AE"><span class="toc-text">2.4 相关配置</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81Flush-%E8%A7%A6%E5%8F%91%E6%9C%BA%E5%88%B6"><span class="toc-text">三、Flush 触发机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E8%87%AA%E5%8A%A8%E8%A7%A6%E5%8F%91%E6%9D%A1%E4%BB%B6"><span class="toc-text">3.1 自动触发条件</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-1-%E5%8D%95%E4%B8%AA-Memtable-%E5%A4%A7%E5%B0%8F%E8%BE%BE%E5%88%B0%E9%98%88%E5%80%BC"><span class="toc-text">3.1.1 单个 Memtable 大小达到阈值</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-2-%E6%80%BB%E5%86%99%E5%85%A5%E7%BC%93%E5%86%B2%E5%8C%BA%E5%A4%A7%E5%B0%8F%E8%B6%85%E9%99%90"><span class="toc-text">3.1.2 总写入缓冲区大小超限</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-3-WAL-%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E8%B6%85%E8%BF%87%E9%99%90%E5%88%B6"><span class="toc-text">3.1.3 WAL 文件大小超过限制</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E6%89%8B%E5%8A%A8%E8%A7%A6%E5%8F%91%E6%83%85%E5%86%B5"><span class="toc-text">3.2 手动触发情况</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-1-%E7%94%A8%E6%88%B7%E6%98%BE%E5%BC%8F%E8%B0%83%E7%94%A8-Flush-API"><span class="toc-text">3.2.1 用户显式调用 Flush API</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-2-%E5%A4%96%E9%83%A8%E6%96%87%E4%BB%B6%E5%AF%BC%E5%85%A5%E5%89%8D%E7%9A%84-Flush"><span class="toc-text">3.2.2 外部文件导入前的 Flush</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-3-%E6%89%8B%E5%8A%A8%E5%8E%8B%E7%BC%A9%E5%89%8D%E7%9A%84-Flush"><span class="toc-text">3.2.3 手动压缩前的 Flush</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-4-%E4%BF%AE%E5%89%AA%E9%94%AE%E7%A9%BA%E9%97%B4%E5%89%8D%E7%9A%84-Flush"><span class="toc-text">3.2.4 修剪键空间前的 Flush</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E7%B3%BB%E7%BB%9F%E7%8A%B6%E6%80%81%E5%8F%98%E6%9B%B4%E8%A7%A6%E5%8F%91"><span class="toc-text">3.3 系统状态变更触发</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-1-%E6%95%B0%E6%8D%AE%E5%BA%93%E6%89%93%E5%BC%80%E6%97%B6"><span class="toc-text">3.3.1 数据库打开时</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-2-%E6%95%B0%E6%8D%AE%E5%BA%93%E5%85%B3%E9%97%AD%E6%97%B6"><span class="toc-text">3.3.2 数据库关闭时</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-3-%E9%94%99%E8%AF%AF%E6%81%A2%E5%A4%8D%E8%BF%87%E7%A8%8B%E4%B8%AD"><span class="toc-text">3.3.3 错误恢复过程中</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-4-%E5%88%9B%E5%BB%BA%E5%A4%87%E4%BB%BD-x2F-%E5%BF%AB%E7%85%A7%E6%97%B6"><span class="toc-text">3.3.4 创建备份&#x2F;快照时</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Flush-%E6%89%A7%E8%A1%8C%E7%AD%96%E7%95%A5"><span class="toc-text">四、Flush 执行策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%9F%BA%E4%BA%8E-Memtable-%E6%97%B6%E9%97%B4%E7%9A%84%E9%80%89%E6%8B%A9%E7%AD%96%E7%95%A5"><span class="toc-text">4.1 基于 Memtable 时间的选择策略</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%9F%BA%E4%BA%8E-WAL-%E6%97%B6%E9%97%B4%E7%9A%84%E9%80%89%E6%8B%A9%E7%AD%96%E7%95%A5"><span class="toc-text">4.2 基于 WAL 时间的选择策略</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%80%BB%E7%BB%93"><span class="toc-text">4.3 总结</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81WAL-%E6%81%A2%E5%A4%8D%E6%9C%BA%E5%88%B6"><span class="toc-text">五、WAL 恢复机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-WAL-%E6%81%A2%E5%A4%8D%E8%BF%87%E7%A8%8B"><span class="toc-text">5.1 WAL 恢复过程</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#5-1-1-%E6%81%A2%E5%A4%8D%E5%8E%9F%E7%90%86%E6%A6%82%E8%BF%B0"><span class="toc-text">5.1.1 恢复原理概述</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-1-2-%E7%A1%AE%E5%AE%9A%E9%9C%80%E8%A6%81%E8%AF%BB%E5%8F%96%E7%9A%84-WAL-%E8%B5%B7%E5%A7%8B%E6%96%87%E4%BB%B6"><span class="toc-text">5.1.2 确定需要读取的 WAL 起始文件</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-1-3-%E7%A1%AE%E5%AE%9A%E8%B5%B7%E5%A7%8B%E7%9A%84-Record"><span class="toc-text">5.1.3 确定起始的 Record</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-1-4-%E7%A1%AE%E5%AE%9A%E5%86%99%E5%85%A5-CF-Memtable-%E7%9A%84-Record"><span class="toc-text">5.1.4 确定写入 CF Memtable 的 Record</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#5-1-4-1-%E8%A7%A3%E6%9E%90-WriteBatch"><span class="toc-text">5.1.4.1 解析 WriteBatch</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#5-1-4-2-%E6%8C%89%E5%88%97%E6%97%8F%E8%BF%87%E6%BB%A4%E5%92%8C%E5%BA%94%E7%94%A8"><span class="toc-text">5.1.4.2 按列族过滤和应用</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#5-1-4-3-%E5%86%99%E5%85%A5-Memtable"><span class="toc-text">5.1.4.3 写入 Memtable</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-1-5-%E6%80%BB%E7%BB%93"><span class="toc-text">5.1.5 总结</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E4%B8%8D%E5%90%8C%E6%81%A2%E5%A4%8D%E6%A8%A1%E5%BC%8F%E6%AF%94%E8%BE%83"><span class="toc-text">5.2 不同恢复模式比较</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#5-2-1-kTolerateCorruptedTailRecords"><span class="toc-text">5.2.1 kTolerateCorruptedTailRecords</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-2-2-kAbsoluteConsistency"><span class="toc-text">5.2.2 kAbsoluteConsistency</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-2-3-kPointInTimeRecovery"><span class="toc-text">5.2.3 kPointInTimeRecovery</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-2-4-kSkipAnyCorruptedRecords"><span class="toc-text">5.2.4 kSkipAnyCorruptedRecords</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%81%A2%E5%A4%8D%E9%80%9F%E5%BA%A6%E4%BC%98%E5%8C%96"><span class="toc-text">5.3 恢复速度优化</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81Flush-%E4%B8%8E-SST-%E6%96%87%E4%BB%B6"><span class="toc-text">六、Flush 与 SST 文件</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E5%88%97%E6%97%8F%E4%B8%8E-SST-%E6%96%87%E4%BB%B6%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-text">6.1 列族与 SST 文件的关系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-SST-%E6%96%87%E4%BB%B6%E7%9A%84%E7%BB%84%E7%BB%87%E4%B8%8E%E7%AE%A1%E7%90%86"><span class="toc-text">6.2 SST 文件的组织与管理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol>
+ 
+        <h2 id="一、引言"><a href="#一、引言" class="headerlink" title="一、引言"></a>一、引言</h2><p>在 RocksDB 的核心机制中，Flush 操作扮演着至关重要的角色，它是连接内存数据结构 (Memtable) 和持久化存储 (SST 文件) 的桥梁。该机制不仅影响写入性能和内存使用效率，更直接关系到数据安全性和系统恢复速度。</p>
+<p>本文将基于 RocksDB v8.8.1 详细介绍在未启用 <code>atomic_flush</code> 的情况下，深入解析 RocksDB 的 Flush 机制，包括触发条件、执行策略、相关配置，以及与之密切相关的 WAL（预写式日志）管理和恢复机制。不妨带着以下问题，来详细深入了解下具体的实现细节：</p>
+<ol>
+<li>为什么集群滚动升级会 Flush 生成很多 SST 文件，进而触发 compaction？</li>
+<li>哪些情况会触发 Memtable Flush？</li>
+<li>当 Memtable Flush 时，会选中哪些 Memtable？</li>
+<li>多个列族 (Column Family) 会 Flush 到同一个 SST 文件么？</li>
+<li>不活跃的列族会自动 Flush 么？会有什么影响？</li>
+<li>Flush 完毕之后，WAL 是怎么处理的？WAL 什么时候会归档？什么时候会删除？</li>
+<li>RocksDB 重启的时候，怎么确定从哪个 WAL 文件的哪个位置开始读取数据，恢复 Memtable？</li>
+<li>如何加速恢复，降低恢复所需要的时长？几种恢复模式在数据丢失量和恢复速度上有何异同？</li>
+<li>如果因数据同步需要调大 WAL 的保留时间，会增加异常重启恢复时间么？</li>
+</ol>
+<h2 id="二、基础概念"><a href="#二、基础概念" class="headerlink" title="二、基础概念"></a>二、基础概念</h2><h3 id="2-1-Memtable-的生命周期"><a href="#2-1-Memtable-的生命周期" class="headerlink" title="2.1 Memtable 的生命周期"></a>2.1 Memtable 的生命周期</h3><p>Memtable 是 RocksDB 的内存数据结构，用于存储最近写入的数据。它具有以下特点：</p>
+<ol>
+<li><p><strong>写入流程</strong>：当用户写入数据时，数据首先被写入预写式日志 (WAL) 用于崩溃恢复，然后被插入当前活跃的 Memtable。</p>
+</li>
+<li><p><strong>状态转换</strong>：Memtable 有三种状态：</p>
+<ul>
+<li>**活跃 (Active)**：接收新的写入请求</li>
+<li>**不可变 (Immutable)**：不再接收新写入，等待刷新到存储</li>
+<li>**已刷新 (Flushed)**：数据已持久化到 SST 文件，Memtable 可以被销毁</li>
+</ul>
+</li>
+<li><p><strong>切换机制</strong>：当活跃 Memtable 达到一定大小 (<code>write_buffer_size</code>) 后，会被标记为不可变，并创建新的 Memtable 接收后续写入。</p>
+</li>
+</ol>
+<p>Memtable 的实现通常基于跳表 (SkipList) 数据结构，保证了高效的随机写入和有序遍历能力。</p>
+<h3 id="2-2-写入缓冲区机制"><a href="#2-2-写入缓冲区机制" class="headerlink" title="2.2 写入缓冲区机制"></a>2.2 写入缓冲区机制</h3><p>RocksDB 的写入缓冲区实现了高效的内存管理策略：</p>
+<ol>
+<li><strong>单 CF 写入缓冲区</strong>：每个列族 (Column Family) 配置有自己的 <code>write_buffer_size</code>，控制单个 Memtable 的大小。</li>
+<li><strong>全局写入缓冲区</strong>：通过 <code>db_write_buffer_size</code> 参数限制所有列族的 Memtable 总内存占用。</li>
+<li><strong>Memtable 数量控制</strong>：<ul>
+<li><code>max_write_buffer_number</code>：每个 CF 允许的最大 Memtable 数量</li>
+<li><code>min_write_buffer_number_to_merge</code>：刷新前合并的最小 Memtable 数量</li>
+</ul>
+</li>
+</ol>
+<p>当一个 Memtable 被标记为不可变后，RocksDB 会调度后台线程执行 Flush 操作，将其数据持久化到 SST 文件中。</p>
+<h3 id="2-3-Flush-与-WAL-的关系"><a href="#2-3-Flush-与-WAL-的关系" class="headerlink" title="2.3 Flush 与 WAL 的关系"></a>2.3 Flush 与 WAL 的关系</h3><p>Flush 操作与 WAL(Write-Ahead Log) 密切相关：</p>
+<ol>
+<li><strong>数据安全保障</strong>：WAL 记录所有写操作，确保即使在内存数据 (Memtable) 丢失的情况下也能恢复数据。</li>
+<li><strong>日志回收机制</strong>：只有当 WAL 中的所有数据都已通过 Flush 持久化到 SST 文件后，该 WAL 文件才可以被归档或删除。</li>
+<li><strong>WAL 文件限制</strong>：<code>max_total_wal_size</code> 参数控制 WAL 文件的总大小，超过限制会触发 Flush 以减小 WAL 占用。</li>
+</ol>
+<h3 id="2-4-相关配置"><a href="#2-4-相关配置" class="headerlink" title="2.4 相关配置"></a>2.4 相关配置</h3><p>RocksDB 提供了多种参数用于配置 Memtable 和 Flush 行为：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// DBOptions（数据库级别选项）</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">DBOptions</span> &#123;
+  <span class="hljs-comment">// ... 其他选项 ...</span>
+
+  <span class="hljs-comment">// 总写入缓存大小。所有列族共享的写缓冲区总大小 (字节)</span>
+  <span class="hljs-comment">// 所有列族共享的写入缓存（MemTable）的总大小。当所有 MemTable 的总大小超过这个值时，RocksDB 会触发一个列族的刷新操作，通常是最大的 MemTable 所在的列族</span>
+  <span class="hljs-comment">// 控制 RocksDB 实例的整体内存使用量。更大的值可以提高写入吞吐量，但会增加内存占用</span>
+  <span class="hljs-type">size_t</span> db_write_buffer_size = <span class="hljs-number">0</span>;
+  
+  <span class="hljs-comment">// 最大后台刷新线程数。用于执行刷新操作的后台线程的最大数量</span>
+  <span class="hljs-comment">// 控制刷新操作的并发度。增加此值可以提高刷新吞吐量，尤其是在有多个列族的情况下，但也可能增加资源竞争</span>
+  <span class="hljs-type">int</span> max_background_flushes = <span class="hljs-number">1</span>;
+
+  <span class="hljs-comment">// 是否避免不必要的阻塞 I/O。如果设置为 true，则工作线程可能会避免执行不必要的、长时间的 I/O 操作（例如直接删除过时的文件或删除 MemTable），而是安排一个后台任务来执行</span>
+  <span class="hljs-comment">// 提高延迟敏感型应用的性能，将潜在的阻塞操作卸载到后台线程</span>
+  <span class="hljs-type">bool</span> avoid_unnecessary_blocking_io = <span class="hljs-literal">true</span>;
+  
+  <span class="hljs-comment">// 是否原子刷新，如果设置为 true，RocksDB 支持原子地刷新多个列族，并将它们的结果原子地提交到 MANIFEST 文件</span>
+  <span class="hljs-comment">// 确保跨多个列族的数据一致性。如果某些列族的数据写入没有受到 WAL 保护，这个选项就很有用</span>
+  <span class="hljs-type">bool</span> atomic_flush = <span class="hljs-literal">false</span>;
+
+  <span class="hljs-comment">// 是否手动刷新 WAL。如果设置为 true，则在每次写入后不会自动刷新 WAL（Write-Ahead Log）</span>
+  <span class="hljs-comment">// 禁用自动 WAL 刷新，需要手动调用 `SyncWAL()` 来刷新 WAL。这可以提高写入性能，但会增加数据丢失的风险</span>
+  <span class="hljs-type">bool</span> manual_wal_flush = <span class="hljs-literal">false</span>;
+
+  <span class="hljs-comment">// 活跃的 WAL 文件总大小的最大值 (字节)。当总大小超过此值时，RocksDB 将开始刷新列族以减小活跃的 WAL 大小</span>
+  <span class="hljs-comment">// 实时控制活跃 WAL 文件的总大小，超过限制时强制刷新 Memtable 以减少 WAL 依赖</span>
+  <span class="hljs-type">uint64_t</span> max_total_wal_size = <span class="hljs-number">0</span>;
+
+  <span class="hljs-comment">// 不活跃的 WAL 文件总大小。以下两个字段影响归档 WAL 删除方式，防止历史 WAL 文件占用过多磁盘空间</span>
+  <span class="hljs-comment">// 如果均为 0，则 WAL 立刻删除不会归档</span>
+  <span class="hljs-comment">// 如果 WAL_ttl_seconds 为 0，且 WAL_size_limit_MB 不为 0，则每十分钟检查一次，删除超过大小限制的 WAL，从最旧的 WAL 开始</span>
+  <span class="hljs-comment">// 如果 WAL_ttl_seconds 不为 0，且 WAL_size_limit_MB 为 0，则每 WAL_ttl_seconds / 2 检查一次，删除超过时间限制的 WAL</span>
+  <span class="hljs-comment">// 如果两者均不为 0，则每十分钟检查一次，先检查时间限制，再检查大小限制</span>
+  <span class="hljs-type">uint64_t</span> WAL_ttl_seconds = <span class="hljs-number">0</span>;
+  <span class="hljs-type">uint64_t</span> WAL_size_limit_MB = <span class="hljs-number">0</span>;
+
+  <span class="hljs-comment">// 用户定义的事件监听器列表</span>
+  <span class="hljs-comment">// 监听器可以接收刷新开始和刷新完成事件的通知，允许用户监控和响应刷新活动</span>
+  std::vector&lt;std::shared_ptr&lt;EventListener&gt;&gt; listeners; 
+
+  <span class="hljs-comment">// ... 其他选项 ...</span>
+&#125;;
+
+<span class="hljs-comment">// ColumnFamilyOptions（列族级别选项）</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">ColumnFamilyOptions</span> &#123;
+  <span class="hljs-comment">// ... 其他选项 ...</span>
+
+  <span class="hljs-comment">// 每个 MemTable 的大小 (字节)。一旦 MemTable 达到此大小，它将被标记为不可变，并触发刷新</span>
+  <span class="hljs-comment">// 控制每个列族的内存使用量和刷新频率。更大的值会降低刷新频率，但会增加内存使用量</span>
+  <span class="hljs-type">size_t</span> write_buffer_size = <span class="hljs-number">64</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>; 
+
+  <span class="hljs-comment">// 内存中 MemTable 的最大数量。在阻止写入之前，内存中要保留的最大 MemTable 数量</span>
+  <span class="hljs-comment">// 限制未刷新的 MemTable 的数量。达到此限制时，写入将被暂停，直到刷新完成</span>
+  <span class="hljs-type">int</span> max_write_buffer_number = <span class="hljs-number">2</span>;
+
+  <span class="hljs-comment">// 刷新前要合并的最小 MemTable 数量。在刷新到存储之前要合并的最小 MemTable 数量</span>
+  <span class="hljs-comment">// 控制刷新期间合并到单个 SST 文件中的 MemTable 数量。更大的值可以减少 SST 文件的数量，但可能会增加刷新延迟</span>
+  <span class="hljs-type">int</span> min_write_buffer_number_to_merge = <span class="hljs-number">1</span>;
+
+  <span class="hljs-comment">// 刷新时是否验证 MemTable 计数。验证 MemTable 中的条目数是否与刷新期间读取的条目数匹配</span>
+  <span class="hljs-comment">// 启用刷新期间 MemTable 计数的验证</span>
+  <span class="hljs-type">bool</span> flush_verify_memtable_count = <span class="hljs-literal">false</span>; 
+
+  <span class="hljs-comment">// 实验性 MemPurge 阈值。触发 MemPurge 的阈值</span>
+  <span class="hljs-comment">// 如果设置为 &gt;0.0，则所有自动刷新操作将首先通过 MemPurge 过程</span>
+  <span class="hljs-type">double</span> experimental_mempurge_threshold = <span class="hljs-number">0.0</span>;
+
+  <span class="hljs-comment">// ... 其他选项 ...</span>
+&#125;;
+
+<span class="hljs-comment">// FlushOptions（传递给Flush API调用的选项）</span>
+<span class="hljs-keyword">struct</span> <span class="hljs-title class_">FlushOptions</span> &#123;
+  <span class="hljs-comment">// 是否等待刷新完成。如果为 true，则刷新操作将阻塞，直到完成。如果为 false，则刷新是异步的</span>
+  <span class="hljs-comment">// 确定 `Flush()` 调用是同步还是异步</span>
+  <span class="hljs-type">bool</span> wait = <span class="hljs-literal">true</span>;
+
+  <span class="hljs-comment">// 是否允许刷新导致写入暂停。如果为 true，即使这意味着写入将在刷新期间暂停，刷新操作也会立即进行</span>
+  <span class="hljs-comment">// 允许刷新继续进行，即使它会导致写入暂停</span>
+  <span class="hljs-type">bool</span> allow_write_stall = <span class="hljs-literal">false</span>; 
+&#125;;</code></pre>
+
+<h2 id="三、Flush-触发机制"><a href="#三、Flush-触发机制" class="headerlink" title="三、Flush 触发机制"></a>三、Flush 触发机制</h2><p>RocksDB 中的 Flush 操作由多种条件触发，可分为自动触发、手动触发和系统状态变更触发三类。</p>
+<h3 id="3-1-自动触发条件"><a href="#3-1-自动触发条件" class="headerlink" title="3.1 自动触发条件"></a>3.1 自动触发条件</h3><h4 id="3-1-1-单个-Memtable-大小达到阈值"><a href="#3-1-1-单个-Memtable-大小达到阈值" class="headerlink" title="3.1.1 单个 Memtable 大小达到阈值"></a>3.1.1 单个 Memtable 大小达到阈值</h4><p>当单个 Memtable 的大小达到 <code>write_buffer_size</code> 配置值时，会触发 Flush：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// memtable.cc</span>
+<span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">MemTable::ShouldFlushNow</span><span class="hljs-params">()</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-comment">// if user keeps adding entries that exceeds write_buffer_size, we need to</span>
+  <span class="hljs-comment">// flush earlier even though we still have much available memory left.</span>
+  <span class="hljs-keyword">if</span> (allocated_memory &gt;
+      write_buffer_size + kArenaBlockSize * kAllowOverAllocationRatio) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<p>当 Memtable 达到阈值后，系统会将其标记为不可变，并创建新的 Memtable 接收后续写入，同时安排后台任务执行实际的 Flush 操作。</p>
+<h4 id="3-1-2-总写入缓冲区大小超限"><a href="#3-1-2-总写入缓冲区大小超限" class="headerlink" title="3.1.2 总写入缓冲区大小超限"></a>3.1.2 总写入缓冲区大小超限</h4><p>当所有 Memtable 的总大小超过 <code>db_write_buffer_size</code> 时，会触发 Flush 操作：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl_write.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::HandleWriteBufferManagerFlush</span><span class="hljs-params">(WriteContext* write_context)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  ColumnFamilyData* cfd_picked = <span class="hljs-literal">nullptr</span>;
+  SequenceNumber seq_num_for_cf_picked = kMaxSequenceNumber;
+
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> cfd : *versions_-&gt;<span class="hljs-built_in">GetColumnFamilySet</span>()) &#123;
+    <span class="hljs-keyword">if</span> (cfd-&gt;<span class="hljs-built_in">IsDropped</span>()) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+    <span class="hljs-keyword">if</span> (!cfd-&gt;<span class="hljs-built_in">mem</span>()-&gt;<span class="hljs-built_in">IsEmpty</span>() &amp;&amp; !cfd-&gt;<span class="hljs-built_in">imm</span>()-&gt;<span class="hljs-built_in">IsFlushPendingOrRunning</span>()) &#123;
+      <span class="hljs-comment">// We only consider flush on CFs with bytes in the mutable memtable,</span>
+      <span class="hljs-comment">// and no immutable memtables for which flush has yet to finish. If</span>
+      <span class="hljs-comment">// we triggered flush on CFs already trying to flush, we would risk</span>
+      <span class="hljs-comment">// creating too many immutable memtables leading to write stalls.</span>
+      <span class="hljs-type">uint64_t</span> seq = cfd-&gt;<span class="hljs-built_in">mem</span>()-&gt;<span class="hljs-built_in">GetCreationSeq</span>();
+      <span class="hljs-keyword">if</span> (cfd_picked == <span class="hljs-literal">nullptr</span> || seq &lt; seq_num_for_cf_picked) &#123;
+        cfd_picked = cfd;
+        seq_num_for_cf_picked = seq;
+      &#125;
+    &#125;
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<p>RocksDB 会 Flush 序号最小的 Memtable。</p>
+<h4 id="3-1-3-WAL-文件大小超过限制"><a href="#3-1-3-WAL-文件大小超过限制" class="headerlink" title="3.1.3 WAL 文件大小超过限制"></a>3.1.3 WAL 文件大小超过限制</h4><p>当 WAL 文件的总大小超过 <code>max_total_wal_size</code> 时，RocksDB 会触发 Flush 以减小 WAL 体积：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl_write.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::SwitchWAL</span><span class="hljs-params">(WriteContext* write_context)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> cfd : *versions_-&gt;<span class="hljs-built_in">GetColumnFamilySet</span>()) &#123;
+    <span class="hljs-keyword">if</span> (cfd-&gt;<span class="hljs-built_in">IsDropped</span>()) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+    <span class="hljs-keyword">if</span> (cfd-&gt;<span class="hljs-built_in">OldestLogToKeep</span>() &lt;= oldest_alive_log) &#123;
+      cfds.<span class="hljs-built_in">push_back</span>(cfd);
+    &#125;
+  &#125;
+  <span class="hljs-built_in">MaybeFlushStatsCF</span>(&amp;cfds);
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<p>RocksDB 会 Flush 与最旧 WAL 文件关联的 Memtable 以释放 WAL 空间。</p>
+<h3 id="3-2-手动触发情况"><a href="#3-2-手动触发情况" class="headerlink" title="3.2 手动触发情况"></a>3.2 手动触发情况</h3><h4 id="3-2-1-用户显式调用-Flush-API"><a href="#3-2-1-用户显式调用-Flush-API" class="headerlink" title="3.2.1 用户显式调用 Flush API"></a>3.2.1 用户显式调用 Flush API</h4><p>用户可以通过调用 <code>DB::Flush()</code> 方法手动触发 Flush 操作：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 手动触发Flush的示例</span>
+FlushOptions flush_options;
+flush_options.wait = <span class="hljs-literal">true</span>; <span class="hljs-comment">// 等待Flush完成</span>
+db-&gt;<span class="hljs-built_in">Flush</span>(flush_options);  <span class="hljs-comment">// 触发所有列族的Flush</span>
+<span class="hljs-comment">// 或者</span>
+db-&gt;<span class="hljs-built_in">Flush</span>(flush_options, handles[<span class="hljs-number">1</span>]); <span class="hljs-comment">// 只Flush特定列族</span></code></pre>
+
+<p>手动 Flush 在需要确保数据持久化或准备备份时非常有用。</p>
+<h4 id="3-2-2-外部文件导入前的-Flush"><a href="#3-2-2-外部文件导入前的-Flush" class="headerlink" title="3.2.2 外部文件导入前的 Flush"></a>3.2.2 外部文件导入前的 Flush</h4><p>当使用 <code>IngestExternalFile()</code> 导入外部 SST 文件时，RocksDB 需要确保 MemTable 和摄取的外部文件之间没有重叠的键范围。 刷新 MemTable 会创建一个新的 SST 文件，然后可以将其与外部文件一起原子地添加到数据库中：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::IngestExternalFile</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">    ColumnFamilyHandle* column_family,</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> std::vector&lt;std::string&gt;&amp; external_files,</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> IngestExternalFileOptions&amp; ingestion_options)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-keyword">if</span> (status.<span class="hljs-built_in">ok</span>() &amp;&amp; at_least_one_cf_need_flush) &#123;
+    FlushOptions flush_opts;
+    flush_opts.allow_write_stall = <span class="hljs-literal">true</span>;
+    <span class="hljs-keyword">if</span> (immutable_db_options_.atomic_flush) &#123;
+      mutex_.<span class="hljs-built_in">Unlock</span>();
+      status = <span class="hljs-built_in">AtomicFlushMemTables</span>(
+          flush_opts, FlushReason::kExternalFileIngestion,
+          &#123;&#125; <span class="hljs-comment">/* provided_candidate_cfds */</span>, <span class="hljs-literal">true</span> <span class="hljs-comment">/* entered_write_thread */</span>);
+      mutex_.<span class="hljs-built_in">Lock</span>();
+    &#125; <span class="hljs-keyword">else</span> &#123;
+      <span class="hljs-keyword">for</span> (<span class="hljs-type">size_t</span> i = <span class="hljs-number">0</span>; i != num_cfs; ++i) &#123;
+        <span class="hljs-keyword">if</span> (need_flush[i]) &#123;
+          mutex_.<span class="hljs-built_in">Unlock</span>();
+          <span class="hljs-keyword">auto</span>* cfd =
+              <span class="hljs-built_in">static_cast</span>&lt;ColumnFamilyHandleImpl*&gt;(args[i].column_family)
+                  -&gt;<span class="hljs-built_in">cfd</span>();
+          status = <span class="hljs-built_in">FlushMemTable</span>(cfd, flush_opts,
+                                  FlushReason::kExternalFileIngestion,
+                                  <span class="hljs-literal">true</span> <span class="hljs-comment">/* entered_write_thread */</span>);
+          mutex_.<span class="hljs-built_in">Lock</span>();
+          <span class="hljs-keyword">if</span> (!status.<span class="hljs-built_in">ok</span>()) &#123;
+            <span class="hljs-keyword">break</span>;
+          &#125;
+        &#125;
+      &#125;
+    &#125;
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h4 id="3-2-3-手动压缩前的-Flush"><a href="#3-2-3-手动压缩前的-Flush" class="headerlink" title="3.2.3 手动压缩前的 Flush"></a>3.2.3 手动压缩前的 Flush</h4><p>确保要压缩的数据都持久化到了 SST 文件：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl_compaction_flush.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::CompactRange</span><span class="hljs-params">(<span class="hljs-type">const</span> CompactRangeOptions&amp; options,</span></span>
+<span class="hljs-params"><span class="hljs-function">                            ColumnFamilyHandle* column_family,</span></span>
+<span class="hljs-params"><span class="hljs-function">                            <span class="hljs-type">const</span> Slice* begin_without_ts,</span></span>
+<span class="hljs-params"><span class="hljs-function">                            <span class="hljs-type">const</span> Slice* end_without_ts)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-type">bool</span> flush_needed = <span class="hljs-literal">true</span>;
+  <span class="hljs-comment">// ...</span>
+  <span class="hljs-keyword">if</span> (s.<span class="hljs-built_in">ok</span>() &amp;&amp; flush_needed) &#123;
+    FlushOptions fo;
+    fo.allow_write_stall = options.allow_write_stall;
+    <span class="hljs-keyword">if</span> (immutable_db_options_.atomic_flush) &#123;
+      s = <span class="hljs-built_in">AtomicFlushMemTables</span>(fo, FlushReason::kManualCompaction);
+    &#125; <span class="hljs-keyword">else</span> &#123;
+      s = <span class="hljs-built_in">FlushMemTable</span>(cfd, fo, FlushReason::kManualCompaction);
+    &#125;
+    <span class="hljs-keyword">if</span> (!s.<span class="hljs-built_in">ok</span>()) &#123;
+      <span class="hljs-built_in">LogFlush</span>(immutable_db_options_.info_log);
+      <span class="hljs-keyword">return</span> s;
+    &#125;
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h4 id="3-2-4-修剪键空间前的-Flush"><a href="#3-2-4-修剪键空间前的-Flush" class="headerlink" title="3.2.4 修剪键空间前的 Flush"></a>3.2.4 修剪键空间前的 Flush</h4><p>当用户调用 <code>DB::ClipColumnFamily</code> API ，主动触发对指定 Column Family 的数据裁剪操作。操作会将 Column Family 中指定 Key 范围之外的数据物理删除。在删除文件之前，务必确保这些文件可能引用的任何数据都已安全地持久保存在其他位置。 刷新 MemTable 可确保将任何最近的写入都写入新的 SST 文件，因此可以安全地删除旧文件而不会丢失数据。</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::ClipColumnFamily</span><span class="hljs-params">(ColumnFamilyHandle* column_family,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                <span class="hljs-type">const</span> Slice&amp; begin_key, <span class="hljs-type">const</span> Slice&amp; end_key)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-comment">// Flush memtable</span>
+  FlushOptions flush_opts;
+  flush_opts.allow_write_stall = <span class="hljs-literal">true</span>;
+  <span class="hljs-keyword">auto</span>* cfd =
+      <span class="hljs-built_in">static_cast_with_check</span>&lt;ColumnFamilyHandleImpl&gt;(column_family)-&gt;<span class="hljs-built_in">cfd</span>();
+  <span class="hljs-keyword">if</span> (immutable_db_options_.atomic_flush) &#123;
+    status = <span class="hljs-built_in">AtomicFlushMemTables</span>(flush_opts, FlushReason::kDeleteFiles,
+                                  &#123;&#125; <span class="hljs-comment">/* provided_candidate_cfds */</span>,
+                                  <span class="hljs-literal">false</span> <span class="hljs-comment">/* entered_write_thread */</span>);
+  &#125; <span class="hljs-keyword">else</span> &#123;
+    status = <span class="hljs-built_in">FlushMemTable</span>(cfd, flush_opts, FlushReason::kDeleteFiles,
+                           <span class="hljs-literal">false</span> <span class="hljs-comment">/* entered_write_thread */</span>);
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h3 id="3-3-系统状态变更触发"><a href="#3-3-系统状态变更触发" class="headerlink" title="3.3 系统状态变更触发"></a>3.3 系统状态变更触发</h3><h4 id="3-3-1-数据库打开时"><a href="#3-3-1-数据库打开时" class="headerlink" title="3.3.1 数据库打开时"></a>3.3.1 数据库打开时</h4><p>当 <code>avoid_flush_during_recovery</code> 设置为 <code>false</code> 时，虽然 RocksDB 不执行传统的 memtable flush 操作，仍然会将 WAL 中的数据即时刷新到 SST 文件。确保了即使在大量 WAL 数据情况下，恢复过程也能保持可控的内存使用。</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl_open.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::RecoverLogFiles</span><span class="hljs-params">(<span class="hljs-type">const</span> std::vector&lt;<span class="hljs-type">uint64_t</span>&gt;&amp; wal_numbers,</span></span>
+<span class="hljs-params"><span class="hljs-function">                               SequenceNumber* next_sequence, <span class="hljs-type">bool</span> read_only,</span></span>
+<span class="hljs-params"><span class="hljs-function">                               <span class="hljs-type">bool</span>* corrupted_wal_found,</span></span>
+<span class="hljs-params"><span class="hljs-function">                               RecoveryContext* recovery_ctx)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-comment">// flush the final memtable (if non-empty)</span>
+  <span class="hljs-keyword">if</span> (cfd-&gt;<span class="hljs-built_in">mem</span>()-&gt;<span class="hljs-built_in">GetFirstSequenceNumber</span>() != <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-comment">// If flush happened in the middle of recovery (e.g. due to memtable</span>
+    <span class="hljs-comment">// being full), we flush at the end. Otherwise we&#x27;ll need to record</span>
+    <span class="hljs-comment">// where we were on last flush, which make the logic complicated.</span>
+    <span class="hljs-keyword">if</span> (flushed || !immutable_db_options_.avoid_flush_during_recovery) &#123;
+        status = <span class="hljs-built_in">WriteLevel0TableForRecovery</span>(job_id, cfd, cfd-&gt;<span class="hljs-built_in">mem</span>(), edit);
+        <span class="hljs-keyword">if</span> (!status.<span class="hljs-built_in">ok</span>()) &#123;
+            <span class="hljs-comment">// Recovery failed</span>
+        <span class="hljs-keyword">break</span>;
+      &#125;
+      flushed = <span class="hljs-literal">true</span>;
+
+      cfd-&gt;<span class="hljs-built_in">CreateNewMemtable</span>(*cfd-&gt;<span class="hljs-built_in">GetLatestMutableCFOptions</span>(),
+                             versions_-&gt;<span class="hljs-built_in">LastSequence</span>());
+    &#125;
+    data_seen = <span class="hljs-literal">true</span>;
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h4 id="3-3-2-数据库关闭时"><a href="#3-3-2-数据库关闭时" class="headerlink" title="3.3.2 数据库关闭时"></a>3.3.2 数据库关闭时</h4><p>当数据库正常关闭时，会执行 Flush 以确保所有内存数据持久化（除非设置了 <code>avoid_flush_during_shutdown = true</code>）：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::Close</span><span class="hljs-params">()</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-keyword">if</span> (!shutting_down_.<span class="hljs-built_in">load</span>(std::memory_order_acquire) &amp;&amp;
+      has_unpersisted_data_.<span class="hljs-built_in">load</span>(std::memory_order_relaxed) &amp;&amp;
+      !mutable_db_options_.avoid_flush_during_shutdown) &#123;
+    s = DBImpl::<span class="hljs-built_in">FlushAllColumnFamilies</span>(<span class="hljs-built_in">FlushOptions</span>(), FlushReason::kShutDown);
+    s.<span class="hljs-built_in">PermitUncheckedError</span>(); 
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h4 id="3-3-3-错误恢复过程中"><a href="#3-3-3-错误恢复过程中" class="headerlink" title="3.3.3 错误恢复过程中"></a>3.3.3 错误恢复过程中</h4><p>在错误恢复过程中，可能需要 Flush 以确保数据一致性：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// error_handler.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">ErrorHandler::RecoverFromBGError</span><span class="hljs-params">(<span class="hljs-type">bool</span> is_manual)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-keyword">if</span> (context.flush_reason == FlushReason::kErrorRecoveryRetryFlush) &#123;
+    s = <span class="hljs-built_in">RetryFlushesForErrorRecovery</span>(FlushReason::kErrorRecoveryRetryFlush,
+                                      <span class="hljs-literal">true</span> <span class="hljs-comment">/* wait */</span>);
+  &#125; <span class="hljs-keyword">else</span> &#123;
+    <span class="hljs-comment">// We cannot guarantee consistency of the WAL. So force flush Memtables of</span>
+    <span class="hljs-comment">// all the column families</span>
+    FlushOptions flush_opts;
+    <span class="hljs-comment">// We allow flush to stall write since we are trying to resume from error.</span>
+    flush_opts.allow_write_stall = <span class="hljs-literal">true</span>;
+    s = <span class="hljs-built_in">FlushAllColumnFamilies</span>(flush_opts, context.flush_reason);
+  &#125;
+  <span class="hljs-keyword">if</span> (!s.<span class="hljs-built_in">ok</span>()) &#123;
+    <span class="hljs-built_in">ROCKS_LOG_INFO</span>(immutable_db_options_.info_log,
+                    <span class="hljs-string">&quot;DB resume requested but failed due to Flush failure [%s]&quot;</span>,
+                    s.<span class="hljs-built_in">ToString</span>().<span class="hljs-built_in">c_str</span>());
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h4 id="3-3-4-创建备份-x2F-快照时"><a href="#3-3-4-创建备份-x2F-快照时" class="headerlink" title="3.3.4 创建备份&#x2F;快照时"></a>3.3.4 创建备份&#x2F;快照时</h4><p>当调用 <code>GetLiveFiles()</code> 并指定 <code>flush_memtable=true</code> 时，会触发 Flush 以确保返回完整的文件列表，常用于创建备份或快照：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_filesnapshot.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::GetLiveFiles</span><span class="hljs-params">(std::vector&lt;std::string&gt;&amp; ret,</span></span>
+<span class="hljs-params"><span class="hljs-function">                              <span class="hljs-type">uint64_t</span>* manifest_file_size, </span></span>
+<span class="hljs-params"><span class="hljs-function">                              <span class="hljs-type">bool</span> flush_memtable)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-keyword">if</span> (flush_memtable) &#123;
+    Status status = <span class="hljs-built_in">FlushForGetLiveFiles</span>();
+    <span class="hljs-keyword">if</span> (!status.<span class="hljs-built_in">ok</span>()) &#123;
+      mutex_.<span class="hljs-built_in">Unlock</span>();
+      <span class="hljs-built_in">ROCKS_LOG_ERROR</span>(immutable_db_options_.info_log, <span class="hljs-string">&quot;Cannot Flush data %s\n&quot;</span>,
+                      status.<span class="hljs-built_in">ToString</span>().<span class="hljs-built_in">c_str</span>());
+      <span class="hljs-keyword">return</span> status;
+    &#125;
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h2 id="四、Flush-执行策略"><a href="#四、Flush-执行策略" class="headerlink" title="四、Flush 执行策略"></a>四、Flush 执行策略</h2><p>除了主动刷新时选择特定的列族，以及特定列族的 Immutable Memtable 总数达到 <code>min_write_buffer_number_to_merge</code> 触发被动 Flush，在 Non-Atomic Flush 模式下 RocksDB 需要决定哪些 Memtable 应该被 Flush。选择策略会根据触发 Flush 的原因不同而变化。</p>
+<h3 id="4-1-基于-Memtable-时间的选择策略"><a href="#4-1-基于-Memtable-时间的选择策略" class="headerlink" title="4.1 基于 Memtable 时间的选择策略"></a>4.1 基于 Memtable 时间的选择策略</h3><p>当总 Memtable 内存占用过高时，选择策略倾向于选择<strong>创建序列号最小（即最老）的，有数据且没有正在刷盘的 Memtable</strong>。：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl_write.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::HandleWriteBufferManagerFlush</span><span class="hljs-params">(WriteContext* write_context)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  autovector&lt;ColumnFamilyData*&gt; cfds;
+  ColumnFamilyData* cfd_picked = <span class="hljs-literal">nullptr</span>;
+  SequenceNumber seq_num_for_cf_picked = kMaxSequenceNumber;
+
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> cfd : *versions_-&gt;<span class="hljs-built_in">GetColumnFamilySet</span>()) &#123;
+    <span class="hljs-keyword">if</span> (cfd-&gt;<span class="hljs-built_in">IsDropped</span>()) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+    <span class="hljs-keyword">if</span> (!cfd-&gt;<span class="hljs-built_in">mem</span>()-&gt;<span class="hljs-built_in">IsEmpty</span>() &amp;&amp; !cfd-&gt;<span class="hljs-built_in">imm</span>()-&gt;<span class="hljs-built_in">IsFlushPendingOrRunning</span>()) &#123;
+      <span class="hljs-comment">// We only consider flush on CFs with bytes in the mutable memtable,</span>
+      <span class="hljs-comment">// and no immutable memtables for which flush has yet to finish. If</span>
+      <span class="hljs-comment">// we triggered flush on CFs already trying to flush, we would risk</span>
+      <span class="hljs-comment">// creating too many immutable memtables leading to write stalls.</span>
+      <span class="hljs-type">uint64_t</span> seq = cfd-&gt;<span class="hljs-built_in">mem</span>()-&gt;<span class="hljs-built_in">GetCreationSeq</span>();
+      <span class="hljs-keyword">if</span> (cfd_picked == <span class="hljs-literal">nullptr</span> || seq &lt; seq_num_for_cf_picked) &#123;
+        cfd_picked = cfd;
+        seq_num_for_cf_picked = seq;
+      &#125;
+    
+  &#125;
+  <span class="hljs-keyword">if</span> (cfd_picked != <span class="hljs-literal">nullptr</span>) &#123;
+    cfds.<span class="hljs-built_in">push_back</span>(cfd_picked);
+  &#125;
+  <span class="hljs-built_in">MaybeFlushStatsCF</span>(&amp;cfds);
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h3 id="4-2-基于-WAL-时间的选择策略"><a href="#4-2-基于-WAL-时间的选择策略" class="headerlink" title="4.2 基于 WAL 时间的选择策略"></a>4.2 基于 WAL 时间的选择策略</h3><p>当 WAL 文件大小超过限制时，选择与最旧 WAL 关联的 CF 的所有 Memtable 进行 Flush：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db_impl_write.cc</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::SwitchWAL</span><span class="hljs-params">(WriteContext* write_context)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> cfd : *versions_-&gt;<span class="hljs-built_in">GetColumnFamilySet</span>()) &#123;
+    <span class="hljs-keyword">if</span> (cfd-&gt;<span class="hljs-built_in">IsDropped</span>()) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+    <span class="hljs-keyword">if</span> (cfd-&gt;<span class="hljs-built_in">OldestLogToKeep</span>() &lt;= oldest_alive_log) &#123;
+      cfds.<span class="hljs-built_in">push_back</span>(cfd);
+    &#125;
+  &#125;
+  <span class="hljs-built_in">MaybeFlushStatsCF</span>(&amp;cfds);
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;</code></pre>
+
+<h3 id="4-3-总结"><a href="#4-3-总结" class="headerlink" title="4.3 总结"></a>4.3 总结</h3><p>因为同一 CF 内的较新 Memtable 也会被连带 Flush，两者刷新的 Memtable 的类型几乎一样，被刷新的 Memtable <strong>一定包含当前最旧未刷新的 Memtable</strong>，但<strong>会包含较新的 Memtable</strong>。</p>
+<h2 id="五、WAL-恢复机制"><a href="#五、WAL-恢复机制" class="headerlink" title="五、WAL 恢复机制"></a>五、WAL 恢复机制</h2><p>从上面的触发可知，RocksDB 不会专门针对不活跃的列族进行自动 Flush。除了额外的内存占用（不活跃列族的数据会在 Memtable 中保留，直到触发 Flush）之外，还会导致 WAL 文件内的数据累积，影响恢复时读取的数据量和时长</p>
+<h3 id="5-1-WAL-恢复过程"><a href="#5-1-WAL-恢复过程" class="headerlink" title="5.1 WAL 恢复过程"></a>5.1 WAL 恢复过程</h3><h4 id="5-1-1-恢复原理概述"><a href="#5-1-1-恢复原理概述" class="headerlink" title="5.1.1 恢复原理概述"></a>5.1.1 恢复原理概述</h4><p>RocksDB 的崩溃恢复流程:</p>
+<ol>
+<li><strong>读取 MANIFEST</strong>：确定数据库状态、SST 文件列表和列族信息。</li>
+<li><strong>确定恢复点</strong>：确定需要回放的 WAL 文件及起始点。</li>
+<li><strong>回放 WAL</strong>：重新执行 WAL 中记录的写操作，重建内存状态。</li>
+<li><strong>执行恢复后 Flush</strong>：可选地执行 Flush 以持久化恢复的数据。</li>
+</ol>
+<h4 id="5-1-2-确定需要读取的-WAL-起始文件"><a href="#5-1-2-确定需要读取的-WAL-起始文件" class="headerlink" title="5.1.2 确定需要读取的 WAL 起始文件"></a>5.1.2 确定需要读取的 WAL 起始文件</h4><p>在 RecoverLogFiles 中，起始 WAL 文件的确定流程如下：</p>
+<pre><code class="hljs cpp"><span class="hljs-function">Status <span class="hljs-title">DBImpl::RecoverLogFiles</span><span class="hljs-params">(<span class="hljs-type">const</span> std::vector&lt;<span class="hljs-type">uint64_t</span>&gt;&amp; wal_numbers,</span></span>
+<span class="hljs-params"><span class="hljs-function">                               SequenceNumber* next_sequence, <span class="hljs-type">bool</span> read_only,</span></span>
+<span class="hljs-params"><span class="hljs-function">                               <span class="hljs-type">bool</span>* corrupted_wal_found,</span></span>
+<span class="hljs-params"><span class="hljs-function">                               RecoveryContext* recovery_ctx)</span> </span>&#123;
+  <span class="hljs-comment">// 省略代码...</span>
+  <span class="hljs-comment">// 从 VersionSet 中获取需要保留的最小 WAL 编号</span>
+  <span class="hljs-type">uint64_t</span> min_wal_number = <span class="hljs-built_in">MinLogNumberToKeep</span>();
+  <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">allow_2pc</span>()) &#123;
+      <span class="hljs-comment">// 计算包含未刷盘数据的最小 WAL 编号</span>
+      min_wal_number = std::<span class="hljs-built_in">max</span>(min_wal_number, versions_-&gt;<span class="hljs-built_in">MinLogNumberWithUnflushedData</span>());
+  &#125;
+  
+  <span class="hljs-comment">// 遍历所有WAL文件，跳过比最小保留编号还小的WAL文件</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> wal_number : wal_numbers) &#123;
+      <span class="hljs-keyword">if</span> (wal_number &lt; min_wal_number) &#123;
+          <span class="hljs-built_in">ROCKS_LOG_INFO</span>(immutable_db_options_.info_log,
+                       <span class="hljs-string">&quot;Skipping log #%&quot;</span> PRIu64
+                       <span class="hljs-string">&quot; since it is older than min log to keep #%&quot;</span> PRIu64,
+                       wal_number, min_wal_number);
+          <span class="hljs-keyword">continue</span>;
+      &#125;
+      <span class="hljs-comment">// 处理 WAL 文件...</span>
+  &#125;
+  <span class="hljs-comment">// 省略代码...</span>
+&#125;
+
+<span class="hljs-comment">// Returns the minimum log number which still has data not flushed to any SST</span>
+<span class="hljs-comment">// file, except data from `cfd_to_skip`.</span>
+<span class="hljs-function"><span class="hljs-type">uint64_t</span> <span class="hljs-title">PreComputeMinLogNumberWithUnflushedData</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> ColumnFamilyData* cfd_to_skip)</span> <span class="hljs-type">const</span> </span>&#123;
+  <span class="hljs-type">uint64_t</span> min_log_num = std::numeric_limits&lt;<span class="hljs-type">uint64_t</span>&gt;::<span class="hljs-built_in">max</span>();
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> cfd : *column_family_set_) &#123;
+    <span class="hljs-keyword">if</span> (cfd == cfd_to_skip) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+    <span class="hljs-comment">// It&#x27;s safe to ignore dropped column families here:</span>
+    <span class="hljs-comment">// cfd-&gt;IsDropped() becomes true after the drop is persisted in MANIFEST.</span>
+    <span class="hljs-keyword">if</span> (min_log_num &gt; cfd-&gt;<span class="hljs-built_in">GetLogNumber</span>() &amp;&amp; !cfd-&gt;<span class="hljs-built_in">IsDropped</span>()) &#123;
+      min_log_num = cfd-&gt;<span class="hljs-built_in">GetLogNumber</span>();
+    &#125;
+  &#125;
+  <span class="hljs-keyword">return</span> min_log_num;
+&#125;</code></pre>
+
+<h4 id="5-1-3-确定起始的-Record"><a href="#5-1-3-确定起始的-Record" class="headerlink" title="5.1.3 确定起始的 Record"></a>5.1.3 确定起始的 Record</h4><p>对于每个需要处理的 WAL 文件，<strong>从文件头开始顺序读取所有 Record</strong>：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 创建日志读取器，从文件开头开始读取</span>
+<span class="hljs-function">log::Reader <span class="hljs-title">reader</span><span class="hljs-params">(immutable_db_options_.info_log, std::move(file_reader),</span></span>
+<span class="hljs-params"><span class="hljs-function">                   &amp;reporter, <span class="hljs-literal">true</span> <span class="hljs-comment">/*checksum*/</span>, wal_number)</span></span>;
+
+<span class="hljs-comment">// 从头开始读取所有记录</span>
+std::string scratch;
+Slice record;
+<span class="hljs-keyword">while</span> (reader.<span class="hljs-built_in">ReadRecord</span>(&amp;record, &amp;scratch,
+                         immutable_db_options_.wal_recovery_mode,
+                         &amp;record_checksum) &amp;&amp; status.<span class="hljs-built_in">ok</span>()) &#123;
+    <span class="hljs-comment">// 处理每条记录...</span>
+&#125;</code></pre>
+
+<p><strong>不是从某个特定位置开始，而是完整读取整个 WAL 文件的所有记录</strong>。</p>
+<h4 id="5-1-4-确定写入-CF-Memtable-的-Record"><a href="#5-1-4-确定写入-CF-Memtable-的-Record" class="headerlink" title="5.1.4 确定写入 CF Memtable 的 Record"></a>5.1.4 确定写入 CF Memtable 的 Record</h4><p>该过程通过 <code>WriteBatchInternal::InsertInto</code> 和 <code>MemTableInserter</code> 类来完成：</p>
+<h5 id="5-1-4-1-解析-WriteBatch"><a href="#5-1-4-1-解析-WriteBatch" class="headerlink" title="5.1.4.1 解析 WriteBatch"></a>5.1.4.1 解析 WriteBatch</h5><pre><code class="hljs cpp"><span class="hljs-comment">// 将WAL记录解析为WriteBatch</span>
+WriteBatch batch;
+status = WriteBatchInternal::<span class="hljs-built_in">SetContents</span>(&amp;batch, record);
+
+<span class="hljs-comment">// 应用批处理到memtable</span>
+status = WriteBatchInternal::<span class="hljs-built_in">InsertInto</span>(
+    batch_to_use, column_family_memtables_.<span class="hljs-built_in">get</span>(), &amp;flush_scheduler_,
+    &amp;trim_history_scheduler_, <span class="hljs-literal">true</span>, wal_number, <span class="hljs-keyword">this</span>,
+    <span class="hljs-literal">false</span> <span class="hljs-comment">/* concurrent_memtable_writes */</span>, next_sequence,
+    &amp;has_valid_writes, seq_per_batch_, batch_per_txn_);</code></pre>
+
+<h5 id="5-1-4-2-按列族过滤和应用"><a href="#5-1-4-2-按列族过滤和应用" class="headerlink" title="5.1.4.2 按列族过滤和应用"></a>5.1.4.2 按列族过滤和应用</h5><p>在 <code>MemTableInserter::SeekToColumnFamily</code> 中进行过滤：</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">SeekToColumnFamily</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> column_family_id, Status* s)</span> </span>&#123;
+    <span class="hljs-comment">// 查找对应的列族</span>
+    <span class="hljs-type">bool</span> found = cf_mems_-&gt;<span class="hljs-built_in">Seek</span>(column_family_id);
+    <span class="hljs-keyword">if</span> (!found) &#123;
+        <span class="hljs-keyword">if</span> (ignore_missing_column_families_) &#123;
+            *s = Status::<span class="hljs-built_in">OK</span>();
+        &#125; <span class="hljs-keyword">else</span> &#123;
+            *s = Status::<span class="hljs-built_in">InvalidArgument</span>(<span class="hljs-string">&quot;Invalid column family specified in write batch&quot;</span>);
+        &#125;
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    &#125;
+    
+    <span class="hljs-comment">// 检查是否需要跳过此记录（恢复模式下的关键逻辑）</span>
+    <span class="hljs-keyword">if</span> (recovering_log_number_ != <span class="hljs-number">0</span> &amp;&amp;
+        recovering_log_number_ &lt; cf_mems_-&gt;<span class="hljs-built_in">GetLogNumber</span>()) &#123;
+        <span class="hljs-comment">// 如果恢复的日志编号小于列族的当前日志编号，</span>
+        <span class="hljs-comment">// 说明列族已经包含了来自此日志的更新，跳过以避免重复应用</span>
+        *s = Status::<span class="hljs-built_in">OK</span>();
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    &#125;
+    
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+&#125;</code></pre>
+
+<h5 id="5-1-4-3-写入-Memtable"><a href="#5-1-4-3-写入-Memtable" class="headerlink" title="5.1.4.3 写入 Memtable"></a>5.1.4.3 写入 Memtable</h5><p>通过 <code>MemTableInserter::PutCF</code>、<code>DeleteCF</code> 等方法将数据写入对应列族的 memtable：</p>
+<pre><code class="hljs cpp"><span class="hljs-function">Status <span class="hljs-title">PutCF</span><span class="hljs-params">(<span class="hljs-type">uint32_t</span> column_family_id, <span class="hljs-type">const</span> Slice&amp; key, <span class="hljs-type">const</span> Slice&amp; value)</span> </span>&#123;
+    <span class="hljs-comment">// 检查列族是否存在和有效</span>
+    <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">SeekToColumnFamily</span>(column_family_id, &amp;ret_status)) &#123;
+        <span class="hljs-keyword">return</span> ret_status;
+    &#125;
+    
+    <span class="hljs-comment">// 获取目标memtable</span>
+    MemTable* mem = cf_mems_-&gt;<span class="hljs-built_in">GetMemTable</span>();
+    
+    <span class="hljs-comment">// 将数据添加到memtable</span>
+    ret_status = mem-&gt;<span class="hljs-built_in">Add</span>(sequence_, value_type, key, value, kv_prot_info,
+                         concurrent_memtable_writes_, <span class="hljs-built_in">get_post_process_info</span>(mem),
+                         hint_per_batch_ ? &amp;<span class="hljs-built_in">GetHintMap</span>()[mem] : <span class="hljs-literal">nullptr</span>);
+    <span class="hljs-keyword">return</span> ret_status;
+&#125;</code></pre>
+
+<h4 id="5-1-5-总结"><a href="#5-1-5-总结" class="headerlink" title="5.1.5 总结"></a>5.1.5 总结</h4><ol>
+<li>WAL 起始文件：基于各列族的 <code>log_number_</code> 和系统的 <code>min_log_number_to_keep_</code> 确定</li>
+<li>起始 Record：每个 WAL 文件都从头开始完整读取</li>
+<li>Record 过滤：<ul>
+<li>根据 <code>WriteBatch</code> 中的 <code>column_family_id</code> 找到对应列族</li>
+<li>检查列族的 <code>log_number_</code> 避免重复应用已处理的数据</li>
+<li>只有通过过滤的 Record 才会被应用到对应列族的 memtable</li>
+</ul>
+</li>
+</ol>
+<p>如果因数据同步需要调大 WAL 的保留时间，可以通过调大 <code>WAL_ttl_seconds</code> 或者 <code>WAL_size_limit_MB</code> ，并且保持 <code>max_total_wal_size</code> 不变实现，此时并不会影响恢复速度</p>
+<h3 id="5-2-不同恢复模式比较"><a href="#5-2-不同恢复模式比较" class="headerlink" title="5.2 不同恢复模式比较"></a>5.2 不同恢复模式比较</h3><p>RocksDB 提供了四种 WAL 恢复模式，在数据丢失量和恢复速度之间做出不同的权衡：</p>
+<h4 id="5-2-1-kTolerateCorruptedTailRecords"><a href="#5-2-1-kTolerateCorruptedTailRecords" class="headerlink" title="5.2.1 kTolerateCorruptedTailRecords"></a>5.2.1 kTolerateCorruptedTailRecords</h4><pre><code class="hljs cpp"><span class="hljs-comment">// 原始的LevelDB恢复模式</span>
+<span class="hljs-comment">// 我们容忍WAL文件末尾的损坏记录</span>
+<span class="hljs-comment">// 能够恢复大部分仍然可读的数据</span>
+WALRecoveryMode::kTolerateCorruptedTailRecords</code></pre>
+
+<p>特点：</p>
+<ul>
+<li><strong>数据丢失量</strong>：文件尾部损坏的记录会丢失</li>
+<li><strong>恢复速度</strong>：中等</li>
+<li><strong>适用场景</strong>：对部分数据丢失可接受，但要尽量恢复的场景</li>
+</ul>
+<h4 id="5-2-2-kAbsoluteConsistency"><a href="#5-2-2-kAbsoluteConsistency" class="headerlink" title="5.2.2 kAbsoluteConsistency"></a>5.2.2 kAbsoluteConsistency</h4><pre><code class="hljs cpp"><span class="hljs-comment">// 如果发现任何损坏记录，恢复会失败</span>
+<span class="hljs-comment">// 确保数据的绝对一致性</span>
+WALRecoveryMode::kAbsoluteConsistency</code></pre>
+
+<p>特点：</p>
+<ul>
+<li><strong>数据丢失量</strong>：零容忍，有任何损坏就会恢复失败</li>
+<li><strong>恢复速度</strong>：较慢，需要验证所有记录</li>
+<li><strong>适用场景</strong>：金融等要求数据完全准确的场景</li>
+</ul>
+<h4 id="5-2-3-kPointInTimeRecovery"><a href="#5-2-3-kPointInTimeRecovery" class="headerlink" title="5.2.3 kPointInTimeRecovery"></a>5.2.3 kPointInTimeRecovery</h4><pre><code class="hljs cpp"><span class="hljs-comment">// 恢复到损坏记录之前的最后一个完整记录</span>
+<span class="hljs-comment">// 确保数据一致性但可能丢失最近的写入</span>
+WALRecoveryMode::kPointInTimeRecovery</code></pre>
+
+<p>特点：</p>
+<ul>
+<li><strong>数据丢失量</strong>：损坏点之后的所有数据</li>
+<li><strong>恢复速度</strong>：较快，发现损坏立即停止</li>
+<li><strong>适用场景</strong>：需要一致性视图且接受部分数据丢失的场景</li>
+</ul>
+<h4 id="5-2-4-kSkipAnyCorruptedRecords"><a href="#5-2-4-kSkipAnyCorruptedRecords" class="headerlink" title="5.2.4 kSkipAnyCorruptedRecords"></a>5.2.4 kSkipAnyCorruptedRecords</h4><pre><code class="hljs cpp"><span class="hljs-comment">// 跳过所有损坏的记录但继续处理</span>
+<span class="hljs-comment">// 可能导致数据不一致但恢复速度最快</span>
+WALRecoveryMode::kSkipAnyCorruptedRecords</code></pre>
+
+<p>特点：</p>
+<ul>
+<li><strong>数据丢失量</strong>：仅损坏的记录</li>
+<li><strong>恢复速度</strong>：最快，不会因损坏而停止</li>
+<li><strong>适用场景</strong>：恢复速度优先，可容忍潜在的不一致性</li>
+</ul>
+<h3 id="5-3-恢复速度优化"><a href="#5-3-恢复速度优化" class="headerlink" title="5.3 恢复速度优化"></a>5.3 恢复速度优化</h3><p>恢复速度与 Flush 策略紧密相关，优化方法包括：</p>
+<ol>
+<li><p>**设置 <code>avoid_flush_during_recovery</code>**：</p>
+<pre><code class="hljs cpp">Options options;
+options.avoid_flush_during_recovery = <span class="hljs-literal">true</span>;</code></pre></li>
+</ol>
+<p>此选项避免在恢复期间进行额外的 Flush，减少 I&#x2F;O 开销。</p>
+<ol start="2">
+<li><p><strong>设置并行 WAL 恢复</strong>：</p>
+<pre><code class="hljs cpp">Options options;
+options.wal_recovery_mode = WALRecoveryMode::kPointInTimeRecovery;
+options.max_background_jobs = <span class="hljs-number">8</span>;  <span class="hljs-comment">// 增加并行恢复线程</span></code></pre>
+</li>
+<li><p><strong>优化 WAL 文件数量</strong>：<br>合理设置 <code>max_total_wal_size</code> 并经常触发 Flush，减少崩溃时需要回放的 WAL 数量。</p>
+</li>
+<li><p><strong>统计更新优化</strong></p>
+</li>
+</ol>
+<p>跳过 DB 打开时的统计信息更新可加快启动速度：</p>
+<pre><code class="hljs cpp">Options options;
+<span class="hljs-comment">// 不更新用于优化压缩决策的统计信息</span>
+options.skip_stats_update_on_db_open = <span class="hljs-literal">true</span>;</code></pre>
+
+<ol start="5">
+<li><strong>文件检查优化</strong></li>
+</ol>
+<p>跳过检查 SST 文件大小可加快数据库打开：</p>
+<pre><code class="hljs cpp">Options options;
+<span class="hljs-comment">// 跳过在DB打开时获取和检查所有SST文件的大小</span>
+options.skip_checking_sst_file_sizes_on_db_open = <span class="hljs-literal">true</span>;</code></pre>
+
+<p>当使用非默认 Env 且获取文件大小开销较大时，这一优化尤为有效。</p>
+<ol start="6">
+<li><p><strong>实现不活跃 CF 的定期 Flush 机制</strong>：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 实现定时任务，定期执行Flush</span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">PeriodicFlushTask</span><span class="hljs-params">()</span> </span>&#123;
+  FlushOptions fopts;
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> cf_handle : inactive_cf_handles) &#123;
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">TimeExceeds</span>(last_flush_time[cf_handle], max_idle_time)) &#123;
+      db-&gt;<span class="hljs-built_in">Flush</span>(fopts, cf_handle);
+    &#125;
+  &#125;
+&#125;</code></pre></li>
+</ol>
+<h2 id="六、Flush-与-SST-文件"><a href="#六、Flush-与-SST-文件" class="headerlink" title="六、Flush 与 SST 文件"></a>六、Flush 与 SST 文件</h2><h3 id="6-1-列族与-SST-文件的关系"><a href="#6-1-列族与-SST-文件的关系" class="headerlink" title="6.1 列族与 SST 文件的关系"></a>6.1 列族与 SST 文件的关系</h3><p>多 CF 是否会 flush 到同一个 SST ？从代码实现上看，FlushJob 总是针对单个 CF 创建并运行的：</p>
+<pre><code class="hljs cpp"><span class="hljs-built_in">FlushJob</span>(<span class="hljs-type">const</span> std::string&amp; dbname, ColumnFamilyData* cfd,
+	   <span class="hljs-type">const</span> ImmutableDBOptions&amp; db_options,
+	   <span class="hljs-type">const</span> MutableCFOptions&amp; mutable_cf_options, <span class="hljs-type">uint64_t</span> max_memtable_id,
+	   <span class="hljs-type">const</span> FileOptions&amp; file_options, VersionSet* versions,
+	   InstrumentedMutex* db_mutex, std::atomic&lt;<span class="hljs-type">bool</span>&gt;* shutting_down,
+	   std::vector&lt;SequenceNumber&gt; existing_snapshots,
+	   SequenceNumber earliest_write_conflict_snapshot,
+	   SnapshotChecker* snapshot_checker, JobContext* job_context,
+	   FlushReason flush_reason, LogBuffer* log_buffer,
+	   FSDirectory* db_directory, FSDirectory* output_file_directory,
+	   CompressionType output_compression, Statistics* stats,
+	   EventLogger* event_logger, <span class="hljs-type">bool</span> measure_io_stats,
+	   <span class="hljs-type">const</span> <span class="hljs-type">bool</span> sync_output_directory, <span class="hljs-type">const</span> <span class="hljs-type">bool</span> write_manifest,
+	   Env::Priority thread_pri, <span class="hljs-type">const</span> std::shared_ptr&lt;IOTracer&gt;&amp; io_tracer,
+	   <span class="hljs-type">const</span> SeqnoToTimeMapping&amp; seq_time_mapping,
+	   <span class="hljs-type">const</span> std::string&amp; db_id = <span class="hljs-string">&quot;&quot;</span>, <span class="hljs-type">const</span> std::string&amp; db_session_id = <span class="hljs-string">&quot;&quot;</span>,
+	   std::string full_history_ts_low = <span class="hljs-string">&quot;&quot;</span>,
+	   BlobFileCompletionCallback* blob_callback = <span class="hljs-literal">nullptr</span>);</code></pre>
+
+<p>多个 CF 不会 Flush 到同一个 SST 文件的原因包括：</p>
+<ol>
+<li><strong>数据隔离</strong>：每个 CF 可能有不同的压缩选项、比较器等，需要独立存储。</li>
+<li><strong>独立生命周期</strong>：每个 CF 可以独立删除或修改，分开存储便于管理。</li>
+<li><strong>性能考虑</strong>：分开存储可以并行处理不同 CF 的数据访问和压缩。</li>
+</ol>
+<h3 id="6-2-SST-文件的组织与管理"><a href="#6-2-SST-文件的组织与管理" class="headerlink" title="6.2 SST 文件的组织与管理"></a>6.2 SST 文件的组织与管理</h3><p>SST 文件通常以数字作为文件名，表示文件编号：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 生成 SST 文件名的函数</span>
+meta_.fd = <span class="hljs-built_in">FileDescriptor</span>(versions_-&gt;<span class="hljs-built_in">NewFileNumber</span>(), <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+file_name = <span class="hljs-built_in">TableFileName</span>(ioptions-&gt;cf_paths, file_meta-&gt;fd.<span class="hljs-built_in">GetNumber</span>(),
+						  file_meta-&gt;fd.<span class="hljs-built_in">GetPathId</span>());
+
+<span class="hljs-function">std::string <span class="hljs-title">MakeTableFileName</span><span class="hljs-params">(<span class="hljs-type">const</span> std::string&amp; path, <span class="hljs-type">uint64_t</span> number)</span> </span>&#123;
+  <span class="hljs-comment">// static const std::string kRocksDbTFileExt = &quot;sst&quot;;</span>
+  <span class="hljs-keyword">return</span> <span class="hljs-built_in">MakeFileName</span>(path, number, kRocksDbTFileExt.<span class="hljs-built_in">c_str</span>());
+&#125;
+
+<span class="hljs-function"><span class="hljs-type">static</span> std::string <span class="hljs-title">MakeFileName</span><span class="hljs-params">(<span class="hljs-type">uint64_t</span> number, <span class="hljs-type">const</span> <span class="hljs-type">char</span>* suffix)</span> </span>&#123;
+  <span class="hljs-type">char</span> buf[<span class="hljs-number">100</span>];
+  <span class="hljs-built_in">snprintf</span>(buf, <span class="hljs-built_in">sizeof</span>(buf), <span class="hljs-string">&quot;%06llu.%s&quot;</span>,
+           <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> <span class="hljs-type">long</span>&gt;(number), suffix);
+  <span class="hljs-keyword">return</span> buf;
+&#125;</code></pre>
+
+<p>文件编号通过 <code>VersionSet</code> 类中的原子计数器 <code>next_file_number_</code> 生成的全局递增序列，确保了所有文件的唯一性标识，并通过 MANIFEST 文件持久化，在数据库重启时能够正确恢复。文件编号在整个数据库实例中全局唯一，不同的列族共享同一个计数器</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// Allocate and return a new file number</span>
+<span class="hljs-function"><span class="hljs-type">uint64_t</span> <span class="hljs-title">NewFileNumber</span><span class="hljs-params">()</span> </span>&#123; <span class="hljs-keyword">return</span> next_file_number_.<span class="hljs-built_in">fetch_add</span>(<span class="hljs-number">1</span>); &#125;</code></pre>
+
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>RocksDB 的 Flush 机制直接影响写入性能、内存占用和重启恢复速度。合理配置参数、关注不活跃列族和活跃的 WAL 管理，能有效提升系统整体表现和可用性。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-30-2025/rocksdb-memtable-flush.html">https://www.cyningsun.com/05-30-2025/rocksdb-memtable-flush.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-05-2025/rocksdb-obsolete-files.html">深入理解 RocksDB 过期文件清理</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/05-05-2025/rocksdb-obsolete-files.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

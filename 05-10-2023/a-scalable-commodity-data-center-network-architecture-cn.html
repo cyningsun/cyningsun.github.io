@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜A scalable, commodity data center network architecture</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-05-10 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2023-05-12 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-10-2023/a-scalable-commodity-data-center-network-architecture-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="摘要当今的数据中心可能包含数万台计算机，具有巨大的总带宽需求。网络架构通常是由路由器和交换机等元件构成的一棵树，网络层次结构越靠上，设备越专业化、越昂贵。不幸的是，即使部署最高端的 IP 交换机&amp;#x2F;路由器，所得拓扑也只能支持网络边缘可用总带宽的 50%，同时仍然产生巨大的成本。数据中心节点之间的非均匀带宽，使应用程序设计复杂化，并限制了整个系统性能。">
+
+<meta name="keywords" content="数据中心，网络架构，可扩展性，集群，TCP/IP">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜A scalable, commodity data center network architecture</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-05-10
+         | 
+        Last Revised: 2023-05-12
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E4%BB%8B%E7%BB%8D"><span class="toc-text">1. 介绍</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E8%83%8C%E6%99%AF"><span class="toc-text">2. 背景</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E5%BD%93%E5%89%8D%E6%95%B0%E6%8D%AE%E4%B8%AD%E5%BF%83%E7%BD%91%E7%BB%9C%E6%8B%93%E6%89%91"><span class="toc-text">2.1 当前数据中心网络拓扑</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#2-1-1-%E6%8B%93%E6%89%91"><span class="toc-text">2.1.1 拓扑</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-1-2-%E8%B6%85%E5%88%86"><span class="toc-text">2.1.2 超分</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-1-3-%E5%A4%9A%E8%B7%AF%E5%BE%84%E8%B7%AF%E7%94%B1"><span class="toc-text">2.1.3 多路径路由</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2-1-4-%E6%88%90%E6%9C%AC"><span class="toc-text">2.1.4 成本</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-Clos-%E7%BD%91%E7%BB%9C-x2F-%E8%83%96%E6%A0%91"><span class="toc-text">2.2 Clos 网络&#x2F;胖树</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E6%80%BB%E7%BB%93"><span class="toc-text">2.3 总结</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%9E%B6%E6%9E%84"><span class="toc-text">3. 架构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E5%8A%A8%E6%9C%BA"><span class="toc-text">3.1 动机</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E7%BC%96%E5%9D%80"><span class="toc-text">3.2 编址</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E4%B8%A4%E7%BA%A7%E8%B7%AF%E7%94%B1%E8%A1%A8"><span class="toc-text">3.3 两级路由表</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E4%B8%A4%E7%BA%A7%E6%9F%A5%E6%89%BE%E5%AE%9E%E7%8E%B0"><span class="toc-text">3.4 两级查找实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-%E8%B7%AF%E7%94%B1%E7%AE%97%E6%B3%95"><span class="toc-text">3.5 路由算法</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Pod-%E4%BA%A4%E6%8D%A2%E6%9C%BA"><span class="toc-text">Pod 交换机</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E4%BA%A4%E6%8D%A2%E6%9C%BA"><span class="toc-text">核心交换机</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B7%AF%E7%94%B1%E7%A4%BA%E4%BE%8B"><span class="toc-text">路由示例</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-6-%E6%B5%81%E5%88%86%E7%B1%BB"><span class="toc-text">3.6 流分类</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-7-%E6%B5%81%E8%B0%83%E5%BA%A6"><span class="toc-text">3.7 流调度</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-7-1-%E8%BE%B9%E7%BC%98%E4%BA%A4%E6%8D%A2%E6%9C%BA"><span class="toc-text">3.7.1 边缘交换机</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-7-2-%E4%B8%AD%E5%A4%AE%E8%B0%83%E5%BA%A6%E5%99%A8"><span class="toc-text">3.7.2 中央调度器</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-8-%E5%AE%B9%E9%94%99"><span class="toc-text">3.8 容错</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-8-1-%E4%B8%8B%E5%B1%82%E5%88%B0%E4%B8%8A%E5%B1%82%E4%BA%A4%E6%8D%A2%E6%9C%BA"><span class="toc-text">3.8.1 下层到上层交换机</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-8-2-%E4%B8%8A%E5%B1%82%E5%88%B0%E6%A0%B8%E5%BF%83%E4%BA%A4%E6%8D%A2%E6%9C%BA"><span class="toc-text">3.8.2 上层到核心交换机</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-9-%E7%94%B5%E9%87%8F%E5%92%8C%E7%83%AD%E9%87%8F%E9%97%AE%E9%A2%98"><span class="toc-text">3.9 电量和热量问题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%AE%9E%E7%8E%B0"><span class="toc-text">4.  实现</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E4%B8%A4%E7%BA%A7%E8%A1%A8"><span class="toc-text">4.1 两级表</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E6%B5%81%E5%88%86%E7%B1%BB"><span class="toc-text">4.2 流分类</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%B5%81%E8%B0%83%E5%BA%A6"><span class="toc-text">4.3 流调度</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E8%AF%84%E4%BC%B0"><span class="toc-text">5. 评估</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E5%AE%9E%E9%AA%8C%E6%8F%8F%E8%BF%B0"><span class="toc-text">5.1 实验描述</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%9F%BA%E5%87%86%E5%A5%97%E4%BB%B6"><span class="toc-text">5.2 基准套件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E7%BB%93%E6%9E%9C"><span class="toc-text">5.3 结果</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%B0%81%E8%A3%85"><span class="toc-text">6. 封装</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E7%9B%B8%E5%85%B3%E5%B7%A5%E4%BD%9C"><span class="toc-text">7. 相关工作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E7%BB%93%E8%AE%BA"><span class="toc-text">8. 结论</span></a></li></ol>
+ 
+        <h2 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h2><p>当今的数据中心可能包含数万台计算机，具有巨大的总带宽需求。网络架构通常是由路由器和交换机等元件构成的一棵树，网络层次结构越靠上，设备越专业化、越昂贵。不幸的是，即使部署最高端的 IP 交换机&#x2F;路由器，所得拓扑也只能支持网络边缘可用总带宽的 50%，同时仍然产生巨大的成本。数据中心节点之间的非均匀带宽，使应用程序设计复杂化，并限制了整个系统性能。</p>
+<p>在本文中，我们展示了如何利用大量商用以太网交换机来支持由数万个元件组成的集群的全部总带宽。与商用计算机集群在很大程度上取代了更专业化的 SMP 和 MPP 类似，我们认为适当架构和互连的商用交换机，能以更低的成本提供比现有高端解决方案更高的性能。我们的方法不需要对终端主机网络接口、操作系统或应用程序进行任何修改；关键是，它完全后向兼容以太网、IP和TCP。</p>
+<h2 id="1-介绍"><a href="#1-介绍" class="headerlink" title="1. 介绍"></a>1. 介绍</h2><p>越来越多的专业知识使许多机构能够以经济高效的方式运用兆亿次浮点运算能力和兆字节存储能力。数万台 PC 组成的集群在最大机构中并不少见，在大学、研究实验室和公司中千节点集群日益普遍。重要应用类别包括科学计算、金融分析、数据分析和仓储以及大规模网络服务。</p>
+<p>如今，大型集群中主要瓶颈通常是节点间通信带宽。许多应用程序必须与远程节点交换信息才能继续进行本地计算。例如，MapReduce 必须执行大量数据洗牌（shuffling），以传输 map 阶段输出，然后才能继续进行 reduce 阶段。在基于集群的文件系统上运行的应用程序通常需要远程节点访问才能继续执行其 I&#x2F;O 操作。搜索引擎查询通常需要与集群中存储倒排索引的每个节点进行并行通信，以返回最相关的结果。甚至逻辑上不同的集群之间，通常也存在重要的通信需求，例如，从负责构建索引的站点更新各个执行搜索的集群的倒排索引时。互联网服务越来越多地采用面向服务的架构，检索单个网页可能需要与远程节点上运行的数百个单独子服务进行协调和通信。最后，并行科学应用程序的重大通信需求众所周知。</p>
+<p>大型集群的通信矩阵有两种高层选择。一种选择是利用专用硬件和通信协议，如 InﬁniBand 或 Myrinet。虽然这些解决方案可以伸缩到具有高带宽的数千个节点的集群，但它们不利用商用零件（因此更昂贵），并且与 TCP&#x2F;IP 应用程序不兼容。第二种选择是利用商用以太网交换机和路由器来互连集群机器。这种方法支持熟悉的管理基础设施以及未修改的应用程序、操作系统和硬件。不幸的是，集群带宽不能很好的随着集群规模伸缩，并且实现最高水平带宽会随着集群规模呈非线性增长。</p>
+<p>由于兼容性和成本原因，大多数集群通信系统遵循第二种方法。然而，在大型集群中，由于通信模式的不同，通信带宽可能会被超分使用。也就是说，连接到同一物理交换机的两个节点可能能够以全带宽（例如 1Gbps）进行通信，但在交换机之间移动，可能跨越多个层次结构层次，可用带宽可能会严重受限。解决这些瓶颈需要非商用解决方案，例如大型 10Gbps 交换机和路由器。此外，典型的沿着相互连接的交换机树的单路径路由，意味着整个集群的带宽受到通信层次结构根部可用带宽的限制。即使我们处于一个转折点，10Gbps 技术正在变得具有成本竞争力，最大的 10Gbps 交换机仍然产生巨大的成本，并且仍然限制了最大集群的整体可用带宽。</p>
+<p>在这种情况下，本文的目标是设计一种数据中心通信架构，满足以下目标：</p>
+<ul>
+<li>可伸缩的互连带宽：数据中心中的任意主机应该能够以其本地网络接口的全带宽与网络中的任何其他主机通信</li>
+<li>规模经济：正如商用个人电脑成为大型计算环境的基础一样，我们希望利用同样的规模经济，使廉价的现成以太网交换机成为大型数据中心网络的基础。</li>
+<li>向后兼容性：整个系统应该后向兼容运行以太网和 IP 的主机。也就是说，现有的数据中心几乎都是利用普通以太网和运行IP，应该能够在不作任何修改的情况下利用新的互联架构。</li>
+</ul>
+<p>通过在胖树（fat-tree）结构中互连商用交换机，可以实现由数万个节点组成的集群的双工带宽。具体来说，我们的架构实例使用 48 端口以太网交换机，能够为多达 27,648 个主机提供全带宽。通过完全使用商用交换机，我们实现了比现有解决方案更低的成本，同时提供了更多的带宽。我们的解决方案不需要对终端主机进行任何更改，完全兼容 TCP&#x2F;IP，只对交换机本身的转发功能进行适度修改。我们还预计，一旦 10 GigE 交换机在集群边缘商用，我们的方法将是唯一一种能够为大型集群提供全带宽的方法，因为目前没有任何更高速度以太网替代方案（无论成本多少）。即使更高速度以太网解决方案可用，它们最初也会以巨大的成本得到小的端口密度。</p>
+<h2 id="2-背景"><a href="#2-背景" class="headerlink" title="2. 背景"></a>2. 背景</h2><h3 id="2-1-当前数据中心网络拓扑"><a href="#2-1-当前数据中心网络拓扑" class="headerlink" title="2.1 当前数据中心网络拓扑"></a>2.1 当前数据中心网络拓扑</h3><p>我们进行了一项研究，以确定当前数据中心通信网络的最佳实践。我们在这里关注利用以太网和 IP 的商用设计；我们在第 7 节讨论我们的工作与替代技术的关系。</p>
+<h4 id="2-1-1-拓扑"><a href="#2-1-1-拓扑" class="headerlink" title="2.1.1 拓扑"></a>2.1.1 拓扑</h4><p>当前典型的架构由两层或三层树形交换机或路由器组成。三层设计（见图 1）树的根部是核心层，中间是聚合层，树的叶子处是边缘层。两层设计只有核心和边缘层。通常，两层设计可以支持 5K 到 8K 台主机。由于我们的目标大约是 25,000 台主机，因此我们将注意力聚焦在三层设计上。树叶处的交换机具有一些 GigE 端口（48-288）以及一些 10 GigE 上行链路到一个或多个网络元件层，这些元件聚合和传输叶子交换机之间的数据包。在层次结构的更高层，有具有 10 GigE 端口（通常为 32-128）和显著交换能力的交换机来聚合边缘之间的流量。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508011549.png" alt="译｜A scalable, commodity data center network architecture-20230508011549"></p>
+<blockquote>
+<p>术语“：交换机” 指代执行二层交换和三层路由的设备。</p>
+</blockquote>
+<p> 假设使用两种类型的交换机，它们分别代表端口密度和带宽方面的高端型。前者，用于树的边缘，是一个带有四个 10 GigE 上行链路的 48 端口 GigE 交换机。对于通信层次结构的更高层，我们考虑 128 端口 10 GigE 交换机。两种类型的交换机都允许所有直连的主机彼此相互通信。</p>
+<h4 id="2-1-2-超分"><a href="#2-1-2-超分" class="headerlink" title="2.1.2 超分"></a>2.1.2 超分</h4><p>许多数据中心设计引入超分作为降低设计总成本的手段。我们定义超分这个术语为终端主机之间最坏情况下可实现的总带宽与特定通信拓扑双工带宽之比。超分比为 1:1 表示所有主机可与任意其他主机以其网络接口的全带宽（例如，商用以太网设计中的 1 Gb&#x2F;s）进行通信。超分值为 5:1 意味着只有 20% 的可用主机带宽可用于某些通信模式。典型设计超分比为 2.5:1 （400 Mbps) 至 8:1 （125 Mbps)。尽管对于 1 Gb&#x2F;s 的以太网，可以实现超分比为 1:1 的数据中心，但正如我们在第 2.1.4 节中所述，这种设计的成本通常是令人望而却步的，即使对于中等规模的数据中心也是如此。当超越单台交换机时，为 10 Gb&#x2F;s 的以太网实现双工带宽目前是不可能的。</p>
+<h4 id="2-1-3-多路径路由"><a href="#2-1-3-多路径路由" class="headerlink" title="2.1.3 多路径路由"></a>2.1.3 多路径路由</h4><p>在大型集群中，实现任意主机之间的全带宽需要一个具有多个核心交换机的“多根”树（见图 1）。这反过来需要多路径路由技术，例如 ECMP。目前，大多数企业核心交换机都支持 ECMP。如果不使用 ECMP，则仅使用单根核心的 1:1 超分的集群最大大小将受到限制，最多为 1,280 个节点（对应于单个 128 端口 10 GigE 交换机的带宽）。</p>
+<p>为了利用多条路径，ECMP 对流进行静态 <em>负载分割</em> 。在进行分配决策时，并未考虑流带宽，即使是简单的通信模式也可能导致超分。此外，当前的 ECMP 实现将路径的多样性限制在 8-16 之间，通常比大型数据中心所需的高双工带宽多样性更少。此外，路由表条目标数量随着考虑的路径数量成倍增长，这增加了开销与查找延迟。</p>
+<h4 id="2-1-4-成本"><a href="#2-1-4-成本" class="headerlink" title="2.1.4 成本"></a>2.1.4 成本</h4><p>为大型集群构建网络互连的成本极大地影响了设计决策。正如我们上面所讨论的，超分通常是为了降低总成本。在这里，使用当前最佳实践，我们给出了不同数量主机和超分配置的粗略成本。假设每个边缘的 48 端口 GigE 交换机的成本为 $7,000，聚合和核心层中的 128 端口 10 GigE 交换机的成本为 $700,000。在这些计算中，不考虑布线成本。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508011644.png" alt="译｜A scalable, commodity data center network architecture-20230508011644"></p>
+<p>图 2 绘制了以百万美元为单位的成本与 x 轴上终端主机总数之间的关系。每条曲线代表目标超分比。例如，连接 20,000 台主机，并在所有主机之间提供全带宽的交换硬件约为 $37M。3∶1 超分比的曲线绘制了连接终端主机的成本，任意终端主机之间通信可用的最大带宽将限制在约 330 Mbps。图中还包括，胖树架构超分比为 1:1 的交付成本，以进行比较。</p>
+<p>总的来说，我们发现使用现有技术为大型集群提供高水平带宽会产生巨大成本，而且基于胖树的集群互连在以适中的成本提供可伸缩带宽方面潜力巨大。然而，在某种意义上，图 2 低估了在构建数据中心架构中使用最高端的组件的难度和成本。2008 年，10 GigE 交换机即将成为商用零件；GigE 与 10 GigE 交换机相比，每端口每比特&#x2F;秒价格差约为 5 倍，并且这种差值还在继续缩小。为了探究历史趋势，在表 1 中展示了特定年份中使用可用的最高端的交换机所支持的最大集群配置的成本。历史研究数据来自于各高端 10 GigE 交换机供应商 2002 年、2004 年、2006 年和 2008 年的产品公告。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508011739.png" alt="译｜A scalable, commodity data center network architecture-20230508011739"></p>
+<p>使用我们的发现构建当年技术能够支持的、超分比为 1:1 的、最大集群配置。表 1 显示了特定年份可用的最大 10 GigE 交换机；在核心和聚合层中使用这些交换机进行分层设计。表格还显示了该年份可用的最大商用 GigE 交换机；在胖树的所有层和分层设计的边缘层中使用这些交换机。</p>
+<p>传统技术采用高端交换机支持的最大集群大小一直受到可用端口密度的限制，直到最近。此外，当 10 GigE 交换机最初可用时，高端交换机成本让人望而却步。请注意，我们对传统层次结构的计算比较慷慨，因为聚合层的商用 GigE 交换机直到最近才有必要的 10 GigE 上行链路。相比之下，基于胖树拓扑的集群具有很好的可伸缩性，总成本下降的更早且更快（因为它更早地遵循商用定价趋势）。此外，在胖树拓扑中也不需要高速上行链路。</p>
+<p>最后，值得注意的是，今天，技术上不可能构建一个具有 27,648 个节点，节点之间仅有 10 Gbps 带宽的集群。另一方面，胖树交换架构采用近乎商用的 48 端口 10 GigE 交换机，产生超过 6.9 亿美元的成本。虽然在大多数情况下可能成本过高，但最重要的事实是，甚至不可能使用传统聚合与高端交换机构建这样一个配置，因为今天没有产品，甚至没有以太网标准用于速度超过10 GigE 的交换机。</p>
+<h3 id="2-2-Clos-网络-x2F-胖树"><a href="#2-2-Clos-网络-x2F-胖树" class="headerlink" title="2.2 Clos 网络&#x2F;胖树"></a>2.2 Clos 网络&#x2F;胖树</h3><p>今天，商用和非商用交换机之间的价格差提供了强大的动力，用许多小型商用交换机取代少量大型、昂贵的交换机构建大规模通信网络。五十年多前，电话交换机类似的趋势促使 Charles Clos 设计了一种网络拓扑，通过适当地互连较小的商用交换机为许多终端设备提供高水平带宽。</p>
+<p>本文采用一种特殊的 Clos 拓扑称为胖树（fat-tree）来互连商用以太网交换机。我们将 k 元胖树组织如图 3 所示。有 k 个 pod ，每个 pod 包含两层 k&#x2F;2 台交换机。下层的 k 端口交换机直接连接到 k&#x2F;2 台主机。剩余的 k&#x2F;2 个端口连接到层次结构中聚合层的 k 个端口中的 k&#x2F;2 个。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508011816.png" alt="译｜A scalable, commodity data center network architecture-20230508011816"></p>
+<p>有 （k&#x2F;2)<sup>2</sup> 台 k 端口核心交换机。每个核心交换机都有一个端口连接到 k 个 pod 。任何核心交换机的第 i 个端口连接到 pod  i，使得每个 pod 交换机中以 （k&#x2F;2) 步幅的连续端口连接到核心交换机。一般来说，k 端口交换机构建的胖树支持 k<sup>3&#x2F;4</sup> 个主机。在本文中，我们专注于 k &#x3D; 48 及以下的设计。我们的方法可以推广到任意 k 值。</p>
+<p>胖树拓扑的一个优点是，所有交换元件都是相同的，使我们能够利用廉价的商用部件来实现通信架构中的所有交换器。此外，胖树是 _可重排非阻塞的_，这意味着对于任意通信模式，都有一组路径饱和拓扑中终端主机的所有可用带宽。由于需要防止 TCP 流的数据包重排，在实践中实现 1:1 的超分配置比较困难</p>
+<p>图 3 显示了 k &#x3D; 4 的简单胖树拓扑。连接到同一台边缘交换机的所有主机形成自己的子网。因此，所有流向同一子网的流量都被交换，而所有其他流量都被路由。</p>
+<p>例如，由 48 端口千兆交换机构建的胖树包括 48 个 pod，每个 pod 包含一个边缘层和一个汇聚层，每个汇聚层有 24 台交换机。每个 pod 中的边缘交换机分配 24 台主机。网络支持 27,648 台主机，由 1,152 个子网组成，每个子网 24 台主机。不同 pod 中的任意两个主机之间有 576 条等价路径。部署这种网络架构的成本为 $8.64M，而前面描述的传统技术为 $37M。</p>
+<h3 id="2-3-总结"><a href="#2-3-总结" class="headerlink" title="2.3 总结"></a>2.3 总结</h3><p>鉴于我们的目标网络架构，在本文的其余部分，我们解决在以太网部署中采用这种拓扑的两个主要问题。首先，IP&#x2F;以太网通常在每个源和目标之间建立单一路由路径。即使是简单的通信模式，单一路径路由也会迅速导致胖树上行下行的瓶颈，严重限制整体性能。我们描述了简单的 IP 转发扩展，以有效利用胖树的高扇出可用性。其次，在大型网络中，胖树拓扑会增加布线的复杂性。在某种程度上，这种开销是胖树拓扑固有的，但在第6节中，我们将介绍减轻这种开销的封装和放置技术。最后，我们在 Click 中构建了第 3 节所述架构的原型。第 5 节中给出的初步性能评估证实了我们的方法在小规模部署中潜在的性能优势。</p>
+<h2 id="3-架构"><a href="#3-架构" class="headerlink" title="3. 架构"></a>3. 架构</h2><p>在本节中，我们描述了一种将商用交换机互连成胖树拓扑的架构。我们首先说明需要对路由表结构进行轻微修改的原因。然后我们描述如何为集群中的主机分配 IP 地址。接下来，我们引入两级路由查找的概念，以协助完成跨胖树多路径路由。然后介绍在每个交换机中填充转发表的算法。我们还描述了流分类和流调度技术作为多路径路由的替代方法。最后，我们介绍了一个简单的容错方案，并描述了该方案的热量和功耗特征。</p>
+<h3 id="3-1-动机"><a href="#3-1-动机" class="headerlink" title="3.1 动机"></a>3.1 动机</h3><p>为了实现最大化网络的双工带宽，需要将任何给定 pod 的输出流量尽可能均匀地分布在核心交换机之间。路由协议如 OSPF2 通常以跳数作为“最短路径”的度量标准，在 k 元胖树拓扑结构（参见 2.2 节）中，不同 pod 的任意两台主机之间有 （k&#x2F;2)2 条这样的最短路径，但只能选择了一条。因此，交换机将发送到给定子网的流量集中到单个端口，即使存在其他具有相同成本的选择。此外，由于 OSPF 消息到达时间交错，可能只选择少数核心交换机，甚至只选择一个作为 pod 之间的中间链路。这将导致这些点严重拥塞，并且无法利用胖树中的路径冗余</p>
+<p>OSPF-ECMP 等扩展，除了不可用在候选的交换机类别之外，还会导致所需前缀数量爆炸性增长。一个较低层的 pod 交换机中需要为其他每个子网存储 （k&#x2F;2) 个前缀；总计 k∗（k&#x2F;2)<sup>2</sup> 个前缀。</p>
+<p>因此，我们需要一种简单、细粒度的方法，利用拓扑结构在 pod 之间进行流量扩散。交换机必须能够识别需要均匀分布的流量类别，并给予特殊处理。为此，我们提出使用两级路由表，根据目标 IP 地址的低位字节来传播输出流量（参见第 3.3 节）。</p>
+<h3 id="3-2-编址"><a href="#3-2-编址" class="headerlink" title="3.2 编址"></a>3.2 编址</h3><p>我们分配私有的 10.0.0.0&#x2F;8 段内所有网络 IP 地址。我们遵循熟悉的四点形式，满足以下条件：pod 交换机的地址形式为 10.pod.switch.1，其中 pod 表示 pod 编号（ [0,k-1] ），switch 表示该交换机在 pod 中的位置（[0,k−1]，从左到右，从下到上）。我们给出核心交换机的地址形式为 10.k.j.i，其中 j 和 i 表示交换机在 （k&#x2F;2)2 核心交换机网格中的坐标（每个都包含在 [1，（k&#x2F;2)] 内，从左上角开始)。</p>
+<p>主机的地址位于所连接的 pod 交换机之后；主机的地址格式为：10.pod.switch.ID，其中ID 是主机在该子网中的位置（[2,k&#x2F;2+1]，从左到右）。因此，每个下层交换机负责 k&#x2F;2 台主机的 &#x2F;24 子网（k &lt; 256）。图 3 显示了这种寻址方案的示例，对应于 k &#x3D; 4 的胖树。尽管这种使用方式相对浪费可用地址空间，但它简化了路由表的构建，如下所示。而且，这种方案可以伸缩到 420 万台主机。</p>
+<h3 id="3-3-两级路由表"><a href="#3-3-两级路由表" class="headerlink" title="3.3 两级路由表"></a>3.3 两级路由表</h3><p>为了提供第 3.1 节提出的均匀分布机制，我们修改路由表以允许两级前缀查找。主路由表中的每个条目都可能有一个额外的指针，指向一个由（后缀，端口)条目组成的小型二级表。如果一级前缀不包含任何二级后缀，则终止，并且二级表可以被多个一级前缀指向。主表中的项是左旋的（即，&#x2F;m 前缀掩码为 1<sup>m</sup>0<sup>32−m</sup>)，而二级表中的项是右旋的（即， &#x2F;m 后缀掩码为 0<sup>32−m</sup>1<sup>m</sup>)。如果最长匹配前缀搜索得到非终止前缀，则在二级表中找到最长匹配后缀并使用。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012018.png" alt="译｜A scalable, commodity data center network architecture-20230508012018"></p>
+<p>两级结构会稍微增加路由表查找延迟，但硬件中前缀搜索的并行性应该只会带来很小的损耗（见下文）。因为这些表都非常小。如下图所示，任何 pod 交换机的路由表都不会超过 k&#x2F;2 个前缀和 k&#x2F;2 个后缀。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012051.png" alt="译｜A scalable, commodity data center network architecture-20230508012051"></p>
+<h3 id="3-4-两级查找实现"><a href="#3-4-两级查找实现" class="headerlink" title="3.4 两级查找实现"></a>3.4 两级查找实现</h3><p>我们现在描述如何使用内容可寻址存储器(Content-Addressable Memory, CAM) 在硬件中实现两级查找。CAM 用于搜索密集型应用，在查找位模式的匹配时，比算法实现更快。CAM 可以在单个时钟周期内并行搜索所有条目。查找引擎使用一种特殊的 CAM，称为三元 CAM (Ternary CAM, TCAM)。除了匹配 0 和 1 之外，TCAM 还可以在特定位置存储 —<em>don’t care</em> 位，使得它适合存储变长前缀，例如路由表中的前缀。缺点是，CAM 的存储密度很低，非常耗电，而且每比特的成本很高。然而，在我们的架构中，路由表可以实现在一个相对较小的 TCAM 中(k 个条目，每个 32 位宽)。</p>
+<p>图 5 显示了我们提出的两级查找引擎的实现。TCAM 存储地址前缀和后缀，又索引一个 RAM，该 RAM 存储下一跳 IP 地址和输出端口。我们在数值较小的地址中存储左旋(前缀)条目，在较大的地址中存储右旋(后缀)条目。我们对 CAM 的输出进行编码，以便输出具有数值最小匹配地址的条目。这满足了特定的二级查找应用的语义：当数据包的目标 IP 地址同时匹配一个左旋项和一个右旋项时，则选择左旋项。例如，使用图 5 中的路由表，一个目标 IP 地址为 10.2.0.3 的数据包与左旋条目 10.2.0.X 和右旋条目 X.X.X.3 匹配。数据包正确地转发到端口 0。而目标地址为 10.3.1.2 的数据包只匹配右旋 X.X.X.2，并在端口 2 上转发。</p>
+<h3 id="3-5-路由算法"><a href="#3-5-路由算法" class="headerlink" title="3.5 路由算法"></a>3.5 路由算法</h3><p>胖树的前两层交换机充当过滤流量扩散器；任何给定 pod 中的下层和上层交换机都具有该pod 中子网的终止前缀。因此，如果一个主机将一个数据包发送到另一个同一 pod 但不同子网的主机，那么该 pod 中的所有上层交换机都具有一个指向目标子网交换机的终止前缀。</p>
+<p>对于所有其他输出的 pod 间流量，pod 交换机有一个默认 &#x2F;0 前缀，带有一个与主机 ID(目标 IP 地址的最低有效字节)匹配的二级表。我们利用主机 ID 作为确定性熵的来源；它们将使流量均匀地上行分布到核心交换机的出口链路。这也将导致到同一主机的后续数据包遵循相同的路径，从而避免数据包重排。</p>
+<p>在核心交换机中，我们为所有网络 ID 分配终止第一级前缀，每个前缀指向包含该网络的适当 pod。一旦数据包到达核心交换机，就只有一条链路到它的目标 pod，并且该交换机将包含该数据包的 pod 的终止 &#x2F;16 前缀(10.pod.0.0&#x2F;16, port)。一旦一个数据包到达它的目标 pod，接收的上层 pod 交换机也将包括一个(10.pod.switch.0&#x2F;24,port)前缀，以将该数据包定向到其目标子网交换机，在那里它最终被交换到其目标主机。因此，流量扩散只发生在数据包传输的前半段。</p>
+<p>设计分布式协议可以在每个交换机中增量地建立所需的转发状态。然而，为简单起见，假设一个完全了解集群互连拓扑的中央实体。这个中央路由控制负责静态地生成所有路由表，并在网络设置阶段将这些表加载到交换机中。动态路由协议还负责检测单个交换机的故障并执行路径故障转移(见第 3.8 节)。下面，我们总结了在 pod 和核心交换机上生成转发表的步骤。</p>
+<h4 id="Pod-交换机"><a href="#Pod-交换机" class="headerlink" title="Pod 交换机"></a>Pod 交换机</h4><p>在每个 pod 交换机中，我们为包含同一 pod 中的子网分配终止前缀。对于 pod 间流量，添加一个 &#x2F;0 前缀和一个与主机 ID 匹配的二级表。算法 1 展示了为上层 pod 交换机生成路由表的伪代码。输出端口模数移位的原因是避免来自同一个主机、不同底层交换机的流量流向同一个上层交换机。</p>
+<p>对于下层 pod 交换机，我们简单地省略了 &#x2F;24 子网前缀步骤（第 3 行），因为该子网自己的流量被交换，并且pod 间和 pod 内流量应该在上层交换机之间均匀分割。</p>
+<h4 id="核心交换机"><a href="#核心交换机" class="headerlink" title="核心交换机"></a>核心交换机</h4><p>由于每个核心交换机连接到每个 pod(端口 i 连接到 pod i)，因此核心交换机只包含指向其目标 pod 的终止 &#x2F;16 前缀，如算法 2 所示。该算法生成的表大小与 k 成线性关系。网络中没有交换机包含超过 k 个一级前缀或 k&#x2F;2 个二级后缀的表。</p>
+<h4 id="路由示例"><a href="#路由示例" class="headerlink" title="路由示例"></a>路由示例</h4><p>为了说明使用两级表的网络操作，我们给出一个数据包从源 10.0.1.2 到目标 10.2.0.3 的路由决策示例，如图 3 所示。首先，源主机的网关交换机（10.0.1.1）只有 &#x2F;0 的第一级前缀匹配该数据包，因此会根据该前缀的二级表中的主机 ID 字节转发该数据包。在该表中，在该表中，数据包与 0.0.0.3&#x2F;8 后缀匹配，该后缀指向端口 2 和交换机 10.0.2.1。交换机 10.0.2.1 也遵循相同的步骤，并转发到端口 3，连接到核心交换机 10.4.1.1。核心交换机将数据包与终止 10.2.0.0&#x2F;16 前缀匹配，该前缀指向目标 pod 2 的端口 2 和交换机 10.2.2.1。这个交换机与目标子网属于同一个 pod，因此有一个终止前缀 10.2.0.0&#x2F;24，该前缀指向负责该子网的交换机 10.2.0.1 的端口 0。从那里，标准切换技术将数据包传递到目标主机 10.2.0.3。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012154.png" alt="译｜A scalable, commodity data center network architecture-20230508012154"></p>
+<p>请注意，对于从 10.0.1.3 到另一个主机 10.2.0.2 的同时通信，传统的单路径 IP 路由将遵循与上述流程相同的路径，因为两个目标地都属于同一个子网。不幸的是，这将消除胖树拓扑的所有扇出优势。相反，我们的两级表查找允许交换机 10.0.1.1 基于两级表中的右旋匹配将第二条流转发到 10.0.3.1。</p>
+<h3 id="3-6-流分类"><a href="#3-6-流分类" class="headerlink" title="3.6 流分类"></a>3.6 流分类</h3><p>除了上述两级路由技术，我们还考虑了两种可选的动态路由技术，因为它们目前在一些商用路由器中可用[10,3]。我们的目标是量化这些技术的潜在好处，但承认它们会产生每个数据包的额外开销。重要的是，这些方案中维护的任何状态都是软性的，如果状态丢失，单个交换机可以回退到两级路由。</p>
+<p>作为流量扩散到核心交换机的另一种方法，我们在 pod 交换机中执行流分类，并使用动态端口重分配，以克服可避免的局部拥塞情况(例如，当两条流竞争同一个输出端口时，即使另一个到目标具有相同成本的端口未使用)。我们将 <em>流</em> 定义为一系列的数据包，这些数据包具有相同头部字段子集(通常是源 IP 地址和目标 IP 地址、目标传输端口)。特别是 pod 交换机:</p>
+<ol>
+<li>识别同一条流的后续数据包，并将它们转发到相同的输出端口。</li>
+<li>周期性地重新分配一个最小数量的流输出端口，以最小化不同端口聚合流容量的差异。</li>
+</ol>
+<p>第 1 步是针对数据包重排序的措施，第 2 步是在流大小动态变化的情况下，保证上行端口的流公平分布。第 4.2 节更详细地描述了流分类器的实现和流分布启发式方法。</p>
+<h3 id="3-7-流调度"><a href="#3-7-流调度" class="headerlink" title="3.7 流调度"></a>3.7 流调度</h3><p>已有研究表明，网络流量的传输时间和突发长度分布呈长尾分布，其特征是很少长生命周期的大数据流(占大部分带宽)，而有许多短生命周期的小数据流。本文认为路由大型流在确定网络可实现的双工带宽方面，起着至关重要的作用，因此需要进行特殊处理。在这种流管理的替代方法中，我们调度大数据流以尽量减少彼此的重叠。中央调度器根据网络中所有活动的大数据流的全局信息做出此选择。在这个初始设计中，我们仅考虑每台主机一次只有一条大数据流的情况。</p>
+<h4 id="3-7-1-边缘交换机"><a href="#3-7-1-边缘交换机" class="headerlink" title="3.7.1 边缘交换机"></a>3.7.1 边缘交换机</h4><p>与之前一样，边缘交换机最初会在本地将新流分配给负载最少的端口。然而，边缘交换机还会检测任何规模增长超过预定义阈值的输出流，并定期向指定所有活动大数据流的源和目标的中央调度器发送通知。这表示边缘交换机将该流放置非竞争路径的请求。</p>
+<p>请注意，与第 3.6 节不同的是，该方案不允许边缘交换机独立地重新分配流的端口，无论其大小。中央调度器是唯一有权下令重新分配的实体。</p>
+<h4 id="3-7-2-中央调度器"><a href="#3-7-2-中央调度器" class="headerlink" title="3.7.2 中央调度器"></a>3.7.2 中央调度器</h4><p>中央调度器(可能是复制的)跟踪所有活动的大数据流，并试图为它们分配不冲突的路径。调度器维护网络中所有链路的布尔状态，表示它们是否可用来承载大数据流。</p>
+<p>对于 pod 间流量，回想一下，网络中任意一对主机之间都有 (k&#x2F;2)<sup>2</sup> 条可能的路径，每条路径对应一台核心交换机。当调度器收到新流的通知时，它线性搜索核心交换机，以找到对应路径组件不包含预留链路的交换机。一旦找到这样的路径，调度器将这些连接标记为保留，并通知源 pod 相关的下层和上层交换机及流选择的路径相对应的正确输出端口。对pod 间的大数据流执行类似的搜索；这次是通过上层 pod 交换机找到一条无竞争路径。调度器垃圾收集最后更新时间超过给定时间的流，清除它们的预留标记。请注意，边缘交换机不会阻塞并等待调度器执行该计算，但一开始会像处理其他流一样处理大数据流。</p>
+<h3 id="3-8-容错"><a href="#3-8-容错" class="headerlink" title="3.8 容错"></a>3.8 容错</h3><p>任意一对主机之间可用路径的冗余使得胖树拓扑具有容错能力。我们提出了一种简单的故障广播协议，该协议允许交换机在下游一两跳处绕过链路或交换机故障。</p>
+<p>在该方案中，网络中的每台交换机都与其每个邻居维护一个双向转发检测会话(BFD)，以确定链路或邻居交换机何时发生故障。从容错的角度来看，可以承受两类故障：(a) 在 pod 间的下层交换机和上层交换机之间，(b) 在核心交换机和上层交换机之间。显然，较低层的交换机故障将导致直接连接的主机断开连接；叶子上的冗余交换机元件是容忍这种故障的唯一方法。我们在这里描述链路故障，因为交换机故障会触发相同的 BFD 警报，并引发相同的响应。</p>
+<h4 id="3-8-1-下层到上层交换机"><a href="#3-8-1-下层到上层交换机" class="headerlink" title="3.8.1 下层到上层交换机"></a>3.8.1 下层到上层交换机</h4><p>当下层和上层交换机之间发生链路故障时，会影响三类流量：</p>
+<ol>
+<li>从下层交换机发出的 pod 间和内的输出流量。在这种情况下，本地流分类器将该连接的“成本”设置为无穷大，并且不为其分配任何新流，并选择另一个可用的上层交换机。</li>
+<li>使用上层交换机作为中介的 pod 内流量。作为响应，该交换机广播一个标签，通知同一 pod 中的所有其他底层交换机链路故障。在分配新流时，这些交换机将检查预期的输出端口是否属于这些标记，并尽可能规避。</li>
+<li>进入上层交换机的 pod 间流量。连接到上层交换机的核心交换机将其作为访问该 pod的唯一入口，因此上层交换机向其所有核心交换机广播此标记，表明其无法将流量传送到下层交换机的子网。这些核心交换机依次将此标签镜像到它们连接到其他 pod 的所有上层交换机。最后，上层交换机在将新数据流分配给该子网时，规避单个受影响的核心交换机。</li>
+</ol>
+<h4 id="3-8-2-上层到核心交换机"><a href="#3-8-2-上层到核心交换机" class="headerlink" title="3.8.2 上层到核心交换机"></a>3.8.2 上层到核心交换机</h4><p>当上层交换机与核心交换机之间发生链路故障时，会影响两类流量：</p>
+<ol>
+<li>pod 间的输出流量，本地路由表将受影响的链路标记为不可用，并在本地选择另一台核心交换机。</li>
+<li>pod 间的输入流量。在这种情况下，核心交换机向它直接连接的所有上层交换机广播一个标记，表示它无法将流量传送到整个 pod。和之前一样，上层交换机在分配流向pod 的数据流时，会避免使用核心交换机。</li>
+</ol>
+<p>自然地，当故障链路和交换机恢复并重新建立 BFD 会话时，上述步骤将被反转以抵消其效果。此外，调整第 3.7 节的方案适应链路和交换机故障相对简单。调度器将任何被报告为 down 的链路标记为繁忙或不可用，从而取消任何包含它的路径的候选资格，最终大型流绕过故障路由。</p>
+<h3 id="3-9-电量和热量问题"><a href="#3-9-电量和热量问题" class="headerlink" title="3.9 电量和热量问题"></a>3.9 电量和热量问题</h3><p>除了性能和成本，数据中心设计的另一个主要问题是功耗。在数据中心中，构成互连网络较高层的交换机通常消耗数千瓦的电力，在一个大规模的数据中心中，互连网络的电力需求可达数百千瓦。几乎同样重要的是交换机的散热问题。企业级交换机产生大量的热量，因此需要专用的冷却系统。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012305.png" alt="译｜A scalable, commodity data center network architecture-20230508012305"></p>
+<p>在本节中，我们将分析我们架构中的电力需求和散热，并将其与其他典型方案进行比较。我们的分析基于交换机数据表中报告的数字，尽管我们承认，这些报告的值由不同的供应商以不同的方式测量得到，因此可能并不总是反映部署中的系统特征。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012333.png" alt="译｜A scalable, commodity data center network architecture-20230508012333"></p>
+<p>为了比较每类交换机的功率需求，我们在交换机可支持的总带宽(以 Gbps 为单位)对交换机的总功耗和散热进行了归一化。图 6 绘制了三个不同交换机模型的平均值。我们可以看到，当带宽归一化时，10 GigE 交换机(x 轴上的最后 3 个)每 Gbps 消耗大约是商用 GigE 交换机两倍的瓦数，耗散大约三倍的热量。</p>
+<p>最后，我们还计算了一个可支持约 27k 台主机的互连线的预估总功耗和散热。在分层设计中，我们使用了 576 台 ProCurve 2900 边缘交换机和 54 台 BigIron RX-32 交换机(汇聚层 36 台，核心层 18 台)。胖树结构采用了 2880 台 Netgear GSM 7252 交换机。我们能够使用更便宜的 NetGear 交换机，因为我们在胖树互连中不需要 10 GigE 的上行链路(存在于 ProCurve)。图 7 显示，虽然我们的架构采用了更多的单台交换机，但功耗和散热都优于当前的数据中心设计，功耗降低 56.6%，散热减少 56.5%。当然， 实际的功耗和散热必须在部署时进行测量；我们把这样的研究留作正在进行的工作。</p>
+<h2 id="4-实现"><a href="#4-实现" class="headerlink" title="4.  实现"></a>4.  实现</h2><p>为了验证本文描述的通信架构，我们构建了一个简单的转发算法原型。使用 NetFPGA  实现了一个原型系统。NetFPGA 包含一个利用 TCAM 的 IPv4 路由器实现。如 3.4 节所述，我们适当地修改了路由表查找例程。我们的修改总共不到100行代码，并且没有引入可测量的额外查找延迟，支持我们的观点，即我们提出的修改可以合并到现有的交换机。</p>
+<p>为了进行更大规模的评估，我们还使用 Click 构建了一个原型，这是本文评估的重点。。Click 是一个模块化的软件路由器架构，支持实验路由器设计的实现。Click 路由是一个由称为元件的数据包处理模块组成的图，这些模块执行路由表查找或递减数据包的 TTL 等任务。当连接在一起时，Click 元件可以在软件中执行复杂的路由功能和协议。</p>
+<h3 id="4-1-两级表"><a href="#4-1-两级表" class="headerlink" title="4.1 两级表"></a>4.1 两级表</h3><p>我们构建了一个新的 Click 元件，TwoLevelTable，它实现了 3.3 节中描述的两级路由表的思想。这个元件有一个输入，两个或多个输出。路由表的内容使用输入文件初始化，该文件给出了所有的前缀和后缀。对于每个数据包，TwoLevelTable 元件查找最长匹配的第一级前缀。如果该前缀是终止的，它将立即在该前缀的端口上转发数据包。否则，它将在二级表上执行右旋最长匹配后缀搜索，并在相应的端口上转发。</p>
+<p>该元件可以取代 [21] 中提供的符合标准的 IP 路由器配置示例的中央路由表元件。我们生成了一个类似的 4 端口版本的 IP 路由器，在所有端口上增加了带宽限制元素，以模拟链路饱和容量。</p>
+<h3 id="4-2-流分类"><a href="#4-2-流分类" class="headerlink" title="4.2 流分类"></a>4.2 流分类</h3><p>为了提供 3.6 节中描述的流分类功能，我们来介绍具有一个输入、两个或多个输出的Click 元件流分类器的实现。根据输入报文的源 IP 地址和目标 IP 地址进行简单的流分类，使得相同源和目标的后续报文从同一个端口输出(避免报文乱序)。元件增加了一个目标，即最小化其最高负载和最低负载输出端口之间聚合流容量的差异。</p>
+<p>即使预先知道各条流的大小，该问题也是 NP 难装箱优化问题的一个变体。然而，流的大小实际上是未知的，这使得求解问题更加困难。我们遵循算法 3 中概述的贪婪启发式算法。每隔几秒钟，如果需要，启发式尝试切换最多 3 条流的输出端口，以最小化其输出端口的聚合流容量的差异。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012409.png" alt="译｜A scalable, commodity data center network architecture-20230508012409"></p>
+<p>回想一下，FlowClassifier 元件是用于流量扩散的两级表的替代方案。使用这些元件的网络采用普通的路由表。例如，一台上层 pod 交换机的路由表中包含了分配给该 pod 的所有子网前缀。然而，此外，我们添加了一个 &#x2F;0 前缀来匹配所有剩余的需要均匀向上扩散到核心层的 pod 间流量。所有仅与该前缀匹配的数据包都被定向到 FlowClassifier 的输入。该分类器试图根据所描述的启发式方法在其输出之间均匀地分配 pod 间输出流，其输出直接连接到核心交换机。核心交换机不需要分类器，路由表保持不变。</p>
+<p>请注意，这个解决方案有软性状态，它不是正确性所必需的，仅用作性能优化。这种分类器偶尔会造成干扰，因为少数的流可能会周期性地重新排列，可能导致数据包ç重排。然而，它也能适应动态变化的数据流大小，并且从长远来看是“公平的”。</p>
+<h3 id="4-3-流调度"><a href="#4-3-流调度" class="headerlink" title="4.3 流调度"></a>4.3 流调度</h3><p>如第 3.7 节所述，我们实现了元件 FlowReporter，它驻留在所有边缘交换机中，检测大于给定阈值的输出流。它定期向中央调度器发送这些活跃大数据流的通知。</p>
+<p>FlowScheduler 元件从边缘交换机接收活跃大数据流的通知，并试图为它们找到无竞争的路径。为此，它保存了网络中所有连接的二进制状态，以及先前放置的流的列表。对于任何新的大流，调度器都会在源主机和目标主机之间的所有等价路径中执行线性搜索，以找到路径组件都没有预留的路径。找到这样的路径后，流调度器将所有组件连接标记为预留，并向相关的 pod 交换机发送该流路径的通知。我们还修改了pod 交换机，以处理来自调度器的端口重新分配消息。</p>
+<p>调度器维护两个主要的数据结构:网络中所有连接的二进制数组(总共 4∗k∗(k&#x2F;2)<sup>2</sup> 条连接)，以及先前放置的流及其分配的路径的哈希表。搜索新的流布局平均需要 2 * （k &#x2F; 2)<sup>2</sup>  次内存访问，使得调度器的空间复杂度为 O(k<sup>3</sup>)，时间复杂度为 O(k<sup>2</sup>)。k 的典型值(每台交换机的端口数)为 48，使这两个值都可以管理，如第 5.3 节中所量化。</p>
+<h2 id="5-评估"><a href="#5-评估" class="headerlink" title="5. 评估"></a>5. 评估</h2><p>为了测量该设计的总双工带宽，生成了一套通信映射的基准套件，以评估使用 TwoLevelTable 交换机、FlowClassifier 和 FlowScheduler 的 4 端口胖树的性能。我们将这些方法与标准分层树进行了比较，其超分比为 3.6:1，类似与当前数据中心设计</p>
+<h3 id="5-1-实验描述"><a href="#5-1-实验描述" class="headerlink" title="5.1 实验描述"></a>5.1 实验描述</h3><p>在 4 端口胖树中，有 16 台主机、4 个 pod(每个 pod 有 4 台交换机)和 4 台核心交换机。因此，总共有 20 台交换机和 16 台终端主机(对于更大的集群，交换机的数量将小于主机的数量)。我们将这 36 个元件复用到 10 台物理机器上，由一条具有 1 Gigabit 以太网链路的 48 端口 ProCurve 2900 交换机连接。这些机器有 2.33GHz 的双核 Intel Xeon cpu, 4096KB 缓存和 4GB RAM，运行 Debian GNU&#x2F;Linux 2.6.17.3。每台 pod 交换机托管在一台机器上；每个 pod 的主机都托管在一台机器上；剩下的两台机器分别运行两台核心交换机。交换机和主机都是 Click 配置，运行在用户级别。网络中所有 Click 元件之间的虚拟链路带宽限制为 96Mbit&#x2F;s，以确保配置不受 CPU 限制。</p>
+<p>分层树形网络的对比情况，有 4 台机器，每台机器运行 4 台主机，每台机器运行 4 台 pod 交换机，并有一条额外的上行链路。4 台 pod 交换机连接到运行在专用机上的 4 端口核心交换机。为了实现从 pod 交换机到核心交换机的上行链路 3.6:1 超分配置，这些链路的带宽被限制为 106.67Mbit&#x2F;s，所有其他链路的带宽都被限制为 96Mbit&#x2F;s。</p>
+<p>每台主机输出的流量恒定为 96Mbit&#x2F;s。我们测量输入流量的速率。对于所有的双向通信映射，所有主机的最小输入流量总和就是网络的有效双工带宽。</p>
+<h3 id="5-2-基准套件"><a href="#5-2-基准套件" class="headerlink" title="5.2 基准套件"></a>5.2 基准套件</h3><p>我们根据以下策略生成通信对，并增加限制，即任何主机仅接收来自一台主机的流量(即，映射为 1 对 1):</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012509.png" alt="译｜A scalable, commodity data center network architecture-20230508012509"></p>
+<ul>
+<li>Random ：主机以均匀概率发送给网络中的其他主机。</li>
+<li>Stride(i)：索引为 x 的主机发送到索引为（x + i）mod 16 的主机。</li>
+<li>Staggered Prob (SubnetP, PodP)：主机将以 SubnetP 的概率发送到其子网中的另一台主机，以 PodP 的概率发送到其 pod，以 1 − SubnetP − PodP 的概率发送到其他任何主机。</li>
+<li>Inter-pod Incoming：多个 pod 发送到同一 pod 中的不同主机，并且都恰好选择相同的核心交换机。该核心交换机到目标 pod 的连接将过载。这种情况下的最坏情况本地超分比为 (k − 1) : 1。</li>
+<li>Same-ID Outgoing：同一子网中的主机发送到网络中其他任意不同主机，使目标主机具有相同的主机 ID 字节。静态路由技术强制它们采用相同的向上输出端口。这种情况下的最坏情况超分比为 (k&#x2F;2) : 1。这是 FlowClassifier 预计可以最大程度提高性能的情况。</li>
+</ul>
+<h3 id="5-3-结果"><a href="#5-3-结果" class="headerlink" title="5.3 结果"></a>5.3 结果</h3><p>表 2 显示了上述实验的结果。这些结果是基准测试 5 次运行&#x2F;排列的平均值，每次持续 1 分钟。如预期的那样，对于任何 pod 间通信模式，传统树会饱和到核心交换机的链路，因此在这种情况下，所有主机的实际带宽约为理想带宽的 28%。通信对彼此间越接近，树的性能越好。</p>
+<p>两级表交换机在随机通信模式下实现了理想双工带宽的大约 75%。这可以用表的静态性质来解释；任何给定子网上的两台主机有 50% 的几率发送到具有相同主机 ID 的主机，在这种情况下，它们的总吞吐量减半，因为它们都被转发到同一输出端口。使得两者的期望值都为 75%。预计随着 k 的增加，两级表的随机通信性能会提高，因为随着 k 的增加，多条流在单个链路上发生碰撞的可能性会降低。两级表的内部流入情况给出了 50% 的双工带宽；然而，相同 ID 输出效应进一步被核心路由器中的拥塞所加剧。</p>
+<p>由于动态流分配和重新分配，流分类器在所有情况下都优于传统树和两级表，最坏情况下双工带宽约为 75%。然而，它仍然不完美，因为它避免的拥塞类型完全是局部的；由于上游一两跳处所做的路由决策，可能会在核心交换机处造成拥塞。这种次优路由产生是因为交换机仅本地知识可用。</p>
+<p>另一方面，FlowScheduler 基于全局知识并尝试将大数据流分配到不相交的路径上，从而在随机通信映射中实现了理想双工带宽的 93%，并在所有基准测试中都优于所有其他方案。使用具有所有活跃大数据流和所有连接状态知识的集中调度，对于大型任意网络可能是不可行的，但是胖树拓扑的规律性大大简化了寻找无冲突路径的过程。</p>
+<p>在另一个测试中，表 3 显示了在配置适当的 2.33 GHz 商用 PC 上运行中央调度程序时的时间和空间要求。对于不同的 k，我们生成了虚假的放置请求（每台主机一个），以测量处理放置请求的平均时间和维护连接状态和流状态数据结构所需的总内存。对于一个包含27k 台主机的网络，调度程序需要 5.6MB 的内存，并且可以在不到 0.8ms 的时间内放置一条数据流。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012541.png" alt="译｜A scalable, commodity data center network architecture-20230508012541"></p>
+<h2 id="6-封装"><a href="#6-封装" class="headerlink" title="6. 封装"></a>6. 封装</h2><p>胖树拓扑用于集群互连的一个缺点是需要大量的电缆来连接所有的机器。使用 10 GigE 交换机进行聚合的一个微不足道的好处是，向上层传输相同带宽所需电缆数量减少 10 倍。在我们提出的胖树拓扑中，既不利用 10 GigE 链路也不利用交换机，因为非商用部件会增加成本，更重要的是，因为胖树拓扑严重依赖于层次中每层多台交换机的大扇出来实现其伸缩性能。</p>
+<p>承认增加布线开销是胖树拓扑固有的，在本节中，我们考虑一些组装技术来减轻这种开销。总之，我们提出的组装技术消除了大部分所需的外部布线，并减少了所需电缆的总长度，从而简化了集群管理并降低了总成本。此外，这种方法允许网络的增量部署。</p>
+<p><img src="/images/a-scalable-commodity-data-center-network-architecture-cn/%E8%AF%91%EF%BD%9CA%20scalable,%20commodity%20data%20center%20network%20architecture-20230508012639.png" alt="译｜A scalable, commodity data center network architecture-20230508012639"></p>
+<p>在最大容量 27,648 节点集群的背景下，提出了我们的方法，该集群利用 48 端口以太网交换机作为胖树的构建模块。这种设计可以推广到不同大小的集群。我们从单个 pod 的设计开始，它们构成了大型集群的复制单元，见图 8。每个 pod 包括 576 台计算机和 48 个独立 48 端口 GigE 交换机。为简单起见，假设每台终端主机占用一个机架单元（1RU），并且单个机架可以容纳 48 台计算机。因此，每个 pod 由 12 个机架组成，每个机架有 48 台计算机。</p>
+<p>将构成 pod 的、胖树前两层的 48 台交换机放置在一个集中的机架中。但是，假设能够将48 台交换机打包成一个单一的整体单元，具有 1,152 个面向用户的端口。我们称之为 pod 交换机。其中 576 个端口直接连接到 pod 中的计算机，对应于边缘连接。另外 576 个端口扇出到胖树核心层中 576 台交换机中的一个端口。请注意，以这种方式打包的 48 台交换机实际上具有 2,304 个总端口（48 * 48）。另外 1,152 个端口在 pod 交换机内部接线，以解决 pod 边缘和聚合层之间所需的互连（见图 3）。</p>
+<p>进一步将组成胖树顶部的 576 台必需核心交换机分布在各个 pod 中。假设总共有 48 个 pod ，每个 pod 将容纳 12 台必需的核心交换机。从每台 pod 交换机扇出到核心层的 576根电缆中，有 12 根将直接连接到放置在同一 pod 的核心交换机上。其余电缆每 12 一组扇出到远程 pod 中的核心交换机。请注意，电缆每 12 一组从 pod 移动到 pod，并且以 每 48 一组从机架移动到 pod 交换机，这为适当的“电缆封装”提供了额外的机会，以减少布线的复杂性。</p>
+<p>最后，最小化电缆总长度也是一个重要的考虑因素。为此，围绕 pod 交换机在两个维度上放置机架，如图 8 所示（我们不考虑三维数据中心布局）。相比于在一个 pod 中“水平” 布局的单个机架，这样做将减少电缆长度。同样，将 pod 布置在 7×7 的网格中（空缺一个位置）以容纳所有 48 个 pod 。再次，这种网格布局将减少 pod 间布线到适当核心交换机的距离，，并将支持电缆长度和包装的一些标准化，以支持 pod 间的连接。</p>
+<p>我们还考虑了一种不将交换机集中到一个机架中的替代设计。在这种方法中，每个机架将分配两台 48 端口交换机。主机每 24 一组连接到交换机。这种方法的优点是主机连接到第一跳交换机所需的电缆更短，并且如果机架适当的内部封装，可以完全消除这些电缆。我们放弃了这种方法，因为我们会失去消除每个 pod 内连接边缘层和聚合层的 576 根电缆的机会。这些电缆需要穿过每个 pod 的 12 个机架，大大增加了复杂性。</p>
+<h2 id="7-相关工作"><a href="#7-相关工作" class="headerlink" title="7. 相关工作"></a>7. 相关工作</h2><p>我们在数据中心网络架构方面的工作必然建立在许多相关领域的工作基础上。也许与我们的努力最密切相关的是建立可伸缩互连的各种努力，主要来自超级计算机和大规模并行处理（MPP）社区。许多 MPP 互连都组织成胖树，包括 Thinking Machines 和 SGI 的系统。Thinking Machine 采用伪随机转发决策来执行胖树连接之间的负载平衡。虽然这种方法实现了良好的负载平衡，但它容易发生数据包重排。Myrinet 交换机也采用胖树拓扑，并且一直受到基于集群的超级计算机的欢迎。Myrinet 采用基于预定拓扑知识的源路由，启用直通低延迟交换机实现。主机还负责通过测量往返延迟来在可用路由之间进行负载均衡。相对于所有这些工作，我们专注于利用商用以太网交换机来互连大规模集群，展示适当的路由和封装技术。</p>
+<p>InfiniBand 是高性能计算环境中流行的互连，并且目前正在迁移到数据中心环境。 InfiniBand 还使用 Clos 拓扑的变体来实现可伸缩带宽。例如，Sun 最近宣布了一款 3,456 端口 InfiniBand 交换机，该交换机由 720 台 24 端口 InfiniBand 交换机组成，排列成 5 级胖树。但是，InfiniBand 强加了自己的 1-4 层协议，使得 以太网&#x2F;IP&#x2F;TCP 在某些设置中更具吸引力，特别是随着 10Gbps 以太网价格的不断下降。</p>
+<p>另一个流行的 MPP 互连拓扑是 Torus，例如 BlueGene&#x2F;L 和 Cray XT3。Torus 直接将处理器与 k 维格子中的一些邻居相互连接。维数决定了源和目标地之间预期的跳数。在 MPP 环境中，Torus 的优点是没有任何专用的交换元件，以及电气上更简单的点对点连接。在集群环境中，Torus 的布线复杂性很快变得难以承受，并且卸载所有路由和转发功能到商用主机&#x2F;操作系统通常是不切实际的。</p>
+<p>我们提出的转发技术与现有的路由技术，如 OSPF2 和等价多路径（ECMP）相关。我们提出多路径利用胖树拓扑的特定属性来实现良好性能。相对于我们的工作，ECMP 提出了三类无状态转发算法：（i）轮询和随机化；（ii）区域拆分，其中特定前缀被拆分为两个较大掩码长度的前缀；以及（iii）一种散列技术，它根据源地址和目标地址将流拆分到一组输出端口。第一种方法会遇到潜在的数据包重排问题，对 TCP 尤其有问题。第二种方法可能导致路由前缀数量激增。在具有 25,000 台主机的网络中，需要大约 600,000 个路由表条目。除了增加成本外，这种规模的表查找也会产生巨大延迟。因此，当前企业级路由器最多允许 16 路 ECMP 路由。最后一种方法在进行分配决策时不考虑流带宽，即使简单的通信模式也会很快超分。</p>
+<h2 id="8-结论"><a href="#8-结论" class="headerlink" title="8. 结论"></a>8. 结论</h2><p>带宽越来越成为大规模集群可伸缩性的瓶颈。现有解决这一瓶颈的解决方案围绕着交换机层次结构，顶层的交换机昂贵，非商用化。在任何给定时间点，高端交换机的端口密度都会限制整个集群的大小，同时产生高昂的成本。在本文中，我们提出了一种数据中心通信架构，利用商用以太网交换机为大规模集群提供可伸缩带宽。以胖树为基础构建拓扑，然后提出技术来执行可伸缩路由，同时保持与以太网、IP 和 TCP 的后向兼容性。</p>
+<p>总体而言，我们发现我们能够以比现有技术显著更低的成本提供可伸缩带宽。虽然还需要进一步的工作来完全验证我们的方法，但我们相信更多的商用交换机有可能在数据中心取代高端交换机，就像商用 PC 集群取代了高端计算环境中的超级计算机一样。</p>
+<p><em>原文：</em> <a target="_blank" rel="noopener" href="http://ccr.sigcomm.org/online/files/p63-alfares.pdf">A Scalable, Commodity Data Center Network Architecture</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-10-2023/a-scalable-commodity-data-center-network-architecture-cn.html">https://www.cyningsun.com/05-10-2023/a-scalable-commodity-data-center-network-architecture-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Network" rel="category"># Network</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/10-08-2023/dive-into-dns-resolution.html">深入理解 DNS 解析</a></span></li>
+          
+            <li><span><a href="/04-26-2023/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn.html">译｜llustrated Guide to Monitoring and Tuning the Linux Networking Stack: Receiving Data</a></span></li>
+          
+            <li><span><a href="/04-25-2023/monitoring-and-tuning-the-linux-networking-stack-sent-cn.html">译｜Monitoring and Tuning the Linux Networking Stack: Sending Data</a></span></li>
+          
+            <li><span><a href="/04-24-2023/monitoring-and-tuning-the-linux-networking-stack-recv-cn.html">译｜Monitoring and Tuning the Linux Networking Stack: Receiving Data</a></span></li>
+          
+            <li><span><a href="/03-30-2023/network-transmission.html">TCP/IP 网络传输</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/06-05-2023/go-redis-connection-pool.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-26-2023/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

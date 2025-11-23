@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>如何变量命名</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-07-04 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-05-04 00:00:00 +0800"/>
+
+<meta property="og:url" content="/07-04-2020/how-to-naming-things.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="There are only two hard things in Computer Science: cache invalidation and naming things. —— Phil Karlton 前言开发人员习惯性的对设计、架构、微服务夸夸其谈，却很少关注设计、架构如何完完整整的落地到代码本身。架构和设计固然重要，代码并非不重要。正如 Rob">
+
+<meta name="keywords" content="Naming things,变量命名,Programming">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>如何变量命名</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-07-04
+         | 
+        Last Revised: 2025-05-04
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%89%8D%E8%A8%80"><span class="toc-text">前言</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Level-1-%E5%9D%8F%E5%91%B3%E9%81%93"><span class="toc-text">Level 1: 坏味道</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Level-2-%E5%91%BD%E5%90%8D%E6%8A%80%E5%B7%A7"><span class="toc-text">Level 2: 命名技巧</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%A2%9E%E5%8A%A0%E8%AF%8D%E6%B1%87%E9%87%8F"><span class="toc-text">增加词汇量</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9B%B4%E5%A5%BD%E7%9A%84%E5%91%BD%E5%90%8D%E6%96%B9%E6%B3%95"><span class="toc-text">更好的命名方法</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Level-3-%E9%A2%86%E5%9F%9F%E8%AF%AD%E8%A8%80%EF%BC%88Domain-language%EF%BC%89"><span class="toc-text">Level 3: 领域语言（Domain language）</span></a></li></ol>
+ 
+        <br/>
+
+<p>There are only two hard things in Computer Science: cache invalidation and naming things.         —— Phil Karlton</p>
+<h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><p>开发人员习惯性的对设计、架构、微服务夸夸其谈，却很少关注设计、架构如何完完整整的落地到代码本身。架构和设计固然重要，代码并非不重要。正如 <code>Robert C.Martin</code> 所言：“<strong>代码即设计</strong>”。透过好的代码，就能看到其背后精美的设计。</p>
+<p>好的代码，第一步是为每一个类、函数、变量起一个好的名字。可惜的是，大多数人对于如何起一个好名字不得其法。毕竟严格上来说，命名并非计算机科学的范畴。好的命名一个词就可以简单、形象、直观表明其功用甚至原理，例如：</p>
+<ul>
+<li><p>SYN <strong>flood</strong>：洪水一样的SYN请求</p>
+</li>
+<li><p><strong>Pipeline</strong>：管道一样传输数据、依次且单向</p>
+</li>
+</ul>
+<p><img src="/images/how-to-naming-things/design-thinking-process.png" alt="design-thinking-process"></p>
+<p>以上还只是问题解决域，还不是最难的。最难的是，在实际研发中，还要面对问题分析域。如果你的思路结构、层次不清晰，抽象出的各种状态不正交，相互重叠，交差，此时再想起出比较好的名字，则回天乏术；如果你不知道一个事物应该叫什么，你就不可能知道它是什么（<a target="_blank" rel="noopener" href="https://www.oreilly.com/library/view/97-things-every/9780596800611/ch76.html">A Rose by Any Other Name Will End Up As a Cabbage</a>），所以命名的过程也是整理思路的过程。</p>
+<p>根据过往的经验总结，可以将命名分为三个Level，前两个 Level 覆盖 Solution Space 的困境，最后一个 Level 覆盖 Problem Space 的困境</p>
+<ul>
+<li>Level 1：坏味道，嗅出坏味道才能意识到需要改变</li>
+<li>Level 2：命名技巧，一些简单的命名技巧，明白有哪些渠道可以改进</li>
+<li>Level 3：领域语言，命名的道，命名是可以系统化的从业务过渡到研发。</li>
+</ul>
+<h3 id="Level-1-坏味道"><a href="#Level-1-坏味道" class="headerlink" title="Level 1: 坏味道"></a>Level 1: 坏味道</h3><ul>
+<li><p>无意义的命名</p>
+<blockquote>
+<p> i.e. <code>data</code>、<code>info</code>、<code>record</code></p>
+</blockquote>
+</li>
+<li><p>抽象的命名</p>
+<blockquote>
+<p>i.e. <code>data</code> 、<code>object</code>、<code>helper</code>、<code>tool</code>、<code>manager</code>、 <code>processor</code>、<code>handler</code>、<code>maker</code>、<code>util</code>、<code>conf</code>、<code>thing</code>、<code>info</code>、<code>amount</code>、<code>details</code>、<code>do</code>、<code>execute</code>、<code>perform</code>、<code>operate</code>、<code>manage</code>、<code>handle</code></p>
+<p>不够精确，毫无疑问，你确实命名了数据和对象，但即使没有此模糊的名称你也早知道的。将 <code>data</code> 重命名为更具描述性的名称，以标识数据</p>
+</blockquote>
+</li>
+<li><p>简称</p>
+<blockquote>
+<p>i.e. <code>mod</code></p>
+<p><code>mod</code> 像是某个单词的简称，你可能无法确认到底是 <code>mode</code> 或 <code>module</code> </p>
+</blockquote>
+</li>
+<li><p>含糊</p>
+<blockquote>
+<p>i.e. <code>Manager</code> </p>
+<p>命名模糊，谁知道经理到底是干什么的？可以更有意义的替代方案，如：牧民（<strong>Herder</strong>）、主管（<strong>Supervisor</strong>）、策划人（<strong>Planner</strong>）、建筑商（<strong>builder</strong>）</p>
+</blockquote>
+</li>
+<li><p>多个单词</p>
+<blockquote>
+<p>i.e. <code>company_person</code> 代表公司人员</p>
+<p>重命名 <code>company_person</code> 为 <code>staff</code> 更为合适，或者更新一步 <code>employee</code>  或  <code>director</code></p>
+</blockquote>
+</li>
+<li><p>被动语态</p>
+<blockquote>
+<p>i.e. <code>PlanEvents</code> </p>
+<p>重命名 <code>PlanEvents</code> 为主动语 <code>EventPlanner</code> 更好，或者更进一步 <code>Scheduler</code></p>
+</blockquote>
+</li>
+</ul>
+<h3 id="Level-2-命名技巧"><a href="#Level-2-命名技巧" class="headerlink" title="Level 2: 命名技巧"></a>Level 2: 命名技巧</h3><h4 id="增加词汇量"><a href="#增加词汇量" class="headerlink" title="增加词汇量"></a>增加词汇量</h4><blockquote>
+<p>命名只是写作的一部分，主要是词汇。你可能还记得学习外语的一部分就是学习词汇。不用学外语是利弊并存之事。</p>
+</blockquote>
+<ul>
+<li>阅读开源、基础库代码<ul>
+<li>例如：Linux 内核、C++ STL 库 等等</li>
+</ul>
+</li>
+<li>查找业务关联概念<ul>
+<li>例如，库存单位：<code>sku</code> ( Stock Keeping Unit )；搜索简称：<code>qv </code> (Query View Count)</li>
+</ul>
+</li>
+</ul>
+<h4 id="更好的命名方法"><a href="#更好的命名方法" class="headerlink" title="更好的命名方法"></a>更好的命名方法</h4><ul>
+<li><p>遵从惯例、标准</p>
+<blockquote>
+<p>不要使用<code>identifier</code>，而是使用业界惯例 <code>id</code>  作为唯一标识命名。类似的：</p>
+<ul>
+<li><code>ptr</code> 为<code>pointer</code>的缩写；</li>
+<li><code>i</code>、<code>j</code>、<code>k</code> 常常是完美的循环计数变量命名。</li>
+<li><code>size</code>、 <code>capacity</code>、<code>resize</code>、<code>reserve</code>、<code>push</code>、<code>pop</code>、<code>top</code>、<code>back</code>，作为容器的接口，久经考验。要自定义容器不应该使用 <code>GetSize</code> 等命名。</li>
+</ul>
+</blockquote>
+</li>
+<li><p>遵从约束</p>
+<ul>
+<li>语言约束：例如，Go 语言 使用 <code>驼峰</code> 风格，代码中就不要使用C语言的 <code>大写下划线连词</code> 风格</li>
+<li>团队约束：对同一个概念，团队内已经有对应的称呼，应该遵从，而是不是任性夹带私货，例如：直播中（<code>ongoing</code> vs <code>living</code>），已经命名为 <code>ongoing</code> ，要么替换为 <code>living</code>；就全部替换掉，要么继续使用 <code>ongoing</code>，虽然后者更确切。</li>
+<li>框架约束：使用 <a target="_blank" rel="noopener" href="https://github.com/Shopify/sarama">Shopify&#x2F;sarama</a> 作为 kafka 的 客户端就应该使用<code>Consumer</code>、<code>ConsumerGroup</code>、<code>ConsumerGroupHandler</code>，命名三个层级，而不是自撰 三个层级：<code>Dao</code>、<code>Consumer</code>、<code>Processor</code></li>
+</ul>
+</li>
+<li><p>对齐、对称</p>
+<blockquote>
+<p>对齐: Golang 标准库包名，httptest、httputil、httptrace</p>
+<p>对称：典型的对称，<code>producer</code>&#x2F;<code>consumer</code>、<code>begin</code>&#x2F;<code>end</code>、<code>create</code>&#x2F;<code>destory</code>、<code>destination</code>&#x2F;<code>source</code>、<code>get</code>&#x2F;<code>release</code>、<code>increment</code>&#x2F;<code>decrement</code>、<code>insert</code>&#x2F;<code>delete</code>、<code>next</code>&#x2F;<code>previous</code>、<code>old</code>&#x2F;<code>new</code>、<code>old</code>&#x2F;<code>new</code>、<code>open</code>&#x2F;<code>close</code>、<code>put</code>&#x2F;<code>get</code>、<code>show</code>&#x2F;<code>hide</code>、<code>start</code>&#x2F;<code>stop</code>、<code>target</code>&#x2F;<code>source</code>、</p>
+</blockquote>
+</li>
+</ul>
+<h3 id="Level-3-领域语言（Domain-language）"><a href="#Level-3-领域语言（Domain-language）" class="headerlink" title="Level 3: 领域语言（Domain language）"></a>Level 3: 领域语言（Domain language）</h3><p>人对名字的反应是潜意识的…所以如果对一个名字有疑惑，可能很难确切地表达原因。我们的设计系统命名应该符合预期。… 但是谁的期望？所有利益相关者，系统的利益相关者，包括但不限于：</p>
+<ul>
+<li>产品经理</li>
+<li>开发（前端、后端、客户端）</li>
+<li>测试</li>
+<li>用户</li>
+</ul>
+<p>代码应该自动使用与业务或领取模型相同的名称。例如，如果一个旅游企业使用 “<strong>venue</strong>” 作为咖啡馆、酒店和旅游景点的通用名称，那么在代码中使用 “<strong>place</strong>” 是一个坏主意</p>
+<blockquote>
+<ul>
+<li>其一，因为使用两种不同的语言，使得沟通变得更复杂</li>
+<li>其二，如果一个词汇，产品经理和用户等不理解软件开发同学的都能直观的理解，那么此命名将是一个好的名字</li>
+<li>其三，将代码命名与领域模型关联起来，所有命名跟业务是契合的</li>
+<li>其四，随着需求迭代，打磨领域模型的同时，可以保证命名随之重构符合语义，保持<strong>常新</strong></li>
+</ul>
+</blockquote>
+<p>使用领域语言统一开发流程，可以从根本上解释命名来源以及合理性。相比一般的技巧，是系统的有理论支撑的。如果技巧是工程派的产出，那么领域语言指导命名就像是学院派的产出。</p>
+<p>具体如何在项目中实施DDD，后续详解。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/07-04-2020/how-to-naming-things.html">https://www.cyningsun.com/07-04-2020/how-to-naming-things.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/07-22-2020/software-development-methodology.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/06-29-2020/how-to-write-restful-api.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

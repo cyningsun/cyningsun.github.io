@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>缓存(4) —— 结构化缓存</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-02-18 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/02-18-2021/high-concurrency-cache-design.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="在众多应用中，缓存都是标配，使用缓存都能获得非常巨大的性能提升。然而却少有人能把缓存用好，使用缓存的服务，随着需求的迭代都会不可避免的陷入一种怪圈：业务侧 为了优化接口性能增加缓存 同一接口复杂度高、性能差、缺少可维护性，无法开发新需求 运维侧 提高存储和查询容量应对使用压力 成本压力倒逼业务再次优化，提高缓存使用率 在反复的折腾之下，系统难以维护，最终不得">
+
+<meta name="keywords" content="缓存,存储,优化">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>缓存(4) —— 结构化缓存</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2021-02-18
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <p>在众多应用中，缓存都是标配，使用缓存都能获得非常巨大的性能提升。然而却少有人能把缓存用好，使用缓存的服务，随着需求的迭代都会不可避免的陷入一种怪圈：<br><strong>业务侧</strong></p>
+<blockquote>
+<ol>
+<li>为了优化接口性能增加缓存</li>
+<li>同一接口复杂度高、性能差、缺少可维护性，无法开发新需求</li>
+</ol>
+</blockquote>
+<p><strong>运维侧</strong></p>
+<blockquote>
+<ol>
+<li>提高存储和查询容量应对使用压力</li>
+<li>成本压力倒逼业务再次优化，提高缓存使用率</li>
+</ol>
+</blockquote>
+<p>在反复的折腾之下，系统难以维护，最终不得不走向整体“重构”。</p>
+<h3 id="举个例子"><a href="#举个例子" class="headerlink" title="举个例子"></a>举个例子</h3><p>以微博为例，当打开微博时，页面主要数据构成有：分类列表（左侧）；微博列表（中间）；个人信息；关注、粉丝、微博数（最右侧）。<br><img src="/images/high-concurrency-cache-design/weibo.png" alt="weibo.png"></p>
+<p>按照一般的后台设计准则，假设页面所需的数据拆解如下：<br><img src="/images/high-concurrency-cache-design/structure.png" alt="structure.png"></p>
+<p>需要重点说明几点：</p>
+<ol>
+<li>微博不等于微博正文<blockquote>
+<p>微博指微博ID，微博正文指微博的内容。</p>
+</blockquote>
+</li>
+<li>微博列表也是一种数据<blockquote>
+<p>微博列表代表的是微博ID的集合</p>
+</blockquote>
+</li>
+</ol>
+<p>在<a href="/07-27-2020/how-to-write-rpc-interface.html#%E8%AE%A4%E8%AF%86%E8%B5%84%E6%BA%90">《如何设计RPC接口》</a> 中我们提到过一个观点：所有的数据都等于 ID + Content，同时 ID 又可以以集合的形式存在。</p>
+<p>假设查询微博列表是一个单独的API接口，各种数据在系统中的表达分别为：post（微博）、profile（个人信息）、stat（点赞、评论等计数、点赞）。那么通常的实现是：</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> ... <span class="hljs-keyword">FROM</span> post <span class="hljs-keyword">LEFT</span> <span class="hljs-keyword">JOIN</span> profile <span class="hljs-keyword">LEFT</span> <span class="hljs-keyword">JOIN</span> stat ...</code></pre>
+<p>两张大表直接进行关联。如果扛不住，就添加缓存，将查询结果缓存。</p>
+<p>那么，在开发过程中是否真的无法逃出这一怪圈？答案当然是否定的，本文的目的就是承接 <a href="/12-15-2020/system-design-concept-and-relation.html">《系统设计之概念与关系》</a>、<a href="/07-27-2020/how-to-write-rpc-interface.html#%E8%AE%A4%E8%AF%86%E8%B5%84%E6%BA%90">《如何设计RPC接口》</a> ，谈谈如何设计，才能让数据落地到缓存。</p>
+<h3 id="结构化缓存"><a href="#结构化缓存" class="headerlink" title="结构化缓存"></a>结构化缓存</h3><p>具体来看怎么做的，实际上可以将以上查询进行拆分：</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> post <span class="hljs-keyword">WHERE</span> ...
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> profile <span class="hljs-keyword">WHERE</span> id <span class="hljs-keyword">in</span> (...)
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> stat <span class="hljs-keyword">WHERE</span> id <span class="hljs-keyword">in</span> (...)</code></pre>
+<p>很多人看到这里会直摇头，这不就直接会导致一次API调用，会直接导致 N 次数据库查询。那你怎么能这样拆分呢？</p>
+<p>事实上并非如此，由于缓存的存在，后两个数据库查询都会命中应用缓存，最终只会有一次简单查询到数据库。考虑最差的情况应用缓存没有命中，后两个数据库查询也会极大概率命中数据的缓存。同时，随着业务的迭代，可以放心使用组合模式，不断组合其他数据，而不用担心复杂度的高度。再次，考虑 KOL 的微博访问量大，可以沿着结构树不断向上添加缓存（例如：在微博列表层添加缓存）。最后，如果分布式缓存压力太大，还可以组合本地缓存使用。</p>
+<p>最重要的是，所有以上提到的所有优化点，都可以使用组合模式实现，而不用大幅度调整代码，避免陷入开发、优化、重构的怪圈。</p>
+<p>再看拆分前，由于使用SQL关联操作，会在业务的发展过程中不断面临挑战：</p>
+<ol>
+<li>关联查询可能导致大范围的扫表，频繁磁盘IO，性能差</li>
+<li>缓存命中率低</li>
+<li>业务迭代，额外查询其他数据，复杂度不断叠加</li>
+</ol>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>在本文末尾，再次总结提及的几个关键观点：</p>
+<ol>
+<li>数据查询有且仅有三种模式<blockquote>
+<ol>
+<li>根据条件，分页查询 ID 列表</li>
+<li>根据 ID 查询内容</li>
+<li>根据 ID 列表批量查询内容</li>
+</ol>
+</blockquote>
+</li>
+<li>所有的结构仅仅存在两种关系<blockquote>
+<ol>
+<li>并列（兄弟）关系</li>
+<li>父子关系</li>
+</ol>
+</blockquote>
+</li>
+<li>结构化和组合模式是应对复杂性有效方法<blockquote>
+<p>缓存不过是一种形式的复杂性</p>
+</blockquote>
+</li>
+</ol>
+<p>当然此种实现并非没有代价。显然，如果数据的访问频率很低，极少的结果才会命中缓存，那么效果就微乎其微。而梳理数据关系、结构，以及按照拆分的形式实现代码，将花费不少的时间，在讲究快速开发、先撑住再优化的今天，很容易让开发者采取非此即彼的决策。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/02-18-2021/high-concurrency-cache-design.html">https://www.cyningsun.com/02-18-2021/high-concurrency-cache-design.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#System design" rel="category"># System design</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/06-13-2023/heavy-hitter.html">如何应对系统热点的挑战</a></span></li>
+          
+            <li><span><a href="/03-12-2023/why-is-the-system-so-fragile.html">系统为何如此脆弱</a></span></li>
+          
+            <li><span><a href="/11-13-2022/design-patterns-for-container-based-distributed-systems-cn.html">译｜Design patterns for container-based distributed systems</a></span></li>
+          
+            <li><span><a href="/12-15-2020/system-design-concept-and-relation.html">系统设计之概念与关系</a></span></li>
+          
+            <li><span><a href="/08-09-2020/resouce-id-design.html">如何设计资源标识符？</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/03-03-2021/packages-as-layers-not-groups-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/01-31-2021/go-concurrency-goroutine-exit.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

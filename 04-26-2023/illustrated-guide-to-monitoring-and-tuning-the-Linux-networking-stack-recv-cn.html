@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜llustrated Guide to Monitoring and Tuning the Linux Networking Stack: Receiving Data</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-04-26 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/04-26-2023/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="TL;DR本文是对我们之前的文章监控和调优 Linux 网络堆栈：接收数据的扩展，其中包含了一系列旨在帮助读者更清晰地了解 Linux 网络堆栈工作原理的图表。 在监控或调优 Linux 网络堆栈时，没有捷径可走。运维人员必须努力全面了解各个系统及其相互作用，才有可能对它们进行调优。也就是说，之前博客文章的长度可能使读者难以概念化各个系统如何相互作用。希望这">
+
+<meta name="keywords" content="Linux 协议栈，监控，调优，接收，图解">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜llustrated Guide to Monitoring and Tuning the Linux Networking Stack: Receiving Data</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-04-26
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#TL-DR"><span class="toc-text">TL;DR</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Getting-Start"><span class="toc-text">Getting Start</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%88%9D%E5%A7%8B%E8%AE%BE%E7%BD%AE"><span class="toc-text">初始设置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BE"><span class="toc-text">数据到达</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E5%BC%80%E5%A7%8B"><span class="toc-text">网络数据处理开始</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E7%BB%A7%E7%BB%AD"><span class="toc-text">网络数据处理继续</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%8F%E8%AE%AE%E6%A0%88%E5%92%8C%E7%94%A8%E6%88%B7%E7%95%8C%E9%9D%A2%E5%A5%97%E6%8E%A5%E5%AD%97"><span class="toc-text">协议栈和用户界面套接字</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-text">结论</span></a></li></ol>
+ 
+        <h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>本文是对我们之前的文章<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/">监控和调优 Linux 网络堆栈：接收数据</a>的扩展，其中包含了一系列旨在帮助读者更清晰地了解 Linux 网络堆栈工作原理的图表。</p>
+<p>在监控或调优 Linux 网络堆栈时，没有捷径可走。运维人员必须努力全面了解各个系统及其相互作用，才有可能对它们进行调优。也就是说，之前博客文章的长度可能使读者难以概念化各个系统如何相互作用。希望这篇博客文章能够帮助澄清这一点。</p>
+<h2 id="Getting-Start"><a href="#Getting-Start" class="headerlink" title="Getting Start"></a>Getting Start</h2><p>这些图表旨在概述 Linux 网络堆栈的工作原理。因此，许多细节被省略了。为了获得完整的画面，建议读者阅读我们的博客文章，其中详细介绍了网络堆栈的各个方面：<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/">监控和调优 Linux 网络堆栈：接收数据</a>。这些图的目的是帮助读者形成一个心智模型，了解内核中的一些系统如何在高层次上相互交互。</p>
+<p>让我们首先看一下在理解数据包处理之前必要的一些重要初始设置。</p>
+<h2 id="初始设置"><a href="#初始设置" class="headerlink" title="初始设置"></a>初始设置</h2><p><img src="/images/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn/sofirq_systegm_diagram.jpg" alt="sofirq系统图"></p>
+<p>设备有许多方法来提醒计算机系统的其他部分，有一些工作已经准备好进行处理。在网络设备的情况下，NIC 常常会产生一个 IRQ 来表示一个数据包已经到达并准备好被处理。当 Linux 内核执行 IRQ 处理程序时，它以非常高的优先级运行，并且通常阻止生成其他的 IRQ。因此，设备驱动程序中的 IRQ 处理程序必须尽快执行，并推迟所有长时间运行的工作到在此上下文之外执行。这就是“softIRQ”系统存在的原因。</p>
+<p>Linux 内核的“softIRQ”系统是内核用来在设备驱动程序 IRQ 上下文之外处理工作的系统。在网络设备的情况下，softIRQ 系统负责处理传入的数据包。softIRQ 系统在内核启动过程的早期初始化。</p>
+<p>上图对应文章的 <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#softirqs">softIRQ 部分</a>，显示了 softIRQ 系统及其每个 CPU 内核线程的初始化过程。</p>
+<p>softIRQ 系统的初始化如下：</p>
+<ol>
+<li>通过从 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/kernel/smpboot.c#L94-L163">kernel&#x2F;smpboot.c</a>调用<code>smpboot_register_percpu_thread</code> ，在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/kernel/softirq.c#L743-L758">kernel&#x2F;softirq.c</a> 中的 <code>spawn_ksoftirqd</code> 中创建 softIRQ 内核线程（每个 CPU 一个）。如代码所示，函数 <code>run_ksoftirqd</code> 被列为 <code>thread_fn</code>，这是将在循环中执行的函数。</li>
+<li>ksoftirqd 线程开始在 <code>run_ksoftirqd</code> 函数中执行它们的处理循环。</li>
+<li>接下来，<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#initialization-of-network-device-subsystem">每个 CPU 创建一个 <code>softnet_data</code> 结构</a>。这些结构保存着对处理网络数据的重要数据结构的引用。<code>poll_list</code> 后续将再次看到。<code>poll_list</code> 是调用 <code>napi_schedule</code> 或来自设备驱动程序的其他 NAPI API 来添加 NAPI poll worker 结构的地方。</li>
+<li>然后，<code>net_dev_init</code> 调用 <code>open_softirq</code> 向 softirq 系统注册 <code>NET_RX_SOFTIRQ</code> softirq，如<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#initialization-of-softirq-handlers">此处所示</a>。注册的处理程序函数称为 <code>net_rx_action</code>。这是 softirq 内核线程为处理数据包而执行的函数。</li>
+</ol>
+<p>图上的步骤 5 - 8 与到达的数据处理有关，并将在下一节中提及。继续阅读以获取更多信息！</p>
+<h2 id="数据到达"><a href="#数据到达" class="headerlink" title="数据到达"></a>数据到达</h2><p><img src="/images/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn/NIC_DMA_data_arrival.jpg" alt="NIC DMA数据到达"><br><a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#data-arrives">数据从网络到达！</a></p>
+<p>当网络数据到达 NIC 时，NIC 将使用 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">DMA</a>将数据包数据写入 RAM。在 <code>igb</code> 网络驱动程序的情况下，RAM 中设置了一个指向接收数据包的环形缓冲区。需要注意的是，一些 NIC 是“多队列” NIC，这意味着它们可以 DMA 传入的数据包到 RAM 中的多个环形缓冲区之一。正如我们很快就会看到的，这样的 NIC 能够利用多个处理器来处理传入的网络数据。<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#preparing-to-receive-data-from-the-network">阅读有关多队列 NIC 的更多信息</a>。上图为了简单起见只显示了一个环形缓冲区，但根据您使用的 NIC 和硬件设置，您的系统上可能有多个队列。</p>
+<p>阅读更多关于下面描述过程的详细信息<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#data-arrives">在此部分网络博客文章中</a>。</p>
+<p>让我们来看一下接收数据的过程：</p>
+<ol>
+<li>NIC 从网络接收数据 。</li>
+<li>NIC 使用 DMA 将网络数据写入 RAM。</li>
+<li>NIC 产生一个 IRQ。</li>
+<li>执行设备驱动程序的<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#interrupt-handler">已注册 IRQ 处理程序</a>。</li>
+<li>清除 NIC 上的 IRQ，以便它可以为新数据包到达生成 IRQ。</li>
+<li><a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#napi-and-napischedule">调用 <code>napi_schedule</code></a>启动 NAPI softIRQ 轮询循环。</li>
+</ol>
+<p>调用 <code>napi_schedule</code> 触发了前面图表中步骤 5 - 8 的开始。正如我们将看到的，NAPI softIRQ 轮询循环的启动仅仅是在位域中翻转一个位，并将一个结构添加到 <code>poll_list</code> 中进行处理。<code>napi_schedule</code> 不做任何其他工作，这正是驱动程序如何将处理推迟到 softIRQ 系统的方式。</p>
+<p>继续前一节中的图表，使用那里找到的数字：</p>
+<ol start="5">
+<li>驱动程序调用 <code>napi_schedule</code> 添加驱动程序的 NAPI 轮询结构到当前 CPU 的 <code>poll_list</code> 中。</li>
+<li>设置 softirq 挂起位，以便此 CPU 上的 <code>ksoftirqd</code> 进程知道有数据包要处理。</li>
+<li>执行 <code>run_ksoftirqd</code> 函数（由 <code>ksoftirq</code> 内核线程在循环中运行）。</li>
+<li>调用 <code>__do_softirq</code>，<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#dosoftirq">检查挂起位域</a>，看到 softIRQ 挂起，并调用挂起 softIRQ 的已注册处理程序：<code>net_rx_action</code>，它完成了传入网络数据处理的所有繁重工作。</li>
+</ol>
+<p>需要注意的是，执行 <code>net_rx_action</code> 的是 softIRQ 内核线程，而不是设备驱动程序 IRQ 处理程序。</p>
+<h2 id="网络数据处理开始"><a href="#网络数据处理开始" class="headerlink" title="网络数据处理开始"></a>网络数据处理开始</h2><p><img src="/images/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn/net_rx_action_data_processing_diagram.jpg" alt="net_rx_action数据处理图"></p>
+<p>现在，数据处理开始。<code>net_rx_action</code> 函数（从 <code>ksoftirqd</code> 内核线程调用）开始处理已添加到当前 CPU 的 <code>poll_list</code> 中的任何 NAPI 轮询结构。通常在两种情况下，添加轮询结构：</p>
+<ul>
+<li>设备驱动程序调用 <code>napi_schedule</code>。</li>
+<li>在<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#receive-packet-steering-rps">接收数据包转向</a>的情况下，使用<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Inter-processor_interrupt">处理器间中断</a>。<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#enqueuetobacklog">阅读更多关于接收数据包转向如何使用 IPI 处理数据包的信息</a>。</li>
+</ul>
+<p>我们将从 <code>poll_list</code> 中获取驱动程序的 NAPI 结构开始。 （下一节介绍 RPS 如何使用 IPI 注册 NAPI 结构）。</p>
+<p>上面的图表在<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#netrxaction-processing-loop">这里</a>进行了深入的解释，可以总结如下：</p>
+<ol>
+<li><code>net_rx_action</code> 循环开始检查 NAPI 轮询列表中的 NAPI 结构。</li>
+<li>检查 <code>budget</code> 和经过的时间<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L4300-L4309">以确保 softIRQ 不会垄断 CPU 时间</a>。</li>
+<li>调用已注册的 <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#napi-poll-function-and-weight"><code>poll</code> 函数</a>。在这种情况下，<code>igb_poll</code> 函数由 <code>igb</code> 驱动程序注册。</li>
+<li>驱动程序的 <code>poll</code> 函数<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#napi-poll">从 RAM 中的环形缓冲区收取数据包</a>。</li>
+<li>数据包交给 <code>napi_gro_receive</code>，它将处理可能的<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#generic-receive-offloading-gro">通用接收卸载</a>。</li>
+<li>数据包<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#napigroreceive">要么保留用于 GRO</a>，调用链在此结束，要么<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#napiskbfinish">数据包被传递</a>给 <code>net_receive_skb</code>，继续向协议栈上方进行。</li>
+</ol>
+<p>接下来我们将看到 <code>net_receive_skb</code> 如何处理 Receive Packet steering，以在多个 CPU 之间分配数据包处理负载。</p>
+<h2 id="网络数据处理继续"><a href="#网络数据处理继续" class="headerlink" title="网络数据处理继续"></a>网络数据处理继续</h2><p><img src="/images/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn/packet_processing_diagram_with_RPS_and_netif_receive_skb.jpg" alt="包含RPS和netif_receive_skb的数据包处理图"></p>
+<p>网络数据处理从 <code>netif_receive_skb</code> 继续，但数据的路径取决于是否启用了 Receive Packet Steering (RPS)。一个“开箱即用”的 Linux 内核默认不会启用 RPS，如果您想使用它，需要显式启用并配置。</p>
+<p><a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#without-rps-default-setting">在禁用 RPS 的情况下</a>，使用上图中的数字：</p>
+<ol>
+<li><code>netif_receive_skb</code> 将数据传递给 <code>__netif_receive_core</code>。</li>
+<li><code>__netif_receive_core</code> <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#packet-tap-delivery">将数据传递给任何 tap</a>（如<a target="_blank" rel="noopener" href="http://www.tcpdump.org/manpages/pcap.3pcap.html">PCAP</a>）。</li>
+<li><code>__netif_receive_core</code> <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#protocol-layer-delivery">将数据传递给已注册的协议层处理程序</a>。在许多情况下，是 IPv4 协议栈已注册的 <code>ip_rcv</code> 函数。</li>
+</ol>
+<p><a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#with-rps-enabled">在启用 RPS 的情况下</a>：</p>
+<ol>
+<li><code>netif_receive_skb</code> <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#enqueuetobacklog">将数据传递给 <code>enqueue_to_backlog</code></a>。</li>
+<li>数据包被放置在每个 CPU 的输入队列中等待处理。</li>
+<li>远程 CPU 的 NAPI 结构被添加到该 CPU 的 <code>poll_list</code> 中，并排队一个 <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#enqueuetobacklog">IPI</a>，如果远程 CPU 上的 softIRQ 内核线程尚未运行，则触发它唤醒。</li>
+<li>当远程 CPU 上的 <code>ksoftirqd</code> 内核线程运行时，它遵循前一节中描述的相同模式，但这次，已注册的 <code>poll</code> 函数是 <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#processbacklog"><code>process_backlog</code>，它从当前 CPU 的输入队列中收取数据包</a>。</li>
+<li>数据包被传递到 <code>__net_receive_skb_core</code>。</li>
+<li><code>__netif_receive_core</code> <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#packet-tap-delivery">将数据传递给任何 tap</a>（如<a target="_blank" rel="noopener" href="http://www.tcpdump.org/manpages/pcap.3pcap.html">PCAP</a>）。</li>
+<li><code>__netif_receive_core</code> <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#protocol-layer-delivery">将数据传递给已注册的协议层处理程序</a>。在许多情况下，是 IPv4 协议栈已注册的<code> ip_rcv</code> 函数。</li>
+</ol>
+<h2 id="协议栈和用户界面套接字"><a href="#协议栈和用户界面套接字" class="headerlink" title="协议栈和用户界面套接字"></a>协议栈和用户界面套接字</h2><p>接下来是协议栈、netfilter、berkley packet filters，最后是用户空间套接字。这条代码路径很长，但线性且相对简单。</p>
+<p>您可以<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#protocol-layer-registration">继续跟踪网络数据的详细路径</a>。一个非常简短的高层次总结路径是：</p>
+<ol>
+<li>数据包由 <code>ip_rcv</code> 接收到 IPv4 协议层。</li>
+<li>执行 Netfilter 和路由优化。</li>
+<li>传送到当前系统的数据被传送到更高级别的协议层，如 UDP。</li>
+<li>数据包由 <code>udp_rcv</code> 接收到 UDP 协议层，并由 <code>udp_queue_rcv_skb</code> 和 <code>sock_queue_rcv</code> 排队到用户空间套接字的接收缓冲区。在排队到接收缓冲区之前，处理伯克利数据包过滤器。</li>
+</ol>
+<p>请注意，在此过程中多次咨询 netfilter。确切的位置可以<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/#protocol-layer-registration">在我们的详细演练中找到</a>。</p>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>Linux 网络堆栈非常复杂，有许多不同的系统相互作用。任何调优或监控这些复杂系统的努力都必须努力理解它们之间的相互作用以及如何更改一个系统中的设置会影响其他系统。</p>
+<p>这篇（画得不好的）博客文章试图使我们的<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-receiving-data/">更长的博客文章</a>更易于管理和理解。</p>
+<p><em>原文：</em> <a target="_blank" rel="noopener" href="https://blog.packagecloud.io/illustrated-guide-monitoring-tuning-linux-networking-stack-receiving-data/">Illustrated Guide to Monitoring and Tuning the Linux Networking Stack: Receiving Data</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/04-26-2023/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn.html">https://www.cyningsun.com/04-26-2023/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Network" rel="category"># Network</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/10-08-2023/dive-into-dns-resolution.html">深入理解 DNS 解析</a></span></li>
+          
+            <li><span><a href="/05-10-2023/a-scalable-commodity-data-center-network-architecture-cn.html">译｜A scalable, commodity data center network architecture</a></span></li>
+          
+            <li><span><a href="/04-25-2023/monitoring-and-tuning-the-linux-networking-stack-sent-cn.html">译｜Monitoring and Tuning the Linux Networking Stack: Sending Data</a></span></li>
+          
+            <li><span><a href="/04-24-2023/monitoring-and-tuning-the-linux-networking-stack-recv-cn.html">译｜Monitoring and Tuning the Linux Networking Stack: Receiving Data</a></span></li>
+          
+            <li><span><a href="/03-30-2023/network-transmission.html">TCP/IP 网络传输</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-10-2023/a-scalable-commodity-data-center-network-architecture-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-25-2023/monitoring-and-tuning-the-linux-networking-stack-sent-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

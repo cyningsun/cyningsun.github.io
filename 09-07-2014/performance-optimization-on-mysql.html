@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>MySQL性能优化小结</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2014-09-07 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/09-07-2014/performance-optimization-on-mysql.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="如何做性能优化？做好性能优化应该理解什么是性能优化。按照我的理解性能就是“从请求发起到得到响应所需要的时间”，而优化就是目标，是为了降低响应时间。 1.选定优化目标(what)为了在有效的时间内做好性能优化达到成本与结果成正比，优化哪些目标同样重要。实际工作中所有的时间都是有成本的，理清轻重缓急与主次相当重要。根据阿姆达尔，对于一个时间比重占用不超过5%的查">
+
+<meta name="keywords" content="mysql,性能优化,索引优化">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>MySQL性能优化小结</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2014-09-07
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A6%82%E4%BD%95%E5%81%9A%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%EF%BC%9F"><span class="toc-text">如何做性能优化？</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#1-%E9%80%89%E5%AE%9A%E4%BC%98%E5%8C%96%E7%9B%AE%E6%A0%87-what"><span class="toc-text">1.选定优化目标(what)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#2%E3%80%81%E5%A6%82%E4%BD%95%E8%BF%9B%E8%A1%8C%E4%BC%98%E5%8C%96"><span class="toc-text">2、如何进行优化</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%80%BB%E7%BB%93%E4%B8%80%E4%B8%8B%EF%BC%9A"><span class="toc-text">总结一下：</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#MySQL-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96"><span class="toc-text">MySQL 性能优化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#MySQL-%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%B0%8F%E7%BB%93"><span class="toc-text">MySQL 性能优化小结</span></a></li></ol>
+ 
+        <h3 id="如何做性能优化？"><a href="#如何做性能优化？" class="headerlink" title="如何做性能优化？"></a>如何做性能优化？</h3><p>做好性能优化应该理解什么是性能优化。按照我的理解性能就是“从请求发起到得到响应所需要的时间”，而优化就是目标，是为了降低响应时间。</p>
+<h4 id="1-选定优化目标-what"><a href="#1-选定优化目标-what" class="headerlink" title="1.选定优化目标(what)"></a>1.选定优化目标(what)</h4><p>为了在有效的时间内做好性能优化达到成本与结果成正比，优化哪些目标同样重要。实际工作中所有的时间都是有成本的，理清轻重缓急与主次相当重要。根据阿姆达尔，对于一个时间比重占用不超过5%的查询进行优化，无论如何努力，收益也不会超过5%。例如，此次优化的选择：先用户侧后商户侧(前者对响应时间比较敏感)，先黄金路径接口后功能路径接口。</p>
+<h4 id="2、如何进行优化"><a href="#2、如何进行优化" class="headerlink" title="2、如何进行优化"></a>2、如何进行优化</h4><p>如果目标是降低响应时间，那么首先我们要弄清楚“时间都去哪儿了”，对症下药的方案也就比较明了。完成一项任务所需的时间一般分为两个部分：执行时间和等待时间。<br>如果想优化等待时间，最好的办法是测量和定位不同子任务花费的时间，然后选择一些耗时不正常的子任务优化。优化等待时间意味着等待是如何发生的，等待可能是由于不同子任务或者子系统间接影响导致，也可能由于磁盘I&#x2F;O、CPU资源争抢、网络传输。更深入一点，如果业务程序是CPU消耗性的，可能系统调用也会影响响应时间。</p>
+<h4 id="总结一下："><a href="#总结一下：" class="headerlink" title="总结一下："></a>总结一下：</h4><blockquote>
+<p>1.优化值得优化的查询，优化成本大于收益时就应该停止。<br>2.弄清“时间都去哪儿了”，有的放矢</p>
+</blockquote>
+<p>另外，有时候平均响应时间很正常，但却掩盖了某些异常响应。举例说“医院所有病人的平均体温没有任何价值”。被掩盖的细节里能提供更多的信息。</p>
+<h3 id="MySQL-性能优化"><a href="#MySQL-性能优化" class="headerlink" title="MySQL 性能优化"></a>MySQL 性能优化</h3><p>MySQL性能优化同样基于以上原理进行，同时需要一些MySQL的基础知识。    </p>
+<blockquote>
+<p>1.MySQL索引的特性<br>2.MySQL工具explain、profile<br>3.MySQL的锁机制   </p>
+</blockquote>
+<h3 id="MySQL-性能优化小结"><a href="#MySQL-性能优化小结" class="headerlink" title="MySQL 性能优化小结"></a>MySQL 性能优化小结</h3><p>最好的优化永远是与业务关联的、最好的优化永远是良好的设计，所谓的优化只应该作为辅助和应对变更的方法，不应该把所有的任务放到优化阶段，不然所需要的消耗的时间将是指数级的！</p>
+<p>(完)</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/09-07-2014/performance-optimization-on-mysql.html">https://www.cyningsun.com/09-07-2014/performance-optimization-on-mysql.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/09-09-2014/data-persistence.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-17-2014/reading-mybatis-spring-source-code.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解 RocksDB SST 文件大小控制</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2025-05-04 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-05-04 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-04-2025/rocksdb-sst-file-size.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="在 RocksDB 中，SST（Sorted String Table）文件是持久化存储数据的基本单位。SST 文件的大小对 RocksDB 的性能有着深远影响：太小的文件会导致文件数量过多，增加元数据开销和文件打开&amp;#x2F;关闭的操作负担；太大的文件则可能导致读放大和更高的 compaction 负担。 本文将基于 RocksDB v8.8.1 详细介绍">
+
+<meta name="keywords" content="Leveled Compaction,level_compaction_dynamic_file_size">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解 RocksDB SST 文件大小控制</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2025-05-04
+         | 
+        Last Revised: 2025-05-04
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E6%8E%A7%E5%88%B6-SST-%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E7%9A%84%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0"><span class="toc-text">一、控制 SST 文件大小的配置参数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E4%B8%8D%E5%90%8C%E5%B1%82%E7%BA%A7-SST-%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E7%9A%84%E8%AE%A1%E7%AE%97%E8%A7%84%E5%88%99"><span class="toc-text">二、不同层级 SST 文件大小的计算规则</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E4%B8%8D%E5%90%8C%E5%9C%BA%E6%99%AF%E4%B8%8B%E7%9A%84-SST-%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E6%8E%A7%E5%88%B6"><span class="toc-text">三、不同场景下的 SST 文件大小控制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-L0-%E5%B1%82%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E6%8E%A7%E5%88%B6"><span class="toc-text">3.1 L0 层文件大小控制</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-1-Memtable-%E5%88%B7%E7%9B%98%E7%94%9F%E6%88%90"><span class="toc-text">3.1.1 Memtable 刷盘生成</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-2-Intra-L0-compaction-%E7%94%9F%E6%88%90"><span class="toc-text">3.1.2 Intra-L0 compaction 生成</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E9%9D%9E-L0-%E5%92%8C%E9%9D%9E-Bottommost-%E5%B1%82%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E6%8E%A7%E5%88%B6"><span class="toc-text">3.2 非 L0 和非 Bottommost 层文件大小控制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-Bottommost-%E5%B1%82%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E6%8E%A7%E5%88%B6"><span class="toc-text">3.3 Bottommost 层文件大小控制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-%E5%8A%A8%E6%80%81%E5%B1%82%E7%BA%A7%E5%A4%A7%E5%B0%8F%E4%B8%8B%E7%9A%84%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E8%AE%A1%E7%AE%97"><span class="toc-text">3.4 动态层级大小下的文件大小计算</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Compaction-%E4%B8%AD%E7%9A%84-SST-%E6%96%87%E4%BB%B6%E5%88%87%E5%88%86%E7%AD%96%E7%95%A5"><span class="toc-text">四、Compaction 中的 SST 文件切分策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E8%BF%BD%E8%B8%AA%E7%A5%96%E7%88%B6%E5%B1%82%E6%96%87%E4%BB%B6%E8%BE%B9%E7%95%8C%EF%BC%9AUpdateGrandparentBoundaryInfo-%E5%87%BD%E6%95%B0"><span class="toc-text">4.1 追踪祖父层文件边界：UpdateGrandparentBoundaryInfo 函数</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#4-1-1-UpdateGrandparentBoundaryInfo-%E5%87%BD%E6%95%B0%E7%9A%84%E6%A0%B8%E5%BF%83%E7%8A%B6%E6%80%81%E5%8F%98%E9%87%8F"><span class="toc-text">4.1.1 UpdateGrandparentBoundaryInfo 函数的核心状态变量</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-1-2-%E5%9B%BE%E8%A7%A3-UpdateGrandparentBoundaryInfo-%E5%85%AD%E7%A7%8D%E5%85%B8%E5%9E%8B%E5%9C%BA%E6%99%AF"><span class="toc-text">4.1.2 图解 UpdateGrandparentBoundaryInfo 六种典型场景</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E8%AE%A1%E7%AE%97%E7%A5%96%E7%88%B6%E5%B1%82%E9%87%8D%E5%8F%A0%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F"><span class="toc-text">4.2 计算祖父层重叠文件大小</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%96%87%E4%BB%B6%E5%88%87%E5%88%86%E5%86%B3%E7%AD%96%EF%BC%9AShouldStopBefore-%E5%87%BD%E6%95%B0"><span class="toc-text">4.3 文件切分决策：ShouldStopBefore 函数</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#4-3-1-%E5%9F%BA%E6%9C%AC%E5%A4%A7%E5%B0%8F%E9%99%90%E5%88%B6"><span class="toc-text">4.3.1 基本大小限制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-3-2-%E7%A5%96%E7%88%B6%E5%B1%82%E6%96%87%E4%BB%B6%E8%BE%B9%E7%95%8C%E5%90%AF%E5%8F%91%E5%BC%8F"><span class="toc-text">4.3.2 祖父层文件边界启发式</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#4-3-2-1-%E9%98%B2%E6%AD%A2%E6%9C%AA%E6%9D%A5-Compaction-%E8%BF%87%E5%A4%A7"><span class="toc-text">4.3.2.1 防止未来 Compaction 过大</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#4-3-2-2-%E9%9A%94%E7%A6%BB%E5%8F%AF%E8%B7%B3%E8%BF%87%E7%9A%84%E7%A5%96%E7%88%B6%E6%96%87%E4%BB%B6"><span class="toc-text">4.3.2.2 隔离可跳过的祖父文件</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#4-3-2-3-%E5%8A%A8%E6%80%81%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E9%A2%84%E5%88%86%E5%89%B2"><span class="toc-text">4.3.2.3 动态文件大小预分割</span></a></li></ol></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E4%B8%9A%E5%8A%A1%E7%89%B9%E5%BE%81%E5%AF%B9-SST-%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E7%9A%84%E5%BD%B1%E5%93%8D"><span class="toc-text">五、业务特征对 SST 文件大小的影响</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E2%80%9C%E9%9A%94%E7%A6%BB%E5%8F%AF%E8%B7%B3%E8%BF%87%E7%9A%84%E7%A5%96%E7%88%B6%E6%96%87%E4%BB%B6%E2%80%9D-%E7%9A%84-Corner-Case"><span class="toc-text">5.1 “隔离可跳过的祖父文件” 的 Corner Case</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E9%9B%AA%E8%8A%B1%E7%AE%97%E6%B3%95%E4%B8%8E%E5%B0%8F%E6%96%87%E4%BB%B6%E9%97%AE%E9%A2%98"><span class="toc-text">5.2 雪花算法与小文件问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E6%B5%81%E9%87%8F%E5%B3%B0%E5%80%BC%E7%89%B9%E5%BE%81%E4%B8%8E%E5%B0%8F%E6%96%87%E4%BB%B6%E9%97%AE%E9%A2%98"><span class="toc-text">5.3 流量峰值特征与小文件问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-%E9%AA%8C%E8%AF%81%E5%B0%8F-SST-%E6%96%87%E4%BB%B6%E9%80%BB%E8%BE%91%E8%A7%A6%E5%8F%91"><span class="toc-text">5.4 验证小 SST 文件逻辑触发</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E7%BB%9F%E8%AE%A1%E6%8C%87%E6%A0%87"><span class="toc-text">六、统计指标</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">七、总结</span></a></li></ol>
+ 
+        <p>在 RocksDB 中，SST（Sorted String Table）文件是持久化存储数据的基本单位。SST 文件的大小对 RocksDB 的性能有着深远影响：太小的文件会导致文件数量过多，增加元数据开销和文件打开&#x2F;关闭的操作负担；太大的文件则可能导致读放大和更高的 compaction 负担。</p>
+<p>本文将基于 RocksDB v8.8.1 详细介绍在启用 Leveled Compaction、MinOverlapping 策略和 <code>level_compaction_dynamic_file_size</code> 的情况下，RocksDB 如何精确控制 SST 文件的大小，并结合图解详细阐述其复杂的文件切分决策机制。</p>
+<h2 id="一、控制-SST-文件大小的配置参数"><a href="#一、控制-SST-文件大小的配置参数" class="headerlink" title="一、控制 SST 文件大小的配置参数"></a>一、控制 SST 文件大小的配置参数</h2><p>RocksDB 通过以下核心参数控制 SST 文件大小：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 主要控制参数</span>
+Options options;
+options.target_file_size_base = <span class="hljs-number">64</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>;        <span class="hljs-comment">// 默认 64MB</span>
+options.target_file_size_multiplier = <span class="hljs-number">1</span>;                 <span class="hljs-comment">// 默认为 1</span>
+options.max_compaction_bytes = <span class="hljs-number">1.6</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>; <span class="hljs-comment">// 默认 1.6GB</span>
+options.write_buffer_size = <span class="hljs-number">64</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>;           <span class="hljs-comment">// 默认 64MB，影响 L0 文件大小</span></code></pre>
+
+<p>以上参数的具体含义是：</p>
+<ul>
+<li><strong><code>target_file_size_base</code></strong>: 定义 L1 层文件的目标大小，默认为 64MB</li>
+<li><strong><code>target_file_size_multiplier</code></strong>: 文件大小在各层之间的增长倍数，默认为 1</li>
+<li><strong><code>max_compaction_bytes</code></strong>: 限制单次压缩操作产生的最大文件大小，默认为 1.6GB</li>
+<li><strong><code>write_buffer_size</code></strong>: 控制 Memtable 的大小，间接影响从 Memtable 刷盘生成的 L0 文件大小</li>
+</ul>
+<h2 id="二、不同层级-SST-文件大小的计算规则"><a href="#二、不同层级-SST-文件大小的计算规则" class="headerlink" title="二、不同层级 SST 文件大小的计算规则"></a>二、不同层级 SST 文件大小的计算规则</h2><p>RocksDB 会根据层级不同，为每个层级计算一个目标文件大小。这一计算过程在 <code>MutableCFOptions::RefreshDerivedOptions</code> 函数中实现：</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">MutableCFOptions::RefreshDerivedOptions</span><span class="hljs-params">(<span class="hljs-type">int</span> num_levels,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                            CompactionStyle compaction_style)</span> </span>&#123;
+  max_file_size.<span class="hljs-built_in">resize</span>(num_levels);
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; num_levels; ++i) &#123;
+    <span class="hljs-keyword">if</span> (i == <span class="hljs-number">0</span> &amp;&amp; compaction_style == kCompactionStyleUniversal) &#123;
+      max_file_size[i] = ULLONG_MAX;  <span class="hljs-comment">// Universal 压缩中的 L0 层不限制大小</span>
+    &#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (i &gt; <span class="hljs-number">1</span>) &#123;
+      <span class="hljs-comment">// 非 L0 和 L1 层：上一层文件大小 * 倍数</span>
+      max_file_size[i] = <span class="hljs-built_in">MultiplyCheckOverflow</span>(max_file_size[i - <span class="hljs-number">1</span>],
+                                              target_file_size_multiplier);
+    &#125; <span class="hljs-keyword">else</span> &#123;
+      <span class="hljs-comment">// L0 (非Universal) 和 L1 层：使用基础大小</span>
+      max_file_size[i] = target_file_size_base;
+    &#125;
+  &#125;
+&#125;</code></pre>
+
+<p>根据上述代码，可以得出不同层级 SST 文件大小的计算公式：</p>
+<pre><code class="hljs excel"><span class="hljs-built_in">Ln</span> 层文件大小 = target_file_size_base * (target_file_size_multiplier^(<span class="hljs-built_in">n</span>-<span class="hljs-number">1</span>))</code></pre>
+
+<p>具体来说：</p>
+<ol>
+<li><p><strong>L0 层</strong>:</p>
+<ul>
+<li>对于 Universal 压缩风格：文件大小不受限制 (ULLONG_MAX)</li>
+<li>其他压缩风格：<code>target_file_size_base</code> (默认 64MB)</li>
+<li>但实际上 L0 的文件大小主要取决于 memtable 刷盘过程</li>
+</ul>
+</li>
+<li><p><strong>L1 层</strong>:</p>
+<ul>
+<li>总是设置为 <code>target_file_size_base</code> (默认 64MB)</li>
+</ul>
+</li>
+<li><p><strong>L2 及更高层级</strong>:</p>
+<ul>
+<li>按照公式：上一层大小 × <code>target_file_size_multiplier</code></li>
+<li>例如，若 <code>target_file_size_multiplier</code> 为 2：<ul>
+<li>L1: 64MB</li>
+<li>L2: 128MB</li>
+<li>L3: 256MB</li>
+<li>以此类推</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<h2 id="三、不同场景下的-SST-文件大小控制"><a href="#三、不同场景下的-SST-文件大小控制" class="headerlink" title="三、不同场景下的 SST 文件大小控制"></a>三、不同场景下的 SST 文件大小控制</h2><h3 id="3-1-L0-层文件大小控制"><a href="#3-1-L0-层文件大小控制" class="headerlink" title="3.1 L0 层文件大小控制"></a>3.1 L0 层文件大小控制</h3><p>L0 层的 SST 文件有两种生成方式：</p>
+<h4 id="3-1-1-Memtable-刷盘生成"><a href="#3-1-1-Memtable-刷盘生成" class="headerlink" title="3.1.1 Memtable 刷盘生成"></a>3.1.1 Memtable 刷盘生成</h4><p>当 memtable 满或达到其他刷盘条件时，会被刷到 L0 层生成 SST 文件：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 文件大小由 memtable 大小决定，通常由 write_buffer_size 控制</span>
+<span class="hljs-comment">// 这类文件的大小不受 target_file_size 参数限制</span>
+<span class="hljs-function">Status <span class="hljs-title">DBImpl::FlushMemTableToOutputFile</span><span class="hljs-params">(...)</span> </span>&#123;
+  <span class="hljs-comment">// ...</span>
+  <span class="hljs-comment">// 从 memtable 创建 SST 文件，大小取决于 memtable 实际内容大小</span>
+  s = <span class="hljs-built_in">BuildTable</span>(...)
+  <span class="hljs-comment">// ...</span>
+&#125;</code></pre>
+
+<p>该方式生成的 L0 文件大小近似等于 memtable 中实际数据大小，<strong>不受</strong> <code>target_file_size</code> 参数限制。当 <code>min_write_buffer_number_to_merge</code> 设置为 2 时，Memtable 刷盘生成的 SST 文件大小约为 2 个 <code>write_buffer_size</code> 的大小（实际情况下，数据压缩、记录合并或删除会降低文件大小）。因为该参数控制了在刷盘前需要合并的最小 memtable 数量。</p>
+<h4 id="3-1-2-Intra-L0-compaction-生成"><a href="#3-1-2-Intra-L0-compaction-生成" class="headerlink" title="3.1.2 Intra-L0 compaction 生成"></a>3.1.2 Intra-L0 compaction 生成</h4><p>当 L0 层文件过多时，RocksDB 会触发 Intra-L0 compaction，合并多个 L0 文件：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// L0 compaction 生成的文件大小最大不超过 max_compaction_bytes</span>
+<span class="hljs-keyword">if</span> (compaction_-&gt;<span class="hljs-built_in">output_level</span>() == <span class="hljs-number">0</span>) &#123;
+  <span class="hljs-comment">// L0 层不应用基于祖父文件边界的文件切分启发式算法</span>
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+&#125;</code></pre>
+
+<p>Intra-L0 compaction 生成的文件大小主要受 <code>max_compaction_bytes</code> 限制，文件最大为 <code>max_compaction_bytes</code>。</p>
+<h3 id="3-2-非-L0-和非-Bottommost-层文件大小控制"><a href="#3-2-非-L0-和非-Bottommost-层文件大小控制" class="headerlink" title="3.2 非 L0 和非 Bottommost 层文件大小控制"></a>3.2 非 L0 和非 Bottommost 层文件大小控制</h3><p>对于 L1 到倒数第二层的文件，RocksDB 在 <code>Compaction</code> 构造函数中设置其大小限制：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 在 Compaction 构造函数中计算目标输出文件大小</span>
+Compaction::<span class="hljs-built_in">Compaction</span>(...) &#123;
+  <span class="hljs-comment">// ...</span>
+  target_output_file_size_ = <span class="hljs-built_in">MaxFileSizeForLevel</span>(
+      mutable_cf_options, output_level, compaction_style, base_level,
+      level_compaction_dynamic_level_bytes);
+
+  <span class="hljs-comment">// 非底层文件可能是目标大小的 2 倍</span>
+  max_output_file_size_ =
+      bottommost_level_ || grandparents_.<span class="hljs-built_in">empty</span>() ||
+              !_immutable_options.level_compaction_dynamic_file_size
+          ? target_output_file_size_
+          : <span class="hljs-number">2</span> * target_output_file_size_;
+  <span class="hljs-comment">// ...</span>
+&#125;</code></pre>
+
+<p>从代码可以看出，当满足下列条件时，非底层文件的最大大小可能是目标大小的 2 倍：</p>
+<ol>
+<li>非底层 compaction</li>
+<li>有祖父层文件</li>
+<li>启用了动态文件大小调整选项</li>
+</ol>
+<p>这种设计允许 RocksDB 在特定场景下生成更大的中间层文件，减少文件数量。</p>
+<h3 id="3-3-Bottommost-层文件大小控制"><a href="#3-3-Bottommost-层文件大小控制" class="headerlink" title="3.3 Bottommost 层文件大小控制"></a>3.3 Bottommost 层文件大小控制</h3><p>最底层的文件大小严格遵循 <code>target_output_file_size_</code>：</p>
+<pre><code class="hljs cpp">max_output_file_size_ =
+    bottommost_level_ || grandparents_.<span class="hljs-built_in">empty</span>() ||
+            !_immutable_options.level_compaction_dynamic_file_size
+        ? target_output_file_size_  <span class="hljs-comment">// 底层使用目标大小</span>
+        : <span class="hljs-number">2</span> * target_output_file_size_;</code></pre>
+
+<p>当 compaction 输出到最底层时（<code>bottommost_level_</code> 为 true），最大输出文件大小就等于目标文件大小，不会有 2 倍的扩展。</p>
+<h3 id="3-4-动态层级大小下的文件大小计算"><a href="#3-4-动态层级大小下的文件大小计算" class="headerlink" title="3.4 动态层级大小下的文件大小计算"></a>3.4 动态层级大小下的文件大小计算</h3><p>当启用 <code>level_compaction_dynamic_level_bytes</code> 选项时，RocksDB 使用相对于基础层级的方式计算文件大小：</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">uint64_t</span> <span class="hljs-title">MaxFileSizeForLevel</span><span class="hljs-params">(<span class="hljs-type">const</span> MutableCFOptions&amp; cf_options,</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">int</span> level, CompactionStyle compaction_style, <span class="hljs-type">int</span> base_level,</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">bool</span> level_compaction_dynamic_level_bytes)</span> </span>&#123;
+  <span class="hljs-comment">// 检查是否使用动态层大小</span>
+  <span class="hljs-keyword">if</span> (!level_compaction_dynamic_level_bytes || level &lt; base_level ||
+      compaction_style != kCompactionStyleLevel) &#123;
+    <span class="hljs-comment">// 常规计算方式：直接使用层级对应的大小</span>
+    <span class="hljs-built_in">assert</span>(level &gt;= <span class="hljs-number">0</span>);
+    <span class="hljs-built_in">assert</span>(level &lt; (<span class="hljs-type">int</span>)cf_options.max_file_size.<span class="hljs-built_in">size</span>());
+    <span class="hljs-keyword">return</span> cf_options.max_file_size[level];
+  &#125; <span class="hljs-keyword">else</span> &#123;
+    <span class="hljs-comment">// 动态层大小方式：使用相对于基础层的偏移</span>
+    <span class="hljs-built_in">assert</span>(level &gt;= <span class="hljs-number">0</span> &amp;&amp; base_level &gt;= <span class="hljs-number">0</span>);
+    <span class="hljs-built_in">assert</span>(level - base_level &lt; (<span class="hljs-type">int</span>)cf_options.max_file_size.<span class="hljs-built_in">size</span>());
+    <span class="hljs-keyword">return</span> cf_options.max_file_size[level - base_level];
+  &#125;
+&#125;</code></pre>
+
+<p>这是因为在 <code>level_compaction_dynamic_level_bytes</code> 模式下，RocksDB 的基础层级可能不是 L1，而是由系统根据数据量动态调整的。在这种情况下，我们需要使用相对于基础层级的偏移量来索引文件大小数组。</p>
+<h2 id="四、Compaction-中的-SST-文件切分策略"><a href="#四、Compaction-中的-SST-文件切分策略" class="headerlink" title="四、Compaction 中的 SST 文件切分策略"></a>四、Compaction 中的 SST 文件切分策略</h2><p>在 compaction 过程中，RocksDB 需要决定何时应该 “ 切割 “ 一个正在写入的输出 SST 文件。这是由 <code>CompactionOutputs::ShouldStopBefore</code> 函数实现的，这是控制 SST 文件大小的关键逻辑。</p>
+<p>该函数需要依赖一个重要的辅助函数 <code>UpdateGrandparentBoundaryInfo</code>，该函数负责跟踪正在构建的输出文件与祖父层（L+2 层）文件的关系，为切分决策提供必要的信息。先来深入理解这个辅助函数的工作原理。</p>
+<h3 id="4-1-追踪祖父层文件边界：UpdateGrandparentBoundaryInfo-函数"><a href="#4-1-追踪祖父层文件边界：UpdateGrandparentBoundaryInfo-函数" class="headerlink" title="4.1 追踪祖父层文件边界：UpdateGrandparentBoundaryInfo 函数"></a>4.1 追踪祖父层文件边界：UpdateGrandparentBoundaryInfo 函数</h3><p><code>UpdateGrandparentBoundaryInfo</code> 函数的主要作用是跟踪键与祖父层文件的相对位置关系，更新状态并返回键跨越的边界数。</p>
+<p>下面是该函数的代码和详细注释：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 更新关于当前内部键 `internal_key` 与祖父层（L+2）文件边界和重叠的信息。</span>
+<span class="hljs-function"><span class="hljs-type">size_t</span> <span class="hljs-title">CompactionOutputs::UpdateGrandparentBoundaryInfo</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> Slice&amp; internal_key)</span> </span>&#123;
+  <span class="hljs-comment">// 初始化当前键跨越的边界数量为 0。</span>
+  <span class="hljs-type">size_t</span> curr_key_boundary_switched_num = <span class="hljs-number">0</span>;
+  <span class="hljs-comment">// 获取祖父层文件列表。</span>
+  <span class="hljs-type">const</span> std::vector&lt;FileMetaData*&gt;&amp; grandparents = compaction_-&gt;<span class="hljs-built_in">grandparents</span>();
+
+  <span class="hljs-comment">// 如果没有祖父文件（例如，输出到 L0 或最底层），则无需执行任何操作。</span>
+  <span class="hljs-keyword">if</span> (grandparents.<span class="hljs-built_in">empty</span>()) &#123;
+    <span class="hljs-keyword">return</span> curr_key_boundary_switched_num;
+  &#125;
+  <span class="hljs-comment">// 获取用户键比较器。</span>
+  <span class="hljs-type">const</span> Comparator* ucmp = compaction_-&gt;<span class="hljs-built_in">column_family_data</span>()-&gt;<span class="hljs-built_in">user_comparator</span>();
+
+  <span class="hljs-comment">// 移动 `grandparent_index_` 指向包含当前用户键的文件。</span>
+  <span class="hljs-comment">// 如果多个文件包含相同的用户键，请确保索引指向包含该键的最后一个文件。</span>
+  <span class="hljs-keyword">while</span> (grandparent_index_ &lt; grandparents.<span class="hljs-built_in">size</span>()) &#123;
+    <span class="hljs-comment">// 检查当前是否处于祖父文件之间的间隙中。</span>
+    <span class="hljs-keyword">if</span> (being_grandparent_gap_) &#123;
+      <span class="hljs-comment">// 如果当前键的用户键仍然小于下一个祖父文件的最小用户键，</span>
+      <span class="hljs-comment">// 则表示仍在间隙中，跳出循环。</span>
+      <span class="hljs-keyword">if</span> (<span class="hljs-built_in">sstableKeyCompare</span>(ucmp, internal_key,
+                            grandparents[grandparent_index_]-&gt;smallest) &lt; <span class="hljs-number">0</span>) &#123;
+        <span class="hljs-keyword">break</span>;
+      &#125;
+      <span class="hljs-comment">// 当前键已进入 `grandparent_index_` 指向的祖父文件。</span>
+      <span class="hljs-comment">// 只有在处理过至少一个键后（`seen_key_` 为 true），才计算边界切换。</span>
+      <span class="hljs-keyword">if</span> (seen_key_) &#123;
+        <span class="hljs-comment">// 当前键跨越了一个边界（从间隙进入文件）。</span>
+        curr_key_boundary_switched_num++;
+        <span class="hljs-comment">// 将新进入的祖父文件的完整大小添加到重叠字节数中。</span>
+        grandparent_overlapped_bytes_ +=
+            grandparents[grandparent_index_]-&gt;fd.<span class="hljs-built_in">GetFileSize</span>();
+        <span class="hljs-comment">// 增加当前输出文件跨越的总边界数。</span>
+        grandparent_boundary_switched_num_++;
+      &#125;
+      <span class="hljs-comment">// 不再处于间隙中。</span>
+      being_grandparent_gap_ = <span class="hljs-literal">false</span>;
+    &#125; <span class="hljs-keyword">else</span> &#123; <span class="hljs-comment">// 当前处于 `grandparent_index_` 指向的祖父文件内部。</span>
+      <span class="hljs-comment">// 比较当前键的用户键与当前祖父文件的最大用户键。</span>
+      <span class="hljs-type">int</span> cmp_result = <span class="hljs-built_in">sstableKeyCompare</span>(
+          ucmp, internal_key, grandparents[grandparent_index_]-&gt;largest);
+
+      <span class="hljs-comment">// 如果满足以下条件之一，则跳出循环（表示当前键仍在当前祖父文件范围内）：</span>
+      <span class="hljs-comment">// 1. 当前键严格小于当前祖父文件的最大键。</span>
+      <span class="hljs-comment">// 2. 当前键等于当前祖父文件的最大键，并且：</span>
+      <span class="hljs-comment">//    a) 这是最后一个祖父文件。</span>
+      <span class="hljs-comment">//    b) 或者，当前键严格小于下一个祖父文件的最小键（确保 `grandparent_index_` 指向包含该键的最后一个文件）。</span>
+      <span class="hljs-keyword">if</span> (cmp_result &lt; <span class="hljs-number">0</span> ||
+          (cmp_result == <span class="hljs-number">0</span> &amp;&amp;
+           (grandparent_index_ == grandparents.<span class="hljs-built_in">size</span>() - <span class="hljs-number">1</span> ||
+            <span class="hljs-built_in">sstableKeyCompare</span>(ucmp, internal_key,
+                              grandparents[grandparent_index_ + <span class="hljs-number">1</span>]-&gt;smallest) &lt;
+                <span class="hljs-number">0</span>))) &#123;
+        <span class="hljs-keyword">break</span>;
+      &#125;
+
+      <span class="hljs-comment">// 当前键已超出当前祖父文件的范围。</span>
+      <span class="hljs-comment">// 只有在处理过至少一个键后（`seen_key_` 为 true），才计算边界切换。</span>
+      <span class="hljs-keyword">if</span> (seen_key_) &#123;
+        <span class="hljs-comment">// 当前键跨越了一个边界（从文件进入间隙）。</span>
+        curr_key_boundary_switched_num++;
+        <span class="hljs-comment">// 增加当前输出文件跨越的总边界数。</span>
+        grandparent_boundary_switched_num_++;
+      &#125;
+      <span class="hljs-comment">// 现在处于间隙中。</span>
+      being_grandparent_gap_ = <span class="hljs-literal">true</span>;
+      <span class="hljs-comment">// 移动到下一个祖父文件（或文件后的间隙）。</span>
+      grandparent_index_++;
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// 特殊处理第一个键 (`seen_key_` 为 false)。</span>
+  <span class="hljs-comment">// 如果第一个键直接落入某个祖父文件内部（而不是间隙），则计算其初始重叠字节数。</span>
+  <span class="hljs-keyword">if</span> (!seen_key_ &amp;&amp; !being_grandparent_gap_) &#123;
+    <span class="hljs-comment">// 初始重叠应为 0。</span>
+    <span class="hljs-built_in">assert</span>(grandparent_overlapped_bytes_ == <span class="hljs-number">0</span>);
+    <span class="hljs-comment">// 调用 GetCurrentKeyGrandparentOverlappedBytes 计算初始重叠。</span>
+    grandparent_overlapped_bytes_ =
+        <span class="hljs-built_in">GetCurrentKeyGrandparentOverlappedBytes</span>(internal_key);
+  &#125;
+
+  <span class="hljs-comment">// 标记已处理过至少一个键。</span>
+  seen_key_ = <span class="hljs-literal">true</span>;
+  <span class="hljs-comment">// 返回当前这个 `internal_key` 跨越的边界数量。</span>
+  <span class="hljs-keyword">return</span> curr_key_boundary_switched_num;
+&#125;</code></pre>
+
+<h4 id="4-1-1-UpdateGrandparentBoundaryInfo-函数的核心状态变量"><a href="#4-1-1-UpdateGrandparentBoundaryInfo-函数的核心状态变量" class="headerlink" title="4.1.1 UpdateGrandparentBoundaryInfo 函数的核心状态变量"></a>4.1.1 UpdateGrandparentBoundaryInfo 函数的核心状态变量</h4><p>该函数维护了几个关键的状态变量：</p>
+<ul>
+<li><strong><code>seen_key_</code></strong>: 是否已处理过至少一个键</li>
+<li><strong><code>being_grandparent_gap_</code></strong>: 当前键是否位于祖父文件之间的间隙中</li>
+<li><strong><code>grandparent_index_</code></strong>: 指向当前祖父文件数组中的位置索引</li>
+<li><strong><code>grandparent_boundary_switched_num_</code></strong>: 当前输出文件已跨越的祖父边界总数</li>
+<li><strong><code>grandparent_overlapped_bytes_</code></strong>: 与当前输出文件重叠的祖父文件总大小</li>
+<li><strong><code>curr_key_boundary_switched_num</code></strong>: <strong>当前的键</strong>跨越的祖父边界数量 (返回值)</li>
+</ul>
+<h4 id="4-1-2-图解-UpdateGrandparentBoundaryInfo-六种典型场景"><a href="#4-1-2-图解-UpdateGrandparentBoundaryInfo-六种典型场景" class="headerlink" title="4.1.2 图解 UpdateGrandparentBoundaryInfo 六种典型场景"></a>4.1.2 图解 UpdateGrandparentBoundaryInfo 六种典型场景</h4><p>按照函数处理 KEY 的数量，通过图解来详细分析 <code>UpdateGrandparentBoundaryInfo</code> 函数在六种不同场景下的行为：</p>
+<p><img src="/images/rocksdb-sst-file-size/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20RocksDB%20SST%20%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E6%8E%A7%E5%88%B6-20250423164046-1.png" alt="深入理解 RocksDB SST 文件大小控制-20250423164046-1.png"></p>
+<p>图中上方显示了三层文件：灰色为输入层文件（L 和 L+1），蓝色为祖父层文件（L+2）。使用两种 L 层的例子来覆盖所有的场景，以颜色深浅对应 L 层以及具体的场景。下面则详细展示了处理不同键时的状态变化。</p>
+<p><strong>1. 第一个 KEY，不在 grandparent file 中</strong></p>
+<p><strong>情景</strong>：处理第一个键 (key&#x3D;1)，该键不在任何祖父文件范围内（位于间隙中）。</p>
+<p><strong>调用前</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; false</li>
+<li><code>being_grandparent_gap_</code> &#x3D; false</li>
+<li><code>grandparent_index_</code> &#x3D; 0（指向 [2, 4] 文件）</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 0</li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; 0</li>
+</ul>
+<p><strong>调用后</strong>：</p>
+<ul>
+<li><strong><code>seen_key_</code> &#x3D; true</strong></li>
+<li><strong><code>being_grandparent_gap_</code> &#x3D; true（从 false 变为 true，表示进入文件前的间隙）</strong></li>
+<li><code>grandparent_index_</code> &#x3D; 0</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 0</li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; 0</li>
+<li>返回 <code>curr_key_boundary_switched_num</code> &#x3D; 0</li>
+</ul>
+<p><strong>关键点</strong>：首次调用时不会计算边界切换，只是确定初始状态。由于键在间隙中，设置 <code>being_grandparent_gap_</code> &#x3D; true。</p>
+<p><strong>2. 第一个 KEY，在 grandparent file 中</strong></p>
+<p><strong>情景</strong>：处理第一个键 (key&#x3D;2)，该键位于祖父文件 [2, 4] 范围内。</p>
+<p><strong>调用前</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; false</li>
+<li><code>being_grandparent_gap_</code> &#x3D; false</li>
+<li><code>grandparent_index_</code> &#x3D; 0</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 0</li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; 0</li>
+</ul>
+<p><strong>调用后</strong>：</p>
+<ul>
+<li><strong><code>seen_key_</code> &#x3D; true</strong></li>
+<li><code>being_grandparent_gap_</code> &#x3D; false</li>
+<li><code>grandparent_index_</code> &#x3D; 0</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 0</li>
+<li><strong><code>grandparent_overlapped_bytes_</code> &#x3D; size([2, 4])</strong></li>
+<li>返回 <code>curr_key_boundary_switched_num</code> &#x3D; 0</li>
+</ul>
+<p><strong>关键点</strong>：首次调用且键在文件内时，计算并初始化 <code>grandparent_overlapped_bytes_</code>，但不增加边界切换计数。</p>
+<p><strong>3. 后续的 KEY，在 grandparent file 中</strong></p>
+<p><strong>情景</strong>：处理后续键 (key&#x3D;3)，该键仍在同一个祖父文件 [2, 4] 范围内。</p>
+<p><strong>调用前</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; true</li>
+<li><code>being_grandparent_gap_</code> &#x3D; false</li>
+<li><code>grandparent_index_</code> &#x3D; 0</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 0</li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; size([2, 4])</li>
+</ul>
+<p><strong>调用后</strong>：</p>
+<ul>
+<li>所有值保持不变</li>
+<li>返回 <code>curr_key_boundary_switched_num</code> &#x3D; 0</li>
+</ul>
+<p><strong>关键点</strong>：键仍在同一文件中，没有跨越边界，所有状态保持不变。</p>
+<p><strong>4. 后续的 KEY，在 grandparent 的 GAP 中</strong></p>
+<p><strong>情景</strong>：处理后续键 (key&#x3D;5)，该键已离开祖父文件 [2, 4]，进入了文件间的间隙。</p>
+<p><strong>调用前</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; true</li>
+<li><code>being_grandparent_gap_</code> &#x3D; false</li>
+<li><code>grandparent_index_</code> &#x3D; 0</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 0</li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; size([2, 4])</li>
+</ul>
+<p><strong>调用后</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; true</li>
+<li><strong><code>being_grandparent_gap_</code> &#x3D; true</strong></li>
+<li><strong><code>grandparent_index_</code> &#x3D; 1</strong></li>
+<li><strong><code>grandparent_boundary_switched_num_</code> &#x3D; 1</strong></li>
+<li><strong><code>grandparent_overlapped_bytes_</code> &#x3D; size([2, 4])</strong></li>
+<li>返回 <code>curr_key_boundary_switched_num</code> &#x3D; 1</li>
+</ul>
+<p><strong>关键点</strong>：键跨越了文件边界（从文件到间隙），增加边界切换计数，但重叠字节数不变（因为只是离开文件，而非进入新文件）。</p>
+<p><strong>5. 后续的 KEY，在最后一个 grandparent 的末尾</strong></p>
+<p><strong>情景</strong>：处理后续键 (key&#x3D;24)，该键位于最后一个祖父文件 [22, 24] 的末尾。</p>
+<p><strong>调用前</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; true</li>
+<li><code>being_grandparent_gap_</code> &#x3D; false</li>
+<li><code>grandparent_index_</code> &#x3D; 2（指向 [22, 24] 文件）</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 2</li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; size([2,4]) + size([11,15]) + size([22,24])</li>
+</ul>
+<p><strong>调用后</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; true</li>
+<li><code>being_grandparent_gap_</code> &#x3D; false</li>
+<li><code>grandparent_index_</code> &#x3D; 2</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 2</li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; size([2,4]) + size([11,15]) + size([22,24])</li>
+<li>返回 <code>curr_key_boundary_switched_num</code> &#x3D; 0</li>
+</ul>
+<p><strong>关键点</strong>：当 key&#x3D;24 恰好等于最后一个文件 [22, 24] 的 largest key 时，仍被视为在文件内，所有状态保持不变。</p>
+<p><strong>6. 后续的 KEY，超出所有 grandparent 范围</strong></p>
+<p><strong>情景</strong>：处理后续键 (key&#x3D;25)，该键超出了所有祖父文件的范围。</p>
+<p><strong>调用前</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; true</li>
+<li><code>being_grandparent_gap_</code> &#x3D; false</li>
+<li><code>grandparent_index_</code> &#x3D; 2（指向 [22, 24] 文件）</li>
+<li><code>grandparent_boundary_switched_num_</code> &#x3D; 2</li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; size([2,4]) + size([11,15]) + size([22,24])</li>
+</ul>
+<p><strong>调用后</strong>：</p>
+<ul>
+<li><code>seen_key_</code> &#x3D; true</li>
+<li><strong><code>being_grandparent_gap_</code> &#x3D; true（从 false 变为 true，表示进入文件后的间隙）</strong></li>
+<li><strong><code>grandparent_index_</code> &#x3D; 3（从 2 增加到 3，指向文件列表结束后的位置）</strong></li>
+<li><strong><code>grandparent_boundary_switched_num_</code> &#x3D; 3（从 2 增加到 3，增加了一次边界切换）</strong></li>
+<li><code>grandparent_overlapped_bytes_</code> &#x3D; size([2,4]) + size([11,15]) + size([22,24])</li>
+<li>返回 <code>curr_key_boundary_switched_num</code> &#x3D; 1</li>
+</ul>
+<p><strong>关键点</strong>：键超出了最后一个文件范围，标记为进入间隙，增加边界切换计数和索引，但重叠字节数不变。</p>
+<h3 id="4-2-计算祖父层重叠文件大小"><a href="#4-2-计算祖父层重叠文件大小" class="headerlink" title="4.2 计算祖父层重叠文件大小"></a>4.2 计算祖父层重叠文件大小</h3><p>为了计算重叠字节数，RocksDB 实现了 <code>GetCurrentKeyGrandparentOverlappedBytes</code> 函数：</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">uint64_t</span> <span class="hljs-title">CompactionOutputs::GetCurrentKeyGrandparentOverlappedBytes</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> Slice&amp; internal_key)</span> <span class="hljs-type">const</span> </span>&#123;
+  <span class="hljs-keyword">if</span> (being_grandparent_gap_) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;  <span class="hljs-comment">// 在间隙中，无重叠</span>
+  &#125;
+
+  <span class="hljs-type">uint64_t</span> overlapped_bytes = <span class="hljs-number">0</span>;
+  <span class="hljs-type">const</span> std::vector&lt;FileMetaData*&gt;&amp; grandparents = compaction_-&gt;<span class="hljs-built_in">grandparents</span>();
+  <span class="hljs-type">const</span> Comparator* ucmp = compaction_-&gt;<span class="hljs-built_in">column_family_data</span>()-&gt;<span class="hljs-built_in">user_comparator</span>();
+  InternalKey ikey;
+  ikey.<span class="hljs-built_in">DecodeFrom</span>(internal_key);
+
+  <span class="hljs-comment">// 加上主要重叠文件的大小</span>
+  overlapped_bytes += grandparents[grandparent_index_]-&gt;fd.<span class="hljs-built_in">GetFileSize</span>();
+
+  <span class="hljs-comment">// 查找所有边界重叠的文件</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">int64_t</span> i = <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">int64_t</span>&gt;(grandparent_index_) - <span class="hljs-number">1</span>;
+       i &gt;= <span class="hljs-number">0</span> &amp;&amp; <span class="hljs-built_in">sstableKeyCompare</span>(ucmp, ikey, grandparents[i]-&gt;largest) == <span class="hljs-number">0</span>;
+       i--) &#123;
+    overlapped_bytes += grandparents[i]-&gt;fd.<span class="hljs-built_in">GetFileSize</span>();
+  &#125;
+
+  <span class="hljs-keyword">return</span> overlapped_bytes;
+&#125;</code></pre>
+
+<p>该函数处理了一种特殊情况：当多个祖父文件有相同的边界键时，一个键可能与多个文件重叠。例如：</p>
+<pre><code class="hljs llvm">输出文件: [<span class="hljs-keyword">c</span>...
+祖父文件: [b<span class="hljs-punctuation">,</span> b] [<span class="hljs-keyword">c</span><span class="hljs-punctuation">,</span> <span class="hljs-keyword">c</span>] [<span class="hljs-keyword">c</span><span class="hljs-punctuation">,</span> <span class="hljs-keyword">c</span>] [<span class="hljs-keyword">c</span><span class="hljs-punctuation">,</span> d]</code></pre>
+
+<p>在这种情况下，键 ‘c’ 可能与多个祖父文件重叠，函数会累加所有这些重叠文件的大小。</p>
+<h3 id="4-3-文件切分决策：ShouldStopBefore-函数"><a href="#4-3-文件切分决策：ShouldStopBefore-函数" class="headerlink" title="4.3 文件切分决策：ShouldStopBefore 函数"></a>4.3 文件切分决策：ShouldStopBefore 函数</h3><p>在 compaction 过程中，RocksDB 需要决定何时应该 “ 切割 “ 一个正在写入的输出 SST 文件。这是由 <code>CompactionOutputs::ShouldStopBefore</code> 函数实现的：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 决定是否应在添加来自 `c_iter` 的键之前完成（停止写入）当前的输出文件。</span>
+<span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">CompactionOutputs::ShouldStopBefore</span><span class="hljs-params">(<span class="hljs-type">const</span> CompactionIterator&amp; c_iter)</span> </span>&#123;
+  <span class="hljs-comment">// 断言迭代器有效并指向一个键。</span>
+  <span class="hljs-built_in">assert</span>(c_iter.<span class="hljs-built_in">Valid</span>());
+  <span class="hljs-comment">// 从迭代器获取内部键 (user_key + seq + type + ts)。</span>
+  <span class="hljs-type">const</span> Slice&amp; internal_key = c_iter.<span class="hljs-built_in">key</span>();
+
+  <span class="hljs-comment">// 存储在考虑当前键 *之前* 的重叠大小。稍后用于查看重叠 *增加* 了多少。</span>
+  <span class="hljs-type">const</span> <span class="hljs-type">uint64_t</span> previous_overlapped_bytes = grandparent_overlapped_bytes_;
+
+  <span class="hljs-comment">// 初始化变量以跟踪边界交叉和 TTL 决策。</span>
+  <span class="hljs-type">size_t</span> num_grandparent_boundaries_crossed = <span class="hljs-number">0</span>;
+  <span class="hljs-type">bool</span> should_stop_for_ttl = <span class="hljs-literal">false</span>;
+
+  <span class="hljs-comment">// 更新祖父文件信息和TTL状态</span>
+  <span class="hljs-keyword">if</span> (compaction_-&gt;<span class="hljs-built_in">output_level</span>() &gt; <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-comment">// 根据当前键更新祖父文件跟踪状态。返回此键跨越的祖父文件边界数量。</span>
+    num_grandparent_boundaries_crossed =
+        <span class="hljs-built_in">UpdateGrandparentBoundaryInfo</span>(internal_key);
+    <span class="hljs-comment">// 检查当前键是否根据 TTL 规则触发文件切割</span>
+    should_stop_for_ttl = <span class="hljs-built_in">UpdateFilesToCutForTTLStates</span>(internal_key);
+  &#125;
+
+  <span class="hljs-comment">// 基本检查 - 如果没有活动的TableBuilder，不能切割文件</span>
+  <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">HasBuilder</span>()) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+  &#125;
+
+  <span class="hljs-comment">// 如果TTL逻辑决定需要切割文件，立即执行</span>
+  <span class="hljs-keyword">if</span> (should_stop_for_ttl) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+  &#125;
+
+  <span class="hljs-comment">// 分区器检查 - 询问自定义SST分区器是否应切割文件</span>
+  <span class="hljs-keyword">if</span> (partitioner_ &amp;&amp; partitioner_-&gt;<span class="hljs-built_in">ShouldPartition</span>(<span class="hljs-built_in">PartitionerRequest</span>(
+                          last_key_for_partitioner_,
+                          c_iter.<span class="hljs-built_in">user_key</span>(),
+                          current_output_file_size_
+                          )) == kRequired) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>; <span class="hljs-comment">// 分区器要求切割</span>
+  &#125;
+
+  <span class="hljs-comment">// 级别特定检查 - L0层通常不按大小或祖父重叠启发式分割</span>
+  <span class="hljs-keyword">if</span> (compaction_-&gt;<span class="hljs-built_in">output_level</span>() == <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+  &#125;
+
+  <span class="hljs-comment">// 大小检查 - 如果达到最大文件大小，则强制切割</span>
+  <span class="hljs-keyword">if</span> (current_output_file_size_ &gt;= compaction_-&gt;<span class="hljs-built_in">max_output_file_size</span>()) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+  &#125;
+
+  <span class="hljs-comment">// RoundRobin分割检查 - 针对kRoundRobin压缩优先级</span>
+  <span class="hljs-keyword">if</span> (local_output_split_key_ != <span class="hljs-literal">nullptr</span> &amp;&amp; !is_split_) &#123;
+    <span class="hljs-comment">// 当下一个键大于或等于游标时发生分割</span>
+    <span class="hljs-keyword">if</span> (icmp-&gt;<span class="hljs-built_in">Compare</span>(internal_key, local_output_split_key_-&gt;<span class="hljs-built_in">Encode</span>()) &gt;= <span class="hljs-number">0</span>) &#123;
+      is_split_ = <span class="hljs-literal">true</span>;
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// 祖父文件边界启发式逻辑 (仅适用于当前键跨越了祖父边界时)</span>
+  <span class="hljs-keyword">if</span> (num_grandparent_boundaries_crossed &gt; <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-comment">// 启发式1：防止大型未来Compaction</span>
+    <span class="hljs-keyword">if</span> (grandparent_overlapped_bytes_ + current_output_file_size_ &gt;
+        compaction_-&gt;<span class="hljs-built_in">max_compaction_bytes</span>()) &#123;
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+    &#125;
+
+    <span class="hljs-comment">// 启发式2：隔离可跳过的祖父文件（动态大小）</span>
+    <span class="hljs-type">const</span> <span class="hljs-type">size_t</span> num_skippable_boundaries_crossed =
+        being_grandparent_gap_ ? <span class="hljs-number">2</span> : <span class="hljs-number">3</span>;
+    <span class="hljs-keyword">if</span> (compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;compaction_style ==
+            kCompactionStyleLevel &amp;&amp;
+        compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;level_compaction_dynamic_file_size &amp;&amp;
+        num_grandparent_boundaries_crossed &gt;=
+            num_skippable_boundaries_crossed &amp;&amp;
+        grandparent_overlapped_bytes_ - previous_overlapped_bytes &gt;
+            compaction_-&gt;<span class="hljs-built_in">target_output_file_size</span>() / <span class="hljs-number">8</span>) &#123;
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+    &#125;
+
+    <span class="hljs-comment">// 启发式3：接近目标大小时的预先切割（动态大小）</span>
+    <span class="hljs-keyword">if</span> (compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;compaction_style ==
+            kCompactionStyleLevel &amp;&amp;
+        compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;level_compaction_dynamic_file_size &amp;&amp;
+        current_output_file_size_ &gt;=
+            ((compaction_-&gt;<span class="hljs-built_in">target_output_file_size</span>() + <span class="hljs-number">99</span>) / <span class="hljs-number">100</span>) *
+                (<span class="hljs-number">50</span> + std::<span class="hljs-built_in">min</span>(grandparent_boundary_switched_num_ * <span class="hljs-number">5</span>,
+                               <span class="hljs-type">size_t</span>&#123;<span class="hljs-number">40</span>&#125;))) &#123;
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// 如果以上条件均未满足，则暂时不切割文件</span>
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+&#125;</code></pre>
+
+<p>让我们详细分析 <code>ShouldStopBefore</code> 函数中的核心启发式策略：</p>
+<h4 id="4-3-1-基本大小限制"><a href="#4-3-1-基本大小限制" class="headerlink" title="4.3.1 基本大小限制"></a>4.3.1 基本大小限制</h4><p>当文件大小达到配置的最大输出文件大小时，强制切分文件：</p>
+<pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (current_output_file_size_ &gt;= compaction_-&gt;<span class="hljs-built_in">max_output_file_size</span>()) &#123;
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 达到最大大小，必须切分文件</span>
+&#125;</code></pre>
+
+<h4 id="4-3-2-祖父层文件边界启发式"><a href="#4-3-2-祖父层文件边界启发式" class="headerlink" title="4.3.2 祖父层文件边界启发式"></a>4.3.2 祖父层文件边界启发式</h4><p>在 compaction 过程中，RocksDB 会跟踪当前处理的键与祖父层（L+2 层）文件的关系。当键跨越祖父文件边界时，会触发一系列复杂的启发式规则：</p>
+<h5 id="4-3-2-1-防止未来-Compaction-过大"><a href="#4-3-2-1-防止未来-Compaction-过大" class="headerlink" title="4.3.2.1 防止未来 Compaction 过大"></a>4.3.2.1 防止未来 Compaction 过大</h5><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (grandparent_overlapped_bytes_ + current_output_file_size_ &gt;
+    compaction_-&gt;<span class="hljs-built_in">max_compaction_bytes</span>()) &#123;
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 切分文件以避免将来 compaction 过大</span>
+&#125;</code></pre>
+
+<p>这个逻辑检查当前输出文件的大小加上它与祖父层文件的重叠大小是否超过了最大 compaction 字节数限制。如果超过，则切分文件，这是为了防止将来该生成的文件参与 compaction 时导致处理的数据量过大。</p>
+<h5 id="4-3-2-2-隔离可跳过的祖父文件"><a href="#4-3-2-2-隔离可跳过的祖父文件" class="headerlink" title="4.3.2.2 隔离可跳过的祖父文件"></a>4.3.2.2 隔离可跳过的祖父文件</h5><pre><code class="hljs cpp"><span class="hljs-type">const</span> <span class="hljs-type">size_t</span> num_skippable_boundaries_crossed = being_grandparent_gap_ ? <span class="hljs-number">2</span> : <span class="hljs-number">3</span>;
+<span class="hljs-keyword">if</span> (compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;compaction_style == kCompactionStyleLevel &amp;&amp;
+    compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;level_compaction_dynamic_file_size &amp;&amp;
+    <span class="hljs-comment">// 是否跨越了足够多的边界以可能隔离一个文件？</span>
+    num_grandparent_boundaries_crossed &gt;= num_skippable_boundaries_crossed &amp;&amp;
+    <span class="hljs-comment">// 新增加的重叠（刚刚开始重叠的祖父文件的大小）是否合理地大？</span>
+    grandparent_overlapped_bytes_ - previous_overlapped_bytes &gt;
+        compaction_-&gt;<span class="hljs-built_in">target_output_file_size</span>() / <span class="hljs-number">8</span>) &#123;
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 切割文件以隔离祖父文件</span>
+&#125;</code></pre>
+
+<p>这段代码包含了一个精妙的优化策略。考虑以下场景：</p>
+<pre><code class="hljs inform7">L1:    <span class="hljs-comment">[1,   21]</span>  &lt;- 当前正在合并的文件
+L2:  <span class="hljs-comment">[3,   23]</span>    &lt;- 当前正在合并的文件
+L3: <span class="hljs-comment">[2, 4]</span> <span class="hljs-comment">[11, 15]</span> <span class="hljs-comment">[22, 24]</span>  &lt;- 祖父层（L+2）文件</code></pre>
+
+<p>如果不进行切分，L2 层的输出将是 <code>[1,3, 21,23]</code>，与 L3 层的三个文件都有重叠。但是，如果在跨越 L3 中间文件 <code>[11, 15]</code> 时切分，L2 的输出将变为两个文件：<code>[1,3]</code> 和 <code>[21,23]</code>，那么未来这两个文件分别 compact 到 L3 时，可以跳过中间的 <code>[11, 15]</code> 文件，从而减少重复读写。</p>
+<p>RocksDB 会检查以下条件：</p>
+<ol>
+<li>使用 Level 压缩风格</li>
+<li>启用了动态文件大小调整</li>
+<li>当前键跨越的边界足够多（通常是完整跨越了一个文件）</li>
+<li>刚跨越的祖父文件足够大（&gt;&#x3D; 目标大小的 1&#x2F;8）</li>
+</ol>
+<p>当所有这些条件都满足时，会切分当前输出文件。</p>
+<h5 id="4-3-2-3-动态文件大小预分割"><a href="#4-3-2-3-动态文件大小预分割" class="headerlink" title="4.3.2.3 动态文件大小预分割"></a>4.3.2.3 动态文件大小预分割</h5><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;compaction_style == kCompactionStyleLevel &amp;&amp;
+    compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;level_compaction_dynamic_file_size &amp;&amp;
+    current_output_file_size_ &gt;=
+        <span class="hljs-comment">// 计算动态阈值</span>
+        ((compaction_-&gt;<span class="hljs-built_in">target_output_file_size</span>() + <span class="hljs-number">99</span>) / <span class="hljs-number">100</span>) *
+            (<span class="hljs-number">50</span> + std::<span class="hljs-built_in">min</span>(grandparent_boundary_switched_num_ * <span class="hljs-number">5</span>, <span class="hljs-type">size_t</span>&#123;<span class="hljs-number">40</span>&#125;))) &#123;
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 在边界处预先切割文件</span>
+&#125;</code></pre>
+
+<p>这是第三种启发式策略，目的是提前进行文件分割。当文件大小达到一个动态计算的阈值，且正好位于祖父文件边界处时，会提前切分文件。</p>
+<p>阈值计算公式：</p>
+<pre><code class="hljs text">阈值 = 目标大小 × (50% + min(已跨越边界数 × 5%, 40%))</code></pre>
+
+<p>这意味着：</p>
+<ul>
+<li>初始阈值是目标文件大小的 50%</li>
+<li>每跨越一个祖父边界，阈值增加 5%</li>
+<li>阈值上限是目标文件大小的 90%</li>
+</ul>
+<p>这种动态阈值机制基于一个观察：如果一个文件已经跨越了多个祖父边界，那么它更有可能在未来继续跨越边界。因此，随着已跨越边界数的增加，文件切分的阈值也会提高，使系统更倾向于在边界处切分文件。</p>
+<h2 id="五、业务特征对-SST-文件大小的影响"><a href="#五、业务特征对-SST-文件大小的影响" class="headerlink" title="五、业务特征对 SST 文件大小的影响"></a>五、业务特征对 SST 文件大小的影响</h2><p>从如上的分析上可以看出，RocksDB 能够较好的避免过大文件的产生，但是对于小文件确处理的不是很理想。以下是生产环境的数据量不到 300G 的 Rocksdb 实例，SST 文件达到数十万之多，可以想象其性能之差。full compaction 完毕之后文件数量只有数千，文件数量差两个数量级：</p>
+<pre><code class="hljs sh">$&gt; find /data/kv-datanode/dbs/[0-9]* -<span class="hljs-built_in">type</span> f -name <span class="hljs-string">&quot;*.sst&quot;</span> | <span class="hljs-built_in">wc</span> -l
+147084</code></pre>
+
+<h3 id="5-1-“隔离可跳过的祖父文件”-的-Corner-Case"><a href="#5-1-“隔离可跳过的祖父文件”-的-Corner-Case" class="headerlink" title="5.1 “隔离可跳过的祖父文件” 的 Corner Case"></a>5.1 “隔离可跳过的祖父文件” 的 Corner Case</h3><p>首先回顾“隔离可跳过的祖父文件”启发式算法 的代码注释明确指出：对于随机数据集（无论是均匀分布还是偏斜分布），很少会触发这个条件，但如果用户添加两个没有重叠的不同数据集，这种情况就很可能发生。</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// ...</span>
+<span class="hljs-comment">// For random datasets (either evenly distributed or skewed), it rarely</span>
+<span class="hljs-comment">// triggers this condition, but if the user is adding 2 different datasets</span>
+<span class="hljs-comment">// without any overlap, it may likely happen.</span>
+<span class="hljs-type">const</span> <span class="hljs-type">size_t</span> num_skippable_boundaries_crossed =
+    being_grandparent_gap_ ? <span class="hljs-number">2</span> : <span class="hljs-number">3</span>;
+<span class="hljs-keyword">if</span> (compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;compaction_style == kCompactionStyleLevel &amp;&amp;
+    compaction_-&gt;<span class="hljs-built_in">immutable_options</span>()-&gt;level_compaction_dynamic_file_size &amp;&amp;
+    num_grandparent_boundaries_crossed &gt;= num_skippable_boundaries_crossed &amp;&amp;
+    grandparent_overlapped_bytes_ - previous_overlapped_bytes &gt;
+        compaction_-&gt;<span class="hljs-built_in">target_output_file_size</span>() / <span class="hljs-number">8</span>) &#123;
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;  <span class="hljs-comment">// 切割文件以隔离祖父文件</span>
+&#125;</code></pre>
+
+<h3 id="5-2-雪花算法与小文件问题"><a href="#5-2-雪花算法与小文件问题" class="headerlink" title="5.2 雪花算法与小文件问题"></a>5.2 雪花算法与小文件问题</h3><p>雪花算法（Snowflake ID）是一种流行的分布式 ID 生成算法，通过会被业务使用作为 RocksDB 键的一部分。通常由以下部分组成：</p>
+<pre><code class="hljs text">+----------------------+----------------+---------------+-----------+
+| 时间戳（41位）       | 机器ID（10位） | 序列号（12位）| 预留（1位）|
++----------------------+----------------+---------------+-----------+</code></pre>
+
+<p>其主要特性包括：</p>
+<ol>
+<li><strong>时间有序性</strong>：ID 中包含时间戳，使得生成的 ID 大体上按时间递增</li>
+<li><strong>局部单调</strong>：在单台机器上，生成的 ID 严格单调递增</li>
+<li><strong>可能存在间隙</strong>：时间跳跃或机器重启时会产生 ID 间隙</li>
+<li><strong>不同机器 ID 区分</strong>：不同机器生成的 ID 在特定位上有差异</li>
+</ol>
+<p>在使用雪花算法作为 RocksDB 键时，会存在以上问题：</p>
+<ol>
+<li><strong>严格单调递增</strong>：单机生成的雪花 ID 严格递增，使键的分布缺乏随机性</li>
+<li><strong>时间间隙触发分割</strong>：当系统在两个不连续的时间段写入数据（例如日间批处理、系统重启后继续写入），两段数据之间会有明显的键值间隙。当 compaction 处理到新的一批数据时，就会检测到 “ 跨越了祖父层文件边界 “ 的情况</li>
+<li>**类似于 “ 两个不同数据集 “**：代码注释中特别提到的 “ 两个不同数据集无重叠 “ 的情况与单机雪花 ID 的两个时间段的数据极为相似</li>
+<li><strong>频繁触发边界切分</strong>：由于满足了算法条件（跨越了足够多的边界且新增的重叠文件足够大），会比随机数据更频繁地触发文件切分</li>
+</ol>
+<h3 id="5-3-流量峰值特征与小文件问题"><a href="#5-3-流量峰值特征与小文件问题" class="headerlink" title="5.3 流量峰值特征与小文件问题"></a>5.3 流量峰值特征与小文件问题</h3><p>当业务有定期（例如：每小时触发的任务）的流量峰值时，会加重 “ 隔离可跳过的祖父文件 “ 启发式策略导致的小文件问题，特别是当使用雪花算法等单调递增 ID 作为键时。这种影响主要体现在以下几个方面：</p>
+<ol>
+<li><strong>时间间隙效应：</strong> 当业务每小时流量峰值会导致数据写入呈现明显的 “ 块状 “ 分布：<ul>
+<li><p>峰值期间：大量数据密集写入</p>
+</li>
+<li><p>峰值之间：数据写入稀疏或几乎停止</p>
+<p>写入模式会在键空间中产生规律性的 “ 高密度区 “ 和 “ 低密度区 “，特别是使用时间相关的键（如雪花 ID）时，数据在键空间分布上会呈现明显的 “ 台阶状 “。</p>
+</li>
+</ul>
+</li>
+<li><strong>边界切分频率增加</strong><ul>
+<li>增加边界跨越次数：当 compaction 处理从一个流量峰值时段到另一个时段的数据时，由于键值间隙的存在，更容易达成 <code>num_grandparent_boundaries_crossed &gt;= num_skippable_boundaries_crossed</code> 条件</li>
+<li>文件边界自然对齐：随着数据经历多次 compaction，祖父层文件的边界很可能会与这些流量峰值的时间边界自然对齐</li>
+</ul>
+</li>
+<li><strong>周期性峰值的累积效应:</strong> 这种影响还会随着系统运行时间而累积：<ul>
+<li>第一阶段：初始写入与 L0 形成。每小时峰值写入会在 L0 层形成多个文件，每个峰值期间的文件之间存在时间和键空间上的间隙。</li>
+<li>第二阶段：初次下沉 compaction。当这些 L0 文件下沉到 L1 时，启发式算法可能检测到峰值间隙，并在这些位置切分文件，使 L1 层文件边界与峰值边界部分对齐。</li>
+<li>第三阶段：多层级传播。随着数据继续下沉，L2、L3 等底层的文件边界会越来越精确地与这些周期性流量峰值的边界对齐，形成一种 “ 回声效应 “。</li>
+</ul>
+</li>
+</ol>
+<h3 id="5-4-验证小-SST-文件逻辑触发"><a href="#5-4-验证小-SST-文件逻辑触发" class="headerlink" title="5.4 验证小 SST 文件逻辑触发"></a>5.4 验证小 SST 文件逻辑触发</h3><p>使用 objdump 获取程序 <code>ShouldStopBefore</code> 汇编代码</p>
+<pre><code class="hljs sh">$&gt; objdump -dC kv-datanode |grep ShouldStopBefore -A 500</code></pre>
+
+<p>“ 隔离可跳过的祖父文件 “ 分支的汇编代码如下：</p>
+<pre><code class="hljs asm">00000000009580d0 &lt;rocksdb::CompactionOutputs::ShouldStopBefore(rocksdb::CompactionIterator const&amp;)&gt;:
+  ...
+
+  // 如果标志为 true (假设满足 style 和 dynamic_size 条件):
+  // 计算并比较 overlap delta: grandparent_overlapped_bytes_ - previous_overlapped_bytes &gt; target_output_file_size() / 8
+  95820c:   48 8b 40 10             mov    0x10(%rax),%rax  ; 加载 this-&gt;target_output_file_size_ (偏移 0x10) 到 %rax。
+  958210:   48 2b 55 98             sub    -0x68(%rbp),%rdx ; %rdx = 当前 grandparent_overlapped_bytes_ (来自 9581c0) - 初始 grandparent_overlapped_bytes_ (来自栈 -0x68(%rbp))。即 overlap delta。
+  958214:   48 89 c7                mov    %rax,%rdi      ; %rdi = target_output_file_size_。
+  958217:   48 c1 ef 03             shr    $0x3,%rdi       ; %rdi = target_output_file_size_ / 8。
+  95821b:   48 39 fa                cmp    %rdi,%rdx      ; 比较 overlap delta (%rdx) 与 target_output_file_size_ / 8 (%rdi)。
+  95821e:   0f 87 98 00 00 00       ja     9582bc &lt;...&gt;   ; 如果 overlap delta &gt; target_output_file_size_ / 8，跳转到 9582bc (返回 true)。 **即，代码 326 行 &quot;隔离可跳过的祖父文件&quot;分支 的 `return true;`**
+
+  ...</code></pre>
+
+<p>使用 bpftrace 工具在汇编指令前插入探测点</p>
+<pre><code class="hljs c">#!/usr/bin/env bpftrace
+ 
+BEGIN &#123;
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;开始监控 ShouldStopBefore 函数的分支执行情况\n\n&quot;</span>);
+    @calls = <span class="hljs-number">0</span>;
+ 
+    <span class="hljs-comment">// 分支计数器初始化</span>
+    @branch_condition_checked = <span class="hljs-number">0</span>;  <span class="hljs-comment">// 到达比较指令的次数</span>
+    @branch_condition_true = <span class="hljs-number">0</span>;     <span class="hljs-comment">// 条件为true的次数</span>
+&#125;
+ 
+<span class="hljs-comment">// 函数入口点</span>
+uprobe:kv-datanode:<span class="hljs-number">0x9580d0</span>
+&#123;
+    @calls++;
+&#125;
+ 
+<span class="hljs-comment">// 监控 grandparent_overlapped 比较指令执行点</span>
+uprobe:kv-datanode:<span class="hljs-number">0x95821b</span>
+&#123;
+    @branch_condition_checked++;
+ 
+    $dx = reg(<span class="hljs-string">&quot;dx&quot;</span>);
+    $di = reg(<span class="hljs-string">&quot;di&quot;</span>);
+    <span class="hljs-keyword">if</span> ($dx &gt; $di) &#123;
+        @branch_condition_true++;
+    &#125;
+&#125;
+ 
+interval:s:<span class="hljs-number">5</span> &#123;
+    time(<span class="hljs-string">&quot;当前时间: %H:%M:%S\n&quot;</span>);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;当前统计:\n&quot;</span>);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;函数调用总次数: %d\n&quot;</span>, @calls);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;条件比较执行次数: %d\n&quot;</span>, @branch_condition_checked);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;条件比较为 True 次数: %d\n\n&quot;</span>, @branch_condition_true);
+&#125;
+ 
+END &#123;
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;\n最终统计:\n&quot;</span>);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;函数调用总次数: %d\n&quot;</span>, @calls);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;条件比较执行次数: %d\n&quot;</span>, @branch_condition_checked);
+    <span class="hljs-built_in">printf</span>(<span class="hljs-string">&quot;条件比较为 True 次数: %d\n\n&quot;</span>, @branch_condition_true);
+&#125;</code></pre>
+
+<p>在相关机器上执行探测，结果如下</p>
+<pre><code class="hljs sh">$&gt; bpftrace -p 379970 /data/scripts/datanode_probe.bt
+Attaching 5 probes... 开始监控 ShouldStopBefore 函数的分支执行情况    
+  
+^C  
+最终统计:  
+函数调用总次数: 40242437  
+条件比较执行次数: 69  
+条件比较为 True 次数: 63  
+  
+@branch_condition_checked: 69  
+@branch_condition_true: 63  
+@calls: 40242437</code></pre>
+
+<h2 id="六、统计指标"><a href="#六、统计指标" class="headerlink" title="六、统计指标"></a>六、统计指标</h2><p><strong><code>rocksdb.live-sst-files-size</code></strong></p>
+<p><strong>含义</strong>：返回当前列族中所有活跃 (live) 的 SST 文件的总大小（字节）。</p>
+<pre><code class="hljs apache"><span class="hljs-attribute">rocksdb</span>.live-sst-files-size:<span class="hljs-number">0</span></code></pre>
+
+<p><strong><code>rocksdb.num-files-at-level&lt;N&gt;</code></strong></p>
+<p><strong>含义</strong>：返回当前列族指定层级 N 中 SST 文件的数量。</p>
+<pre><code class="hljs livecodeserver">rocksdb.<span class="hljs-built_in">num</span>-<span class="hljs-built_in">files</span>-<span class="hljs-keyword">at</span>-level0:<span class="hljs-number">1</span>
+rocksdb.<span class="hljs-built_in">num</span>-<span class="hljs-built_in">files</span>-<span class="hljs-keyword">at</span>-level1:<span class="hljs-number">5</span>
+rocksdb.<span class="hljs-built_in">num</span>-<span class="hljs-built_in">files</span>-<span class="hljs-keyword">at</span>-level12:<span class="hljs-number">12</span>
+...</code></pre>
+
+<p><strong><code>rocksdb.levelstats</code></strong></p>
+<p><strong>含义</strong>：提供一个简洁的表格，显示每个层级的文件数量和总大小。</p>
+<p><strong>输出格式</strong>：</p>
+<pre><code class="hljs asciidoc"><span class="hljs-section">Level Files Size(MB)</span>
+<span class="hljs-section">--------------------</span>
+<span class="hljs-code">  0      1     0.01</span>
+<span class="hljs-code">  1      5     2.31</span>
+<span class="hljs-code">  2     12    10.22</span>
+<span class="hljs-code">  ...</span></code></pre>
+
+<h2 id="七、总结"><a href="#七、总结" class="headerlink" title="七、总结"></a>七、总结</h2><p>总结前文分析，RocksDB 在不同场景下生成的 SST 文件大小大致如下：</p>
+<p><strong>1. L0 层（写入&#x2F;刷盘层）</strong></p>
+<ul>
+<li><p><strong>Memtable 刷盘生成</strong>：  </p>
+<ul>
+<li>文件大小 ≈ <code>write_buffer_size</code> × <code>min_write_buffer_number_to_merge</code>。例如，<code>write_buffer_size=64MB</code>，<code>min_write_buffer_number_to_merge=2</code>，则单个 L0 文件约为 128MB</li>
+<li>实际大小可能略小（memtable 未满、压缩等因素）</li>
+</ul>
+</li>
+<li><p><strong>Intra-L0 Compaction 生成</strong>：  </p>
+<ul>
+<li>文件大小最大不超过 <code>max_compaction_bytes</code>（如 1.6GB），通常远小于此值</li>
+</ul>
+</li>
+</ul>
+<p><strong>2. 非 L0、非底层（如 L1&#x2F;L2&#x2F;…&#x2F;Lmax-1）</strong></p>
+<ul>
+<li><strong>目标文件大小</strong>：  <ul>
+<li>由 <code>target_file_size_base</code> 和 <code>target_file_size_multiplier</code> 计算</li>
+<li>例如，L1: 64MB，L2: 128MB，L3: 256MB（假设 multiplier&#x3D;2）</li>
+</ul>
+</li>
+<li><strong>实际文件大小</strong>：  <ul>
+<li>动态文件大小启用时，最大可达目标大小的 2 倍（如 128MB、256MB、512MB 等）</li>
+<li>受 compaction 启发式（如祖父层边界）影响，部分文件可能较小</li>
+</ul>
+</li>
+</ul>
+<p><strong>3. 最底层（Bottommost Level）</strong>  </p>
+<ul>
+<li>严格等于 <code>target_output_file_size_</code>（如 64MB、128MB、256MB 等）</li>
+<li>不会超过目标大小，也不会因启发式切分而变小</li>
+</ul>
+<p>理解这些机制有助于我们更好地调整 RocksDB 的配置，使其在特定的工作负载下获得最佳性能，并在读性能、写放大、空间使用和管理开销之间找到适合自己应用场景的平衡点。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-04-2025/rocksdb-sst-file-size.html">https://www.cyningsun.com/05-04-2025/rocksdb-sst-file-size.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-05-2025/rocksdb-obsolete-files.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/05-03-2025/files-accounts-and-permissions-under-kubernetes.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

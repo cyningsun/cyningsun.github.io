@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Flame Graph 机制小结</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2025-04-13 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-04-13 00:00:00 +0800"/>
+
+<meta property="og:url" content="/04-13-2025/flamegraph-summary.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="什么是火焰图？2011 年，时任 Netflix 高级性能工程师的 Brendan Gregg 面临一个棘手问题：尽管 perf 能采集到海量性能数据，但使用 perf report 显示调用树摘要时，数千行堆栈信息让人如同“大海捞针”，难以发现关联路径和 CPU 热点。在 Roch Bourbonnais 的 CallStackAnalyzer 和 Jan">
+
+<meta name="keywords" content="Flamegraph,Flamescope,Performance,On-CPU,Off-CPU">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Flame Graph 机制小结</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2025-04-13
+         | 
+        Last Revised: 2025-04-13
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E7%81%AB%E7%84%B0%E5%9B%BE%EF%BC%9F"><span class="toc-text">什么是火焰图？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%8F%E5%85%B8%E7%81%AB%E7%84%B0%E5%9B%BE%E5%8E%9F%E7%90%86"><span class="toc-text">经典火焰图原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Off-CPU-%E7%81%AB%E7%84%B0%E5%9B%BE%E5%8E%9F%E7%90%86"><span class="toc-text">Off-CPU 火焰图原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Broken-stack"><span class="toc-text">Broken stack</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%81%AB%E7%84%B0%E5%9B%BE%E7%9A%84%E5%B1%80%E9%99%90"><span class="toc-text">火焰图的局限</span></a></li></ol>
+ 
+        <h3 id="什么是火焰图？"><a href="#什么是火焰图？" class="headerlink" title="什么是火焰图？"></a>什么是火焰图？</h3><p>2011 年，时任 Netflix 高级性能工程师的 Brendan Gregg 面临一个棘手问题：尽管 <code>perf</code> 能采集到海量性能数据，但使用 <code>perf report</code> 显示调用树摘要时，数千行堆栈信息让人如同“大海捞针”，难以发现关联路径和 CPU 热点。在  Roch Bourbonnais 的 CallStackAnalyzer 和 Jan Boerhout 的 vftrace 启发下，火焰图诞生了</p>
+<p>火焰图（Flame Graph）是一种<strong>可视化的性能分析工具</strong>，其核心目标是将复杂的性能采样数据转化为<strong>一目了然的图形</strong>。通过横向宽度表示资源消耗（如 CPU 占用时间），纵向层级表示函数调用关系，形似跳动的火焰，让开发者能够快速锁定性能瓶颈的“火源”。</p>
+<h3 id="经典火焰图原理"><a href="#经典火焰图原理" class="headerlink" title="经典火焰图原理"></a><a target="_blank" rel="noopener" href="https://youtu.be/D53T1Ejig1Q?t=390">经典火焰图原理</a></h3><p>通常意义上的 On-CPU 火焰图是指 <code>On-CPU</code> 火焰图用来定位代码 <code>On-CPU</code> 的执行热点</p>
+<p><strong>1. 数据采集</strong></p>
+<ul>
+<li><strong>采样机制：</strong> 以固定频率（如每秒 99 次）中断程序，记录当前的函数调用链（Stack Trace）</li>
+</ul>
+<p><strong>2. 数据处理</strong></p>
+<ul>
+<li><strong>聚合统计</strong>：合并相同调用链的采样点，计算每个函数在调用链中的出现频率</li>
+<li><strong>归一化处理</strong>：将采样次数转换为百分比，消除采样时长对宽度的影响</li>
+</ul>
+<p><strong>3. 可视化规则</strong></p>
+<ul>
+<li><strong>方框</strong>：每个框代表函数栈中的一个函数（一个“栈帧”）。方框的宽度显示该函数 on-CPU 的<strong>总</strong>时间，或部分祖先函数 on-CPU 的<strong>总</strong>时间（基于样本计数）。带有宽方框的函数每次执行可能比带有窄方框的函数消耗更多 CPU，或者可能只是调用频率更高。</li>
+<li><strong>Y 轴：</strong> 表示栈深度（栈上的帧数）。顶部的方框显示当前处于 CPU 运行状态的函数。函数下方的第一个函数是其父函数，下方的所有函数均为其祖先函数</li>
+<li><strong>X 轴：</strong> 涵盖整体样本。从左到右按字母顺序排列，以最大化合并帧（从左到右并非显示时间的流逝）</li>
+</ul>
+<h3 id="Off-CPU-火焰图原理"><a href="#Off-CPU-火焰图原理" class="headerlink" title="Off-CPU 火焰图原理"></a>Off-CPU 火焰图原理</h3><p>经典的 CPU 火焰图虽然能精准定位代码在 CPU 上的执行热点，但现实中线程可能因 I&#x2F;O 阻塞、锁竞争、内存争用等原因离开 CPU，这些等待时间占比较高但传统火焰图无法捕捉；就催生了 <strong>Off-CPU 火焰图</strong>，目标是处于阻塞状态和 <code>Off-CPU</code> 状态的线程，如下图中蓝色部分所示。<code>Off-CPU</code> 分析是对 CPU 分析的补充，因此可以了解 100% 的线程时间。</p>
+<p><img src="/images/flamegraph-summary/Flame%20Graph%20%E6%9C%BA%E5%88%B6%E5%B0%8F%E7%BB%93-20250413102927-1.png" alt="Flame Graph 机制小结-20250413102927-1.png"></p>
+<p><strong>1. 数据收集：</strong> 通过内核级工具（如 <code>offcputime</code> from BCC）记录线程的 <strong>上下文切换（context switch）</strong> 事件</p>
+<ul>
+<li><strong>Off-CPU 开始</strong>：当线程被调度出 CPU（如调用 <code>schedule()</code> 函数）时，记录时间戳和调用栈</li>
+<li><strong>On-CPU 恢复</strong>：当线程重新被调度到 CPU 时，计算阻塞时长（<code>恢复时间戳 - 离开时间戳</code>）</li>
+<li><strong>阻塞类型：</strong> 结合阻塞事件的内核态信息（如系统调用、锁类型、I&#x2F;O 类型）</li>
+<li><strong>调用栈：</strong> 用户态 + 内核态</li>
+</ul>
+<p><strong>2. 数据聚合：</strong> 按调用栈路径合并相同栈的阻塞时间，生成 <code>[调用栈] -&gt; 总耗时</code> 的映射表</p>
+<ul>
+<li><strong>时间累加</strong>：将同一调用栈路径的所有阻塞时间累加，形成时间占比。</li>
+</ul>
+<p><strong>3. 可视化规则：</strong> 将调用栈按层级展开，生成火焰图</p>
+<ul>
+<li><strong>宽度</strong>：表示阻塞时间的占比</li>
+<li><strong>颜色</strong>：可区分阻塞类型（如红色为 I&#x2F;O，蓝色为锁）</li>
+<li><strong>层级</strong>：显示从顶层函数到底层系统调用的完整路径</li>
+</ul>
+<blockquote>
+<p><strong>注意：</strong></p>
+<p><strong>数据收集开销</strong></p>
+<ul>
+<li>调度程序事件可能非常频繁——在极端情况下，每秒可能会有数百万个事件——由于事件发生频率高，数据开销可能会累积起来变得非常可观，比仅在 CPU 数量上进行 CPU 采样的开销要高出几个数量级。</li>
+<li>如果对新的调度跟踪器一无所知，可以先收集十分之一秒（0.1 秒），然后逐步增加跟踪时间，同时密切关注其对系统 CPU 利用率、应用程序请求率和应用程序延迟的影响。同时考虑上下文切换的速率（例如，通过 vmstat 中的“cs”列测量），并且在速率更高的服务器上要更加小心</li>
+</ul>
+<p><strong>阻塞唤醒</strong></p>
+<ul>
+<li>许多 Off-CPU 堆栈显示了阻塞路径，但没有显示阻塞的完整原因。该原因和代码路径位于另一个线程，即调用唤醒阻塞线程的线程</li>
+<li>另外的工具 wakeuptime 和 offwaketime，可以测量唤醒堆栈并将它们与 off-CPU 堆栈关联起来</li>
+</ul>
+</blockquote>
+<h3 id="Broken-stack"><a href="#Broken-stack" class="headerlink" title="Broken stack"></a>Broken stack</h3><p>火焰图的数据采集步骤，一般会使用 <a target="_blank" rel="noopener" href="https://perf.wiki.kernel.org/index.php/Main_Page">perf</a> Linux 分析器。该工具的使用工作流详见：<a target="_blank" rel="noopener" href="https://www.brendangregg.com/Slides/KernelRecipes_Perf_Events.pdf">slides</a>、<a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=UVM3WX8Lq2k">youtube</a>，不重复。着重记录：如何处理函数栈不完整。由于省略帧指针 (Omitting frame pointer) 通常是编译器优化的默认选项，就导致 perf_events 中的函数栈不完整。有三种方法可以解决这个问题：使用 dwarf 数据展开堆栈，使用最后分支记录 (LBR，如果可用，处理器特性），或者返回帧指针。</p>
+<p><strong>Frame Pointers  帧指针</strong></p>
+<p>应用程序使用编译器优化 (-O2) 会省略了帧指针，可以使用 <strong>-fno-omit-frame-pointer</strong> 重新编译。内核堆栈跟踪不完整，需要调整内核配置选项 <strong>CONFIG_FRAME_POINTER&#x3D;y</strong>。该方法不适合已经有问题的线上环境，调整选项的成本过高。</p>
+<p><strong>Dwarf</strong></p>
+<p>从 3.9 内核开始，perf_events 支持一种解决用户级堆栈中缺少帧指针的解决方法：libunwind，它使用 dwarf 函数。可以使用“–call-graph dwarf”（或“-g dwarf”）启用此功能</p>
+<pre><code class="hljs sh">perf record -F 99 -p 59715 --call-graph dwarf -- <span class="hljs-built_in">sleep</span> 120</code></pre>
+
+<p><strong>LBR</strong></p>
+<p>必须拥有“最后分支记录”访问权限才能使用此功能。该权限在大多数云环境中均处于禁用状态，您会收到以下错误：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># perf record -F 99 -a --call-graph lbr</span>
+Error:
+PMU Hardware doesn<span class="hljs-string">&#x27;t support sampling/overflow-interrupts.</span></code></pre>
+
+<p>另外，LBR 的堆栈深度通常有限（8、16 或 32 帧），因此不适合用于深层堆栈或火焰图生成，因为火焰图需要走到公共根节点进行合并。</p>
+<p><strong>容器环境</strong></p>
+<p>容器化部署的场景下，如果容器是 alphine，而宿主机是 ubuntu。首先在宿主机上对容器内的进程执行 perf record，然后在宿主机执行 perf script，也会因为容器与宿主机的 <strong>用户态符号环境不兼容</strong>导致函数栈异常。可以进入容器环境，然后指定宿主机的内核符号表路径 (应该有更好的处理方案？)</p>
+<pre><code class="hljs sh">perf script --header -i perf.data --kallsyms /proc/kallsyms --no-inline &gt; perf.perf</code></pre>
+
+<h3 id="火焰图的局限"><a href="#火焰图的局限" class="headerlink" title="火焰图的局限"></a>火焰图的局限</h3><p>On-CPU&#x2F;Off-CPU 火焰图覆盖了 100% 的线程时间，那是否把它们结合起来就能解决所有的性能问题呢? 答案是否定的。在分析 <strong>吞吐量（Throughput）</strong> 和 <strong>延迟（Latency）</strong> 时，既要关注指标的平均值，还要关注到 P99、P99.9 分位值、Max 值。 On-CPU&#x2F;Off-CPU 火焰图就会失效，主要原因在于：</p>
+<p><strong>1. 采样机制的天然局限</strong></p>
+<ul>
+<li>基于定时采样的工具（如 <code>perf</code>）更易捕获高频执行的代码路径。</li>
+<li>低频冷路径可能从未被采样命中（如采样间隔为 10ms，而冷路径 2 秒仅触发一次）。</li>
+</ul>
+<p><strong>2. 时间聚合的视角陷阱</strong></p>
+<ul>
+<li>On-CPU&#x2F;Off-CPU 的宽度反映<strong>总时间</strong>，而非单次执行成本，无法区分以下两种场景：<ul>
+<li>高频低耗（热路径）：<code>执行次数 × 单次时间 = 总时间</code></li>
+<li>低频高耗（冷路径）：<code>执行次数 × 单次时间 = 总时间</code></li>
+</ul>
+</li>
+<li>冷路径因总时间占比低，在火焰图中会被压缩成“细线”而忽视</li>
+</ul>
+<p><a target="_blank" rel="noopener" href="https://www.brendangregg.com/blog/2018-12-15/flamescope-origin.html">Flamescope</a> 使用 <a target="_blank" rel="noopener" href="https://www.brendangregg.com/HeatMaps/subsecondoffset.html">亚秒级偏移热力图</a> 和 <a target="_blank" rel="noopener" href="https://www.brendangregg.com/flamegraphs.html">火焰图</a> 来分析<strong>周期性</strong>活动、 <strong>方差</strong>和<strong>扰动</strong>，在一定程度上解决了这些问题，但对于一些极端 Case 仍然力有未逮。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/04-13-2025/flamegraph-summary.html">https://www.cyningsun.com/04-13-2025/flamegraph-summary.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Performance" rel="category"># Performance</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/09-17-2024/redis-latency-irqoff.html">Redis 延迟毛刺问题定位-软中断篇</a></span></li>
+          
+            <li><span><a href="/12-22-2023/redis-latency-spike.html">记一次 Redis 延时毛刺问题定位</a></span></li>
+          
+            <li><span><a href="/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">译｜Thinking Clearly about Performance (Part 2)</a></span></li>
+          
+            <li><span><a href="/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">译｜Thinking Clearly about Performance (Part 1)</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-03-2025/files-accounts-and-permissions-under-kubernetes.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/12-11-2024/linux-page-cache-minibook-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

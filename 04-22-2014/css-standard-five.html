@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>CSS标准(5)-定位体系</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2014-04-22 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-01-25 00:00:00 +0800"/>
+
+<meta property="og:url" content="/04-22-2014/css-standard-five.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="一个框(box，就是元素形成的方块等)可以根据三种定位体系布局。 常规流(Normal flow)正常排版包括对块级框的块格式化，对行级框的行格式化，对块级框和行级框的相对定位。框在正常排版中必然属于一个格式化上下文，要么是块格式化上下文，要么是行格式化上下文。块级框参与块格式化上下文。行级框参与行格式化上下文。 position&amp;#x3D;static，该">
+
+<meta name="keywords" content="css,可视化格式模型,定位">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>CSS标准(5)-定位体系</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2014-04-22
+         | 
+        Last Revised: 2020-01-25
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B8%B8%E8%A7%84%E6%B5%81-Normal-flow"><span class="toc-text">常规流(Normal flow)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%9D%97%E6%A0%BC%E5%BC%8F%E5%8C%96%E4%B8%8A%E4%B8%8B%E6%96%87"><span class="toc-text">块格式化上下文</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%A1%8C%E6%A0%BC%E5%BC%8F%E5%8C%96%E4%B8%8A%E4%B8%8B%E6%96%87"><span class="toc-text">行格式化上下文</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%AE%E5%8A%A8-Floats"><span class="toc-text">浮动(Floats)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%9D%E5%AF%B9%E5%AE%9A%E4%BD%8D-Absolute-positioning"><span class="toc-text">绝对定位(Absolute positioning)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <p>一个框(box，就是元素形成的方块等)可以根据三种定位体系布局。</p>
+<h3 id="常规流-Normal-flow"><a href="#常规流-Normal-flow" class="headerlink" title="常规流(Normal flow)"></a>常规流(Normal flow)</h3><p>正常排版包括对块级框的块格式化，对行级框的行格式化，对块级框和行级框的相对定位。框在正常排版中必然属于一个格式化上下文，要么是块格式化上下文，要么是行格式化上下文。块级框参与块格式化上下文。行级框参与行格式化上下文。</p>
+<blockquote>
+<p>position&#x3D;static，该框(box)是一个常规框，布局根据常规流。<br>position&#x3D;relative，框的位置根据常规流计算（被称为常规流中的位置）。然后框相对于它的常规位置而偏移。</p>
+</blockquote>
+<h4 id="块格式化上下文"><a href="#块格式化上下文" class="headerlink" title="块格式化上下文"></a>块格式化上下文</h4><p>在块格式化上下文中，框会从包含块的顶部开始，一个接一个地，垂直向下地摆放。两个兄弟框之间的垂直距离由’margin’属性来决定。在同一个块格式化上下文中，相邻的块级框之间的垂直外边距会出现折叠。不同的块格式化上下文中的元素不会相互影响和作用。</p>
+<p>如何触发：The value of ‘position’ is neither ‘static’ nor ‘relative’。<br>有何意义：</p>
+<blockquote>
+<p>1.可以包含浮动元素<br>2.不被浮动元素覆盖<br>3.阻止父子元素的 margin 折叠  </p>
+</blockquote>
+<h4 id="行格式化上下文"><a href="#行格式化上下文" class="headerlink" title="行格式化上下文"></a>行格式化上下文</h4><p>在行格式化上下文中，框会从包含块的顶部开始，一个接一个地水平摆放。摆放这些框的时候，它们在水平方向上的外边距、边框、内边距所占用的空间都会被考虑在内。在垂直方向上可以以不同的方式对齐：它们的顶部或底部对齐，或根据其中文字的基线对齐。</p>
+<h3 id="浮动-Floats"><a href="#浮动-Floats" class="headerlink" title="浮动(Floats)"></a>浮动(Floats)</h3><p>浮动细则：在浮动模型中，一个框先按照正常排版来摆放，再将它从排版流中取出并尽可能地向左或向右偏移，但是不能高于它前面生成的块框、浮动框和行框的顶。其它内容可以排在一个浮动的周围。<br>clearance(间隙):设置了clear的元素的 top border edge 要放在相关的浮动元素的 bottom margin edge 之下，把元素垂直推过浮动框。</p>
+<h3 id="绝对定位-Absolute-positioning"><a href="#绝对定位-Absolute-positioning" class="headerlink" title="绝对定位(Absolute positioning)"></a>绝对定位(Absolute positioning)</h3><p>在绝对定位模型中，一个框会从排版流中完全脱离出来（它对后续的兄弟没有影响），并相对其包含块来指定其位置。<br>position&#x3D;absolution，相对于包含块偏移。<br>position&#x3D;fixed，相对于可视窗口(包含块)偏移。</p>
+<p>Ps:可能产生层叠，CSS样式是三维的，所以需要z-index层叠级别来确定显示的先后顺序。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><ol>
+<li>常规流：所有常规流如同在同一个图层中一样排版。</li>
+<li>浮动流:首先根据常规流布局，再将它从流中取出并尽可能地向左或向右偏移，可以看作常规流之上的一个特殊层。</li>
+<li>绝对定位:脱离常规流不对兄弟节点产生影响，可以把每个绝对定位的框看做一个单独的图层。</li>
+</ol>
+<p>(完)</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/04-22-2014/css-standard-five.html">https://www.cyningsun.com/04-22-2014/css-standard-five.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-01-2014/mysql-charset.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-22-2014/css-standard-four.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

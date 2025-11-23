@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜Efficient IO with io_uring</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2024-05-18 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-18-2024/efficient-io-with-io_uring.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="本文旨在作为最新 Linux I&amp;#x2F;O 接口 io_uring 的入门介绍，并将其与现有技术进行比较。我们将探讨其存在的原因、内部运作机制以及用户可见的接口。文章不会深入到特定命令等细节，因为这些信息在相关的 man 手册页中已有提供。相反，我们的目标是为读者提供对 io_uring 及其工作原理的初步理解，希望能帮助读者更深入地理解这一技术的全貌。">
+
+<meta name="keywords" content="liburing,io_uring,io">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜Efficient IO with io_uring</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2024-05-18
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-0-%E5%BC%95%E8%A8%80"><span class="toc-text">1.0 引言</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-0-%E6%94%B9%E5%96%84%E7%8E%B0%E7%8A%B6%E7%9A%84%E5%8A%AA%E5%8A%9B"><span class="toc-text">2.0 改善现状的努力</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-0-%E6%96%B0%E6%8E%A5%E5%8F%A3%E8%AE%BE%E8%AE%A1%E7%9B%AE%E6%A0%87"><span class="toc-text">3.0 新接口设计目标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-0-%E5%BC%95%E5%85%A5-io-uring"><span class="toc-text">4.0 引入 io_uring</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#4-1-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-text">4.1 数据结构</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#4-2-%E9%80%9A%E4%BF%A1%E9%80%9A%E9%81%93"><span class="toc-text">4.2 通信通道</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-0-io-uring-%E6%8E%A5%E5%8F%A3"><span class="toc-text">5.0 io_uring 接口</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#5-1-SQE-%E9%A1%BA%E5%BA%8F%E6%8E%A7%E5%88%B6"><span class="toc-text">5.1 SQE 顺序控制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-2-%E9%93%BE%E5%BC%8F-SQE"><span class="toc-text">5.2 链式 SQE</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#5-3-%E8%B6%85%E6%97%B6%E5%91%BD%E4%BB%A4"><span class="toc-text">5.3 超时命令</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-0-%E5%86%85%E5%AD%98%E6%8E%92%E5%BA%8F"><span class="toc-text">6.0 内存排序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-0-liburing-%E5%BA%93"><span class="toc-text">7.0 liburing 库</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#7-1-liburing-%E7%9A%84-io-uring-%E5%88%9B%E5%BB%BA"><span class="toc-text">7.1 liburing 的 io_uring 创建</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#7-2-liburing-%E7%9A%84%E6%8F%90%E4%BA%A4%E4%B8%8E%E5%AE%8C%E6%88%90"><span class="toc-text">7.2 liburing 的提交与完成</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-0-%E9%AB%98%E7%BA%A7%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF%E4%B8%8E%E7%89%B9%E6%80%A7"><span class="toc-text">8.0 高级使用场景与特性</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#8-1-%E5%9B%BA%E5%AE%9A%E6%96%87%E4%BB%B6%E5%92%8C%E7%BC%93%E5%86%B2%E5%8C%BA"><span class="toc-text">8.1 固定文件和缓冲区</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#8-2-%E8%BD%AE%E8%AF%A2-I-x2F-O%EF%BC%88POLLED-IO%EF%BC%89"><span class="toc-text">8.2 轮询 I&#x2F;O（POLLED IO）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#8-3-%E5%86%85%E6%A0%B8%E4%BE%A7%E8%BD%AE%E8%AF%A2%EF%BC%88KERNEL-SIDE-POLLING%EF%BC%89"><span class="toc-text">8.3 内核侧轮询（KERNEL SIDE POLLING）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-0-%E6%80%A7%E8%83%BD%E8%A1%A8%E7%8E%B0"><span class="toc-text">9.0 性能表现</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#9-1-%E5%8E%9F%E5%A7%8B%E6%80%A7%E8%83%BD%E8%A1%A8%E7%8E%B0"><span class="toc-text">9.1 原始性能表现</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#9-2-%E7%BC%93%E5%AD%98%E5%BC%82%E6%AD%A5-I-x2F-O-%E6%80%A7%E8%83%BD"><span class="toc-text">9.2 缓存异步 I&#x2F;O 性能</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-0-%E8%BF%9B%E4%B8%80%E6%AD%A5%E9%98%85%E8%AF%BB"><span class="toc-text">10.0 进一步阅读</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-0-%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE"><span class="toc-text">11.0 参考文献</span></a></li></ol>
+ 
+        <p>本文旨在作为最新 Linux I&#x2F;O 接口 io_uring 的入门介绍，并将其与现有技术进行比较。我们将探讨其存在的原因、内部运作机制以及用户可见的接口。文章不会深入到特定命令等细节，因为这些信息在相关的 man 手册页中已有提供。相反，我们的目标是为读者提供对 io_uring 及其工作原理的初步理解，希望能帮助读者更深入地理解这一技术的全貌。尽管如此，本文与 man 手册页之间难免会有所重叠，因为在描述 io_uring 时不可避免地要包含一些这些细节。</p>
+<h3 id="1-0-引言"><a href="#1-0-引言" class="headerlink" title="1.0 引言"></a>1.0 引言</h3><p>在 Linux 系统中，实现基于文件的 I&#x2F;O 有多种方式。最古老且最基本的是 <code>read(2)</code> 和 <code>write(2)</code> 系统调用。后来，为了支持指定偏移量，加入了 <code>pread(2)</code> 和 <code>pwrite(2)</code>。随后，又引入了向量版本 <code>preadv(2)</code> 和 <code>pwritev(2)</code>。即使如此，API 进一步扩展，提供了 <code>preadv2(2)</code> 和 <code>pwritev2(2)</code> 系统调用，允许使用修饰符标志。尽管以上系统调用不尽相同，但它们共有的特征是同步接口，即系统调用会在数据准备就绪（或写入完成）时返回。对于某些应用场景而言，这并非最优选择，因此需要一个异步接口。POSIX 标准提供了 <code>aio_read(3)</code> 和 <code>aio_write(3)</code> 来满足这一需求，但这些实现往往不尽如人意，性能欠佳。</p>
+<p>Linux 本身也具备一个本地异步 I&#x2F;O 接口，简称为 aio。然而，它存在多个限制：</p>
+<ul>
+<li>最大的限制在于仅支持 <strong>O_DIRECT</strong>（或无缓冲）访问的异步 I&#x2F;O。由于 <strong>O_DIRECT</strong> 的限制（绕过缓存和大小&#x2F;对齐约束），使得原生 aio 接口对于大多数应用场景并不适用。对于常规（缓冲）I&#x2F;O 操作，该接口的行为与同步方式相同。</li>
+<li>即便满足了所有使 I&#x2F;O 操作异步化的条件，仍然有可能出现 I&#x2F;O 提交阻塞的情况。例如，如果执行 I&#x2F;O 操作需要元数据信息，提交过程将会阻塞直至元数据就绪。对于存储设备而言，请求槽位的数量固定，一旦槽位全部被占用，新的 I&#x2F;O 请求提交就需要等待空闲槽位出现。这些不确定性意味着依赖于始终异步提交的应用程序，实际上仍需设计额外逻辑来处理可能的阻塞情况，无法完全避免性能上的影响。</li>
+<li>API 设计并不理想。每次 I&#x2F;O 提交操作最终都需要复制 64 + 8 字节的数据，而每次完成事件则需要复制 32 字节。这意味着即使是号称“零拷贝”的 I&#x2F;O 操作，也会产生总共 104 字节的内存复制开销。根据 I&#x2F;O 大小不同，该开销可能会相当明显。公开的完成事件环形缓冲区实际上减慢了完成过程，并且对于应用程序来说很难（或者说几乎不可能？）正确使用。I&#x2F;O 操作总是至少需要两个系统调用（提交和等待完成），在 Spectre&#x2F;Meltdown 安全漏洞出现后的时代，无疑成为严重的性能瓶颈。</li>
+</ul>
+<p>多年来，人们为解决上述第一个限制（即仅支持 O_DIRECT 访问的异步 I&#x2F;O）做出了多方面的努力，我本人也在 2010 年尝试过解决这个问题，但均未取得成功。随着能提供低于 10 微秒延迟和极高 IOPS 的设备的出现，现有接口开始显现出其年代感。对于这类设备，缓慢且不确定的提交延迟是非常严重的问题，同样，单个核心所能榨取的性能也显得不足。加之上述种种限制，可以说原生 Linux aio 在实际应用中并不广泛。它已被边缘化，仅在一些特定的应用场景中使用，随之而来的是长期未发现的 bug 等问题。</p>
+<p>此外，由于“普通”应用程序无法从 aio 中获益，表明 Linux 在提供开发者期望的功能方面仍存在缺口。没有理由让应用程序或库继续创建私有的 I&#x2F;O 卸载线程池来获取合理的异步 I&#x2F;O 性能，特别是在内核可以更高效地完成这项工作的前提下。</p>
+<h3 id="2-0-改善现状的努力"><a href="#2-0-改善现状的努力" class="headerlink" title="2.0 改善现状的努力"></a>2.0 改善现状的努力</h3><p>起初的尝试主要集中在改进 aio 接口上，且进展颇丰，但最终未能继续。选择这一初始方向的原因包括：</p>
+<ul>
+<li>如果能够扩展和完善现有接口，相比提供一个全新的接口更为可取。新接口的采纳需要时间，而且新接口的审查和批准过程可能既漫长又艰难。</li>
+<li>通常来说，这样做工作量要小得多。作为开发者，总是力求以最少的工作量实现最大的成果。扩展现有接口在测试基础设施方面具有许多优势。</li>
+</ul>
+<p>现有的 aio 接口主要包括三个主要系统调用：用于设置 aio 上下文的 <code>io_setup(2)</code>、用于提交 I&#x2F;O 的 <code>io_submit(2)</code>，以及用于获取或等待 I&#x2F;O 完成的 <code>io_getevents(2)</code>。由于需要改变这些系统调用中的多项行为，我们必须新增系统调用来传递这些信息。这不仅导致了代码的多重入口点，还在其他地方产生了捷径。最终代码在复杂性和可维护性方面并不理想，而且只解决了前文提到的缺陷之一。更甚之，它实际上让问题变得更糟，因为现在 API 变得更加复杂，更难以理解和使用。</p>
+<p>虽然放弃已开展的工作重新开始总是一件困难的事，但显而易见，我们需要一个全新的解决方案。这个新方案需要满足所有要求，既要性能优越且可扩展，又要易于使用，同时具备现有接口所缺乏的功能。</p>
+<h3 id="3-0-新接口设计目标"><a href="#3-0-新接口设计目标" class="headerlink" title="3.0 新接口设计目标"></a>3.0 新接口设计目标</h3><p>从头开始虽然不易，但也赋予了我们设计上的自由。大致按重要性递增的顺序，主要设计目标包括：</p>
+<ul>
+<li>易于使用，难以误用。任何用户&#x2F;应用程序可见的接口都应以此为目标。接口应易于理解，直观易用。</li>
+<li>可扩展性。虽然我的背景主要与存储相关，但我希望设计的接口能够不仅仅应用于基于块的 I&#x2F;O，还能适应未来可能出现的网络和非块存储接口。如果你正在创建一个全新的接口，它应当（至少尝试）在某种程度上具有面向未来的适应性。</li>
+<li>功能丰富。Linux aio 仅服务于一部分（甚至更小的一部分）应用程序的需求。我不希望再创造另一个只能覆盖部分应用需求的接口，或者迫使应用程序反复实现相同的功能（例如 I&#x2F;O 线程池）。</li>
+<li>效率。尽管存储 I&#x2F;O 很大程度上仍是基于块的，至少为 512 字节或 4KB，但对于某些应用来说，不同大小的效率仍然至关重要。此外，有些请求可能根本就不携带数据载荷。新接口在单个请求的开销上必须是高效的。</li>
+<li>可伸缩性。虽然效率和低延迟很重要，但提供最佳的性能峰值也同样关键。特别是对于存储来说，我们已经努力构建了一个可扩展的基础架构。新的接口应该能够让我们将这种可伸缩性直接反馈给应用程序。</li>
+</ul>
+<p>上述某些目标看似相互矛盾。高效且可扩展的接口往往难以使用，更重要的是，难以正确使用。同时，功能丰富与效率高也很难同时达成。然而，这些就是我们设定的目标。</p>
+<h3 id="4-0-引入-io-uring"><a href="#4-0-引入-io-uring" class="headerlink" title="4.0 引入 io_uring"></a>4.0 引入 io_uring</h3><p>尽管设计目标按照优先级进行了排序，但最初的设计焦点集中在效率上。效率不是事后可以添加的东西，而是必须从一开始就融入设计之中——一旦接口确定，就很难在之后提升效率。我明确不想在提交或完成事件中涉及任何内存复制，也不想有内存间接引用。在基于 aio 的设计末期，aio 因需要处理 I&#x2F;O 的两端而进行的多次复制，显著损害了效率和可伸缩性。</p>
+<p>鉴于复制不可取，很显然内核与应用程序需要共享定义 I&#x2F;O 操作及完成事件的数据结构。如果将共享的概念推到极致，自然地，协调共享数据的机制也应该放在应用程序与内核共享的内存中。一旦接受了这一理念，就会意识到两者间的同步必须以某种方式管理。应用程序无法不通过系统调用而与内核共享锁，但系统调用无疑会降低与内核通信的效率，这与我们的效率目标背道而驰。能满足这一需求的数据结构就是单一生产者 - 单一消费者（SPSC）的环形缓冲区。通过使用共享的环形缓冲区，我们可以消除应用与内核间共享锁，转而巧妙利用内存排序和屏障来处理。</p>
+<p>与异步接口相关的两个基本操作是：提交请求的行为和与该请求完成相关的事件。在提交 I&#x2F;O 操作时，应用程序充当生产者，而内核是消费者；而在处理完成事件时，角色反转，内核变为生产者，生成完成事件，应用程序成为消费者。因此，为了建立应用程序与内核之间高效通信的渠道，需要一对环形缓冲区，这对环形缓冲区构成了 io_uring 新接口的核心。它们被恰当地命名为提交队列 (SQ) 和完成队列 (CQ)，并构成新接口的基础。</p>
+<h4 id="4-1-数据结构"><a href="#4-1-数据结构" class="headerlink" title="4.1 数据结构"></a>4.1 数据结构</h4><p>在设计了通信基础之后，接下来是定义描述请求和完成事件的数据结构。完成事件相对直接：它需要携带操作结果相关的信息，以及将完成事件关联回原始请求的方式。在 io_uring 中，完成事件的数据结构布局如下：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_uring_cqe</span> &#123;</span>
+    __u64 user_data;  <span class="hljs-comment">// 用户定义的数据，用于关联请求和完成事件</span>
+    __s32 res;        <span class="hljs-comment">// 操作结果</span>
+    __u32 flags;      <span class="hljs-comment">// 标志位，可能包含额外信息</span>
+&#125;;</code></pre>
+
+<p><code>io_uring</code> 的名字到现在应该为人所知了。后缀 <code>_cqe</code> 指的是 Completion Queue Event（完成队列事件），在本文剩余部分通常简称为 <code>cqe</code>。cqe 结构体中包含一个 <strong>user_data</strong> 字段，这个字段在请求初次提交时携带信息，并包含应用识别请求所需的任何数据。一个常见的用途是让它指向原始请求的指针。内核不会修改此字段，它会直接从提交阶段传递到完成事件阶段。<strong>res</strong> 字段保存请求的结果，可以将其视作来自类似 <code>read(2)</code> 或 <code>write(2)</code> 系统调用的返回值。对于正常的读写操作，它将包含传输的字节数。如果发生错误，它则会包含一个负的错误值，比如如果发生 I&#x2F;O 错误，<strong>res</strong> 就会包含 <strong>-EIO</strong>。最后，<strong>flags</strong> 成员截止目前尚未启用，可以用来承载与操作相关的元数据。</p>
+<p>请求类型的定义更为复杂。它不仅要描述比完成事件更多的信息，而且 io_uring 在设计时就旨在为未来的请求类型留有扩展性。我们设计的结构如下：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_uring_sqe</span> &#123;</span>
+    __u8 opcode;         <span class="hljs-comment">// 操作码，定义特定请求的类型</span>
+    __u8 flags;          <span class="hljs-comment">// 标志位，包含适用于多种命令类型的修饰标志</span>
+    __u16 ioprio;        <span class="hljs-comment">// 请求的优先级，遵循 ioprio_set(2) 系统调用定义</span>
+    __s32 fd;            <span class="hljs-comment">// 与请求关联的文件描述符</span>
+    __u64 off;           <span class="hljs-comment">// 操作应发生的偏移量</span>
+    __u64 addr;          <span class="hljs-comment">// 操作应执行 I/O 的地址，如果操作涉及数据传输的话。对于向量读/写操作，这是一个指向 iovec 结构数组的指针</span>
+    __u32 len;           <span class="hljs-comment">// 对于非向量 I/O 传输，这是字节计数；对于向量 I/O 传输，这是由 addr 描述的向量数量</span>
+    <span class="hljs-class"><span class="hljs-keyword">union</span> &#123;</span>
+        <span class="hljs-type">__kernel_rwf_t</span> rw_flags;  <span class="hljs-comment">// 读写标志，针对读/写操作</span>
+        __u16 fsync_flags;    <span class="hljs-comment">// fsync操作的标志</span>
+        __u16 poll_events;    <span class="hljs-comment">// poll操作的事件标志</span>
+        __u32 sync_range_flags;  <span class="hljs-comment">// 同步范围操作的标志</span>
+        __u32 msg_flags;       <span class="hljs-comment">// 消息传递操作的标志</span>
+    &#125;;
+    __u64 user_data;      <span class="hljs-comment">// 用户定义的数据，用于标识请求，对应 cqe 中的 user_data</span>
+    <span class="hljs-class"><span class="hljs-keyword">union</span> &#123;</span>
+        __u16 buf_index;  <span class="hljs-comment">// 缓冲区索引，具体含义取决于操作</span>
+        __u64 pad[<span class="hljs-number">3</span>];     <span class="hljs-comment">// 填充字段，确保结构体对齐</span>
+    &#125;;
+&#125;;</code></pre>
+
+<p>类似于完成事件，提交侧的结构被称为 Submission Queue Entry（提交队列条目），简称 <code>sqe</code>。它包含一个 <strong>opcode</strong> 字段，用于描述该请求的操作码。例如，操作码 <strong>IORING_OP_READV</strong>  是一个向量读操作。<strong>flags</strong> 字段包含适用于多种命令类型的通用修饰标志。我们将在稍后的高级使用场景部分对此进行探讨。<strong>ioprio</strong> 表示请求的优先级，对于普通的读写操作，它遵循 <code>ioprio_set(2)</code> 系统调用中定义的规则。<strong>fd</strong> 是与请求关联的文件描述符，<strong>off</strong> 指定了操作应执行的偏移位置。<strong>addr</strong> 字段，如果操作涉及数据传输，包含执行 I&#x2F;O 操作的地址；对于向量读&#x2F;写操作，将是一个指向类似用于 <code>preadv(2)</code> 的 <code>iovec</code> 结构数组的指针。<code>len</code> 字段，在非向量 I&#x2F;O 传输中，表示字节长度；在向量 I&#x2F;O 传输中，则表示 <code>iovec</code> 结构的数量。</p>
+<p>接下来的部分是一个标志的联合体 (union)，它针对操作码（<code>op-code</code>）具有特定性。例如，对于前面提到的向量读取操作（<strong>IORING_OP_READV</strong>），这些标志遵循了 <code>preadv2(2)</code> 系统调用中描述的那些标志。<strong>user_data</strong> 字段是所有操作码通用的，内核不会修改这个字段。它只是简单地从提交阶段复制到完成事件（<code>cqe</code>）中。<strong>buf_index</strong> 字段将在高级使用场景部分进行说明。结构的末尾还有一些填充，目的是确保 <code>sqe</code> 在内存中以 64 字节对齐，同时也为将来可能需要更多数据来描述请求的情况预留空间。可以想象几个这样的应用场景，比如作为一个键值存储命令集，或者是端到端数据保护场景，应用程序在其中传入预先计算的数据校验和。</p>
+<h4 id="4-2-通信通道"><a href="#4-2-通信通道" class="headerlink" title="4.2 通信通道"></a>4.2 通信通道</h4><p>在介绍了数据结构后，接下来详细说明环是如何工作的。尽管我们有一个提交侧和完成侧，显示出一定的对称性，但两者之间的索引方式是不同的。如同之前章节那样，我们先从较为简单的完成环开始讲解。</p>
+<p>完成队列（<code>CQ</code>）中的完成事件（<code>cqe</code>）被组织成一个数组，其内存由内核和应用程序双方可见并可修改。然而，由于 <code>cqe</code> 是由内核产生的，实际上只有内核会修改 <code>cqe</code> 条目。通信是通过环形缓冲区管理的。每当内核向 <code>CQ</code> 环中发布一个新的事件，它就会更新相应的尾部指针。当应用程序消费一个条目时，它会更新头部指针。因此，如果尾部不同于头部，应用程序就知道它有一个或多个事件可供消费。环计数器（ring counters）本质上是无界流动的 32 位整数，当完成事件数量超出环的容量时，它会自然地循环回绕。这种方法的好处在于，可以充分利用环的全部容量，而无需额外管理一个“环已满”的标志，后者会使环的管理变得复杂。因此，环的大小必须是 2 的次幂</p>
+<p>要定位一个事件的索引，应用程序需将当前的尾部索引与环的大小掩码进行按位与运算。典型的代码流程如下：</p>
+<pre><code class="hljs c"><span class="hljs-type">unsigned</span> head;
+head = cqring-&gt;head;
+read_barrier();  
+<span class="hljs-keyword">if</span> (head != cqring-&gt;tail) &#123;
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_uring_cqe</span> *<span class="hljs-title">cqe</span>;</span>
+    <span class="hljs-type">unsigned</span> index;
+    index = head &amp; cqring-&gt;mask;
+    cqe = &amp;cqring-&gt;cqes[index];
+    <span class="hljs-comment">/* 在此处处理已完成的 cqe */</span>
+    ...
+    <span class="hljs-comment">/* 已经消费此条目 */</span>
+    head++;
+&#125;
+cqring-&gt;head = head;
+write_barrier();</code></pre>
+
+<p><code>ring→cqes[]</code> 是一个共享的 <code>io_uring_cqe</code> 结构数组。接下来的部分，我们将深入了解这种共享内存（以及 io_uring 实例本身）是如何设置和管理的，以及其中神秘的读屏障（read barrier）和写屏障（write barrier）调用的作用。</p>
+<p>在提交侧，角色则颠倒过来：应用程序负责更新尾指针，而内核负责消费条目（并更新头指针）。一个重要的区别在于，尽管 CQ 环直接索引共享的 <code>cqe</code> 数组，但在提交侧之间却存在一个间接索引数组。因此，提交侧的环形缓冲区实际上是一个索引，指向这个间接数组，而间接数组中又包含了指向 sqe（提交队列条目）的索引。这初看可能显得有些奇怪且令人困惑，但实际上这么做是有道理的。某些应用程序可能会在其内部数据结构中嵌入请求单元，而这种设计给予了它们在保持一次性提交多个 <code>sqe</code> 能力的同时，还能灵活地组织这些请求的自由。这样的设计反过来又使得这些应用程序向 io_uring 接口的迁移变得更加简便。</p>
+<p>向内核提交一个 <code>sqe</code>（用于内核消费）基本上是与从内核收割 <code>cqe</code>（完成队列事件）相反的操作。一个典型的示例大概如下所示：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_uring_sqe</span> *<span class="hljs-title">sqe</span>;</span>
+<span class="hljs-type">unsigned</span> tail, index;
+
+tail = sqring-&gt;tail;
+index = tail &amp; sqring-&gt;ring_mask;
+sqe = &amp;sqring-&gt;sqes[index];
+
+<span class="hljs-comment">/* 这里通过某个函数初始化 sqe，准备 IO 操作参数 */</span>
+init_io_request(sqe);
+
+<span class="hljs-comment">/* 将当前 sqe 的索引存入间接数组 */</span>
+sqring-&gt;<span class="hljs-built_in">array</span>[index] = index;
+<span class="hljs-comment">/* 更新尾指针，表示新的 sqe 已准备好 */</span>
+tail++;
+
+write_barrier(); <span class="hljs-comment">// 确保更新对其他 CPU 可见</span>
+sqring-&gt;tail = tail;
+write_barrier(); <span class="hljs-comment">// 确保 tail 更新操作的顺序性</span></code></pre>
+
+<p>如同在处理 CQ 环时一样，我们稍后会解释读屏障（read barrier）和写屏障（write barrier）的具体作用。上面是一个简化的示例，它假设 SQ 环当前是空的，或者至少还有空间容纳一个额外的条目。</p>
+<p>一旦 sqe（提交队列条目）被内核消费，应用程序就可以自由重用该 sqe 条目。即使内核还未完全处理完某个 sqe，情况也是如此。如果内核在条目被消费后仍需访问它，那么它在此之前已创建了该 sqe 的稳定副本。为何会发生这种情况并不一定重要，但它对应用程序有着重要影响。通常，应用程序会请求一个特定大小的环，并且可能会认为这个大小直接对应着应用程序在内核中可以挂起的请求数量。然而，由于 sqe 的有效期仅限于它被实际提交的那一刻，所以应用程序实际上有可能驱动比 SQ 环大小更多的挂起请求。应用程序必须小心，不要过度利用这一点，否则可能会导致 CQ 环溢出。默认情况下，CQ 环的大小是 SQ 环的两倍，这为应用程序在管理这一方面提供了一定的灵活性，但并未完全消除管理的必要。如果应用程序违反了这一限制，将会在 CQ 环中被记录为溢出状况，关于这部分的更多信息将在后面详细介绍。</p>
+<p>完成事件可以以任意顺序到达，请求提交与关联的完成事件之间并没有固定的顺序关系。SQ 环和 CQ 环彼此独立运行。然而，每一个完成事件都会对应于一个特定的提交请求，即每个完成事件总是与一个具体的提交请求相关联。</p>
+<h3 id="5-0-io-uring-接口"><a href="#5-0-io-uring-接口" class="headerlink" title="5.0 io_uring 接口"></a>5.0 io_uring 接口</h3><p>与 aio 相似，io_uring 也有一系列与其操作相关的系统调用。第一个系统调用用于创建一个 io_uring 实例：</p>
+<pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">io_uring_setup</span><span class="hljs-params">(<span class="hljs-type">unsigned</span> entries, <span class="hljs-keyword">struct</span> io_uring_params *params)</span>;</code></pre>
+
+<p>应用程序必须为此 io_uring 实例提供期望的条目数量，以及与之相关的一组参数。<strong>entries</strong> 表示将与此 io_uring 实例关联的 sqe（提交队列条目）数量，它必须是 2 的幂，在 1 到 4096（包括两端）的范围内。<strong>params</strong> 结构体由内核读取和写入，定义如下：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_uring_params</span> &#123;</span>
+    __u32 sq_entries;    <span class="hljs-comment">// 提交队列（SQ）的条目数</span>
+    __u32 cq_entries;    <span class="hljs-comment">// 完成队列（CQ）的条目数</span>
+    __u32 flags;         <span class="hljs-comment">// 控制io_uring实例的标志</span>
+    __u32 sq_thread_cpu; <span class="hljs-comment">// 提交线程的CPU亲和力</span>
+    __u32 sq_thread_idle; <span class="hljs-comment">// 提交线程空闲超时（毫秒）</span>
+    __u32 resv[<span class="hljs-number">5</span>];       <span class="hljs-comment">// 保留字段</span>
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_sqring_offsets</span> <span class="hljs-title">sq_off</span>;</span> <span class="hljs-comment">// 提交队列的偏移量信息</span>
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_cqring_offsets</span> <span class="hljs-title">cq_off</span>;</span> <span class="hljs-comment">// 完成队列的偏移量信息</span>
+&#125;;</code></pre>
+
+<p><strong>sq_entries</strong> 字段将由内核填写，以此通知应用程序此环能够支持多少个 sqe（提交队列条目）。同理，通过 <strong>cq_entries</strong> 成员告知应用程序完成队列（CQ）环的大小。关于此结构体其余部分的讨论将推迟到高级使用场景部分，但有两个例外：<strong>sq_off</strong> 和 <strong>cq_off</strong> 字段，因为它们对于通过 io_uring 建立基本通信机制是必要的。</p>
+<p>当 <code>io_uring_setup(2)</code> 调用成功后，内核会返回一个文件描述符，该描述符用于标识 io_uring 实例。这时，<strong>sq_off</strong> 和 <strong>cq_off</strong> 结构体便发挥了作用。考虑到 sqe 和 cqe 结构体是由内核和应用程序共享的，应用程序需要一种方式来访问这块内存。这是通过使用 <code>mmap(2)</code> 系统调用将其映射到应用程序的内存空间中来实现的。应用程序利用 <strong>sq_off</strong> 成员来确定环中各元素的偏移量。<code>io_sqring_offsets</code> 结构定义如下：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_sqring_offsets</span> &#123;</span>
+    __u32 head;          <span class="hljs-comment">// 提交队列头部的偏移量</span>
+    __u32 tail;          <span class="hljs-comment">// 提交队列尾部的偏移量</span>
+    __u32 ring_mask;     <span class="hljs-comment">// 环状缓冲区掩码，用于快速索引</span>
+    __u32 ring_entries;  <span class="hljs-comment">// 环中条目的数量</span>
+    __u32 flags;         <span class="hljs-comment">// 环的标志</span>
+    __u32 dropped;       <span class="hljs-comment">// 未提交的sqe数量</span>
+    __u32 <span class="hljs-built_in">array</span>;         <span class="hljs-comment">// sqe索引数组的偏移量</span>
+    __u32 resv1;         <span class="hljs-comment">// 保留字段</span>
+    __u64 resv2;         <span class="hljs-comment">// 保留字段</span>
+&#125;;</code></pre>
+
+<p>为了访问这块内存，应用程序必须使用 io_uring 的文件描述符以及与 SQ 环关联的内存偏移量调用 <code>mmap(2)</code>。io_uring API 为应用程序定义了以下 mmap 偏移量：</p>
+<pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> IORING_OFF_SQ_RING 0ULL</span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> IORING_OFF_CQ_RING 0x8000000ULL</span>
+<span class="hljs-meta">#<span class="hljs-keyword">define</span> IORING_OFF_SQES 0x10000000ULL</span></code></pre>
+
+<p>其中，<strong>IORING_OFF_SQ_RING</strong> 用于将 SQ 环映射到应用程序的内存空间中，<strong>IORING_OFF_CQ_RING</strong> 用于同样地映射 CQ 环，而 <strong>IORING_OFF_SQES</strong> 则是用来映射 sqe 数组的。对于 CQ 环而言，cqes 数组本身就是 CQ 环的一部分。由于 SQ 环是对 sqe 数组中的值的索引，因此 sqe 数组必须由应用程序单独映射。</p>
+<p>应用程序将定义一个持有这些偏移量的自定义结构体。一个示例可能如下所示：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">app_sq_ring</span> &#123;</span>
+   <span class="hljs-type">unsigned</span> *head;
+   <span class="hljs-type">unsigned</span> *tail;
+   <span class="hljs-type">unsigned</span> *ring_mask;
+   <span class="hljs-type">unsigned</span> *ring_entries;
+   <span class="hljs-type">unsigned</span> *flags;
+   <span class="hljs-type">unsigned</span> *dropped;
+   <span class="hljs-type">unsigned</span> *<span class="hljs-built_in">array</span>;
+&#125;;</code></pre>
+
+<p>一个典型的设置案例看起来如下：</p>
+<pre><code class="hljs c"><span class="hljs-keyword">struct</span> app_sq_ring <span class="hljs-title function_">app_setup_sq_ring</span><span class="hljs-params">(<span class="hljs-type">int</span> ring_fd, <span class="hljs-keyword">struct</span> io_uring_params *p)</span>
+&#123;
+   <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">app_sq_ring</span> <span class="hljs-title">sqring</span>;</span>
+   <span class="hljs-type">void</span> *ptr;
+   
+   ptr = mmap(<span class="hljs-literal">NULL</span>, p→sq_off.<span class="hljs-built_in">array</span> + p→sq_entries * <span class="hljs-keyword">sizeof</span>(__u32),
+               PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
+               ring_fd, IORING_OFF_SQ_RING);
+   
+   sring→head = ptr + p→sq_off.head;
+   sring→tail = ptr + p→sq_off.tail;
+   sring→ring_mask = ptr + p→sq_off.ring_mask;
+   sring→ring_entries = ptr + p→sq_off.ring_entries;
+   sring→flags = ptr + p→sq_off.flags;
+   sring→dropped = ptr + p→sq_off.dropped;
+   sring→<span class="hljs-built_in">array</span> = ptr + p→sq_off.<span class="hljs-built_in">array</span>;
+   <span class="hljs-keyword">return</span> sring;
+&#125;</code></pre>
+
+<p>完成队列（CQ）环的映射方式与之类似，使用 <strong>IORING_OFF_CQ_RING</strong> 偏移量以及由 <code>io_cqring_offsets</code> 结构体的 <strong>cq_off</strong> 成员定义的偏移量。最终，通过 <strong>IORING_OFF_SQES</strong> 偏移量映射 sqe 数组。由于这些代码在不同应用程序之间大多是可以复用的模板代码，<code>liburing</code> 库提供了一系列助手函数，以便以简单的方式完成设置和内存映射。详情请参阅 io_uring 库部分。完成这些步骤后，应用程序就可以通过 io_uring 实例进行通信了。</p>
+<p>应用程序还需要一种方式告诉内核它现在已经准备好了请求供内核消费。这是通过另一个系统调用来完成的：</p>
+<pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">io_uring_enter</span><span class="hljs-params">(<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> fd, <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> to_submit,</span>
+<span class="hljs-params">                   <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> min_complete, <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> flags,</span>
+<span class="hljs-params">                   <span class="hljs-type">sigset_t</span> *sig)</span>;</code></pre>
+
+<p>其中，<strong>fd</strong> 指的是由 <code>io_uring_setup(2)</code> 返回的环文件描述符；<strong>to_submit</strong> 告诉内核最多有这么多的 sqe（提交队列条目）准备消费和提交；<strong>min_complete</strong> 请求内核等待至少完成指定数量的请求。这个单一调用同时支持提交请求和等待完成事件，意味着应用程序可以用一个系统调用同时提交请求并等待它们的完成。<strong>flags</strong> 包含修改此调用行为的标志，其中最重要的是：</p>
+<pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">define</span> IORING_ENTER_GETEVENTS (1U &lt;&lt; 0)</span></code></pre>
+
+<p>如果在 <code>flags</code> 中设置了 <strong>IORING_ENTER_GETEVENTS</strong>，那么内核将主动等待至少 <code>min_complete</code> 个事件变为可用。敏锐的读者可能会疑惑，既然已经有了 <strong>min_complete</strong>，为什么还需要这个标志。实际上，在某些情况下，这种区分是很重要的，这部分内容将在后面讨论。目前，如果你想等待完成事件，就必须设置 <strong>IORING_ENTER_GETEVENTS</strong>。</p>
+<p>以上基本上涵盖了 io_uring 的基本 API。<code>io_uring_setup(2)</code> 用于创建指定大小的 io_uring 实例。创建完毕后，应用程序可以开始填充 sqe 并使用 <code>io_uring_enter(2)</code> 提交它们。完成事件既可以与提交一起通过同一个调用来等待，也可以在稍后单独处理。除非应用程序想要等待完成事件到来，否则它可以简单地检查 CQ 环的尾部指针，以了解是否有任何事件待处理。内核会直接修改 CQ 环的尾部指针，因此应用程序无需设置 <strong>IORING_ENTER_GETEVENTS</strong> 标志就可以直接消费完成事件。</p>
+<p>关于可用命令类型及其使用方法，请查阅 <code>io_uring_enter(2)</code> 的手册页。</p>
+<h4 id="5-1-SQE-顺序控制"><a href="#5-1-SQE-顺序控制" class="headerlink" title="5.1 SQE 顺序控制"></a>5.1 SQE 顺序控制</h4><p>通常情况下，sqe（提交队列条目）是独立使用的，意味着一个条目的执行不会影响环中后续 sqe 条目的执行顺序或排列。这提供了操作的完全灵活性，并使它们能够并行执行和完成，以达到最大的效率和性能。然而，在某些情况下，可能需要控制 sqe 的执行顺序，例如为了数据完整性保证的写入操作。一个典型的例子是一系列写操作之后跟着一个 fsync 或 fdatasync 调用。只要允许写操作以任意顺序完成，我们只需要确保当所有写操作都完成后才执行数据同步操作。应用程序常常将这转化为先写后等待的操作模式，当所有写入被底层存储确认后，再发出同步指令。</p>
+<p>io_uring 支持清空提交队列，直到所有先前的完成事件都结束。这样，应用程序可以入队上述同步操作，并知道在所有先前的命令完成之前不会启动。这是通过在 sqe 的标志字段中设置 <strong>IOSQE_IO_DRAIN</strong> 来实现的。请注意，这会导致整个提交队列暂停。根据 io_uring 在特定应用程序中的使用方式，这可能会引入比预期更大的流水线延迟。如果这类阻塞操作频繁发生，应用程序使用一个独立的 io_uring 上下文用于保证数据完整性的写操作，以允许无关命令同时获得更好的并发性能。</p>
+<h4 id="5-2-链式-SQE"><a href="#5-2-链式-SQE" class="headerlink" title="5.2 链式 SQE"></a>5.2 链式 SQE</h4><p>虽然 <strong>IOSQE_IO_DRAIN</strong> 提供了全管道屏障，但 io_uring 还支持对 sqe 更细粒度的序列控制。链式 sqe 提供了一种方式来描述在较大的提交队列中的 sqe 序列间的依赖关系，其中每个 sqe 的执行依赖于前一个 sqe 的成功完成。这种使用场景的例子可能包括必须按顺序执行的一系列写操作，或者像拷贝操作那样的场景，先从一个文件读取，随后将数据写入另一个文件，且这两个 sqe 共享缓冲区。为了使用这个功能，应用程序必须在 sqe 的 <strong>flag</strong> 字段中设置 <strong>IOSQE_IO_LINK</strong>。如果设置了此标志，那么在前一个 sqe 成功完成之前，下一个 sqe 不会开始执行。如果前一个 sqe 没有完全成功完成（即遇到任何错误或读&#x2F;写不完全），链接链会被打破，相关的 sqe 将以 <strong>-ECANCELED</strong> 作为错误码被取消。此时，“完全完成”指的是请求完全成功完成，任何错误或潜在的读&#x2F;写不足都将中断这个链，请求必须完整完成。</p>
+<p>只要其 <strong>flag</strong> 字段中设置了 <strong>IOSQE_IO_LINK</strong>，链式 sqe 的链会持续。因此，链的定义始于首个设置了 <strong>IOSQE_IO_LINK</strong>  的 sqe，并终止于紧随其后的未设置该标志的第一个 sqe。理论上支持任意长度的链。</p>
+<p>这些链独立于提交环中的其他 sqe 执行。链是独立的执行单元，多个链可以并行执行和完成，包括不属于任何链的 sqe。</p>
+<h4 id="5-3-超时命令"><a href="#5-3-超时命令" class="headerlink" title="5.3 超时命令"></a>5.3 超时命令</h4><p>虽然 io_uring 支持的大多数命令都是直接或间接作用于数据（前者如读&#x2F;写操作，后者如 fsync 等），但超时命令（timeout command）有所不同。<strong>IORING_OP_TIMEOUT</strong> 命令不直接操作数据，而是帮助管控完成环上的等待。该超时命令支持两种不同的触发类型，并且可以在单个命令中同时使用。一种触发类型是经典的超时，调用者传递一个（变体的）<code>struct timespec</code> 结构，其中包含非零的秒或纳秒值。为了保持 32 位与 64 位应用程序及内核空间之间的兼容性，使用的类型格式应如下：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> __<span class="hljs-title">kernel_timespec</span> &#123;</span>
+    <span class="hljs-type">int64_t</span> tv_sec;   <span class="hljs-comment">// 秒</span>
+    <span class="hljs-type">long</span> <span class="hljs-type">long</span> tv_nsec;     <span class="hljs-comment">// 纳秒</span>
+&#125;;</code></pre>
+
+<p>在某些时候，用户空间应当具备一个符合上述描述的 <code>struct timespec64</code> 类型。在此之前，必须使用上述类型。如果希望使用计时超时，sqe 的 <strong>addr</strong> 字段必须指向一个这样的结构体。一旦指定的时间量过去，超时命令就会完成。</p>
+<p>第二种触发类型是完成计数。如果使用此类型，应在 sqe 的 <strong>offset</strong> 字段中填入完成计数值。一旦自从超时命令排队以来，指定数量的完成事件产生，超时命令就会完成。</p>
+<p>可以在单个超时命令中指定两个触发器事件。如果单个超时命令同时包含两个条件，则第一个触发的条件将生成超时完成事件。当发布超时完成事件时，任何等待完成事件者都将被唤醒，无论他们要求的完成量是否已满足。</p>
+<h3 id="6-0-内存排序"><a href="#6-0-内存排序" class="headerlink" title="6.0 内存排序"></a>6.0 内存排序</h3><p>通过 io_uring 实例进行安全且高效通信的一个关键方面是正确使用内存排序原语。详细探讨各种架构的内存排序超出了本文的范围。如果你乐于使用通过 liburing 库暴露的简化版 io_uring API，那么你可以安全地忽略本节，直接跳到 liburing 库部分。但如果你有兴趣使用原始接口，理解本节内容就很重要了。</p>
+<p>为了简化问题，我们将它归结为两个简单的内存排序操作。以下解释为了简洁而有所简化。</p>
+<ul>
+<li><code>read_barrier()</code>：确保在进行后续内存读取之前，之前的写操作对其他 CPU 可见。</li>
+<li><code>write_barrier()</code>：确保此写操作发生在之前的写操作之后。</li>
+</ul>
+<p>根据目标架构的不同，这两个操作之一或两者都可能是空操作（no-ops）。但在使用 io_uring 时，这一点并不重要。重要的是，某些架构确实需要它们，因此应用程序开发者需要理解如何正确使用。<code>write_barrier()</code> 是为了确保写操作的顺序。假设一个应用程序希望填写一个 sqe 并通知内核有一个新的 sqe 可供处理，这是一个两阶段的过程——首先填写 sqe 的各个成员并将 sqe 的索引放入 SQ 环数组中，然后更新 SQ 环的尾指针以显示内核有新条目可用。如果不明确指定顺序，处理器可以任意重新排序这些写操作以达到其认为最优化的顺序。让我们看看下面的例子，每个数字代表一个内存操作：</p>
+<pre><code class="hljs c"><span class="hljs-number">1</span>: sqe→opcode = IORING_OP_READV;
+<span class="hljs-number">2</span>: sqe→fd = fd;
+<span class="hljs-number">3</span>: sqe→off = <span class="hljs-number">0</span>;
+<span class="hljs-number">4</span>: sqe→addr = &amp;iovec;
+<span class="hljs-number">5</span>: sqe→len = <span class="hljs-number">1</span>;
+<span class="hljs-number">6</span>: sqe→user_data = some_value;
+<span class="hljs-number">7</span>: sqring→tail = sqring→tail + <span class="hljs-number">1</span>;</code></pre>
+
+<p>无法保证操作 7（使 sqe 对内核可见的写操作）会作为序列中的最后一个写操作执行。操作 7 之前的所有写操作，在操作 7 之前对内核可见至关重要，否则内核可能会看到一个只写了一半的 sqe。从应用程序的角度来看，在通知内核有新的 sqe 之前，你需要一个写屏障来确保写操作的正确顺序。由于只要在尾部写入之前 sqe 的存储可见，它们的实际存储顺序并不重要，我们可以在操作 6 之后、操作 7 之前使用一个排序原语就能满足要求。因此，序列看起来应该是这样的：</p>
+<pre><code class="hljs c"><span class="hljs-number">1</span>: sqe→opcode = IORING_OP_READV;
+<span class="hljs-number">2</span>: sqe→fd = fd;
+<span class="hljs-number">3</span>: sqe→off = <span class="hljs-number">0</span>;
+<span class="hljs-number">4</span>: sqe→addr = &amp;iovec;
+<span class="hljs-number">5</span>: sqe→len = <span class="hljs-number">1</span>;
+<span class="hljs-number">6</span>: sqe→user_data = some_value;
+ write_barrier(); <span class="hljs-comment">/* 确保之前的写入在尾部写入前可见 */</span>
+<span class="hljs-number">7</span>: sqring→tail = sqring→tail + <span class="hljs-number">1</span>;
+ write_barrier(); <span class="hljs-comment">/* 确保尾部写入对其他 CPU 可见 */</span></code></pre>
+
+<p>内核在读取 SQ 环的尾部之前会包含一个 <code>read_barrier()</code>，以确保来自应用程序的尾部写入是可见的。从 CQ 环的角度来看，因为消费者和生产者的角色是相反的，应用程序只需在读取 CQ 环的尾部之前执行一个 <code>read_barrier()</code>，以确保它能看到内核所做的任何写入。</p>
+<p>虽然内存顺序类型被简化为两种特定类型，但架构的具体实现当然会根据代码运行的机器不同而不同。即使应用程序直接使用 io_uring 接口（而不是 liburing 的帮助函数），它仍然需要特定于架构的屏障类型。liburing 库提供了这些定义，并建议应用程序使用它们。</p>
+<p>有了对内存顺序的基本解释，以及 liburing 提供的管理它们的帮助函数，现在回过头去看前面引用了 <code>read_barrier()</code> 和 <code>write_barrier()</code> 的例子。如果之前它们看起来不太明白，现在应该能理解了。</p>
+<h3 id="7-0-liburing-库"><a href="#7-0-liburing-库" class="headerlink" title="7.0 liburing 库"></a>7.0 liburing 库</h3><p>在了解了 io_uring 的内部细节后，你会很高兴得知有一个更简单的方法来完成上述大部分工作。liburing 库有两个主要目的：</p>
+<ul>
+<li>去除 io_uring 实例设置所需的模板代码</li>
+<li>为基本使用场景提供简化的 API</li>
+</ul>
+<p>后者确保了应用程序完全不必担心内存屏障，也不必自己处理环缓冲区管理。这使得 API 变得更加简洁易懂，并且实际上不再需要深入理解其内部工作原理。如果仅关注提供基于 liburing 的示例，本文可以大大缩短，但了解一些内部工作原理对于从应用程序中榨取最佳性能通常是有益的。此外，尽管 liburing 当前专注于减少模板代码并为标准使用场景提供基础帮助函数，一些更高级的功能尚未通过 liburing 提供。不过，这并不意味着你不能混合使用两者。实际上，它们底层操作的是相同的结构。通常鼓励应用程序即使使用原始接口，也采用 liburing 的创建助手。</p>
+<h4 id="7-1-liburing-的-io-uring-创建"><a href="#7-1-liburing-的-io-uring-创建" class="headerlink" title="7.1 liburing 的 io_uring 创建"></a>7.1 liburing 的 io_uring 创建</h4><p>从一个例子开始。liburing 提供了以下基本助手函数，代替手动调用 <code>io_uring_setup(2)</code> 并随后映射三个必需的区域：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_uring</span> <span class="hljs-title">ring</span>;</span>
+io_uring_queue_init(ENTRIES, &amp;ring, <span class="hljs-number">0</span>);</code></pre>
+
+<p><code>io_uring</code> 结构体保存了 SQ 和 CQ 环的信息，<code>io_uring_queue_init(3)</code> 调用为你处理了所有创建逻辑。在这个特定示例中，我们向 <strong>flags</strong> 参数传入了 0。一旦应用程序结束 io_uring 实例的使用，只需调用：</p>
+<pre><code class="hljs c">io_uring_queue_exit(&amp;ring);</code></pre>
+
+<p>来清理它。类似于应用程序分配的其他资源，一旦应用程序退出，内核会自动回收它们。对于应用程序可能创建的任何 io_uring 实例，也是如此。</p>
+<h4 id="7-2-liburing-的提交与完成"><a href="#7-2-liburing-的提交与完成" class="headerlink" title="7.2 liburing 的提交与完成"></a>7.2 liburing 的提交与完成</h4><p>一个非常基本的使用场景是提交一个请求，稍后再等待它完成。使用 liburing 的帮助函数，操作大致如下：</p>
+<pre><code class="hljs c"><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_uring_sqe</span> *<span class="hljs-title">sqe</span>;</span>
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">io_uring_cqe</span> *<span class="hljs-title">cqe</span>;</span>
+
+<span class="hljs-comment">/* 获取 sqe 并填写 READV 操作 */</span>
+sqe = io_uring_get_sqe(&amp;ring);
+io_uring_prep_readv(sqe, fd, &amp;iovec, <span class="hljs-number">1</span>, offset);
+
+<span class="hljs-comment">/* 告诉内核有一个可供消费的 sqe */</span>
+io_uring_submit(&amp;ring);
+
+<span class="hljs-comment">/* 等待 sqe 完成 */</span>
+io_uring_wait_cqe(&amp;ring, &amp;cqe);
+
+<span class="hljs-comment">/* 读取并处理 cqe 事件 */</span>
+app_handle_cqe(cqe);
+io_uring_cqe_seen(&amp;ring, cqe);</code></pre>
+
+<p>这应该是不言自明的。对 <code>io_uring_wait_cqe(3)</code> 的最后一次调用将返回我们刚提交的 sqe 的完成事件，前提是您没有其他正在飞行中的 sqe。如果有，那么完成事件可能属于另一个 sqe。</p>
+<p>如果应用程序只想查看完成状态而不是等待事件变为可用，<code>io_uring_peek_cqe(3)</code> 就能做到这个需求。对于这两种情况，应用程序在处理完这个完成事件后都必须调用 <code>io_uring_cqe_seen(3)</code>。否则，重复调用 <code>io_uring_peek_cqe(3)</code> 或 <code>io_uring_wait_cqe(3)</code> 会一直返回相同的事件。这种区分是必要的，以避免内核在应用程序处理完之前就可能覆盖现有的完成事件。<code>io_uring_cqe_seen(3)</code> 递增 CQ 环头，使得内核可以在同一槽位填充新的事件。</p>
+<p>有多种辅助函数用于填充 sqe，<code>io_uring_prep_readv(3)</code> 只是一个例子。我鼓励应用程序尽可能利用 liburing 提供的辅助器。</p>
+<p>liburing 库仍处于初期阶段，并在不断开发中以扩展支持的功能和可用的辅助工具。</p>
+<h3 id="8-0-高级使用场景与特性"><a href="#8-0-高级使用场景与特性" class="headerlink" title="8.0 高级使用场景与特性"></a>8.0 高级使用场景与特性</h3><p>上述示例和使用场景适用于各种类型的 I&#x2F;O，无论是基于文件的 <strong>O_DIRECT</strong> I&#x2F;O、缓冲 I&#x2F;O、套接字 I&#x2F;O 等。无需特别注意就能确保它们的正确操作或异步性质。然而，io_uring 确实提供了一系列特性，应用程序需要选择启用。接下来的小节将描述其中大部分内容。</p>
+<h4 id="8-1-固定文件和缓冲区"><a href="#8-1-固定文件和缓冲区" class="headerlink" title="8.1 固定文件和缓冲区"></a>8.1 固定文件和缓冲区</h4><p>每次将文件描述符填入 sqe 并提交给内核时，内核都必须获取对该文件的引用。一旦 I&#x2F;O 完成，该文件引用再次被释放。由于文件引用的原子性，对于高 IOPS 工作负载，这可能会成为显著的减速因素。为了解决这个问题，io_uring 提供了一种方法，可以为 io_uring 实例预先注册一个文件集。这是通过第三个系统调用来实现的：</p>
+<pre><code class="hljs c"><span class="hljs-type">int</span> <span class="hljs-title function_">io_uring_register</span><span class="hljs-params">(<span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> fd, <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> opcode, <span class="hljs-type">void</span> *arg, <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> nr_args)</span>;</code></pre>
+
+<p><strong>fd</strong> 是 io_uring 实例的环文件描述符，而 <strong>opcode</strong> 指定了正在进行的注册操作类型。如果要注册一个文件集合，必须使用 <strong>IORING_REGISTER_FILES</strong> 。此时，<strong>arg</strong> 应指向一个应用程序已经打开的文件描述符数组；同时，<strong>nr_args</strong> 必须包含该数组的大小。一旦针对文件集合的 <code>io_uring_register(2)</code> 调用成功完成，应用程序就可以通过在 sqe（提交队列条目）的 <code>fd</code> 字段赋值文件描述符数组中的索引（而不是实际的文件描述符），并设置 sqe 的 <code>flags</code> 字段为 <strong>IOSQE_FIXED_FILE</strong> 来标识这是一个文件集合的 fd，进而使用这些文件。即使已注册了文件集合，应用程序仍然可以自由地使用未注册的文件，只需将 sqe 的 <code>fd</code> 设置为未注册的文件描述符，并不在 <code>flags</code> 中设置 <strong>IOSQE_FIXED_FILE</strong> 即可。当 io_uring 实例被销毁时，已注册的文件集合会自动释放；或者，也可以通过在 <code>io_uring_register(2)</code> 的 <strong>opcode</strong> 中使用 <strong>IORING_UNREGISTER_FILES</strong> 手动进行释放。</p>
+<p>另外，应用程序还可以注册一组固定的 I&#x2F;O 缓冲区。当使用 <strong>O_DIRECT</strong> 方式进行 I&#x2F;O 操作时，内核需要在执行 I&#x2F;O 之前将应用程序的页面映射到内核空间，然后在 I&#x2F;O 完成后再解除映射，这一过程可能比较耗时。如果应用程序重复使用 I&#x2F;O 缓冲区，就可以通过一次性完成映射和解除映射来优化，而不是为每个 I&#x2F;O 操作都重复进行。为了注册这样一组固定的 I&#x2F;O 缓冲区，需要使用 <strong>IORING_REGISTER_BUFFERS</strong> 作为操作码调用 <code>io_uring_register(2)</code>，并且 <strong>args</strong> 应当指向一个 <code>struct iovec</code> 结构体数组，该数组中填入了各个缓冲区的地址和长度信息。<strong>nr_args</strong> 则应包含 <code>iovec</code> 数组的大小。一旦缓冲区注册成功，应用程序就可以使用 <strong>IORING_OP_READ_FIXED</strong> 和 <strong>IORING_OP_WRITE_FIXED</strong> 操作码来读写这些固定的缓冲区。使用这些固定操作码时，sqe 的 <code>addr</code> 字段必须指向这些缓冲区之一内的地址，而 <code>len</code> 字段则需指定请求的字节长度。应用程序可以注册大于任何单次 I&#x2F;O 操作所需的缓冲区，即一个固定的读&#x2F;写操作完全可以只使用单一固定缓冲区的一部分，这是完全合法的。</p>
+<h4 id="8-2-轮询-I-x2F-O（POLLED-IO）"><a href="#8-2-轮询-I-x2F-O（POLLED-IO）" class="headerlink" title="8.2 轮询 I&#x2F;O（POLLED IO）"></a>8.2 轮询 I&#x2F;O（POLLED IO）</h4><p>对于追求极低延迟的应用程序，io_uring 提供了对文件轮询 I&#x2F;O 的支持。在这种情况下，轮询指的是执行 I&#x2F;O 操作时不依赖硬件中断来指示完成事件。当采用轮询 I&#x2F;O 时，应用程序会不断地向硬件驱动查询已提交 I&#x2F;O 请求的状态。这与非轮询 I&#x2F;O 不同，在非轮询模式下，应用程序通常会进入休眠状态，等待硬件中断作为唤醒源。对于极低延迟设备而言，轮询可以显著提升性能。同样，对于具有极高 IOPS（每秒输入输出操作数）的应用程序，高中断率使得非轮询方式的负载拥有更高的开销。是否采用轮询的界限，无论是从延迟还是总体 IOPS 速率来看，都依据具体的应用程序、I&#x2F;O 设备及机器能力而有所不同。</p>
+<p>为了利用 I&#x2F;O 轮询，必须在调用 <code>io_uring_setup(2)</code> 系统调用或使用 <code>io_uring_queue_init(3)</code>liburing 库助手时，在传入的标志中设置 <strong>IORING_SETUP_IOPOLL</strong>。当启用轮询时，应用程序不能再检查 CQ（完成队列）环尾部来确认完成事件的可用性，因为不会有自动触发的异步硬件侧完成事件。相反，应用程序必须主动查找并收割这些事件，通过调用 <code>io_uring_enter(2)</code> 并设置 <strong>IORING_ENTER_GETEVENTS</strong> 以及将 <strong>min_complete</strong> 设置为期望的事件数量来实现。设置 <strong>IORING_ENTER_GETEVENTS</strong> 且将 <strong>min_complete</strong> 设为 0 也是合法的，这意味着要求内核仅在驱动端检查一次完成事件，而非持续循环检测。</p>
+<p>只有那些适合轮询完成的操作码才可以在 <strong>IORING_SETUP_IOPOLL</strong> 注册过的 io_uring 实例上使用，包括所有读写命令：<strong>IORING_OP_READV</strong>、<strong>IORING_OP_WRITEV</strong>、<strong>IORING_OP_READ_FIXED</strong>、<strong>IORING_OP_WRITE_FIXED</strong>。在注册为轮询的 io_uring 实例上发出非轮询操作码是非法的，这样做会导致 <code>io_uring_enter(2)</code> 返回 <strong>-EINVAL</strong> 错误。背后的原因是内核无法判断带有 <strong>IORING_ENTER_GETEVENTS</strong> 标志的 <code>io_uring_enter(2)</code> 调用是否能安全地睡眠等待事件，还是应该积极地进行轮询。</p>
+<h4 id="8-3-内核侧轮询（KERNEL-SIDE-POLLING）"><a href="#8-3-内核侧轮询（KERNEL-SIDE-POLLING）" class="headerlink" title="8.3 内核侧轮询（KERNEL SIDE POLLING）"></a>8.3 内核侧轮询（KERNEL SIDE POLLING）</h4><p>尽管 io_uring 通常在允许更多的请求通过更少的系统调用来完成发起和处理方面效率更高，但在某些情况下，我们仍可以通过进一步减少执行 I&#x2F;O 所需的系统调用数量来提高效率。其中一个功能就是内核侧轮询。启用该功能后，应用程序不再需要调用 <code>io_uring_enter(2)</code> 来提交 I&#x2F;O。当应用程序更新 SQ 环并填写新的 sqe（提交队列条目）时，内核侧会自动发现新条目并提交它们。这是通过一个特定于该 io_uring 的内核线程来完成的。</p>
+<p>要使用此功能，io_uring 实例必须在 <code>io_uring_params</code> 的 <strong>flag</strong> 成员中使用 <strong>IORING_SETUP_SQPOLL</strong> 进行注册，或者传递给 <code>io_uring_queue_init(3)</code> 函数。此外，如果应用程序希望将此线程限制在特定 CPU 上，可以通过同时标记 <strong>IORING_SETUP_SQ_AFF</strong> 并将 <code>io_uring_params</code> 的 <strong>sq_thread_cp</strong> 设置为所需 CPU 来实现。需要注意的是，使用 <strong>IORING_SETUP_SQPOLL</strong> 设置 io_uring 实例是一个需要特权的操作。如果用户没有足够的权限，<code>io_uring_queue_init(3)</code> 将失败并返回 <strong>-EPERM</strong> 错误。</p>
+<p>为了避免在 io_uring 实例空闲时浪费过多 CPU，内核侧线程将在闲置一段时间后自动进入休眠状态。当发生这种情况时，线程会在 SQ 环的标志成员中设置 <strong>IORING_SQ_NEED_WAKEUP</strong>。当此标志被设置时，应用程序不能依赖内核自动发现新条目，而必须随后调用带有 <strong>IORING_ENTER_SQ_WAKEUP</strong> 标志的 <code>io_uring_enter(2)</code>。应用程序侧的逻辑通常如下所示：</p>
+<pre><code class="hljs c"><span class="hljs-comment">/* 增加新的 sqe 条目 */</span>
+add_more_io();
+<span class="hljs-comment">/*</span>
+<span class="hljs-comment">* 如果轮询并且线程现在正在睡眠，则需要调用io_uring_enter() 以使内核注意到新的 io</span>
+<span class="hljs-comment">*/</span>
+<span class="hljs-keyword">if</span> ((*sqring→flags) &amp; IORING_SQ_NEED_WAKEUP)
+ io_uring_enter(ring_fd, to_submit, to_wait, IORING_ENTER_SQ_WAKEUP);</code></pre>
+
+<p>只要应用程序持续进行 I&#x2F;O 操作，就不会设置 <strong>IORING_SQ_NEED_WAKEUP</strong>，我们就可以在不执行任何系统调用的情况下有效地执行 I&#x2F;O。然而，重要的是要在应用程序中始终保持类似上述的逻辑，以防线程确实进入休眠。进入空闲状态前的具体宽限期可以通过设置 <code>io_uring_params</code> 的 <strong>sq_thread_idle</strong> 成员来配置，其值以毫秒为单位。如果不设置该成员，内核默认在使线程休眠前空闲一秒钟。</p>
+<p>对于“常规”的 IRQ 驱动 I&#x2F;O，应用程序直接查看 CQ 环即可找到完成事件。如果 io_uring 实例配置了 <strong>IORING_SETUP_IOPOLL</strong>，则内核线程也会负责收割完成事件。因此，在这两种情况下，除非应用程序希望等待 I&#x2F;O 发生，否则它只需简单地查看 CQ 环以查找完成事件。</p>
+<h3 id="9-0-性能表现"><a href="#9-0-性能表现" class="headerlink" title="9.0 性能表现"></a>9.0 性能表现</h3><p>最终，io_uring 达到了为其设定的设计目标。我们拥有一个非常高效的内核与应用程序之间的通信机制，表现为两个独立的环。虽然原始接口在应用程序中正确使用时需要一些注意事项，但主要的复杂之处实际上在于需要显式的内存排序原语。这些原语在事件的提交和处理的提交和完成两端都有特定的应用，且通常在不同应用程序中遵循相同模式。随着 liburing 接口的不断成熟，我预计大多数应用程序都会对提供的 API 感到相当满意。</p>
+<p>虽然本文无意深入细节讨论 io_uring 实现的性能和可扩展性，但本节将简要涉及在此领域观察到的一些优势。更多详细信息，请参见 [1]。请注意，由于对块层进行了进一步改进，这些结果有些过时。例如，在我的测试环境中，通过 io_uring 实现的每核心峰值性能现在大约为 170 万次 4k IOPS，而非 162 万次。请注意，这些数值本身并没有太多绝对意义，它们主要用于衡量相对改进。现在，应用程序与内核之间的通信机制不再是瓶颈，我们将继续通过使用 io_uring 发现更低的延迟和更高的峰值性能。</p>
+<h4 id="9-1-原始性能表现"><a href="#9-1-原始性能表现" class="headerlink" title="9.1 原始性能表现"></a>9.1 原始性能表现</h4><p>考察接口的原始性能有许多方法。大多数测试也将涉及内核的其他部分。一个例子是上文中的数字，我们通过随机从块设备或文件读取来衡量性能。在峰值性能下，通过轮询，io_uring 帮助我们达到了 170 万次 4k IOPS。相比之下，aio 的性能峰值远低于此，仅为 60.8 万次。这里的比较并不完全公平，因为 aio 不支持轮询 I&#x2F;O。如果我们禁用轮询，io_uring 在相同的测试案例中仍能驱动约 120 万次 IOPS。此时，aio 的局限性变得非常明显，对于相同的工作负载，io_uring 能够驱动两倍的 IOPS。</p>
+<p>io_uring 还支持无操作命令，这对于检查接口的原始吞吐量特别有用。根据所使用的系统，每秒消息数量从我笔记本电脑上的 1200 万次到用于其他引用结果的测试盒上的 2000 万次不等。实际结果根据具体的测试案例有很大差异，主要受限于必须执行的系统调用数量。原始接口在其他方面受内存限制，由于提交和完成消息在内存中既小又线性，因此实现的消息每秒速率可以非常高。</p>
+<h4 id="9-2-缓存异步-I-x2F-O-性能"><a href="#9-2-缓存异步-I-x2F-O-性能" class="headerlink" title="9.2 缓存异步 I&#x2F;O 性能"></a>9.2 缓存异步 I&#x2F;O 性能</h4><p>我之前提到过，内核级别的缓冲异步 I&#x2F;O 实现可能比用户空间中的实现更为高效。一个重要原因与缓存与未缓存数据有关。进行缓冲 I&#x2F;O 时，应用程序通常严重依赖内核的页缓存来获得良好性能。用户空间应用程序无法得知它接下来请求的数据是否已经被缓存。它可以查询这一信息，但这需要更多的系统调用，而且答案本质上总是存在竞争条件——此刻被缓存的数据可能在几毫秒之后就不再是缓存中的了。因此，拥有 I&#x2F;O 线程池的应用程序总是需要将请求发送到异步上下文中，导致至少两次上下文切换。如果请求的数据已经在页缓存中，将导致性能急剧下降。</p>
+<p>io_uring 处理这种情况的方式与其他可能导致应用程序阻塞的资源相同。更重要的是，对于不会阻塞的操作，数据会直接在线提供。这使得 io_uring 在处理已位于页缓存中的 I&#x2F;O 时，与常规同步接口一样高效。一旦 I&#x2F;O 提交调用返回，应用程序就会在 CQ 环中立即有一个等待它的完成事件，数据也已被复制。</p>
+<h3 id="10-0-进一步阅读"><a href="#10-0-进一步阅读" class="headerlink" title="10.0 进一步阅读"></a>10.0 进一步阅读</h3><p>鉴于这是一个全新的接口，目前还没有广泛采用。截至撰写时，包含此接口的内核正处于候选发布阶段（-rc）。即使有了相当完整的接口描述，研究使用 io_uring 的程序对于完全理解如何最好地使用它也是有益的。</p>
+<p>一个例子是随 fio[2] 提供的 io_uring 引擎，它能够使用所有描述过的高级特性，除了注册文件集之外。</p>
+<p>另一个例子是随 fio 一起提供的 t&#x2F;io_uring.c 示例基准测试应用程序，它只是对文件或设备进行随机读取，具有可配置的设置，可以探索高级使用场景的整个特性集。</p>
+<p>liburing 库 [3] 有一整套针对系统调用接口的手册页，值得一读。它还附带了一些测试程序，包括开发过程中发现的问题的单元测试，以及技术演示。</p>
+<p>LWN 还撰写了一篇关于 io_uring 早期阶段的优秀文章 [4]。请注意，在这篇文章发表后，io_uring 做了一些改动，因此在两者之间存在差异的情况下，我建议参考本文。</p>
+<h3 id="11-0-参考文献"><a href="#11-0-参考文献" class="headerlink" title="11.0 参考文献"></a>11.0 参考文献</h3><p>[1] <a target="_blank" rel="noopener" href="https://lore.kernel.org/linux-block/20190116175003.17880-1-axboe@kernel.dk/">https://lore.kernel.org/linux-block/20190116175003.17880-1-axboe@kernel.dk/</a><br>[2] git:&#x2F;&#x2F;git.kernel.dk&#x2F;fio<br>[3] git:&#x2F;&#x2F;git.kernel.dk&#x2F;liburing<br>[4] <a target="_blank" rel="noopener" href="https://lwn.net/Articles/776703/">https://lwn.net/Articles/776703/</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-18-2024/efficient-io-with-io_uring.html">https://www.cyningsun.com/05-18-2024/efficient-io-with-io_uring.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Linux" rel="category"># Linux</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/12-11-2024/linux-page-cache-minibook-cn.html">译｜Linux Page Cache mini book</a></span></li>
+          
+            <li><span><a href="/06-27-2024/iocost-block-io-control-for-containers-in-datacenters-cn.html">译｜IOCost: Block IO Control for Containers in Datacenters</a></span></li>
+          
+            <li><span><a href="/06-15-2021/memory-management-physical-memory.html">内存管理 - 物理内存</a></span></li>
+          
+            <li><span><a href="/12-02-2020/memory-management-summary.html">内存管理基础概念总述</a></span></li>
+          
+            <li><span><a href="/09-18-2020/learn-virtual-filesystem-from-lsof.html">从 lsof 开始，深入理解虚拟文件系统</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/06-27-2024/iocost-block-io-control-for-containers-in-datacenters-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/12-22-2023/redis-latency-spike.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜Linux Page Cache mini book</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2024-12-11 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/12-11-2024/linux-page-cache-minibook-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="SRE 深入理解 Linux Page Cache在本系列文章中，我将讨论 Linux Page Cache。我相信，掌握以下的理论知识和工具对于每一位 SRE 来说都是至关重要的。这种理解不仅有助于日常的 DevOps 任务，也有助于紧急调试和救火。Page Cache 经常被忽视，更好地理解它有以下好处： 更精确的容量规划和容器限制计算； 更好地调试和调">
+
+<meta name="keywords" content="page cache,cgroup,blkio">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><style>mjx-container[jax="SVG"] {
+  direction: ltr;
+}
+
+mjx-container[jax="SVG"] > svg {
+  overflow: visible;
+}
+
+mjx-container[jax="SVG"][display="true"] {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+mjx-container[jax="SVG"][justify="left"] {
+  text-align: left;
+}
+
+mjx-container[jax="SVG"][justify="right"] {
+  text-align: right;
+}
+
+g[data-mml-node="merror"] > g {
+  fill: red;
+  stroke: red;
+}
+
+g[data-mml-node="merror"] > rect[data-background] {
+  fill: yellow;
+  stroke: none;
+}
+
+g[data-mml-node="mtable"] > line[data-line] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node="mtable"] > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node="mtable"] > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0,140;
+}
+
+g[data-mml-node="mtable"] > svg {
+  overflow: visible;
+}
+
+[jax="SVG"] mjx-tool {
+  display: inline-block;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+[jax="SVG"] mjx-tool > mjx-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+mjx-tool > mjx-tip {
+  display: inline-block;
+  padding: .2em;
+  border: 1px solid #888;
+  font-size: 70%;
+  background-color: #F8F8F8;
+  color: black;
+  box-shadow: 2px 2px 5px #AAAAAA;
+}
+
+g[data-mml-node="maction"][data-toggle] {
+  cursor: pointer;
+}
+
+mjx-status {
+  display: block;
+  position: fixed;
+  left: 1em;
+  bottom: 1em;
+  min-width: 25%;
+  padding: .2em .4em;
+  border: 1px solid #888;
+  font-size: 90%;
+  background-color: #F8F8F8;
+  color: black;
+}
+
+foreignObject[data-mjx-xml] {
+  font-family: initial;
+  line-height: normal;
+  overflow: visible;
+}
+
+.MathJax path {
+  stroke-width: 3;
+}
+
+mjx-container[display="true"] {
+  overflow: auto hidden;
+}
+
+mjx-container[display="true"] + br {
+  display: none;
+}
+</style><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜Linux Page Cache mini book</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2024-12-11
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#SRE-%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3-Linux-Page-Cache"><span class="toc-text">SRE 深入理解 Linux Page Cache</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%87%86%E5%A4%87%E5%AE%9E%E9%AA%8C%E7%8E%AF%E5%A2%83"><span class="toc-text">准备实验环境</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Arch-Linux-%E9%85%8D%E7%BD%AE"><span class="toc-text">Arch Linux 配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Page-Cache-%E5%85%B3%E9%94%AE%E5%8E%9F%E7%90%86"><span class="toc-text">Page Cache 关键原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AF%BB%E5%8F%96%E8%AF%B7%E6%B1%82"><span class="toc-text">读取请求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%86%99%E5%85%A5%E8%AF%B7%E6%B1%82"><span class="toc-text">写入请求</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Page-Cache-%E5%92%8C%E5%9F%BA%E6%9C%AC%E6%96%87%E4%BB%B6%E6%93%8D%E4%BD%9C"><span class="toc-text">Page Cache 和基本文件操作</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%87%E4%BB%B6%E8%AF%BB%E5%8F%96"><span class="toc-text">文件读取</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-read-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E8%AF%BB%E5%8F%96%E6%96%87%E4%BB%B6"><span class="toc-text">使用 read() 系统调用读取文件</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-mmap-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E8%AF%BB%E5%8F%96%E6%96%87%E4%BB%B6"><span class="toc-text">使用 mmap() 系统调用读取文件</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%87%E4%BB%B6%E5%86%99%E5%85%A5"><span class="toc-text">文件写入</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-write-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E5%86%99%E5%85%A5"><span class="toc-text">使用 write() 系统调用写入</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-mmap-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8%E5%86%99%E5%85%A5"><span class="toc-text">使用 mmap() 系统调用写入</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%84%8F%E9%A1%B5"><span class="toc-text">脏页</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-fsync-%E3%80%81fdatasync-%E5%92%8C-msync-%E5%90%8C%E6%AD%A5%E6%96%87%E4%BB%B6%E6%9B%B4%E6%94%B9"><span class="toc-text">使用 fsync()、fdatasync() 和 msync() 同步文件更改</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-mincore-%E6%A3%80%E6%9F%A5-Page-Cache-%E4%B8%AD%E7%9A%84%E6%96%87%E4%BB%B6%E5%AD%98%E5%9C%A8"><span class="toc-text">使用 mincore() 检查 Page Cache 中的文件存在</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Page-Cache-%E9%A9%B1%E9%80%90%E4%B8%8E%E5%9B%9E%E6%94%B6"><span class="toc-text">Page Cache 驱逐与回收</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%90%86%E8%AE%BA"><span class="toc-text">理论</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-POSIX-FADV-DONTNEED-%E6%89%8B%E5%8A%A8%E9%A9%B1%E9%80%90%E9%A1%B5"><span class="toc-text">使用 POSIX_FADV_DONTNEED 手动驱逐页</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%A9%E5%86%85%E5%AD%98%E4%B8%8D%E5%8F%AF%E9%A9%B1%E9%80%90"><span class="toc-text">让内存不可驱逐</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Page-Cache%E3%80%81vm-swappiness-%E5%92%8C%E7%8E%B0%E4%BB%A3%E5%86%85%E6%A0%B8"><span class="toc-text">Page Cache、vm.swappiness 和现代内核</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%9A%E8%BF%87-proc-pid-pagemap-%E7%90%86%E8%A7%A3%E5%86%85%E5%AD%98%E5%9B%9E%E6%94%B6%E8%BF%87%E7%A8%8B"><span class="toc-text">通过 &#x2F;proc&#x2F;pid&#x2F;pagemap 理解内存回收过程</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#page-types-%E5%86%85%E6%A0%B8%E9%A1%B5%E5%B7%A5%E5%85%B7"><span class="toc-text">page-types 内核页工具</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BC%96%E5%86%99-Page-Cache-LRU-%E7%9B%91%E6%8E%A7%E5%B7%A5%E5%85%B7"><span class="toc-text">编写 Page Cache LRU 监控工具</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%B3%E4%BA%8E-mmap-%E6%96%87%E4%BB%B6%E8%AE%BF%E9%97%AE%E7%9A%84%E6%9B%B4%E5%A4%9A%E4%BF%A1%E6%81%AF"><span class="toc-text">关于 mmap() 文件访问的更多信息</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#mmap-%E6%A6%82%E8%BF%B0"><span class="toc-text">mmap() 概述</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E7%BC%BA%E9%A1%B5%E4%B8%AD%E6%96%AD%EF%BC%9F"><span class="toc-text">什么是缺页中断？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BE%AE%E5%A6%99%E7%9A%84-MADV-DONT-NEED-mmap-%E7%89%B9%E6%80%A7"><span class="toc-text">微妙的 MADV_DONT_NEED mmap() 特性</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Cgroup-v2-%E5%92%8C-Page-Cache"><span class="toc-text">Cgroup v2 和 Page Cache</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A6%82%E8%BF%B0"><span class="toc-text">概述</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%86%85%E5%AD%98-cgroup-%E6%96%87%E4%BB%B6"><span class="toc-text">内存 cgroup 文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8E%8B%E5%8A%9B%E9%98%BB%E5%A1%9E%E4%BF%A1%E6%81%AF-PSI"><span class="toc-text">压力阻塞信息 (PSI)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%86%99%E5%9B%9E%E5%92%8C-IO"><span class="toc-text">写回和 IO</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%86%85%E5%AD%98%E5%92%8C-IO-cgroup-%E6%89%80%E6%9C%89%E6%9D%83"><span class="toc-text">内存和 IO cgroup 所有权</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E5%85%A8%E7%9A%84%E4%B8%B4%E6%97%B6%E4%BB%BB%E5%8A%A1"><span class="toc-text">安全的临时任务</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%88%91%E7%9A%84%E7%A8%8B%E5%BA%8F%E4%BD%BF%E7%94%A8%E4%BA%86%E5%A4%9A%E5%B0%91%E5%86%85%E5%AD%98%E6%88%96%E5%B7%A5%E4%BD%9C%E9%9B%86%E5%A4%A7%E5%B0%8F%E7%9A%84%E6%95%85%E4%BA%8B"><span class="toc-text">我的程序使用了多少内存或工作集大小的故事</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%80%E5%88%87%E9%83%BD%E5%85%B3%E4%B9%8E%E8%B0%81%E9%87%8D%E8%A6%81%EF%BC%8C%E6%88%96%E7%8B%AC%E4%B8%80%E6%97%A0%E4%BA%8C%E7%9A%84%E9%9B%86%E5%90%88%E5%A4%A7%E5%B0%8F%E7%9A%84%E6%95%85%E4%BA%8B"><span class="toc-text">一切都关乎谁重要，或独一无二的集合大小的故事</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%A9%BA%E9%97%B2%E9%A1%B5%E5%92%8C%E5%B7%A5%E4%BD%9C%E9%9B%86%E5%A4%A7%E5%B0%8F"><span class="toc-text">空闲页和工作集大小</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8%E5%8E%8B%E5%8A%9B%E9%98%BB%E5%A1%9E%E4%BF%A1%E6%81%AF%EF%BC%88PSI%EF%BC%89%E8%AE%A1%E7%AE%97%E5%86%85%E5%AD%98%E9%99%90%E5%88%B6"><span class="toc-text">使用压力阻塞信息（PSI）计算内存限制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E2%80%A6-%E9%82%A3%E4%B9%88%E5%86%99%E5%9B%9E%E5%8F%88%E5%A6%82%E4%BD%95%E5%91%A2%EF%BC%9F"><span class="toc-text">… 那么写回又如何呢？</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B4%E6%8E%A5-IO-DIO-%EF%BC%88NOT-READY%EF%BC%89"><span class="toc-text">直接 IO (DIO)（NOT READY）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E5%AE%83%E5%BE%88%E5%A5%BD"><span class="toc-text">为什么它很好</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E5%AE%83%E4%B8%8D%E5%A5%BD%EF%BC%8C%E9%9C%80%E8%A6%81-io-uring-%E6%9B%BF%E4%BB%A3%E6%96%B9%E6%A1%88"><span class="toc-text">为什么它不好，需要 io_uring 替代方案</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%AB%98%E7%BA%A7-Page-Cache-%E5%8F%AF%E8%A7%82%E5%AF%9F%E6%80%A7%E5%92%8C%E6%95%85%E9%9A%9C%E6%8E%92%E9%99%A4%E5%B7%A5%E5%85%B7"><span class="toc-text">高级 Page Cache 可观察性和故障排除工具</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#eBPF-%E5%B7%A5%E5%85%B7"><span class="toc-text">eBPF 工具</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%86%99%E5%9B%9E%E7%9B%91%E6%8E%A7"><span class="toc-text">写回监控</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Page-Cache-Top"><span class="toc-text">Page Cache Top</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BC%93%E5%AD%98%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF"><span class="toc-text">缓存统计信息</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#bpftrace-%E5%92%8C-kfunc-%E8%B7%9F%E8%B8%AA"><span class="toc-text">bpftrace 和 kfunc 跟踪</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Perf-%E5%B7%A5%E5%85%B7"><span class="toc-text">Perf 工具</span></a></li></ol></li></ol>
+ 
+        <h2 id="SRE-深入理解-Linux-Page-Cache"><a href="#SRE-深入理解-Linux-Page-Cache" class="headerlink" title="SRE 深入理解 Linux Page Cache"></a>SRE 深入理解 Linux Page Cache</h2><p>在本系列文章中，我将讨论 <strong>Linux Page Cache</strong>。我相信，掌握以下的理论知识和工具<strong>对于每一位 SRE 来说都是至关重要</strong>的。这种理解不仅有助于日常的 DevOps 任务，也有助于紧急调试和救火。Page Cache 经常被忽视，更好地理解它有以下好处：</p>
+<ul>
+<li>更<strong>精确的容量规划</strong>和<strong>容器限制计算</strong>；</li>
+<li>更好地<strong>调试和调查</strong>内存和磁盘密集型应用（如<strong>数据库管理系统</strong>和文件共享<strong>存储</strong>）</li>
+<li>构建内存和/或 I/O 密集型临时任务（例如：备份和恢复脚本、 rsync 一行代码等）的<strong>安全和可预测的运行时</strong>。</li>
+</ul>
+<p>我将展示在处理 Page Cache 相关任务和问题时，您应该记住的<strong>实用工具</strong>，如何正确使用它们<strong>理解实际内存使用情况</strong>，以及如何使用它们<strong>揭示问题</strong>。我将尝试为您提供一些接近实际情况的使用这些工具的示例。下面是我所讨论所涉及的一些工具：<code>vmtouch</code>、<code>perf</code>、 <code>cgtouch</code>、<code>strace</code>、<code>sar</code> 和 <code>page-type</code>。</p>
+<p>此外，正如标题所说，“深入理解”，<strong>这些实用工具的内部结构</strong>将重点展示 <strong>Page Cache</strong> 的统计、事件、系统调用和内核接口。以下是在接下来的文章中我将涉及的一些示例：</p>
+<ul>
+<li>文件：<code>/proc/PID/smaps</code>、<code>/proc/pid/pagemap</code>、 <code>/proc/kpageflags</code>、<code>/proc/kpagecgroup</code> 和 <code>sysfs</code> 文件： <code>/sys/kernel/mm/page_idle</code> ；</li>
+<li>系统调用： <code>mincore()</code>、<code>mmap()</code>、<code>fsync()</code>、<code>msync()</code>、<code>posix_fadvise()</code>、<code>madvise()</code> 及其他；</li>
+<li>不同 open 和 advise 标志 <code>O_SYNC</code>、<code>FADV_DONTNEED</code>、<code>POSIX_FADV_RANDOM</code>、<code>MADV_DONTNEED</code> 等等。</li>
+</ul>
+<p>我将尝试使用 Python、Go 和少量 C 语言编写的简单（几乎全部）代码示例，尽可能详细地进行说明。</p>
+<p>最后，任何有关现代 GNU/Linux 系统的对话都必须涉及 <code>cgroup</code>（在我们的例子中是 <code>v2</code>）和 <code>systemd</code> 主题。我将向您展示<strong>如何利用它们</strong>来充分发挥系统的潜力，构建可靠、可观察、可控的服务，并在值班时睡个好觉。</p>
+<p>如果读者具有中等程度的 GNU/Linux 知识和基本的编程技能，那么他们应该能够轻松理解本文内容。</p>
+<p>所有超过 5 行的代码示例都可以在 github 上找到：<a target="_blank" rel="noopener" href="https://github.com/brk0v/sre-page-cache-article">sre-page-cache-article</a>。</p>
+<h2 id="准备实验环境"><a href="#准备实验环境" class="headerlink" title="准备实验环境"></a>准备实验环境</h2><p>在开始之前，我希望与读者达成共识，以便能够执行、编译和检查任何示例或代码片段。因此，我们需要一个现代的 GNU/Linux 安装来处理代码和内核。</p>
+<p>如果您使用的是 Windows 或 Mac OS，我建议使用 <a target="_blank" rel="noopener" href="https://www.virtualbox.org/">Virtual Box</a> 安装 <a target="_blank" rel="noopener" href="https://www.vagrantup.com/">Vagrant</a> 。对于 GNU/Linux 发行版，我倾向于使用 <a target="_blank" rel="noopener" href="https://archlinux.org/">Arch Linux</a>。Arch 是现代 GNU/Linux 系统的实际示例（<a target="_blank" rel="noopener" href="https://i.redd.it/qxsttm8sg5k11.png">顺便说一句，我使用 Arch Linux</a>）。它支持最新的内核、systemd 和 cgroup v2。</p>
+<p>如果您已经在使用 Linux，那么您知道该怎么做 😉。</p>
+<blockquote>
+<p><strong>我可以使用 docker 吗？</strong></p>
+<p>很遗憾，不行。我们需要一个系统，可以自由发挥、突破 cgroup 限制、使用底层工具调试程序并以 root 用户身份运行代码且不受任何限制。</p>
+</blockquote>
+<p>下面我将展示您需要在 Arch 上安装的所有内容。</p>
+<h2 id="Arch-Linux-配置"><a href="#Arch-Linux-配置" class="headerlink" title="Arch Linux 配置"></a>Arch Linux 配置</h2><p>当您的 Arch 运行时，请更新系统并安装以下软件包：</p>
+<pre><code class="hljs bash">$ pacman -Sy git, base-devel, go</code></pre>
+
+<p>我们需要安装 <code>yay</code> (<a target="_blank" rel="noopener" href="https://github.com/Jguer/yay">https://github.com/Jguer/yay</a>) 以便能够从社区驱动的存储库安装软件：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cd</span> ~
+$ git <span class="hljs-built_in">clone</span> https://aur.archlinux.org/yay.git
+$ <span class="hljs-built_in">cd</span> yay
+$ makepkg -si</code></pre>
+
+<p>从 <code>aur</code> 安装 <code>vmtouch</code> 工具：</p>
+<pre><code class="hljs bash">$ yay -Sy vmtouch</code></pre>
+
+<p>我们需要从内核仓库获取 <code>page-type</code> 工具，因此安装它的最简单方法是下载 Linux 内核版本并手动编译：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">mkdir</span> kernel
+$ <span class="hljs-built_in">cd</span> kernel
+$ wget https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-5.14.tar.gz
+$ tar -xzf linux-5.14.tar.gz
+$ <span class="hljs-built_in">cd</span> linux-5.14/tools/vm
+$ make
+$ sudo make install</code></pre>
+
+<p>现在我们几乎准备好了。我们需要生成一个测试数据文件，它将用于我们对 Page Cache 的实验：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">dd</span> <span class="hljs-keyword">if</span>=/dev/random of=/var/tmp/file1.db count=128 bs=1M</code></pre>
+
+<p>最后一步是删除所有 Linux 缓存，使系统变得干净：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">sync</span>; <span class="hljs-built_in">echo</span> 3 | sudo <span class="hljs-built_in">tee</span> /proc/sys/vm/drop_caches</code></pre>
+
+<h2 id="Page-Cache-关键原理"><a href="#Page-Cache-关键原理" class="headerlink" title="Page Cache 关键原理"></a>Page Cache 关键原理</h2><p>首先我们先来问一些关于 Page Cache 的合理问题：</p>
+<ul>
+<li><strong>Linux Page Cache</strong> 是什么？</li>
+<li>它解决了什么问题？</li>
+<li>为什么我们称之为 <strong>«Page»</strong> Cache？</li>
+</ul>
+<p>本质上，Page Cache 是虚拟文件系统（<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Virtual_file_system">VFS</a>）的一部分，其主要目的（正如您所猜测的）是改善读写操作的 IO 延迟。write-back 缓存算法是 Page Cache 的核心构建块。</p>
+<blockquote>
+<p><strong>注意</strong></p>
+<p>如果你对 write-back 算法感到好奇（您应该如此），它在 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Cache_%28computing%29#Writing_policies">维基百科</a> 上有很好的描述，我鼓励您阅读它，或者至少查看带有流程图及其主要操作的图表。</p>
+</blockquote>
+<p>Page Cache 中的 “Page” 表示 Linux 内核使用称为页的内存单元。跟踪和管理信息的字节甚至比特会很麻烦和困难。因此，Linux 的方法（顺便说一句，不仅仅是 Linux）是在几乎所有结构和操作中使用页（**通常长度为 <code>4K</code>**）。因此，Page Cache 中的最小存储单位是页，无论您要读取或写入多少数据都无关紧要。所有文件 IO 请求都与一定数量的页对齐。</p>
+<p>上述内容引出了一个重要的事实：<strong>如果您的写入小于页大小，则内核将在您的写入完成之前读取整个页</strong>。</p>
+<p>下图展示了 Page Cache 的基本操作。我将其分为读取和写入。</p>
+<p><img src="/images/linux-page-cache-minibook-cn/linux%20page%20cache%20minibook-20241211233132-1.png"></p>
+<p>可以看到，所有数据读写都经过 Page Cache。不过 <code>Direct IO</code> （ <code>DIO</code> ）有一些例外，我会在本系列的最后讨论。目前，我们先忽略它们。</p>
+<blockquote>
+<p><strong>注意</strong></p>
+<p>在接下来的章节中，我将讨论 <code>read()</code>、<code>write()</code>、<code>mmap()</code> 以及其他系统调用。我需要指出的是，一些编程语言（例如 Python）具有同名的 file 函数。但是，这些函数并不 <em>完全</em> 对应到相应的系统调用。此类函数通常执行缓冲 IO。请记住这一点。</p>
+</blockquote>
+<h3 id="读取请求"><a href="#读取请求" class="headerlink" title="读取请求"></a>读取请求</h3><p>一般来说，内核按以下方式处理读取：</p>
+<ol>
+<li>当用户空间应用程序想要从磁盘读取数据时，它使用特殊的系统调用（例如 <code>read()</code>、<code>pread()</code>、<code>vread()</code>、<code>mmap()</code>、<code>sendfile()</code> 等）向内核请求数据。</li>
+<li>Linux 内核则会检查页是否存在于 Page Cache 中，如果存在，则立即将其返回给调用者。如您所见，在这种情况下，内核没有进行任何磁盘操作。</li>
+<li>如果 Page Cache 中没有这些页，内核必须从磁盘加载它们。为此，它必须在 Page Cache 中为请求的页找到一个位置。如果没有可用内存（在调用者的 cgroup 或系统中），则必须执行内存回收过程。之后，内核会安排读取磁盘 IO 操作，将目标页存储在内存中，并最终将请求的数据从 Page Cache 返回给目标进程。从此刻开始，任何未来读取文件该部分数据的请求（无论来自哪个进程或 cgroup）都将由 Page Cache 处理，而无需任何磁盘 IOP，直至这些页被驱逐。</li>
+</ol>
+<h3 id="写入请求"><a href="#写入请求" class="headerlink" title="写入请求"></a>写入请求</h3><p>让我们一步步地重复写入的流程：</p>
+<ol>
+<li>当用户空间程序想要将一些数据写入磁盘时，它也会使用一堆系统调用，例如：<code>write()</code>、<code>pwrite()</code>、<code>writev()</code>、<code>mmap()</code> 等。与读取相比，写入通常更快，因为真正的磁盘 IO 操作不会立即执行。然而，只有在系统或 cgroup 没有内存压力问题，并且有足够的可用页时，才是正确的（我们稍后会讨论驱逐过程）。所以通常内核只更新 Page Cache 中的页。它使写入流本质上是异步的。调用者不知道何时发生实际的页刷新，但它知道后续读取将返回最新数据。Page Cache 维持所有进程和 cgroup 之间的数据一致性。包含未刷新数据的此类页有一个特殊的名称：<strong>脏页</strong>。</li>
+<li>如果进程的数据并不重要，它可以依靠内核及其 flush 进程，最终将数据持久保存到物理磁盘。但是，如果您开发数据库管理系统（例如，用于货币交易），则需要写入保证以保护您的记录免受突然断电的影响。对于这种情况，Linux 提供了 <code>fsync()</code>、<code>fdatasync()</code> 和 <code>msync()</code> 系统调用，它们会阻塞，直到文件的所有脏页都提交到磁盘。还有 <code>open()</code> 标志：<code>O_SYNC</code> 和 <code>O_DSYNC</code>，您也可以使用它们来使所有文件写入操作默认持久。我稍后会展示此逻辑的一些示例。</li>
+</ol>
+<h2 id="Page-Cache-和基本文件操作"><a href="#Page-Cache-和基本文件操作" class="headerlink" title="Page Cache 和基本文件操作"></a>Page Cache 和基本文件操作</h2><p>现在是时候撸起袖子，开始实践一些实际的例子了。读完本章后，你将知道如何与 Page Cache 交互以及可以使用哪些工具。</p>
+<p>本节所需的实用程序：</p>
+<ul>
+<li><code>sync</code>( <a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man1/sync.1.html"><code>man 1 sync</code></a>) – 将所有脏页刷新到持久存储的工具；</li>
+<li><code>/proc/sys/vm/drop_caches</code>（ <a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man5/proc.5.html"><code>man 5 proc</code></a>） – 触发 Page Cache 清除的内核 <code>procfs</code> 文件；</li>
+<li><a target="_blank" rel="noopener" href="https://github.com/hoytech/vmtouch"><code>vmtouch</code></a> – 一种通过文件路径获取特定文件的 Page Cache 信息的工具。</li>
+</ul>
+<blockquote>
+<p><strong>注意</strong></p>
+<p>当前我们先忽略 <code>vmtouch</code> 的工作原理。稍后我将展示如何编写一个几乎包含所有功能的替代版本。</p>
+</blockquote>
+<h3 id="文件读取"><a href="#文件读取" class="headerlink" title="文件读取"></a>文件读取</h3><h4 id="使用-read-系统调用读取文件"><a href="#使用-read-系统调用读取文件" class="headerlink" title="使用 read() 系统调用读取文件"></a>使用 <code>read()</code> 系统调用读取文件</h4><p>我从简单的程序开始，该程序从测试文件 <code>/var/tmp/file1.db</code> 中读取前 2 个字节。</p>
+<pre><code class="hljs python"><span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"br"</span>) <span class="hljs-keyword">as</span> f:
+    <span class="hljs-built_in">print</span>(f.read(<span class="hljs-number">2</span>))</code></pre>
+
+<p>通常，这些类型的读取请求会被转换为 <code>read()</code> 系统调用。让我们使用 <code>strace</code>( <a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man1/strace.1.html"><code>man 1 strace</code></a> ) 运行脚本以确认 <code>f.read()</code> 使用了 <code>read()</code> 系统调用：</p>
+<pre><code class="hljs bash">$ strace -s0 python3 ./read_2_bytes.py</code></pre>
+
+<p>输出应如下所示：</p>
+<pre><code class="hljs bash">...
+openat(AT_FDCWD, <span class="hljs-string">"./file1.db"</span>, O_RDONLY|O_CLOEXEC) = 3
+...
+<span class="hljs-built_in">read</span>(3, <span class="hljs-string">"%B\353\276\0053\356\346Nfy2\354[&amp;\357\300\260%D6<span class="hljs-variable">$b</span>?'\31\237_fXD\234"</span>..., 4096) = 4096
+...</code></pre>
+
+<blockquote>
+<p><strong>注意</strong></p>
+<p>尽管脚本仅请求 2 个字节，但 <code>read()</code> 系统调用返回了 4096 个字节（一页）。这是 Python 优化和内部缓冲 IO 的一个例子。虽然这超出了本文的范围，但在某些情况下，记住这一点很重要。</p>
+</blockquote>
+<p>现在让我们检查一下内核缓存了多少数据。为了获取此信息，我们使用 <code>vmtouch</code>：</p>
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db</code></pre>
+
+<pre><code class="hljs bash">         Files: 1       LOOK HERE
+   Directories: 0          ⬇
+Resident Pages: 20/32768  80K/128M  0.061%
+       Elapsed: 0.001188 seconds</code></pre>
+
+<p>从输出可以看到，内核缓存的数据量不是 <code>Python</code> 请求的 2B，而是 80KiB 或 20 页。</p>
+<p>根据设计，内核无法将小于 4KiB 或一页的内容加载到 Page Cache 中，但其他 19 页是怎么回事？这是内核<strong>预读</strong>逻辑和优先执行顺序 IO 操作而非随机 IO 操作的一个很好的例子。基本思想是<strong>预测后续读取并尽量减少磁盘寻道次数</strong>。系统调用可以控制此行为：<code>posix_fadvise()</code>（<a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/posix_fadvise.2.html"><code>man 2 posix_fadvise</code></a>）和 <code>readahead()</code>（<a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/readahead.2.html"><code>man 2 readahead</code></a>）。</p>
+<blockquote>
+<p><strong>注意</strong></p>
+<p>通常，在生产环境中，数据库管理系统和存储调整默认预读参数不会产生太大影响。如果 DBMS 不需要预读缓存的数据，则内核内存回收策略最终应将这些页从 Page Cache 中逐出。通常，顺序 IO 对内核和硬件来说并不昂贵。完全禁用预读甚至可能会导致性能下降，因为内核队列中的磁盘 IO 操作数量增加、上下文切换增多以及内核内存管理子系统识别工作集所需时间增加。我们将在本系列的后面讨论内存回收策略、内存压力和缓存写回。</p>
+</blockquote>
+<p>现在让我们使用 <code>posix_fadvise()</code> 通知内核我们正在随机读取文件，因此我们不想有任何预读功能：</p>
+<pre><code class="hljs python"><span class="hljs-keyword">import</span> os
+
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"br"</span>) <span class="hljs-keyword">as</span> f:
+    fd = f.fileno()
+    os.posix_fadvise(fd, <span class="hljs-number">0</span>, os.fstat(fd).st_size, os.POSIX_FADV_RANDOM)
+    <span class="hljs-built_in">print</span>(f.read(<span class="hljs-number">2</span>))</code></pre>
+
+<p>在运行脚本之前，我们需要清除所有缓存：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">echo</span> 3 | sudo <span class="hljs-built_in">tee</span> /proc/sys/vm/drop_caches &amp;&amp; python3 ./read_2_random.py</code></pre>
+
+<p>现在，如果你检查 <code>vmtouch</code> 输出，你会看到只有一页，正如预期的那样：</p>
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db</code></pre>
+
+<pre><code class="hljs bash">         Files: 1     LOOK HERE
+   Directories: 0        ⬇
+Resident Pages: 1/32768  4K/128M  0.00305%
+       Elapsed: 0.001034 seconds</code></pre>
+
+<h4 id="使用-mmap-系统调用读取文件"><a href="#使用-mmap-系统调用读取文件" class="headerlink" title="使用 mmap() 系统调用读取文件"></a>使用 <code>mmap()</code> 系统调用读取文件</h4><p>为了从文件中读取数据，我们还可以使用 <code>mmap()</code> 系统调用 ( <a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/mmap.2.html"><code>man 2 mmap</code></a>)。<code>mmap()</code> 是一种“神奇”工具，可用于处理各种任务。但对于我们的测试，我们只需要其一个特性 —— 将文件映射到进程内存中，以便将文件作为扁平的数组访问。我稍后会更详细地讨论 <code>mmap()</code>。但目前，如果您不熟悉它，应该可以从以下示例中理解 <code>mmap()</code> API ：</p>
+<pre><code class="hljs python"><span class="hljs-keyword">import</span> mmap
+
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"r"</span>) <span class="hljs-keyword">as</span> f:
+    <span class="hljs-keyword">with</span> mmap.mmap(f.fileno(), <span class="hljs-number">0</span>, prot=mmap.PROT_READ) <span class="hljs-keyword">as</span> mm:
+        <span class="hljs-built_in">print</span>(mm[:<span class="hljs-number">2</span>])</code></pre>
+
+<p>上述代码与我们刚刚使用 <code>read()</code> 系统调用所做的操作相同。它读取文件的前 2 个字节。</p>
+<p>此外，出于测试目的，我们需要在执行脚本之前清除所有缓存：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">echo</span> 3 | sudo <span class="hljs-built_in">tee</span> /proc/sys/vm/drop_caches &amp;&amp; python3 ./read_2_mmap.py</code></pre>
+
+<p>检查 Page Cache 内容：</p>
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db</code></pre>
+
+<pre><code class="hljs bash">         Files: 1.       LOOK HERE
+   Directories: 0           ⬇
+Resident Pages: 1024/32768  4M/128M  3.12%
+       Elapsed: 0.000627 seconds</code></pre>
+
+<p>正如您所见，<code>mmap()</code> 执行了更为激进的预读。</p>
+<p>让我们像之前 <code>fadvise()</code> 所做的那样，使用 <code>madvise()</code> 系统调用来改变预读。</p>
+<pre><code class="hljs python"><span class="hljs-keyword">import</span> mmap
+
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"r"</span>) <span class="hljs-keyword">as</span> f:
+    <span class="hljs-keyword">with</span> mmap.mmap(f.fileno(), <span class="hljs-number">0</span>, prot=mmap.PROT_READ) <span class="hljs-keyword">as</span> mm:
+        mm.madvise(mmap.MADV_RANDOM)
+        <span class="hljs-built_in">print</span>(mm[:<span class="hljs-number">2</span>])</code></pre>
+
+<p>运行它：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">echo</span> 3 | sudo <span class="hljs-built_in">tee</span> /proc/sys/vm/drop_caches &amp;&amp; python3 ./read_2_mmap_random.py</code></pre>
+
+<p>Page Cache 内容：</p>
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db</code></pre>
+
+<pre><code class="hljs bash">         Files: 1     LOOK HERE
+   Directories: 0        ⬇
+Resident Pages: 1/32768  4K/128M  0.00305%
+       Elapsed: 0.001077 seconds</code></pre>
+
+<p>从上面的输出可以看出，使用该 <code>MADV_RANDOM</code> 标志，我们成功地从磁盘读取了一页，并在 Page Cache 中存储了一页数据。</p>
+<h3 id="文件写入"><a href="#文件写入" class="headerlink" title="文件写入"></a>文件写入</h3><p>现在让我们来试下写入。</p>
+<h4 id="使用-write-系统调用写入"><a href="#使用-write-系统调用写入" class="headerlink" title="使用 write() 系统调用写入"></a>使用 <code>write()</code> 系统调用写入</h4><p>让我们继续使用我们的实验文件，并尝试更新前 2 个字节：</p>
+<pre><code class="hljs py"><span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"br+"</span>) <span class="hljs-keyword">as</span> f:
+    <span class="hljs-built_in">print</span>(f.write(<span class="hljs-string">b"ab"</span>))</code></pre>
+
+<blockquote>
+<p><strong>注意</strong></p>
+<p>小心，不要用 <code>w</code> 模式打开文件。它会用 2 个字节重写你的文件。我们需要 <code>r+</code> 模式。</p>
+</blockquote>
+<p>清除所有缓存，并运行上述脚本：</p>
+<pre><code class="hljs bash"><span class="hljs-built_in">sync</span>; <span class="hljs-built_in">echo</span> 3 | sudo <span class="hljs-built_in">tee</span> /proc/sys/vm/drop_caches &amp;&amp; python3 ./write_2_bytes.py</code></pre>
+
+<p>现在让我们检查一下 Page Cache 的内容。</p>
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db
+           Files: 1     LOOK HERE
+     Directories: 0        ⬇
+  Resident Pages: 1/32768  4K/128M  0.00305%
+         Elapsed: 0.000674 seconds</code></pre>
+
+<p>如您所见，我们仅写入 2B 就缓存了 1 个页。这是一个重要的观察，为了填充 Page Cache，<strong>如果您的写入大小小于页大小，则在写入之前将进行 4KiB 读取</strong>。</p>
+<p>另外，我们可以通过读取当前 cgroup 内存统计文件来检查脏页。</p>
+<p>获取当前终端的 cgroup：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/self/cgroup
+0::/user.slice/user-1000.slice/session-4.scope</code></pre>
+
+<pre><code class="hljs bash">$ grep dirty /sys/fs/cgroup/user.slice/user-1000.slice/session-3.scope/memory.stat
+file_dirty 4096</code></pre>
+
+<p>如果看到 0，显然您很幸运，脏页已经写入磁盘，请再次运行该脚本。</p>
+<h4 id="使用-mmap-系统调用写入"><a href="#使用-mmap-系统调用写入" class="headerlink" title="使用 mmap() 系统调用写入"></a>使用 <code>mmap()</code> 系统调用写入</h4><p>现在让我们使用 <code>mmap()</code> 重复写入：</p>
+<pre><code class="hljs python"><span class="hljs-keyword">import</span> mmap
+
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"r+b"</span>) <span class="hljs-keyword">as</span> f:
+    <span class="hljs-keyword">with</span> mmap.mmap(f.fileno(), <span class="hljs-number">0</span>) <span class="hljs-keyword">as</span> mm:
+        mm[:<span class="hljs-number">2</span>] = <span class="hljs-string">b"ab"</span></code></pre>
+
+<p>您可以重复上述命令，并使用 <code>vmtouch</code> 和 cgroup<code>grep</code> 来获取脏页，您应该会得到相同的输出。唯一的例外是预读策略。默认情况下，即使对于写入请求，<code>mmap()</code> 也会在 Page Cache 中加载更多数据。</p>
+<h4 id="脏页"><a href="#脏页" class="headerlink" title="脏页"></a>脏页</h4><p>正如我们之前看到的，进程通过 Page Cache 写入文件会生成脏页。</p>
+<p>Linux 提供了几种方法获取脏页数量。最早且最古老的一种方法是读取 <code>/proc/meminfo</code>：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/meminfo | grep Dirty
+Dirty:                 4 kB</code></pre>
+
+<p>完整的系统信息通常很难理解和使用，因为我们无法确定哪个进程和文件包含这些脏页。</p>
+<p>这就是为什么获取脏页信息的最佳选择是使用 cgroup：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /sys/fs/cgroup/user.slice/user-1000.slice/session-3.scope/memory.stat  | grep dirt
+file_dirty 4096</code></pre>
+
+<p>如果您的程序使用 <code>mmap()</code> 写入文件，您还有另一个方法可以获取进程级粒度的脏页统计信息。<code>procfs</code> 的 <code>/proc/PID/smaps</code> 文件。它包含按虚拟内存区域 (VMA) 细分的进程内存计数器。通过查找以下内容，我们可以获取脏页信息：</p>
+<ul>
+<li><code>Private_Dirty</code> – 此进程产生的脏数据量；</li>
+<li><code>Shared_Dirty</code> – 以及其他进程写入的数量。此指标仅显示引用页的数据。这意味着进程应该访问页并将其保存在其 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Page_table">页表</a> 中（稍后将详细介绍）。</li>
+</ul>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/578097/smaps | grep file1.db -A 12 | grep Dirty
+Shared_Dirty:          0 kB
+Private_Dirty:       736 kB</code></pre>
+
+<p>但是如果我们想要获取某个文件的脏页统计信息该怎么办？为了回答这个问题，Linux 内核的 <code>procfs</code> 提供了 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/Documentation/vm/pagemap.txt">2 个文件</a>：<code>/proc/PID/pagemap</code> 和 <code>/proc/kpageflags</code>。我将在本系列的后面部分展示如何使用它们编写我们自己的工具，但现在我们可以使用 Linux 内核仓库中的调试工具来获取每个文件的页信息：<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/master/tools/vm/page-types.c"><code>page-types</code></a>。</p>
+<pre><code class="hljs bash">$ sudo page-types -f /var/tmp/file1.db -b dirty</code></pre>
+
+<pre><code class="hljs bash">             flags      page-count       MB  symbolic-flags                     long-symbolic-flags
+0x0000000000000838             267        1  ___UDl_____M________________________________       uptodate,dirty,lru,mmap
+0x000000000000083c              20        0  __RUDl_____M________________________________       referenced,uptodate,dirty,lru,mmap
+             total             287        1</code></pre>
+
+<p>我根据 <code>dirty</code> 标志过滤出文件 <code>/var/tmp/file1.db</code> 的所有页 。在输出中，你可以看到文件有 287 个脏页或 1 MiB 的脏数据，这些数据最终将持久化到存储中。<code>page-type</code> 根据标志聚合页，因此输出中有 2 组。两者都有脏标志 <code>D</code>，它们之间的区别在于引用标志 <code>R</code>（我将在后面的 Page Cache 驱逐部分简要介绍它）。</p>
+<h4 id="使用-fsync-、fdatasync-和-msync-同步文件更改"><a href="#使用-fsync-、fdatasync-和-msync-同步文件更改" class="headerlink" title="使用 fsync()、fdatasync() 和 msync() 同步文件更改"></a>使用 <code>fsync()</code>、<code>fdatasync()</code> 和 <code>msync()</code> 同步文件更改</h4><p>我们已经在每次测试之前使用 <code>sync</code>(<code>man 1 sync</code>) 将所有脏页刷新到磁盘，以获得一个没有任何干扰的干净系统。但是，如果我们想编写一个数据库管理系统，并且需要确保在断电或其他硬件错误发生之前的所有写操作都将写入到磁盘，该怎么办？对于这种情况，Linux 提供了几种方法来强制内核对 Page Cache 中的文件执行同步：</p>
+<ul>
+<li><code>fsync()</code> – 阻塞直至目标文件及其元数据的所有脏页都被同步为止；</li>
+<li><code>fdatasync()</code> – 与上述相同，但不包括元数据；</li>
+<li><code>msync()</code> – 与 <code>fsync()</code> 相同，但用于内存映射文件；</li>
+<li>使用 <code>O_SYNC</code> 或 <code>O_DSYNC</code> 标志打开文件，使所有文件写入默认同步，并相应地作为 <code>fsync()</code>、<code>fdatasync()</code> 系统调用工作。</li>
+</ul>
+<blockquote>
+<p><strong>注意</strong></p>
+<p>您仍然需要关注写屏障并了解底层文件系统的工作原理，因为内核调度程序可能会重新排列写操作的顺序。通常，文件追加操作是安全的，不会破坏之前写入的数据。其他类型的变异操作可能会弄乱您的文件（例如，对于 ext4，即使使用默认日志也是如此）。这就是为什么几乎所有数据库管理系统（如 MongoDB、PostgreSQL、Etcd、Dgraph 等）都具有仅追加的预写日志 (WAL)。但也有一些例外。如果您对这个主题更感兴趣，<a target="_blank" rel="noopener" href="https://dgraph.io/blog/post/alice/">Dgraph 的这篇博客文章</a> 是一个很好的起点。</p>
+<p>不过也有一些例外。例如， <a target="_blank" rel="noopener" href="http://www.lmdb.tech/doc/"><code>lmdb</code></a>（及其克隆，<a target="_blank" rel="noopener" href="https://github.com/etcd-io/bbolt"><code>bboltdb</code></a> 来自 <a target="_blank" rel="noopener" href="https://etcd.io/"><code>etcd</code></a>）<a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=tEa5sAh-kVk">使用了一个巧妙的想法，即保留其 B+ 树的两个根并执行写时复制</a>。</p>
+</blockquote>
+<p>以下是文件同步的示例：</p>
+<pre><code class="hljs python"><span class="hljs-keyword">import</span> os
+
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"br+"</span>) <span class="hljs-keyword">as</span> f:
+    fd = f.fileno()
+    os.fsync(fd)</code></pre>
+
+<h4 id="使用-mincore-检查-Page-Cache-中的文件存在"><a href="#使用-mincore-检查-Page-Cache-中的文件存在" class="headerlink" title="使用 mincore() 检查 Page Cache 中的文件存在"></a>使用 <code>mincore()</code> 检查 Page Cache 中的文件存在</h4><p>在进一步之前，我们先弄清楚 <code>vmtouch</code> 如何显示目标文件 Page Cache 包含多少页。</p>
+<p>秘密在于 <code>mincore()</code> 系统调用（<a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/mincore.2.html"><code>man 2 mincore</code></a>）。<code>mincore()</code> 代表“核心内存”。其参数是起始虚拟内存地址、地址空间长度和结果向量。 <code>mincore()</code> 与内存（而非文件）交互，因此可用于检查匿名内存是否已被换出。</p>
+<blockquote>
+<p><code>man 2 mincore</code></p>
+<p><code>mincore()</code> 返回一个向量，该向量指示调用进程的虚拟内存页是否驻留在内核 (RAM) 中，因此在引用时，不会导致磁盘访问 (缺页中断)。内核返回从地址 addr，长度为 length 个字节的页驻留信息。</p>
+</blockquote>
+<p>因此，要进行复制 <code>vmtouch</code>，我们需要将文件映射到进程的虚拟内存中，即使我们不进行读取或写入。我们只是希望将其放在进程内存区域中（稍后在 <code>mmap()</code> 部分将详细介绍这一点）。</p>
+<p>现在，我们已经准备好编写自己的简单版本 <code>vmtouch</code>，以便通过文件路径显示缓存页。我在这里使用 <code>go</code>，因为不幸的是，Python 没有一种简单的方法来调用 <code>mincore()</code> 系统调用：</p>
+<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> (
+	<span class="hljs-string">"fmt"</span>
+	<span class="hljs-string">"log"</span>
+	<span class="hljs-string">"os"</span>
+	<span class="hljs-string">"syscall"</span>
+	<span class="hljs-string">"unsafe"</span>
+)
+
+<span class="hljs-keyword">var</span> (
+	pageSize = <span class="hljs-type">int64</span>(syscall.Getpagesize())
+	mode     = os.FileMode(<span class="hljs-number">0600</span>)
+)
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> {
+	path := <span class="hljs-string">"/var/tmp/file1.db"</span>
+
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NOATIME, mode)
+	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+		log.Fatal(err)
+	}
+	<span class="hljs-keyword">defer</span> file.Close()
+
+	stat, err := os.Lstat(path)
+	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> {
+		log.Fatal(err)
+	}
+	size := stat.Size()
+	pages := size / pageSize
+
+	mm, err := syscall.Mmap(<span class="hljs-type">int</span>(file.Fd()), <span class="hljs-number">0</span>, <span class="hljs-type">int</span>(size), syscall.PROT_READ, syscall.MAP_SHARED)
+	<span class="hljs-keyword">defer</span> syscall.Munmap(mm)
+
+	mmPtr := <span class="hljs-type">uintptr</span>(unsafe.Pointer(&amp;mm[<span class="hljs-number">0</span>]))
+	cached := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</span>, pages)
+
+	sizePtr := <span class="hljs-type">uintptr</span>(size)
+	cachedPtr := <span class="hljs-type">uintptr</span>(unsafe.Pointer(&amp;cached[<span class="hljs-number">0</span>]))
+
+	ret, _, err := syscall.Syscall(syscall.SYS_MINCORE, mmPtr, sizePtr, cachedPtr)
+	<span class="hljs-keyword">if</span> ret != <span class="hljs-number">0</span> {
+		log.Fatal(<span class="hljs-string">"syscall SYS_MINCORE failed: %v"</span>, err)
+	}
+
+	n := <span class="hljs-number">0</span>
+	<span class="hljs-keyword">for</span> _, p := <span class="hljs-keyword">range</span> cached {
+		<span class="hljs-comment">// the least significant bit of each byte will be set if the corresponding page</span>
+		<span class="hljs-comment">// is currently resident in memory, and be clear otherwise.</span>
+		<span class="hljs-keyword">if</span> p%<span class="hljs-number">2</span> == <span class="hljs-number">1</span> {
+			n++
+		}
+	}
+
+	fmt.Printf(<span class="hljs-string">"Resident Pages: %d/%d  %d/%d\n"</span>, n, pages, n*<span class="hljs-type">int</span>(pageSize), size)
+}</code></pre>
+
+<p>运行它：</p>
+<pre><code class="hljs bash">$ go run ./main.go</code></pre>
+
+<pre><code class="hljs bash">Resident Pages: 1024/32768  4194304/134217728</code></pre>
+
+<p>并将其与 <code>vmtouch</code> 输出进行比较：</p>
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db
+           Files: 1         LOOK HERE
+     Directories: 0            ⬇
+  Resident Pages: 1024/32768  4M/128M  3.12%
+         Elapsed: 0.000804 seconds</code></pre>
+
+<h2 id="Page-Cache-驱逐与回收"><a href="#Page-Cache-驱逐与回收" class="headerlink" title="Page Cache 驱逐与回收"></a>Page Cache 驱逐与回收</h2><p>到目前为止，我们已经讨论了通过读取和写入文件向 Page Cache 添加数据、检查缓存中文件的存在以及手动刷新缓存内容。但任何缓存系统最关键的部分是其<strong>驱逐策略</strong>，或者对于 Linux Page Cache，它也是内存<strong>页回收</strong>策略。与任何其他缓存一样，Linux Page Cache 会持续监视最后使用的页，并决定应删除哪些页以及应将哪些页保留在缓存中。</p>
+<p>控制和调整 Page Cache 的主要方法是 cgroup 子系统。您可以将服务器的内存划分为几个较小的缓存（cgroup），从而控制和保护应用程序和服务。此外，cgroup 内存和 IO 控制器提供大量统计数据，这些数据对于调优软件和了解缓存的内部情况非常有用。</p>
+<h3 id="理论"><a href="#理论" class="headerlink" title="理论"></a>理论</h3><p>Linux Page Cache 与 Linux 内存管理、cgroup 和虚拟文件系统 (VFS) 紧密相关。因此，为了理解驱逐的工作原理，我们需要从内存回收策略的一些基本内部原理开始。其核心结构是<strong>active 和 inactive 列表</strong>，每个 cgroup <strong>一对</strong>：</p>
+<ol>
+<li>第一对用于匿名内存（例如，使用 <code>malloc()</code> 或非文件的 <code>mmap()</code> 分配）；</li>
+<li>第二对用于 Page Cache 文件内存（所有文件操作包括 <code>read()</code>、<code>write</code>、文件的 <code>mmap()</code> 访问等）。</li>
+</ol>
+<p>前者正是我们感兴趣的，linux 用于 Page Cache 驱逐过程的就是这一对，每个链表的核心都是最近最少使用算法 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Cache_replacement_policies%23Least_recently_used_%2528LRU%2529">LRU</a>，反过来，这 2 个链表又组成了一个 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Page_replacement_algorithm%23Clock">双时钟</a> 的数据结构，一般来说 linux 应该选择最近没用过（inactive）的页，因为最近没用过的页在短时间内不会被频繁使用，这就是 LRU 算法的基本思想。active 链表和 inactive 链表的条目都采用了 FIFO（先进先出）的形式，新元素被添加到链表的头部，中间的元素逐渐向尾部移动，当需要内存回收的时候，内核总是选择 inactive 链表尾部的页进行释放，下图是该思想的简化：</p>
+<p>!<img src="/images/linux-page-cache-minibook-cn/linux%20page%20cache%20minibook-20241211233132-2.png"></p>
+<p>例如，系统启动时，列表的内容如下。用户进程刚刚从磁盘读取了一些数据。此操作触发内核将数据加载到缓存中。这是内核第一次访问该文件。因此，内核在进程 cgroup 的 inactive 列表的头部添加一个页 <code>h</code> ：</p>
+<p><img src="/images/linux-page-cache-minibook-cn/linux%20page%20cache%20minibook-20241211233132-3.png"></p>
+<p>一段时间后，系统又加载了 2 个额外的页：<code>i</code> 和 <code>j</code> 到 inactive 列表中，并相应地需要从列表中驱逐页 <code>a</code> 和 <code>b</code>。此操作也将所有页向 inactive LRU 列表的尾部移动，包括我们的页 <code>h</code> ：</p>
+<p><img src="/images/linux-page-cache-minibook-cn/linux%20page%20cache%20minibook-20241211233133-1.png"></p>
+<p>现在，对页 <code>h</code> 执行新的文件操作会将该页提升到 active LRU 列表的头部，将其置于头部。此操作还会将该页 <code>1</code> 移至 inactive LRU 列表的头部，并移动所有其他成员。</p>
+<p><img src="/images/linux-page-cache-minibook-cn/linux%20page%20cache%20minibook-20241211233133-2.png"></p>
+<p>随着时间的推移，页 <code>h</code> 在 active LRU 列表中失去了其头部位置。</p>
+<p><img src="/images/linux-page-cache-minibook-cn/linux%20page%20cache%20minibook-20241211233133-3.png"></p>
+<p>但一个新的文件访问到 <code>h</code> 在文件中的位置会将 <code>h</code> 移动到 active LRU 列表的头部。</p>
+<p><img src="/images/linux-page-cache-minibook-cn/linux%20page%20cache%20minibook-20241211233133-4.png"></p>
+<p>上图展示了该算法的简化版本。</p>
+<p>但值得一提的是，页提升和降级的实际过程要复杂精妙得多。</p>
+<p>首先，如果系统有 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Non-uniform_memory_access">NUMA</a> 硬件节点 ( <code>man 8 numastat</code>)，<strong>那么它将拥有 2 倍数量的 LRU 列表</strong>。原因是内核尝试将内存信息存储在 NUMA 节点中，以减少锁争用。</p>
+<p>此外，Linux Page Cache 具有<strong>特殊的影子和引用标志逻辑</strong>，用于页的提升、降级和重新提升。</p>
+<p><strong>影子条目</strong>有助于缓解 **<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Thrashing_%2528computer_science%2529">内存抖动问题</a>**。当程序的工作集大小接近或大于实际内存大小（可能是 cgroup 限制或系统 RAM 限制）时，就会发生此问题。在这种情况下，读取模式可能会在随后的第二个读取请求出现之前从 inactive 列表中逐出页。完整的想法描述于 <a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/v5.14-rc7/source/mm/workingset.c">mm/workingset.c</a>，其中包括计算 <strong>refault distance</strong>。此距离用于判断是否立即将影子条目放入 active LRU 列表。</p>
+<p>我做的另一个简化是关于 <a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/v5.14.3/source/include/linux/page-flags.h%23L105"><code>PG_referenced</code></a> 页标志。实际上，页提升和降级使用此标志作为决策算法中的额外输入参数。页提升的更正确流程：</p>
+<pre class="mermaid">flowchart LR
+    Start["Inactive LRU,<br>unreferenced"]
+    Second["Inactive LRU,<br>referenced"]
+    Third["Active LRU,<br>unreferenced"]
+    Stop["Active LRU,<br>referenced"]
+    Start --&gt; Second
+    Second --&gt; Third
+    Third --&gt; Stop</pre>
+
+<h3 id="使用-POSIX-FADV-DONTNEED-手动驱逐页"><a href="#使用-POSIX-FADV-DONTNEED-手动驱逐页" class="headerlink" title="使用 POSIX_FADV_DONTNEED 手动驱逐页"></a>使用 <code>POSIX_FADV_DONTNEED</code> 手动驱逐页</h3><p>我已经展示了如何使用 <code>/proc/sys/vm/drop_caches</code> 文件清除所有页缓存条目。但如果我们出于某种原因想要清除某个文件的缓存，该怎么办？</p>
+<blockquote>
+<p><strong>示例</strong></p>
+<p>在实际情况下，从缓存中清除文件有时很有用。假设我们想测试 MongoDB 在系统重启后恢复到最佳状态的速度。您可以停止一个副本，从 Page Cache 中清除其所有文件，然后重新启动它。</p>
+</blockquote>
+<p><code>vmtouch</code> 已经可以做到这一点。它的 <code>-e</code> 标志命令内核从 Page Cache 中逐出所请求文件的所有页：</p>
+<p>例如：</p>
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db -e
+           Files: 1
+     Directories: 0
+   Evicted Pages: 32768 (128M)
+         Elapsed: 0.000704 seconds</code></pre>
+
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db
+           Files: 1.    LOOK HERE
+     Directories: 0        ⬇
+  Resident Pages: 0/32768  0/128M  0% 
+  
+         Elapsed: 0.000566 seconds</code></pre>
+
+<p>让我们深入研究一下，弄清楚它是如何工作的。为了编写我们自己的工具，我们需要使用已见过的 <code>posix_fadvise</code> 系统调用和 <code>POSIX_FADV_DONTNEED</code> 选项。</p>
+<p>代码：</p>
+<pre><code class="hljs py"><span class="hljs-keyword">import</span> os
+
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"br"</span>) <span class="hljs-keyword">as</span> f:
+    fd = f.fileno()
+    os.posix_fadvise(fd, <span class="hljs-number">0</span>, os.fstat(fd).st_size, os.POSIX_FADV_DONTNEED)</code></pre>
+
+<p>为了测试，我使用 <code>dd</code> 将整个测试文件读入 Page Cache：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">dd</span> <span class="hljs-keyword">if</span>=/var/tmp/file1.db of=/dev/null  
+262144+0 records <span class="hljs-keyword">in</span>  
+262144+0 records out  
+134217728 bytes (134 MB, 128 MiB) copied, 0.652248 s, 206 MB/s</code></pre>
+
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db  
+           Files: 1         LOOK HERE
+     Directories: 0             ⬇
+  Resident Pages: 32768/32768  128M/128M  100%
+         Elapsed: 0.002719 seconds</code></pre>
+
+<p>现在，运行脚本后，我们应该在 Page Cache 中看到 0 个页：</p>
+<pre><code class="hljs bash">$ python3 ./evict_full_file.py</code></pre>
+
+<pre><code class="hljs bash">$ vmtouch /var/tmp/file1.db  
+           Files: 1     LOOK HERE
+     Directories: 0        ⬇
+  Resident Pages: 0/32768  0/128M  0%
+         Elapsed: 0.000818 seconds</code></pre>
+
+<h3 id="让内存不可驱逐"><a href="#让内存不可驱逐" class="headerlink" title="让内存不可驱逐"></a>让内存不可驱逐</h3><p>但是，如果你想要强制内核将文件内存保留在 Page Cache, 中，无论如何，该怎么办呢？这称为使文件内存<strong>不可驱逐</strong>。</p>
+<blockquote>
+<p><strong>示例</strong></p>
+<p>有时，您必须强制内核 100% 保证您的文件不会被从内存中逐出。即使使用现代 Linux 内核和正确配置的 cgroup 限制，您也可能需要这样做，这应该会将工作数据集保留在 Page Cache 中。例如，由于共享磁盘和网络 IO 的系统上的其他进程出现问题。或者，例如，由于网络附加存储（NAS）的中断。</p>
+</blockquote>
+<p>内核提供了一系列系统调用用于执行此操作： <code>mlock()</code> 、 <code>mlock2()</code> 和 <code>mlockall()</code> 。与 <code>mincore()</code> 类似，您必须首先映射文件。</p>
+<p><code>mlock2()</code> 是用于 Page Cache 操作的理想系统调用，因为它具有方便的标志 <code>MLOCK_ONFAULT</code> :</p>
+<blockquote>
+<p>锁定当前驻留的页，并标记整个范围，当剩余的非驻留页因缺页错误而填充时，锁定新填充的页。</p>
+</blockquote>
+<p>不要忘记考虑 <strong>limits</strong> ( <code>man 5 limits.conf</code>)。你可能需要增加它：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">ulimit</span> -l
+64</code></pre>
+
+<p>最后，要获取不可驱逐内存的数量，请检查对应 cgroup 的 cgroup 内存控制器的统计信息：</p>
+<pre><code class="hljs bash">$ grep unevictable /sys/fs/cgroup/user.slice/user-1000.slice/session-3.scope/memory.stat
+unevictable 0</code></pre>
+
+<h3 id="Page-Cache、vm-swappiness-和现代内核"><a href="#Page-Cache、vm-swappiness-和现代内核" class="headerlink" title="Page Cache、vm.swappiness 和现代内核"></a>Page Cache、<code>vm.swappiness</code> 和现代内核</h3><p>现在我们了解了基本的回收理论，包括 4 个 LRU 列表（用于匿名和文件内存）以及可驱逐/不可驱逐类型的内存，我们可以讨论重新填充系统空闲内存的来源。内核不断维护空闲页列表，以满足自身和用户空间的需求。如果此类列表低于阈值，Linux 内核将开始扫描 LRU 列表以查找要回收的页。使得内核能够保持内存处于某种平衡状态。</p>
+<p>Page Cache 内存通常是可驱逐内存（除了一些罕见的 <code>mlock()</code> 例外）。因此，Page Cache 应该是内存驱逐和回收的首选和唯一选项，这看起来可能很明显。因为磁盘已经拥有了所有数据，对吧？但幸运或不幸的是，在实际生产情况下，这并不总是最好的选择。</p>
+<p>如果系统有内存交换（<a target="_blank" rel="noopener" href="https://chrisdown.name/2018/01/02/in-defence-of-swap.html">现代内核应该有</a>），内核就多了一个选择。它可以交换出匿名（非文件的）页。这似乎违反直觉，但实际情况是，有时用户空间的守护进程可以加载大量的初始化代码，但之后永远不会使用它们。例如，某些程序（尤其是静态构建的程序）的二进制文件中可能有很多功能，仅在某些边缘情况下使用几次。在所有这些情况下，将它们保存在宝贵的内存中没有多大意义。</p>
+<p>所以，为了控制优先使用哪个 inactive LRU 列表进行扫描，内核有一个 <code>sysctl</code> <code>vm.swappiness</code> 参数。</p>
+<pre><code class="hljs bash">$ sudo sysctl -a | grep swap
+vm.swappiness = 60</code></pre>
+
+<p>关于这个神奇的设置有很多博客文章、故事和论坛帖子。除此之外，旧版 cgroup v1 内存子系统的每个 cgroup 有自己的 <code>swappiness</code> 参数。所有这些都使得当前 <code>vm.swappiness</code> 含义的信息难以理解和更改。但让我尝试解释一些最近的更改，并为你提供最新的链接。</p>
+<p>首先，默认 <code>vm.swappiness</code> 设置为 60，<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/a3fa7a101dcff93791d1b1bdb3affcad1410c8c1/mm/vmscan.c%23L174-L177">最小值为 0，最大值为 200</a>：</p>
+<pre><code class="hljs C"><span class="hljs-comment">/*</span>
+<span class="hljs-comment"> * From 0 .. 200.  Higher means more swappy.</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-type">int</span> vm_swappiness = <span class="hljs-number">60</span>;</code></pre>
+
+<p>值 100 意味着内核在回收方面同等考虑匿名页和 Page Cache 页。</p>
+<p>其次，cgroup v2 内存控制器根本没有 <code>swappiness</code> <a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/v5.15-rc1/source/include/linux/swap.h%23L706">参数</a>：</p>
+<pre><code class="hljs C"><span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_MEMCG</span>
+<span class="hljs-type">static</span> <span class="hljs-keyword">inline</span> <span class="hljs-type">int</span> <span class="hljs-title function_">mem_cgroup_swappiness</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> mem_cgroup *memcg)</span>
+{
+	<span class="hljs-comment">/* Cgroup2 doesn't have per-cgroup swappiness */</span>
+	<span class="hljs-keyword">if</span> (cgroup_subsys_on_dfl(memory_cgrp_subsys))
+		<span class="hljs-keyword">return</span> vm_swappiness;
+
+	<span class="hljs-comment">/* root ? */</span>
+	<span class="hljs-keyword">if</span> (mem_cgroup_disabled() || mem_cgroup_is_root(memcg))
+		<span class="hljs-keyword">return</span> vm_swappiness;
+
+	<span class="hljs-keyword">return</span> memcg-&gt;swappiness;</code></pre>
+
+<p>相反，内核开发者决定大幅改变 swappiness 逻辑。你可以通过在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blame/a3fa7a101dcff93791d1b1bdb3affcad1410c8c1/mm/vmscan.c#L2574"><code>mm/vmscan.c</code> 上运行  <code>git blame</code>  并搜索 <code>get_scan_count()</code> 函数来检查它</a>。</p>
+<p>例如，在撰写本文时，无论 <code>vm.swappiness</code> 如何，只要 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/a3fa7a101dcff93791d1b1bdb3affcad1410c8c1/mm/vmscan.c#L2623-L2630">inactive 的 LRU Page Cache 列表中有足够的页</a>，匿名内存都不会被触及：</p>
+<pre><code class="hljs C"><span class="hljs-comment">/*</span>
+<span class="hljs-comment"> * If there is enough inactive page cache, we do not reclaim</span>
+<span class="hljs-comment"> * anything from the anonymous working right now.</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-keyword">if</span> (sc-&gt;cache_trim_mode) {
+	scan_balance = SCAN_FILE;
+	<span class="hljs-keyword">goto</span> out;
+}</code></pre>
+
+<p>在关于从哪个 LRU 回收以及回收什么的决策的完整逻辑，您可以在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/master/mm/vmscan.c"><code>mm/vmscan.c</code>  的 <code>get_scan_count()</code> 函数</a> 中找到。</p>
+<p>另外，请查看 <code>memory.swap.high</code> 和 <code>memory.swap.max</code> cgroup v2 设置。如果您想纠正 <code>vm.swappiness</code> 逻辑以适应您的 cgroup 和负载模式，您可以控制它们。</p>
+<p>处理交换和 Page Cache 时，另一个值得注意的问题是换入/出过程中的 IO 负载。如果有 IO 压力，则很容易达到 IO 限制，例如，降低 Page Cache 的写回性能。</p>
+<h3 id="通过-proc-pid-pagemap-理解内存回收过程"><a href="#通过-proc-pid-pagemap-理解内存回收过程" class="headerlink" title="通过 /proc/pid/pagemap 理解内存回收过程"></a>通过 <code>/proc/pid/pagemap</code> 理解内存回收过程</h3><p>现在是时候探讨初级故障排查技术了。</p>
+<p>有一个 <code>/proc/PID/pagemap</code> 文件，包含 PID 的页表信息。<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Page_table">页表</a>，从根本上讲，是内核在页框（存储在 RAM 中的实际物理内存页）和进程的虚拟页之间的内部映射。Linux 系统中的每个进程都有自己的虚拟内存地址空间，该空间完全独立于其他进程和物理内存地址。</p>
+<p><code>/proc/PID/pagemap</code> 相关的文件的完整的文档，包括数据格式和读取方式，可以在 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/Documentation/vm/pagemap.txt">内核文档文件夹</a> 中找到。我强烈建议您在继续阅读以下部分之前先阅读它。</p>
+<h4 id="page-types-内核页工具"><a href="#page-types-内核页工具" class="headerlink" title="page-types 内核页工具"></a><code>page-types</code> 内核页工具</h4><p><code>page-types</code> 是每个内核内存黑客的瑞士军刀。其源代码随 Linux 内核源代码 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/master/tools/vm/page-types.c">tools/vm/page-types.c</a> 一起提供。</p>
+<p>如果你没有在第一章节安装它：</p>
+<pre><code class="hljs bash">$ wget https://github.com/torvalds/linux/archive/refs/tags/v5.13.tar.gz
+$ tar -xzf ./v5.13.tar.gz
+$ <span class="hljs-built_in">cd</span> v5.13/vm/tools
+$ make</code></pre>
+
+<p>现在让我们用它来理解，内核将我们的测试文件 <code>/var/tmp/file1.db</code> 的多少页放在了 Active 和 Inactive LRU 列表中：</p>
+<pre><code class="hljs bash">$ sudo ./page-types --raw -Cl -f /var/tmp/file1.db</code></pre>
+
+<pre><code class="hljs bash">foffset cgroup  offset  len     flags
+/var/tmp/file1.db       Inode: 133367   Size: 134217728 (32768 pages)
+Modify: Mon Aug 30 13:14:19 2021 (13892 seconds ago)
+Access: Mon Aug 30 13:15:47 2021 (13804 seconds ago)
+10689   @1749   21fa    1       ___U_lA_______________________P____f_____F_1
+
+...
+
+18965   @1749   24d37   1       ___U_l________________________P____f_____F_1
+18966   @1749   28874   1       ___U_l________________________P____f_____F_1
+18967   @1749   10273   1       ___U_l________________________P____f_____F_1
+18968   @1749   1f6ad   1       ___U_l________________________P____f_____F_1
+
+
+             flags      page-count       MB  symbolic-flags                     long-symbolic-flags
+0xa000010800000028             105        0  ___U_l________________________P____f_____F_1       uptodate,lru,private,softdirty,file,mmap_exclusive
+0xa00001080000002c              16        0  __RU_l________________________P____f_____F_1       referenced,uptodate,lru,private,softdirty,file,mmap_exclusive
+0xa000010800000068             820        3  ___U_lA_______________________P____f_____F_1       uptodate,lru,active,private,softdirty,file,mmap_exclusive
+0xa001010800000068               1        0  ___U_lA_______________________P____f_I___F_1       uptodate,lru,active,private,softdirty,readahead,file,mmap_exclusive
+0xa00001080000006c              16        0  __RU_lA_______________________P____f_____F_1       referenced,uptodate,lru,active,private,softdirty,file,mmap_exclusive
+             total             958        3</code></pre>
+
+<p>输出包含两部分：第一部分提供每页信息，第二部分汇总所有具有相同标志的页并计算摘要。为了回答 LRU 问题，我们需要从输出中获得 <code>A</code> 和 <code>l</code> 标志，正如您所猜想的那样，它们代表 “active” 和 “inactive” 列表。</p>
+<p>如您所见，我们有：</p>
+<ul>
+<li><code>105 + 16 = 121 pages</code> 或者 <code>121 * 4096 = 484 KiB</code> 在 inactive LRU 列表中。</li>
+<li><code>820 + 1 + 16 = 837 pages</code> 或者 <code>837 * 4096 = 3.2 MiB</code> 在 active LRU 列表中。</li>
+</ul>
+<h4 id="编写-Page-Cache-LRU-监控工具"><a href="#编写-Page-Cache-LRU-监控工具" class="headerlink" title="编写 Page Cache LRU 监控工具"></a>编写 Page Cache LRU 监控工具</h4><p><code>page-types</code> 是一款非常有用的初级调试和调查工具，但其输出格式难以阅读和汇总。我之前承诺过我们会编写自己的 <code>vmtouch</code>，所以现在我们正在实现它。我们的替代版本将提供更多关于页的信息。它不仅会显示 Page Cache 中有多少页，还会显示其中有多少页在 active 和 inactive LRU 列表中。</p>
+<p>为此，我们需要两个内核文件：<a target="_blank" rel="noopener" href="https://www.kernel.org/doc/Documentation/vm/pagemap.txt"><code>/proc/PID/pagemap</code>和<code>/proc/kpageflags</code></a>。</p>
+<p>您可以在 <a target="_blank" rel="noopener" href="https://github.com/brk0v/sre-page-cache-article/tree/main/lru">github repo</a> 中找到完整的代码，但在这里，我想重点介绍几个重要时刻：</p>
+<pre><code class="hljs bash">    ...
+①  err = syscall.Madvise(mm, syscall.MADV_RANDOM)
+    ...
+
+②  ret, _, err := syscall.Syscall(syscall.SYS_MINCORE, mmPtr, sizePtr, cachedPtr) 
+
+    <span class="hljs-keyword">for</span> i, p := range cached {
+③      <span class="hljs-keyword">if</span> p%2 == 1 { 
+④           _ = *(*int)(unsafe.Pointer(mmPtr + uintptr(pageSize*int64(i))))
+        }
+    }
+   ...
+        
+⑤  err = syscall.Madvise(mm, syscall.MADV_SEQUENTIAL)
+    ...</code></pre>
+
+<ul>
+<li>① – 在这里，我们需要禁用目标文件的预读逻辑，以防止我们的工具将不需要的数据加载到 Page Cache 中；</li>
+<li>② – 使用 <code>mincore()</code> 系统调用获取 Page Cache 中的页向量；</li>
+<li>③ – 在这里，我们检查页是否在 Page Cache 中；</li>
+<li>④ – 如果 Page Cache 包含一个页，我们需要通过引用该页来更新相应进程的页表条目。我们的工具必须这样做才能使用 <code>/proc/pid/pagemap</code>。否则 <code>/proc/pid/pagemap</code> 文件将不包含目标文件页及其标志。</li>
+<li>⑤ – 在这里，我们关闭了引用位的收集。这是由于内核回收逻辑的需要。我们的工具读取内存，因此影响内核 LRU 列表。通过使用 <code>madvise()</code> 与 <code>MADV_SEQUENTIAL</code>，我们通知 Linux 内核忽略我们的操作。</li>
+</ul>
+<p>让我们测试一下我们的工具。我们需要 2 个终端。在第一个终端中，使用 <code>watch</code>( <code>man 1 watch</code>) 启动我们的工具，以每 100 毫秒一次，无限循环运行我们的工具：</p>
+<pre><code class="hljs bash">watch -n 0.1 <span class="hljs-string">'sudo go run ./lru.go'</span></code></pre>
+
+<p>在第二个终端中，我们使用 dd<code> ( </code>man 1 dd` ) 读取文件：</p>
+<pre><code class="hljs bash"><span class="hljs-built_in">dd</span> <span class="hljs-keyword">if</span>=/var/tmp/file1.db of=/dev/null</code></pre>
+
+<p>您应该看到的演示：</p>
+<p><a href="https://asciinema.org/a/a6Ox5TnM6R8WiwfxlvKUM1hys" target="_blank"><img src="https://asciinema.org/a/a6Ox5TnM6R8WiwfxlvKUM1hys.svg"></a></p>
+<p>使用上述方法，您现在可以执行初级 Page Cache 调查。</p>
+<h2 id="关于-mmap-文件访问的更多信息"><a href="#关于-mmap-文件访问的更多信息" class="headerlink" title="关于 mmap() 文件访问的更多信息"></a>关于 <code>mmap()</code> 文件访问的更多信息</h2><p>在开始 cgroup 章节之前，我将展示如何利用内存和 IO 限制来控制 Page Cache 驱逐并提高服务的可靠性，我想更深入地研究一下 <code>mmap()</code> 系统调用。我们需要了解底层发生了什么，并进一步了解 <code>mmap()</code> 读写过程。</p>
+<h3 id="mmap-概述"><a href="#mmap-概述" class="headerlink" title="mmap() 概述"></a><code>mmap()</code> 概述</h3><p>内存映射是 Linux 系统最有趣的功能之一。其特性之一是，软件开发者可以透明地处理文件，即使文件的大小超过系统的实际物理内存。在下图中，您可以看到进程的 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Virtual_memory">虚拟内存</a> 是什么样子。每个进程都有自己的 <code>mmap()</code> 映射文件的区域。</p>
+<p><img src="/images/linux-page-cache-minibook-cn/linux%20page%20cache%20minibook-20241211233133-5.png"></p>
+<p>我这里不触及的的是，在你的软件中是否使用 <code>mmap()</code> 或文件系统调用，例如 <code>read()</code> 和 <code>write()</code>。哪种方法更好、更快或更安全超出了本文的讨论范围。但你确实需要了解如何获取 <code>mmap()</code> 统计数据，因为几乎所有的 Page Cache 用户空间工具都使用它。</p>
+<p>让我们使用 <code>mmap()</code> 再写一个脚本。它打印进程的 PID，映射测试文件并休眠。休眠时间应该足以用该进程试验。</p>
+<pre><code class="hljs python"><span class="hljs-keyword">import</span> mmap
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">from</span> time <span class="hljs-keyword">import</span> sleep
+
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"pid:"</span>, os.getpid())
+
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"rb"</span>) <span class="hljs-keyword">as</span> f:
+    <span class="hljs-keyword">with</span> mmap.mmap(f.fileno(), <span class="hljs-number">0</span>, prot=mmap.PROT_READ) <span class="hljs-keyword">as</span> mm:f
+        sleep(<span class="hljs-number">10000</span>)</code></pre>
+
+<p>在一个终端窗口中运行它，然后在另一个终端窗口中， 使用脚本的 PID 运行 <code>pmap -x PID</code>。</p>
+<pre><code class="hljs bash">pmap -x 369029 | less</code></pre>
+
+<p><code>369029</code> 是我的 PID。</p>
+<p> <code>pmap</code> 的输出展示了进程的所有连续虚拟内存区域 (VMA 或 <a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/v5.14.1/source/include/linux/mm_types.h#L311">struct vm_area_struct</a>)。我们可以确定 mmaped 测试文件 <code>file1.db</code> 的虚拟地址。在我的例子中：</p>
+<pre><code class="hljs bash">Address           Kbytes     RSS   Dirty Mode  Mapping
+...
+00007f705cc12000  131072       0       0 r--s- file1.db</code></pre>
+
+<p>我们可以看到，该文件有 0 个脏页（它仅显示此进程的脏页）。该 <code>RSS</code> 列等于 0，这告诉我们进程已引用了多少 KiB 内存。顺便说一句，这个 0 并不意味着 Page Cache 中没有该文件的页。这意味着我们的进程尚未访问任何页。</p>
+<blockquote>
+<p><strong>注意</strong></p>
+<p><code>pmap</code> 可以使用 <code>-XX</code> 显示更详细的输出。如果没有 <code>-XX</code>，它使用 <code>/proc/pid/maps</code>，但对于扩展模式，它显示来自 <code>/proc/pid/smaps</code> 的统计信息。更多信息可以在 <code>man 5 proc</code> 和 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/Documentation/filesystems/proc.rst">内核文档 filesystems/proc.rst</a> 中找到。</p>
+</blockquote>
+<p>因此，对于 SRE 而言，<code>mmap()</code> 最令人兴奋的部分是它如何在访问和写入时透明地加载数据。我将在后续章节中展示这一切。</p>
+<h3 id="什么是缺页中断？"><a href="#什么是缺页中断？" class="headerlink" title="什么是缺页中断？"></a>什么是缺页中断？</h3><p>在开始讨论文件工具之前，我们需要了解缺页中断的概念。一般来说，缺页中断是 CPU 与 Linux 内核及其内存子系统进行通信的机制。缺页中断是虚拟内存概念和 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Demand_paging">请求分页</a> 的组成部分。简而言之，内核通常不会在 <code>mmap()</code> 或 <code>malloc()</code> 内存请求完成后立即分配物理内存。相反，内核会在进程的 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Page_table">页表结构</a> 中创建一些记录，并将其用作内存承诺的存储。此外，页表还包含每个页的额外信息，例如内存权限和页标志（我们已经看到了其中一些：LRU 标志、脏标志等）。</p>
+<p>从第 2 章中的示例可以看出，为了在任何位置读取映射的文件，与文件操作不同，代码不需要执行任何查找 ( <code>man 2 lseek</code>)。我们可以从映射区域的任何位置开始读取或写入。因此，当应用程序想要访问页时，如果目标页尚未加载到 Page Cache 中，或者 Page Cache 中的页与进程的页表之间没有连接，则可能会发生缺页中断。</p>
+<p>有两种对我们有用的缺页中断类型：<strong>次要（minor）</strong> 和 <strong>主要</strong>。次要缺页中断基本上意味着为了满足进程的内存访问，不会有任何磁盘访问。另一方面，主要缺页中断意味着将有磁盘 IO 操作。</p>
+<p>例如，如果我们使用 <code>dd</code> 加载文件一半数据到 Page Cache 中，然后从程序中使用 <code>mmap()</code> 访问前半部分，就会触发次要缺页中断。内核不需要访问磁盘，因为这些页已经加载到 Page Cache 中。内核只需要使用进程的页表条目引用这些已加载的页。但是，如果进程尝试在相同的映射区域中读取文件的后半部分，内核将不得不访问磁盘以加载页，系统将生成主要缺页中断。</p>
+<p>如果您想获得有关请求分页、Linux 内核和系统内部的更多信息，请观看嵌入式 Linux Conf 的 <a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=7aONIVSXiJ8">“Linux 内存管理简介”</a> 视频。</p>
+<p>我们来做一个实验，写一个对文件进行不定式随机读取的脚本：</p>
+<pre><code class="hljs python"><span class="hljs-keyword">import</span> mmap
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">from</span> random <span class="hljs-keyword">import</span> randint
+<span class="hljs-keyword">from</span> time <span class="hljs-keyword">import</span> sleep
+
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"/var/tmp/file1.db"</span>, <span class="hljs-string">"r"</span>) <span class="hljs-keyword">as</span> f:
+    fd = f.fileno()
+    size = os.stat(fd).st_size
+    <span class="hljs-keyword">with</span> mmap.mmap(fd, <span class="hljs-number">0</span>, prot=mmap.PROT_READ) <span class="hljs-keyword">as</span> mm:
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
+                pos = randint(<span class="hljs-number">0</span>, size-<span class="hljs-number">4</span>)
+                <span class="hljs-built_in">print</span>(mm[pos:pos+<span class="hljs-number">4</span>])
+                sleep(<span class="hljs-number">0.05</span>)
+        <span class="hljs-keyword">except</span> KeyboardInterrupt:
+            <span class="hljs-keyword">pass</span></code></pre>
+
+<p>现在我们需要 3 个终端窗口。第一个：</p>
+<pre><code class="hljs bash">$ sar -B 1</code></pre>
+
+<p>它显示每秒的系统内存统计信息，包括缺页中断。</p>
+<p>第二个是 <code>perf trace</code>：</p>
+<pre><code class="hljs bash">$ sudo perf trace -F maj --no-syscalls</code></pre>
+
+<p>显示主要缺页中断及其对应的文件路径。</p>
+<p>最后，在第 3 个终端窗口中，启动上述 python 脚本：</p>
+<pre><code class="hljs bash">$ python3 ./mmap_random_read.py</code></pre>
+
+<p>输出应该接近以下内容：</p>
+<pre><code class="hljs bash">$ sar -B 1</code></pre>
+
+<pre><code class="hljs bash">....                                  LOOK HERE
+                                      ⬇      ⬇
+05:45:55 PM  pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s pgscand/s pgsteal/s    %vmeff  
+05:45:56 PM   8164.00      0.00     39.00      4.00      5.00      0.00      0.00      0.00      0.00  
+05:45:57 PM   2604.00      0.00     20.00      1.00      1.00      0.00      0.00      0.00      0.00  
+05:45:59 PM   5600.00      0.00     22.00      3.00      2.00      0.00      0.00      0.00      0.00
+...</code></pre>
+
+<p>查看 <code>fault/s</code> 和 <code>majflt/s</code> 字段。它们显示了我刚刚解释的内容。</p>
+<p>通过 <code>perf trace</code>，我们可以获取发生主要缺页中断的文件的内部信息：</p>
+<pre><code class="hljs bash">$ sudo perf trace -F maj --no-syscalls</code></pre>
+
+<pre><code class="hljs bash">...
+SCROLL ➡                                                                                     LOOK HERE
+                                                                                                 ⬇                                                                                       
+5278.737 ( 0.000 ms): python3/64915 majfault [__memmove_avx_unaligned_erms+0xab] =&gt; /var/tmp/file1.db@0x2aeffb6 (d.)  
+5329.946 ( 0.000 ms): python3/64915 majfault [__memmove_avx_unaligned_erms+0xab] =&gt; /var/tmp/file1.db@0x539b6d9 (d.)  
+5383.701 ( 0.000 ms): python3/64915 majfault [__memmove_avx_unaligned_erms+0xab] =&gt; /var/tmp/file1.db@0xb3dbc7 (d.)  
+5434.786 ( 0.000 ms): python3/64915 majfault [__memmove_avx_unaligned_erms+0xab] =&gt; /var/tmp/file1.db@0x18f7c4f (d.)  
+...</code></pre>
+
+<p>cgroup 也有关于每个 cgroup 的缺页中断的统计信息：</p>
+<pre><code class="hljs bash">$ grep fault /sys/fs/cgroup/user.slice/user-1000.slice/session-3.scope/memory.stat</code></pre>
+
+<pre><code class="hljs bash">...
+pgfault 53358
+pgmajfault 13
+...</code></pre>
+
+<h3 id="微妙的-MADV-DONT-NEED-mmap-特性"><a href="#微妙的-MADV-DONT-NEED-mmap-特性" class="headerlink" title="微妙的 MADV_DONT_NEED mmap() 特性"></a>微妙的 <code>MADV_DONT_NEED</code> <code>mmap()</code> 特性</h3><p>现在我们再做一次实验。停止所有脚本并清楚所有缓存：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">sync</span>; <span class="hljs-built_in">echo</span> 3 | sudo <span class="hljs-built_in">tee</span> /proc/sys/vm/drop_caches</code></pre>
+
+<p>重启脚本，进行无限读取，并开始监控进程的每个内存区域的使用情况：</p>
+<pre><code class="hljs bash">watch -n 0.1 <span class="hljs-string">"grep 'file1' /proc/<span class="hljs-variable">$pid</span>/smaps -A 24"</span></code></pre>
+
+<p>现在您可以看到文件的映射区域及其信息。引用字段应该在增长。</p>
+<p>在另一个窗口中，尝试使用 <code>vmtouch</code> 命令驱逐页：</p>
+<pre><code class="hljs bash">vmtouch -e /var/tmp/file1.db</code></pre>
+
+<p>请注意，<code>smaps</code> 输出中的统计数据并没有完全下降。运行 <code>vmtouch -e</code> 命令时，<code>smaps</code> 应该会显示内存使用量有所下降。问题是，发生了什么？为什么当我们通过设置 <code>FADVISE_DONT_NEED</code> 标志，明确要求内核驱逐文件页时，其中一些页仍然存在于 Page Cache 中？</p>
+<p>答案有点令人困惑，但理解它非常重要。如果 Linux 内核没有内存压力问题，它为什么要从 Page Cache 中删除页？程序将来很有可能需要它们。但是，如果您作为软件开发人员确定这些页是无用的，则有 <code>madvise()</code> 和 <code>MADV_DONT_NEED</code> 标志可以使用。它通知内核可以从相应的页表中删除这些页，随后的 <code>vmtouch -e</code> 调用将成功地从 Page Cache 中移除文件数据。</p>
+<p>如果出现内存压力情况，内核将开始从非活动 LRU 列表中回收内存。这意味着如果这些页适合回收，内核最终可以删除它们。</p>
+<h2 id="Cgroup-v2-和-Page-Cache"><a href="#Cgroup-v2-和-Page-Cache" class="headerlink" title="Cgroup v2 和 Page Cache"></a>Cgroup v2 和 Page Cache</h2><p>cgroup 子系统是公平分配和限制系统资源的方法。它以层次结构组织所有数据，其中叶节点依赖于其父节点并继承其设置。此外，cgroup 还提供了许多有用的资源计数器和统计数据。</p>
+<p>控制组无处不在。即使您可能没有明确使用它们，所有现代的 GNU/Linux 发行版默认都已经启用了它们，并且已经集成到了 <code>systemd</code> 中。这意味着现代 Linux 系统中的每个服务都在自己的 cgroup 下运行。</p>
+<h3 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h3><p>在本系列文章中，我们已经多次提到了 cgroup 子系统，但现在让我们更深入地了解一下整体情况。cgroup 在理解 Page Cache 使用情况方面起着至关重要的作用。它还通过提供详细的统计数据，来帮助调试问题并更好地配置软件。如前所述，LRU 列表使用 cgroup 内存限制来做出驱逐决定并确定 LRU 列表的长度。</p>
+<p>在 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html">cgroup v2</a> 中，另一个重要主题是正确跟踪 Page Cache IO 写回的方式，而之前的 v1 版本无法实现这一点。v1 无法理解哪个内存 cgroup 会生成磁盘 IOPS，因此会错误地跟踪和限制磁盘操作。幸运的是，新的 v2 版本修复了这些问题。它已经提供了许多新功能来帮助 Page Cache 写回。</p>
+<p>找出所有 cgroup 及其限制的最简单方法是访问 <code>/sys/fs/cgroup</code>。但您可以使用更方便的方法来获取此类信息：</p>
+<ul>
+<li><code>systemd-cgls</code> 和 <code>systemd-top</code> 以了解 cgroups <code>systemd</code> 包含的内容；</li>
+<li><code>below</code>，<code>top</code> 类似 cgroups 的工具 <a target="_blank" rel="noopener" href="https://github.com/facebookincubator/below">https://github.com/facebookincubator/below</a></li>
+</ul>
+<h3 id="内存-cgroup-文件"><a href="#内存-cgroup-文件" class="headerlink" title="内存 cgroup 文件"></a>内存 cgroup 文件</h3><p>现在我们从 Page Cache 的角度来回顾一下 cgroup 内存控制器中最重要的部分。</p>
+<ol>
+<li><code>memory.current</code> – 显示 cgroup 及其后代当前使用的总内存量。当然，它包括 Page Cache 大小。</li>
+</ol>
+<blockquote>
+<p><strong>注意</strong></p>
+<p>您可能很想使用这个值来设置您的 cgroup/容器内存限制，但是请等待下一章。</p>
+</blockquote>
+<ol start="2">
+<li><code>memory.stat</code> – 显示了很多内存计数器，对我们来说最重要的可以通过 <code>file</code> 关键字进行过滤：</li>
+</ol>
+<pre><code class="hljs bash">$ grep file /sys/fs/cgroup/user.slice/user-1000.slice/session-3.scope/memory.stat
+file 19804160                  ❶               
+file_mapped 0                  ❷
+file_dirty 0                   ❸
+file_writeback 0               ❹
+inactive_file 6160384          ❺
+active_file 13643776           ❺
+workingset_refault_file 0      ❻
+workingset_activate_file 0     ❻
+workingset_restore_file 0      ❻</code></pre>
+
+<p>在此处</p>
+<ul>
+<li>❶ <code>file</code> – Page Cache 的大小；</li>
+<li>❷ <code>file_mapped</code> – 使用 <code>mmap()</code> 的映射文件内存大小；</li>
+<li>❸ <code>file_dirty</code> – 脏页大小；</li>
+<li>❹ <code>file_writeback</code> – 目前正在刷新多少数据；</li>
+<li>❺<code>inactive_file</code> 和 <code> active_file</code> – LRU 列表的大小;</li>
+<li>❻ <code>workingset_refault_file</code>、<code>workingset_activate_file</code> 和 <code>workingset_restore_file</code> – 指标，以便更好地理解内存抖动和二次缺页中断（refault）逻辑。</li>
+</ul>
+<ol start="3">
+<li><code>memory.numa_stat</code> – 显示上述统计数据，但针对每个 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Non-uniform_memory_access">NUMA 节点</a>。</li>
+<li><code>memory.min</code> , <code>memory.low</code> , <code>memory.high</code> 和 <code>memory.max</code> – cgroup 限制。我不想重复 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html%23usage-guidelines">cgroup v2 文档</a>，建议您先阅读它。但您需要记住的是，使用硬性限制 <code>max</code> 或 <code>min</code> 并不是您的应用程序和系统的最佳策略。您可以选择的更好方法是仅设置 <code>low</code> 和/或 <code>high</code> 限制，使其更接近您认为的应用程序工作集大小。我们将在下一节中讨论测量和预测。</li>
+<li><code>memory.events</code> – 显示 cgroup 触及上述限制的次数：</li>
+</ol>
+<pre><code class="hljs bash">memory.events
+low 0
+high 0
+max 0
+oom 0
+oom_kill 0</code></pre>
+
+<ol start="6">
+<li><code>memory.pressure</code> – 此文件包含压力阻塞信息 (PSI，Pressure Stall Information)。它通过测量由于内存不足而损失的 CPU 时间，来显示 cgroup 内存的总体健康状况。此文件是理解 cgroup 中的回收过程以及 Page Cache 的关键。让我们更详细地讨论一下 PSI。</li>
+</ol>
+<h3 id="压力阻塞信息-PSI"><a href="#压力阻塞信息-PSI" class="headerlink" title="压力阻塞信息 (PSI)"></a>压力阻塞信息 (PSI)</h3><p>在 PSI 出现之前，很难判断系统和/或 cgroup 是否存在资源竞争；cgroup 限制是过度承诺还是配置不足。如果 cgroup 的限制可以设置得更低，那么它的阈值在哪里？PSI 功能可以缓解这些困惑，不仅让我们能够实时获取这些信息，还让我们能够设置用户空间触发器并获取通知，以最大限度地提高硬件利用率，而不会降低服务质量和带来 OOM 风险。</p>
+<p>PSI 适用于内存、CPU 和 IO 控制器。例如，内存的输出：</p>
+<pre><code class="hljs bash">some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0</code></pre>
+
+<p>在此处</p>
+<ul>
+<li><code>some</code> – 表示在 10、60 和 300 秒内，至少有一项任务在内存中阻塞了一定百分比的挂机时间。“总计”字段显示以微秒为单位的绝对值，以显示峰值；</li>
+<li><code>full</code> – 含义相同，但适用于 cgroup 中的所有任务。此指标可以很好地指示问题，通常意味着资源配置不足或软件设置错误。</li>
+</ul>
+<blockquote>
+<p><strong>示例</strong></p>
+<p><a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man8/systemd-oomd.service.8.html"><code>systemd-oom</code></a> 守护进程，作为现代 GNU/Linux 系统的一部分，使用 PSI 比内核的 OOM 更主动地识别内存稀缺并找到要终止的目标。</p>
+</blockquote>
+<p>我强烈建议阅读原始的 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/latest/accounting/psi.html">PSI 文档</a>。</p>
+<h3 id="写回和-IO"><a href="#写回和-IO" class="headerlink" title="写回和 IO"></a>写回和 IO</h3><p>cgroup v2 实现的最重要特性之一是可以跟踪、观察和限制每个 cgroup 的 Page Cache 异步写回。现在，内核写回过程可以识别要使用哪个 cgroup IO 限制来将脏页持久保存到磁盘。</p>
+<p>但同样重要的是，它也能在另一个方面发挥作用。如果一个 cgroup 遇到内存压力，并试图通过刷新其脏页来回收一些页，它将使用自己的 IO 限制，不会损害其他 cgroup。因此，内存压力转化为磁盘 IO，如果有大量写入，最终转化为 cgroup 的磁盘压力。两个控制器都有 PSI 文件，应该用于主动管理和调整软件设置。</p>
+<p>为了控制脏页刷新频率，Linux 内核有几个 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/Documentation/sysctl/vm.txt"><code>sysctl</code> 参数</a>。如果你愿意，你可以让后台写回过程更积极或更消极：</p>
+<pre><code class="hljs bash">$ sudo sysctl -a | grep dirty
+vm.dirty_background_bytes = 0  
+vm.dirty_background_ratio = 10  
+vm.dirty_bytes = 0  
+vm.dirty_expire_centisecs = 3000  
+vm.dirty_ratio = 20  
+vm.dirty_writeback_centisecs = 500  
+vm.dirtytime_expire_seconds = 43200</code></pre>
+
+<p>上述某些方法也适用于 cgroup。内核选择并应用最先到达的整个系统或 cgroup 的项。</p>
+<p>cgroup v2 还带来了新的 IO 控制器：<code>io.cost</code> 和 <code>io.latency</code>。它们提供了两种不同的方法来限制和保证磁盘操作。请阅读 cgroup v2 文档以获取更多详细信息和区别。但我想说，如果您的设置并不复杂，那么从侵入性较小的方法 <code>io.latency</code> 开始是有意义的。</p>
+<p>与内存控制器一样，内核也提供了一堆文件来控制和观察 IO：</p>
+<ul>
+<li><code>io.stat</code> – 包含每个设备数据的统计文件；</li>
+<li><code>io.latency </code>– 延迟目标时间（单位：微秒）；</li>
+<li><code>io.pressure</code> – PSI 文件；</li>
+<li><code>io.weight</code> – 如果选择了 <code>io.cost</code> 的目标权重；</li>
+<li><code>io.cost.qos</code> 以及 <code>io.cost.model</code> – <code>io.cost</code> cgroup 控制器的配置文件。</li>
+</ul>
+<h3 id="内存和-IO-cgroup-所有权"><a href="#内存和-IO-cgroup-所有权" class="headerlink" title="内存和 IO cgroup 所有权"></a>内存和 IO cgroup 所有权</h3><p>多个 cgroups 中的几个进程显然可以处理相同的文件。例如， <code>cgroup1</code> 可以打开并读取文件的前 10 KiB，稍后，另一个 <code>cgroup2</code> 可以向同一文件的末尾追加 2 KiB 并读取前 4 KiB。问题在于，内核将使用哪个进程的内存和 IO 限制？</p>
+<p>内存所有权（包括 Page Cache）的逻辑是基于每个页构建的。页的所有权在首次访问（缺页中断）时确定，并且在此页被完全回收和驱逐之前，不会切换到任何其他 cgroup。所有权一词意味着这些页将用于计算 cgroup Page Cache 使用量，并将被纳入所有统计数据中。</p>
+<p>例如，<code>cgroup1</code> 是前 10KiB 的所有者，而 <code>cgroup2</code> – 是最后 2KiB 的所有者。无论 <code>cgroup1</code> 对文件做什么，甚至关闭文件，只要 <code>cgroup2</code> 与文件的前 4KiB 进行交互， <code>cgroup1</code> 就会一直保留前 4KiB（而不是全部 10KiB）的所有权。在这种情况下，内核会将页保存在 Page Cache 中，并相应地不断更新 LRU 列表。</p>
+<p>对于 cgroup IO，所有权按 inode 计算所有权。因此，对于我们的示例，<code>cgroup2</code> 拥有文件的所有写回操作。在首次写回时，inode 被分配给 cgroup，但与内存所有权逻辑不同，如果内核注意到另一个 cgroup 生成的脏页更多，IO 所有权可能会迁移到另一个 cgroup。</p>
+<p>为了排除内存所有权问题，我们应该使用一对 <code>procfs</code> 文件：<code>/proc/pid/pagemap</code> 和 <code>/proc/kpagecgroup</code>。<code>page-type</code> 工具支持显示每页 cgroup 信息，但很难将其用于文件目录并获得格式良好的输出。这就是为什么我编写了自己的 <a target="_blank" rel="noopener" href="https://github.com/brk0v/cgtouch"><code>cgtouch</code></a> 工具来排查 cgroup 内存所有权问题的原因。</p>
+<pre><code class="hljs bash">$ sudo go run ./main.go /var/tmp/ -v</code></pre>
+
+<pre><code class="hljs bash">/var/tmp/file1.db
+cgroup inode    percent       pages        path
+           -      85.9%       28161        not charged
+        1781      14.1%        4608        /sys/fs/cgroup/user.slice/user-1000.slice/session-3.scope
+
+--
+/var/tmp/ubuntu-21.04-live-server-amd64.iso
+cgroup inode    percent       pages        pat
+           -       0.0%           0        not charged
+        2453     100.0%       38032        /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/run-u10.service
+
+--
+         Files: 2
+   Directories: 7
+Resident Pages: 42640/70801 166.6M/276.6M 60.2%
+
+cgroup inode    percent       pages        path
+           -      39.8%       28161        not charged
+        1781       6.5%        4608        /sys/fs/cgroup/user.slice/user-1000.slice/session-3.scope
+        2453      53.7%       38032        /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/run-u10.service</code></pre>
+
+<h3 id="安全的临时任务"><a href="#安全的临时任务" class="headerlink" title="安全的临时任务"></a>安全的临时任务</h3><p>假设我们需要运行 <code>wget</code> 命令或通过调用配置管理系统（例如 <code>saltstack</code>）手动安装某些软件包。这两项任务的磁盘 I/O 都可能非常繁重。为了安全地运行它们并且不与任何生产负载交互，我们不应该在根 cgroup 或当前终端 cgroup 中运行它们，因为它们通常没有任何限制。所以我们需要一个具有一些限制的新 cgroup。手动为您的任务创建一个 cgroup，并手动配置每个临时任务会非常繁琐和麻烦。但幸运的是，我们不必这样做，所以所有现代 GNU/Linux 发行版都内置了 <code>systemd</code>，带有开箱即用的 cgroup v2。<code>systemd-run</code> 以及 <code>systemd</code> 许多其他很酷的功能使我们的生活更轻松，并节省了大量时间。</p>
+<p>例如，<code>wget</code> 任务可以按以下方式运行：</p>
+<pre><code class="hljs bash">systemd-run --user -P -t -G --<span class="hljs-built_in">wait</span> -p MemoryMax=12M wget http://ubuntu.ipacct.com/releases/21.04/ubuntu-21.04-live-server-amd64.iso
+Running as unit: run-u2.service                         ⬅  LOOK HERE
+Press ^] three <span class="hljs-built_in">times</span> within 1s to disconnect TTY.
+--2021-09-11 19:53:33--  http://ubuntu.ipacct.com/releases/21.04/ubuntu-21.04-live-server-amd64.iso
+Resolving ubuntu.ipacct.com (ubuntu.ipacct.com)... 195.85.215.252, 2a01:9e40::252
+Connecting to ubuntu.ipacct.com (ubuntu.ipacct.com)|195.85.215.252|:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1174243328 (1.1G) [application/octet-stream]
+Saving to: ‘ubuntu-21.04-live-server-amd64.iso.5’
+...</code></pre>
+
+<p><code>run-u2.service</code> 是我的全新 cgroup，具有内存限制。我可以获取其指标：</p>
+<pre><code class="hljs bash">$ find /sys/fs/cgroup/ -name run-u2.service
+/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/run-u2.service</code></pre>
+
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span>  /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/run-u2.service/memory.pressure
+some avg10=0.00 avg60=0.00 avg300=0.00 total=70234
+full avg10=0.00 avg60=0.00 avg300=0.00 total=69717</code></pre>
+
+<pre><code class="hljs bash">$ grep file  /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/run-u2.service/memory.stat
+file 11100160
+file_mapped 0
+file_dirty 77824
+file_writeback 0
+file_thp 0
+inactive_file 5455872
+active_file 5644288
+workingset_refault_file 982
+workingset_activate_file 0
+workingset_restore_file 0</code></pre>
+
+<p>如您所见，我们有近 12MiB 的文件内存和一些二次缺页中断（refault）。</p>
+<p>要了解 systemd 和 cgroup 的所有功能，请阅读其 <a target="_blank" rel="noopener" href="https://www.freedesktop.org/software/systemd/man/systemd.resource-control.html">资源控制文档</a>。</p>
+<h2 id="我的程序使用了多少内存或工作集大小的故事"><a href="#我的程序使用了多少内存或工作集大小的故事" class="headerlink" title="我的程序使用了多少内存或工作集大小的故事"></a>我的程序使用了多少内存或工作集大小的故事</h2><p>目前，在容器、自动扩展和按需云的世界中，理解服务在正常常规情况和接近软件极限的压力下的资源需求至关重要。但每当有人谈到内存使用量时，几乎立即就不清楚要测量什么和如何测量。RAM 是一种宝贵且通常昂贵的硬件类型。在某些情况下，它的延迟甚至比磁盘延迟更重要。因此，Linux 内核会尽可能地优化内存利用率，例如通过在进程之间共享相同的页。此外，Linux 内核还具有 Page Cache，以便通过将磁盘数据的子集存储在内存中来提高存储 IO 速度。Page Cache 不仅本质上执行隐式内存共享（通常会让用户感到困惑），而且还在后台主动异步地与存储一起工作。因此，Page Cache 为内存使用量估算表带来了更多的复杂性。</p>
+<p>在本章中，我将演示一些方法，您可以使用它们来确定内存（以及 Page Cache）限制的初始值，并从一个不错的起点开始您的旅程。</p>
+<h3 id="一切都关乎谁重要，或独一无二的集合大小的故事"><a href="#一切都关乎谁重要，或独一无二的集合大小的故事" class="headerlink" title="一切都关乎谁重要，或独一无二的集合大小的故事"></a>一切都关乎谁重要，或独一无二的集合大小的故事</h3><p>我听到过的关于内存和 Linux 的两个最常见的问题是：</p>
+<ul>
+<li>我所有的可用内存在哪里？</li>
+<li>您/我/他们的应用程序/服务/数据库使用了多少内存？</li>
+</ul>
+<p>第一个问题的答案应该对读者显而易见（悄悄说 “Page Cache”）。但第二个问题要棘手得多。通常，人们认为 <code>top</code> 或 <code>ps</code> 输出的 <code>RSS</code> 列是评估内存利用率的良好起点。虽然这种说法在某些情况下可能是正确的，但它通常会导致对 Page Cache 重要性，及其对服务性能和可靠性的影响的误解。</p>
+<p>让我们以著名的 <code>top</code>( <code>man 1 top</code>)<a target="_blank" rel="noopener" href="https://github.com/mmalecki/procps/blob/master/top.c">工具</a> 为例，来调查它的内存消耗。它是用 C 语言编写，只做一件事，就是在循环中打印进程的状态。<code>top</code> 并不大量使用磁盘，因此也不使用 Page Cache。它不涉及网络。它的唯一目的是从 <code>procfs</code> 中读取数据，并以友好的格式显示给用户。所以它的工作集应该很容易理解，不是吗？</p>
+<p>让我们在新的 cgroup 中启动 <code>top</code> 过程：</p>
+<pre><code class="hljs bash">$ systemd-run --user -P -t -G --<span class="hljs-built_in">wait</span> top</code></pre>
+
+<p>在另一个终端，让我们开始学习。从 <code>ps</code> 开始：</p>
+<pre><code class="hljs bash">$ ps axu | grep top
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+...
+vagrant   611963  0.1  0.2  10836  4132 pts/4    Ss+  11:55   0:00 /usr/bin/top
+...                                  ⬆
+                                  LOOK HERE</code></pre>
+
+<p>如上所示，根据 <code>ps</code> 输出， <code>top</code> 进程使用了大约 4MiB 的内存。</p>
+<p>现在让我们从 <code>procfs</code> 及其 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/Documentation/filesystems/proc.rst"><code>/proc/pid/smaps_rollup</code>文件</a> 获取更多详细信息，基本上是 <code>/proc/pid/smaps</code> 中所有内存区域的总和。对于我的 PID：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/628011/smaps_rollup
+55df25e91000-7ffdef5f7000 ---p 00000000 00:00 0                          [rollup]
+Rss:                3956 kB  ⓵
+Pss:                1180 kB  ⓶
+Pss_Anon:            668 kB
+Pss_File:            512 kB 
+Pss_Shmem:             0 kB
+Shared_Clean:       3048 kB  ⓷
+Shared_Dirty:          0 kB  ⓸
+Private_Clean:       240 kB
+Private_Dirty:       668 kB
+Referenced:         3956 kB  ⓹
+Anonymous:           668 kB  ⓺
+...</code></pre>
+
+<p>我们主要关心以下几行：</p>
+<ul>
+<li>⓵ <code>RSS</code> – 一个众所周知的指标，正如我们在 <code>ps</code> 输出中看到的内容。</li>
+<li>⓶ <code>PSS</code> – 代表进程的比例共享内存。这是一个人工内存指标，它应该能给你一些关于内存共享的洞察：</li>
+</ul>
+<blockquote>
+<p>进程的“比例集大小”( <code>PSS</code>) 是其在内存中的页数，其中每个页除以共享它的进程数。因此，如果一个进程有 1000 个页完全属于自己，还有 1000 个页与另一个进程共享，则其 PSS 为 1500。</p>
+</blockquote>
+<ul>
+<li>⓷ <code>Shared_Clean</code> – 是一个有趣的指标。正如我们之前假设的，我们的进程理论上不应该使用任何 Page Cache，但事实证明它确实使用了 Page Cache。正如您所见，它是内存使用的主要部分。如果您打开每区域的文件 <code>/proc/pid/smaps</code>，您可以找出原因是共享库。它们都是用 <code>mmap()</code> 打开的，并且驻留在 Page Cache 中。</li>
+<li>⓸ <code>Shared_Dirty</code> – 如果我们的进程使用 <code>mmap()</code> 写入文件，则此行将显示未保存的脏 Page Cache 的数量。</li>
+<li>⓹ <code>Referenced</code> - 表示进程迄今为止标记为引用或访问的内存量。我们在本 <code>mmap()</code> 部分提到过这个指标。如果没有内存压力，它应该接近 RSS。</li>
+<li>⓺ <code>Anonymous</code> – 显示不属于任何文件的内存量。</li>
+</ul>
+<p>从上面我们可以看出，虽然 <code>top</code> 输出的 RSS 为 4MiB，但其大部分 RSS 都隐藏在 Page Cache 中。理论上，如果这些页在一段时间内处于非活动状态，内核可以将它们从内存中驱逐。</p>
+<p>我们也来看看 cgroup 统计数据：</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/628011/cgroup
+0::/user.slice/user-1000.slice/user@1000.service/app.slice/run-u2.service</code></pre>
+
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/run-u2.service/memory.stat
+anon 770048
+file 0
+...
+file_mapped 0
+file_dirty 0
+file_writeback 0
+...
+inactive_anon 765952
+active_anon 4096
+inactive_file 0
+active_file 0
+...</code></pre>
+
+<p>我们在 cgroup 中看<strong>不到</strong>任何文件内存。这是 cgroup 内存记账特性的另一个很好的例子。另一个 cgroup 已经计算了这些库。</p>
+<p>为了完成并复查，让我们使用 <code>page-type</code> 工具：</p>
+<pre><code class="hljs bash">$ sudo ./page-types --pid 628011 --raw
+             flags      page-count       MB  symbolic-flags                     long-symbolic-flags
+0x2000010100000800               1        0  ___________M_______________r_______f_____F__       mmap,reserved,softdirty,file
+0xa000010800000868              39        0  ___U_lA____M__________________P____f_____F_1       uptodate,lru,active,mmap,private,softdirty,file,mmap_exclusive
+0xa00001080000086c              21        0  __RU_lA____M__________________P____f_____F_1       referenced,uptodate,lru,active,mmap,private,softdirty,file,mmap_exclusive
+0x200001080000086c             830        3  __RU_lA____M__________________P____f_____F__       referenced,uptodate,lru,active,mmap,private,softdirty,file
+0x8000010000005828             187        0  ___U_l_____Ma_b____________________f_______1       uptodate,lru,mmap,anonymous,swapbacked,softdirty,mmap_exclusive
+0x800001000000586c               1        0  __RU_lA____Ma_b____________________f_______1       referenced,uptodate,lru,active,mmap,anonymous,swapbacked,softdirty,mmap_exclusive
+             total            1079        4</code></pre>
+
+<p>我们可以看到，<code>top</code> 进程的内存包含文件 <code>mmap()</code> 区域，因此使用了 Page Cache。</p>
+<p>现在让我们为我们的 <code>top</code> 进程获取一个唯一的内存集大小。进程的唯一内存集大小或 USS 是仅此目标进程使用的内存量。此内存可以是共享的，但如果没有其他进程使用它，它仍然归入 USS 中。</p>
+<p>我们可以使用 <code>page-types</code> 的 <code>-N</code> 标志和一些 shell 魔法来计算进程的 USS：</p>
+<pre><code class="hljs bash">$ sudo ../vm/page-types --pid 628011 --raw -M -l -N | awk <span class="hljs-string">'{print $2}'</span> | grep -E <span class="hljs-string">'^1$'</span> | <span class="hljs-built_in">wc</span> -l
+248</code></pre>
+
+<p>上述表示该 <code>top</code> 进程的唯一集合大小（USS）是 <code>248 pages</code> 或者 <code>992 KiB</code>。</p>
+<p>或者我们可以利用我们对 <code>/proc/pid/pagemap</code>、<code>/proc/kpagecount</code> 和 <code>/proc/pid/maps</code> 的知识，编写自己的工具来获取唯一集合大小。此类工具的完整代码可以在 <a target="_blank" rel="noopener" href="https://github.com/brk0v/sre-page-cache-article/tree/main/uss">github repo</a> 中找到。</p>
+<p>如果我们运行它，我们应该得到与 <code>page-type</code> 相同的输出：</p>
+<pre><code class="hljs bash">$ sudo go run ./main.go 628011
+248</code></pre>
+
+<p>既然我们了解了估计内存使用量有多么困难，以及 Page Cache 在这种计算中的重要性，我们准备向前迈出一大步，开始考虑具有更多活跃磁盘活动的软件。</p>
+<h3 id="空闲页和工作集大小"><a href="#空闲页和工作集大小" class="headerlink" title="空闲页和工作集大小"></a>空闲页和工作集大小</h3><p>读到这里读者可能会对另一个内核文件感到好奇：<a target="_blank" rel="noopener" href="https://www.kernel.org/doc/Documentation/vm/idle_page_tracking.txt"><code>/sys/kernel/mm/page_idle</code></a>。</p>
+<p>您可以使用它来估计进程的工作集大小。主要思想是使用特殊空闲标志标记一些页，并在一段时间后检查有关工作数据集大小的差异假设。</p>
+<p>您可以在 Brendan Gregg 的 <a target="_blank" rel="noopener" href="https://github.com/brendangregg/wss">仓库</a> 中找到很棒的参考工具。</p>
+<p>让我们为 <code>top</code> 进程运行它：</p>
+<pre><code class="hljs bash">$ sudo ./wss-v1 628011 60 
+Watching PID 628011 page references during 60.00 seconds...
+Est(s)     Ref(MB) 
+60.117        2.00</code></pre>
+
+<p>上述意味着，在 4MiB 的 RSS 数据中，该进程在 60 秒间隔内仅使用 2MiB。</p>
+<p>欲了解更多信息，您还可以阅读这篇 <a target="_blank" rel="noopener" href="https://lwn.net/Articles/642202/">LWN 文章</a>。</p>
+<p>该方法的缺点如下：</p>
+<ul>
+<li>对于占用大量内存的进程来说，它可能会很慢；</li>
+<li>所有测量都在用户空间进行，因此会消耗额外的 CPU；</li>
+<li>它完全脱离了您的进程可能产生的写回压力。</li>
+</ul>
+<p>虽然这可能成为您的容器的合理起始限制，我将向您展示一种更好的方法，使用 cgroup 统计信息和压力阻塞信息 (PSI) 。</p>
+<h3 id="使用压力阻塞信息（PSI）计算内存限制"><a href="#使用压力阻塞信息（PSI）计算内存限制" class="headerlink" title="使用压力阻塞信息（PSI）计算内存限制"></a>使用压力阻塞信息（PSI）计算内存限制</h3><p>正如系列中所见，我强调将所有服务分别运行在自己的 cgroups 中，并且精心配置限制是非常重要的。这通常会带来更好的服务性能以及更均匀、更正确地系统资源使用。</p>
+<p>但仍然不清楚从哪里开始。选择哪个值？使用 <code>memory.current</code> 值好吗？还是使用唯一集合大小？还是使用空闲页标志来估计工作集大小？虽然所有这些方法在某些情况下可能都很有用，但我建议在一般情况下使用以下的 PSI 方法。</p>
+<p>在继续使用 PSI 之前，关于 <code>memory.current</code> 还有一点需要注意。如果 cgroup 没有内存限制，并且系统有大量可用内存供进程使用，则 <code>memory.current</code> 只会显示应用程序到目前为止使用的所有内存（包括 Page Cache）。它可能包含应用程序运行时不需要的大量垃圾。例如，日志记录、不需要的库等。使用 <code>memory.current</code> 值作为内存限制会浪费系统资源，并且不会对您进行容量规划有帮助。</p>
+<p>解决这个难题的现代方法是，使用 PSI 来了解 cgroup 如何对新的内存分配和 Page Cache 驱逐的反应。<a target="_blank" rel="noopener" href="https://github.com/facebookincubator/senpai/blob/main/senpai.py"><code>senapi</code></a> 是一个简单的自动脚本，用于收集和解析 PSI 信息并调整 <code>memory.high</code>：</p>
+<p>让我们用我的测试 MongoDB 安装进行实验。我有 2.6GiB 的数据：</p>
+<pre><code class="hljs bash">$ sudo <span class="hljs-built_in">du</span> -hs /var/lib/mongodb/
+2.4G    /var/lib/mongodb/</code></pre>
+
+<p>现在我需要生成一些随机读取查询。在 <code>mongosh</code> 中，我可以运行一个无限循环，并每 500 毫秒读取一条随机记录：</p>
+<pre><code class="hljs javascript"><span class="hljs-keyword">while</span> (<span class="hljs-literal">true</span>) {
+    <span class="hljs-title function_">printjson</span>(db.<span class="hljs-property">collection</span>.<span class="hljs-title function_">aggregate</span>([{ <span class="hljs-attr">$sample</span>: { <span class="hljs-attr">size</span>: <span class="hljs-number">1</span> } }])); 
+    <span class="hljs-title function_">sleep</span>(<span class="hljs-number">500</span>); 
+}</code></pre>
+
+<p>在第二个终端窗口中，我使用带有 mongodb 服务 cgroup 启动 <code>senpai</code></p>
+<pre><code class="hljs bash">sudo python senpai.py /sys/fs/cgroup/system.slice/mongodb.service
+2021-09-05 16:39:25 Configuration:
+2021-09-05 16:39:25   cgpath = /sys/fs/cgroup/system.slice/mongodb.service
+2021-09-05 16:39:25   min_size = 104857600
+2021-09-05 16:39:25   max_size = 107374182400
+2021-09-05 16:39:25   interval = 6
+2021-09-05 16:39:25   pressure = 10000
+2021-09-05 16:39:25   max_probe = 0.01
+2021-09-05 16:39:25   max_backoff = 1.0
+2021-09-05 16:39:25   coeff_probe = 10
+2021-09-05 16:39:25   coeff_backoff = 20
+2021-09-05 16:39:26 Resetting <span class="hljs-built_in">limit</span> to memory.current.
+...
+2021-09-05 16:38:15 <span class="hljs-built_in">limit</span>=503.90M pressure=0.030000 time_to_probe= 1 total=1999415 delta=601 integral=3366
+2021-09-05 16:38:16 <span class="hljs-built_in">limit</span>=503.90M pressure=0.030000 time_to_probe= 0 total=1999498 delta=83 integral=3449
+2021-09-05 16:38:16   adjust: -0.000840646891233154
+2021-09-05 16:38:17 <span class="hljs-built_in">limit</span>=503.48M pressure=0.020000 time_to_probe= 5 total=2000010 delta=512 integral=512
+2021-09-05 16:38:18 <span class="hljs-built_in">limit</span>=503.48M pressure=0.020000 time_to_probe= 4 total=2001688 delta=1678 integral=2190
+2021-09-05 16:38:19 <span class="hljs-built_in">limit</span>=503.48M pressure=0.020000 time_to_probe= 3 total=2004119 delta=2431 integral=4621
+2021-09-05 16:38:20 <span class="hljs-built_in">limit</span>=503.48M pressure=0.020000 time_to_probe= 2 total=2006238 delta=2119 integral=6740
+2021-09-05 16:38:21 <span class="hljs-built_in">limit</span>=503.48M pressure=0.010000 time_to_probe= 1 total=2006238 delta=0 integral=6740
+2021-09-05 16:38:22 <span class="hljs-built_in">limit</span>=503.48M pressure=0.010000 time_to_probe= 0 total=2006405 delta=167 integral=6907
+2021-09-05 16:38:22   adjust: -0.00020961438729431614</code></pre>
+
+<p>如您所见，根据 PSI，503.48M 内存足以支持我的读取工作负载，不会出现任何问题。</p>
+<p>这显然是 PSI 功能的预览，对于真正的生产服务，您可能也应该考虑一下 <code>io.pressure</code>。</p>
+<h3 id="…-那么写回又如何呢？"><a href="#…-那么写回又如何呢？" class="headerlink" title="… 那么写回又如何呢？"></a>… 那么写回又如何呢？</h3><p>说实话，这个问题比较难回答。在我写这篇文章的时候，我还不知道有什么好的工具可以评估和预测写回和 IO 的使用情况。不过，经验法则是先从中学习 <code>io.latency</code>，然后在需要的时候尝试使用 <code>io.cost</code>。</p>
+<p>还有一个有趣的新项目 <a target="_blank" rel="noopener" href="https://github.com/facebookexperimental/resctl-demo">resctl-demo</a>，它可以帮助正确识别限制。</p>
+<h2 id="直接-IO-DIO-（NOT-READY）"><a href="#直接-IO-DIO-（NOT-READY）" class="headerlink" title="直接 IO (DIO)（NOT READY）"></a>直接 IO (DIO)（NOT READY）</h2><p>像往常一样，任何规则总有例外。Page Cache 也不例外。因此，让我们来谈谈文件读写，这些操作可以忽略 Page Cache 内容。</p>
+<h3 id="为什么它很好"><a href="#为什么它很好" class="headerlink" title="为什么它很好"></a>为什么它很好</h3><p>某些应用程序需要对存储子系统进行底层访问，Linux 内核通过提供 <code>O_DIRECT</code> 文件打开标志提供了这样的功能。此 IO 称为直接 IO 或 DIO。使用此标志打开文件，程序完全绕过内核 Page Cache，直接与 VFS 和底层文件系统通信。</p>
+<p>优点是：</p>
+<ul>
+<li>降低 CPU 占用率，从而获得更高的吞吐量；</li>
+<li>Linux Async IO( <code>man 7 aio</code>) 仅适用于 DIO( <code>io_submit</code>)；</li>
+<li>零拷贝避免 Page Cache 和用户空间缓冲区之间的双缓冲；</li>
+<li>更好地控制写回。</li>
+<li>…</li>
+</ul>
+<h3 id="为什么它不好，需要-io-uring-替代方案"><a href="#为什么它不好，需要-io-uring-替代方案" class="headerlink" title="为什么它不好，需要 io_uring 替代方案"></a>为什么它不好，需要 <code>io_uring</code> 替代方案</h3><ul>
+<li>需要将读写与块大小对齐；</li>
+<li>并非所有文件系统在实现 DIO 时都相同；</li>
+<li>没有 Linux AIO 的 DIO 很慢而且根本没用；</li>
+<li>非跨平台；</li>
+<li>不能同时对文件进行 DIO 和缓冲 IO。</li>
+<li>…</li>
+</ul>
+<p>如果没有 AIO，DIO 通常就没有意义，但是 AIO 有很多 <a target="_blank" rel="noopener" href="https://lwn.net/Articles/671657/">糟糕的设计决策</a>：</p>
+<blockquote>
+<p>所以我认为这极其丑陋。</p>
+<p>AIO 是一种糟糕的临时设计，其主要借口是“其他不太有天赋的人做出了这种设计，而我们为了兼容性而实现它，因为数据库人员——他们实际上很少有品味——实际上会使用它”。</p>
+<p>但 AIO 总是非常非常丑陋。<br>                                                Linus Torvalds</p>
+</blockquote>
+<blockquote>
+<p>注意！使用 DIO 仍然需要在文件上运行 <code>fsync()</code> ！</p>
+</blockquote>
+<p>让我们用 iouring-go 库编写 <code>golang</code> 一个 <a target="_blank" rel="noopener" href="https://github.com/Iceber/iouring-go">例子</a>：</p>
+<pre><code class="hljs go">TODO</code></pre>
+
+<h2 id="高级-Page-Cache-可观察性和故障排除工具"><a href="#高级-Page-Cache-可观察性和故障排除工具" class="headerlink" title="高级 Page Cache 可观察性和故障排除工具"></a>高级 Page Cache 可观察性和故障排除工具</h2><p>让我们介绍一些高级工具，可以用于执行底层内核跟踪和调试。</p>
+<h3 id="eBPF-工具"><a href="#eBPF-工具" class="headerlink" title="eBPF 工具"></a>eBPF 工具</h3><p>首先，我们可以使用 <code>eBPF</code> 工具。当你想获取一些内部内核信息时，<a target="_blank" rel="noopener" href="https://github.com/iovisor/bcc"><code>bcc</code></a> 和 <a target="_blank" rel="noopener" href="https://github.com/iovisor/bpftrace"><code>bpftrace</code></a> 是你的好帮手。</p>
+<p>让我们来看看它自带的一些工具。</p>
+<h4 id="写回监控"><a href="#写回监控" class="headerlink" title="写回监控"></a>写回监控</h4><pre><code class="hljs bash">$ sudo bpftrace ./writeback.bt
+
+Attaching 4 probes...
+Tracing writeback... Hit Ctrl-C to end.
+TIME      DEVICE   PAGES    REASON           ms
+15:01:48  btrfs-1  7355     periodic         0.003
+15:01:49  btrfs-1  7355     periodic         0.003
+15:01:51  btrfs-1  7355     periodic         0.006
+15:01:54  btrfs-1  7355     periodic         0.005
+15:01:54  btrfs-1  7355     periodic         0.004
+15:01:56  btrfs-1  7355     periodic         0.005</code></pre>
+
+<h4 id="Page-Cache-Top"><a href="#Page-Cache-Top" class="headerlink" title="Page Cache Top"></a>Page Cache Top</h4><pre><code class="hljs bash">19:49:52 Buffers MB: 0 / Cached MB: 610 / Sort: HITS / Order: descending  
+PID      UID      CMD              HITS     MISSES   DIRTIES  READ_HIT%  WRITE_HIT%  
+   66229 vagrant  vmtouch             44745    44032        0      50.4%      49.6%  
+   66229 vagrant  bash                  205        0        0     100.0%       0.0%  
+   66227 root     cachetop               17        0        0     100.0%       0.0%  
+     222 dbus     dbus-daemon            16        0        0     100.0%       0.0%  
+     317 vagrant  tmux: server            4        0        0     100.0%       0.0%</code></pre>
+
+<h4 id="缓存统计信息"><a href="#缓存统计信息" class="headerlink" title="缓存统计信息"></a>缓存统计信息</h4><pre><code class="hljs bash">[vagrant@archlinux tools]$ sudo ./cachestat  
+    HITS   MISSES  DIRTIES HITRATIO   BUFFERS_MB  CACHED_MB  
+      10        0        0  100.00%            0        610  
+       4        0        0  100.00%            0        610  
+       4        0        0  100.00%            0        610  
+      21        0        0  100.00%            0        610  
+     624        0        0  100.00%            0        438  
+       2        0        0  100.00%            0        438  
+       4        0        0  100.00%            0        438  
+       0        0        0    0.00%            0        438  
+      19        0        0  100.00%            0        438  
+       0      428        0    0.00%            0        546  
+   28144    16384        0   63.21%            0        610  
+       0        0        0    0.00%            0        610  
+       0        0        0    0.00%            0        610  
+      17        0        0  100.00%            0        610  
+       0        0        0    0.00%            0        610</code></pre>
+
+<h4 id="bpftrace-和-kfunc-跟踪"><a href="#bpftrace-和-kfunc-跟踪" class="headerlink" title="bpftrace 和 kfunc 跟踪"></a><code>bpftrace</code> 和 <code>kfunc</code> 跟踪</h4><p>除此之外，<code>eBPF</code> 和 <code>bpftrace</code> 最近又增加了一个很棒的新功能，名为 <a target="_blank" rel="noopener" href="https://github.com/iovisor/bpftrace/blob/master/docs/reference_guide.md%2315-kfunckretfunc-kernel-functions-tracing"><code>kfunc</code></a>。因此，使用它，您可以在没有安装内核调试信息的情况下跟踪一些内核函数。</p>
+<p>它仍然接近于实验性功能，但它看起来确实很有前景。</p>
+<h3 id="Perf-工具"><a href="#Perf-工具" class="headerlink" title="Perf 工具"></a>Perf 工具</h3><p>但是如果你想要更深入地了解，我可以为你提供一些东西。<code>perf</code> 允许你几乎在任何内核函数中设置动态跟踪内核探测器。唯一的问题是需要安装内核调试信息。不幸的是，并非所有发行版都提供它，有时你可能需要添加一些额外的标志手动重新编译内核。</p>
+<p>但是当你获得调试信息时，你可以进行非常疯狂的调查。例如，如果我们想跟踪主要缺页中断，我们可以找到负责的内核函数（<a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/latest/source">https://elixir.bootlin.com/linux/latest/source</a> 及其帮助搜索）并安装一个探针：</p>
+<pre><code class="hljs bash">perf probe -f <span class="hljs-string">"do_read_fault vma-&gt;vm_file-&gt;f_inode-&gt;i_ino"</span></code></pre>
+
+<p>其中，<code>do_read_fault</code> 是我们的内核函数，<code>vma-&gt;vm_file-&gt;f_inode-&gt;i_ino</code> 是发生主要缺页中断的文件的 inode 编号。</p>
+<p>现在您可以开始记录事件：</p>
+<pre><code class="hljs bash">perf record -e probe:do_read_fault -ag -- <span class="hljs-built_in">sleep</span> 10</code></pre>
+
+<p><code>perf script</code>10 秒后，我们可以用 bash 魔法来 grep 出 inode ：</p>
+<pre><code class="hljs bash">perf script | grep i_ino | <span class="hljs-built_in">cut</span> -d <span class="hljs-string">' '</span> -f 1,8| sed <span class="hljs-string">'s#i_ino=##g'</span> | <span class="hljs-built_in">sort</span> | <span class="hljs-built_in">uniq</span> -c | <span class="hljs-built_in">sort</span> -rn</code></pre>
+
+<p><em>原文：</em> <a target="_blank" rel="noopener" href="https://biriukov.dev/docs/page-cache/">Linux Page Cache mini book</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/12-11-2024/linux-page-cache-minibook-cn.html">https://www.cyningsun.com/12-11-2024/linux-page-cache-minibook-cn.html</a> <br><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Linux" rel="category"># Linux</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/06-27-2024/iocost-block-io-control-for-containers-in-datacenters-cn.html">译｜IOCost: Block IO Control for Containers in Datacenters</a></span></li>
+          
+            <li><span><a href="/05-18-2024/efficient-io-with-io_uring.html">译｜Efficient IO with io_uring</a></span></li>
+          
+            <li><span><a href="/06-15-2021/memory-management-physical-memory.html">内存管理 - 物理内存</a></span></li>
+          
+            <li><span><a href="/12-02-2020/memory-management-summary.html">内存管理基础概念总述</a></span></li>
+          
+            <li><span><a href="/09-18-2020/learn-virtual-filesystem-from-lsof.html">从 lsof 开始，深入理解虚拟文件系统</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-13-2025/flamegraph-summary.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/09-17-2024/redis-latency-irqoff.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

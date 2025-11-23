@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜My Philosophy On Alerting</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-05-05 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2021-05-05 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-05-2021/my-philosophy-on-alerting-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="基于我在谷歌做 SRE（网站可靠性工程师）时的观察 摘要为了值班轮换更加愉快，在审核或编写告警规则时，请考虑以下事项： 紧急呼叫应该是紧急的、重要的、可操作的、真正的 应当代表服务正在或即将发生的问题。 力求消除噪音警报 —— 过度监控比欠监控更难解决。 问题应该几乎总能分为以下几类：基本功能和可用性、延迟、正确性（数据的完整性、时新性、持久性）、特性相关的">
+
+<meta name="keywords" content="监控,告警,alert,monitor">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜My Philosophy On Alerting</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2021-05-05
+         | 
+        Last Revised: 2021-05-05
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%91%98%E8%A6%81"><span class="toc-text">摘要</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AE%80%E4%BB%8B"><span class="toc-text">简介</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9B%B4%E7%BB%95%E7%94%A8%E6%88%B7%E7%9B%91%E6%8E%A7"><span class="toc-text">围绕用户监控</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9F%BA%E4%BA%8E%E5%8E%9F%E5%9B%A0%E7%9A%84%E8%AD%A6%E6%8A%A5%E4%B8%8D%E5%A5%BD%EF%BC%88%E4%BD%86%E6%9C%89%E6%97%B6%E6%98%AF%E5%BF%85%E8%A6%81%E7%9A%84%EF%BC%89"><span class="toc-text">基于原因的警报不好（但有时是必要的）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%9C%A8%E5%87%BA%E5%8F%A3%EF%BC%88%E6%88%96%E8%B0%83%E7%94%A8%E4%BE%A7%EF%BC%89%E5%91%8A%E8%AD%A6"><span class="toc-text">在出口（或调用侧）告警</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8E%9F%E5%9B%A0%E4%BB%8D%E7%84%B6%E6%9C%89%E7%94%A8"><span class="toc-text">原因仍然有用</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%95%E6%8D%AE%E3%80%81%E6%8A%A5%E5%91%8A%E5%8F%8A%E7%94%B5%E5%AD%90%E9%82%AE%E4%BB%B6"><span class="toc-text">单据、报告及电子邮件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%89%8B%E5%86%8C"><span class="toc-text">手册</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%B7%9F%E8%B8%AA%E5%92%8C%E8%B4%A3%E4%BB%BB"><span class="toc-text">跟踪和责任</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BD%A0%E5%A4%AA%E5%A4%A9%E7%9C%9F%E4%BA%86"><span class="toc-text">你太天真了</span></a></li></ol>
+ 
+        <blockquote>
+<p>基于我在谷歌做 SRE（网站可靠性工程师）时的观察</p>
+</blockquote>
+<h3 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h3><p>为了值班轮换更加愉快，在审核或编写告警规则时，请考虑以下事项：</p>
+<ul>
+<li>紧急呼叫应该是紧急的、重要的、可操作的、真正的</li>
+<li>应当代表服务正在或即将发生的问题。</li>
+<li>力求消除噪音警报 —— 过度监控比欠监控更难解决。</li>
+<li>问题应该几乎总能分为以下几类：基本功能和可用性、延迟、正确性（数据的完整性、时新性、持久性）、特性相关的问题<blockquote>
+<p>译者注：<br>持久性指的是长期的数据保护，即存储的数据不会受到位衰减、降级或其他损坏。</p>
+</blockquote>
+</li>
+<li>现象是一种更好的方法，可以更轻松，更全面，更可靠地捕获更多问题。</li>
+<li>在基于现象的紧急呼叫或仪表板中包含基于原因的信息，但避免直接就原因告警</li>
+<li>服务栈的上层，一条规则可以发现更多的问题。太上层不能充分区分发生了什么</li>
+<li>安静的值班轮换，需要一个系统处理那些需要及时响应但不紧急的事情</li>
+</ul>
+<h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p>七年来，我一直值班各种不同的服务，包括大型和小型、快速变化的产品，以及核心基础设施的几个部分，我已经形成了一种监控和告警的理念。它反映了我对紧急呼叫和传呼机的基本看法：</p>
+<ul>
+<li>每次传呼机响起，我应当<strong>紧急应答</strong>。我每天只能这样做几次，否则会感到疲劳。</li>
+<li>每次紧急呼叫都应该是<strong>可处置的</strong>；简单地记下 “又是这个紧急呼叫” 不是处置。</li>
+<li>每次紧急呼叫都<strong>需要智慧</strong>来处理：没有机械的、可编写脚本的应答。</li>
+</ul>
+<p>总的来说，这有点野心勃勃，但当我在监控系统中编写或评审新的紧急呼叫规则时，它一直指引着我。在我编写或者评审可能产生紧急呼叫的一条新规则时，以下是我使用到的一些问题：</p>
+<ul>
+<li>它是否检测到<strong>未检测到的故障</strong>，即紧急的、可处置的、即将发生或已经发生用户可见的故障。请注意，“N+0” 零冗余的情况被认为是迫在眉睫的，就像您的服务中“即将用完”的部分，比如存储被耗尽。</li>
+<li>确信它是良性的情况，我能<strong>忽略此规则</strong>吗？良性的情况出现在什么时候，为什么出现，可以完善规则来避免这种情况吗？</li>
+<li>它是否显示了一种<strong>肯定（将会）影响用户</strong>的情况？是否有不影响用户检测到的情况应该被排除掉？类似过滤服务器集群内的测试流量。</li>
+<li>针对此警报我可以对<strong>采取行动</strong>吗？行动紧急吗？还是可以等到第二天早上，周末或下个季度？</li>
+<li>是否有其他人同时被积极呼叫？他们会解决这个问题吗？或者我会帮别人解决这个问题？能把这些问题合在一起吗？我的规则能留给他们修改的时间吗？</li>
+</ul>
+<p>下面的想法当然是雄心勃勃的，一个不断增长，不断变化的服务，没有轮值的传呼机是永远安静的。但有一些技巧，让你更接近于此。</p>
+<blockquote>
+<p><strong>术语</strong></p>
+<p>本文使用以下术语：<br><em>紧急呼叫</em> ：任何可以紧急、主动地引起特定人注意的东西（例如，通过寻呼机或手机发出哔哔哔声）<br><em>规则</em> ：在监控系统中检测某些需要关注的情况的逻辑。<br><em>警报</em> ：规则触达人类的一种方式，例如紧急呼叫、电子邮件、聊天室的消息、自动提交的单据等。</p>
+</blockquote>
+<h3 id="围绕用户监控"><a href="#围绕用户监控" class="headerlink" title="围绕用户监控"></a>围绕用户监控</h3><p>我称之为 “基于现象的监控”，而非“基于原因的监控”。用户关心 MySQL 服务器是否停机了吗？不，他们关心查询是否失败(也许你已经开始尴尬了，喜欢 MySQL 服务器的 Nagios 规则？用户甚至不知道 MySQL 服务器存在！）用户是否关心一个重启检测（即非服务路径）脚本是否处于循环中？不，他们只关心自己使用的功能是否失败。他们在乎你的数据推送失败吗？不，他们关心的是能否拿到最新的结果。</p>
+<p>一般来说，用户关心的事情很少：</p>
+<ul>
+<li><strong>基本可用性和正确性</strong>。没有 “Oops!”，没有 5xx ，不挂起的请求或页面加载一半或丢失 Javascript 或 CSS 或图像或视频。任何以某种方式破坏核心服务的行为都应被视为不可用。</li>
+<li><strong>延迟</strong>。快。快。快。还是，快。</li>
+<li><strong>完整性&#x2F;时新性&#x2F;持久性</strong>。用户数据应该是安全的，当访问时返回，搜索索引应该是最新的。即使暂时不可用，用户也完全相信数据安全。</li>
+<li><strong>特性</strong>。用户关心服务的所有功能，您应该监视服务所有重要的方面，即使不是核心功能&#x2F;可用性（例如，搜索结果中显示的计算器和股票行情）。</li>
+</ul>
+<p>差不多了。数据库服务器不可用和用户数据不可用之间存在一个微妙但重要的区别。前者是近因，后者是现象。你不是总能清楚地区分这些东西，特别是当你没有办法模仿客户的视角时（例如，黑盒探测器或直接监控他们的视角）。但当你可以的时候，你应该如此做。</p>
+<h3 id="基于原因的警报不好（但有时是必要的）"><a href="#基于原因的警报不好（但有时是必要的）" class="headerlink" title="基于原因的警报不好（但有时是必要的）"></a>基于原因的警报不好（但有时是必要的）</h3><p>“但是，”你可能会说，“我知道数据库服务器无法访问会导致用户数据不可用。” 可以。告警数据不可用。告警现象：500，Oops！白盒指标，表示并非所有服务器都可以通过数据库的客户端访问。为什么？</p>
+<ul>
+<li><strong>无论如何，你都得抓住现象</strong>。可能是因为网络断开，CPU 竞争，或者其他很多你还没想到的问题。所以你必须抓住现象。</li>
+<li>一旦发现现象和原因，就会有<strong>冗余的警报</strong>；需要单独的调优，并导致重复或复杂的依赖树</li>
+<li><strong>据称不可避免的结果并非总是不可避免的</strong>：数据库服务器不可用，可能是因为您打开了一个新实例或关闭了一个旧实例。或者添加了一个功能来请求的快速故障切换，这样就不再关心单个服务器的可用性了。当然，你可以添加越来越复杂的规则抓住所有这些案例，但为什么麻烦呢？失败模式是太多的虚假紧急呼叫，太多的混乱，太多的调整，没有任何收获，修复重要的警报的时间更少。</li>
+</ul>
+<p>但有时它们是必要的。“几乎”用完配额、内存或磁盘 I&#x2F;O 等等（通常）没有任何现象，所以您需要规则知道您正在走向悬崖。<strong>慎用；不要为可能出现的现象编写基于原因的紧急呼叫规则。</strong></p>
+<h4 id="在出口（或调用侧）告警"><a href="#在出口（或调用侧）告警" class="headerlink" title="在出口（或调用侧）告警"></a>在出口（或调用侧）告警</h4><p>分层客户端&#x2F;服务器架构系统中，警报最好来自客户端的判断：</p>
+<ul>
+<li><strong>客户端可以看到重试的结果、客户端和服务器之间的网络延迟</strong>，并且对用户面临的延迟和错误比服务器有更好的判断</li>
+<li>在许多情况下，客户端（如，混合或应用程序服务器）正在<strong>聚合来自许多后端的响应</strong>，如缓存服务、数据库、帐户管理&#x2F;授权服务、查询分片等。如果您<strong>看到客户端实际执行的操作</strong>，那么您的监控更为健壮的应对底层基础结构（以及应用程序级故障切换和重试）中的变更。</li>
+<li>在许多情况下，客户端可以提供比后端更简单的整体视图。例如，如果一个请求分散到数百个查询服务器上，那么每个查询服务器的整体视图都非常有限，无法成为有用的告警源。</li>
+</ul>
+<p>对于许多服务，意味着基于最前端的负载平衡器看到的延迟、错误等方面的情况告警。如此，只有当服务器损坏的结果向用户显示时，您才能看到告警。反之，实际的问题比从服务器上看到的问题更大：如果服务器全部停机，或者返回无数的 5xx，或者 10% 的连接断开，负载均衡器知道，但服务器可能不知道。</p>
+<p>请注意，如果做得太过头，可能会引入超出您控制和责任范围的代理。如果你能可靠地捕捉到用户所看到的（例如通过浏览器侧的设施）的观点，那太好了！但请记住，这些信号充满了噪音，包括ISP、浏览器、客户端负载和性能，所以这不应该是你看待世界的唯一方式。如果您的外部监控无法始终通畅，它可能是有损的。即使遇到这种极端情况，仍然是一个有用的信息，但可能不是一个你想要用来紧急呼叫的信息。</p>
+<h4 id="原因仍然有用"><a href="#原因仍然有用" class="headerlink" title="原因仍然有用"></a>原因仍然有用</h4><p>基于原因的规则仍然有用。特别是，它们可以帮助您快速跳转到生产系统中已知的缺陷。</p>
+<p>如果你在自动将现象与原因联系起来方面得到了很多值，也许是因为有些原因超出了你的控制范围，需要消除，我支持以下方法：</p>
+<ol>
+<li>当您编写（或发现）表示原因的规则时，请检查是否也捕获了现象。如果没有，添加现象的规则进来。</li>
+<li>为所有原因的告警触发的紧急呼叫，输出一份简短的摘要。快速浏览一下，就可以确被紧急呼叫的现象是否有已经确定的原因。类似： <pre><code class="hljs bash">TooMany500StatusCodes
+Served 10.7% 5xx results <span class="hljs-keyword">in</span> the last 3 minutes!
+Also firing:
+    JanitorProcessNotKeepingUp
+    UserDatabaseShardDown
+    FreshnessIndexBehind</code></pre>
+ 此情况，很明显 5xx 最可能的来源是数据库问题；相反，如果触发现象是磁盘已满，或者结果页变空或过时，那么其他两个原因可能值得关注。</li>
+<li>删除或调整有噪声、持续性、或低价值的基于原因的规则。</li>
+</ol>
+<p>使用以上方法，错误的、嘈杂的规则所带来的精神负担已经从传呼机的哔哔声（以及调查、跟进和……）变成了要浏览的一行文字。最后，由于您无论如何都需要清晰的调试仪表板（对于不是以警报开始的问题），因此这是公开基于原因的规则的另一个好地方。</p>
+<p>也就是说，如果您的调试仪表板让您能够足够快地从现象到原因再到改善，那么您不需要花费时间在基于原因的规则上。</p>
+<h3 id="单据、报告及电子邮件"><a href="#单据、报告及电子邮件" class="headerlink" title="单据、报告及电子邮件"></a>单据、报告及电子邮件</h3><p>不管怎样，你有一些警报需要以后注意，但不是现在。我称之为“次关键告警”。</p>
+<ul>
+<li><strong>Bug 或单据跟踪系统很有用</strong>。只要同一个警报的多次触发被正确地线程化到一个 ticket&#x2F;bug，让告警创建 bug 单据效果会很好。如果没有对分类和关闭 bug 负责，系统就会失败；作为一种在次关键警报变为警报之前处理次关键警报的方法，如果警报创建的 bug 可能会在数周内不可见，显然是一种失败的处理方法！如果你的团队超负荷工作或者没有指派足够的人员来处理后续工作，那么也会失败；你需要诚实地知道这需要花费多少时间，否则你会越来越落后。</li>
+<li><strong>每日（或更频繁）的报告也可以起作用</strong>。一种可行的方法是编写长期存在的次关键规则（例如，“数据库容量超过 90%”或“昨日慢速请求数超过 1000 个”），并定期发送一份报告，显示当前所有触发规则。同样，如果没有一个问责系统，会变成略微垃圾的邮件警报，所以确保值班人员（或其他人）被指定每天（或每班交接，或任何有效的方法）对这些邮件进行分类。</li>
+<li>通过工作流系统跟踪每个警报。不要只将它们转储到电子邮件列表或在线聊天室频道。一般来说，会很快变成专门的“foo警报”邮件列表或频道，因此可能会被轻易忽略。除非存在一个简短的（通常是几天，最多是几周）时间来审查一个新规则保证不会太频繁的紧急呼叫，这几乎总是一个坏主意。这样做也很容易忽略这些警报的数量，突然，数千个应用服务器每分钟都会触发一些旧的，调整不当的规则，从而阻塞邮箱。</li>
+</ul>
+<p>根本要点是创建一个系统，该系统仍然对响应性负责，但不唤醒某人，打断他们的晚餐或防止阻碍其与另一半相互依偎</p>
+<h3 id="手册"><a href="#手册" class="headerlink" title="手册"></a>手册</h3><p>手册（或运行手册）是告警系统的重要组成部分。最好每个捕捉到的现象的警报或系列警报都有一个条目，它可以进一步解释警报的含义以及如何处理该警报。</p>
+<p>一般来说，如果首层有一个详细的流程图，<strong>你可能会花太多的时间去记录可能错误的信息，而花太少的时间去修复它</strong>，除非根本原因完全超出你的控制或者根本上需要人为干预（比如，打电话给供应商）。我见过的最好的手册中有关于警报的确切含义的注释，以及警报目前的关注点（“VendorX的小部件已经有一系列断电；如果出现该问题，请将它添加到 Bug12345，我们正在那里跟踪问题出现的模式“）大多数此类注释应该都是临时的，因此 Wiki 或类似的东西会是一个不错的工具。</p>
+<h3 id="跟踪和责任"><a href="#跟踪和责任" class="headerlink" title="跟踪和责任"></a>跟踪和责任</h3><p>跟踪您的紧急呼叫和所有其他告警。如果一个紧急呼叫正在运行，而人们只是说“我看了，没什么不对劲”，这是一个非常强烈的信号，表明您需要删除紧急呼叫规则，或者将其降级，或者以其他方式收集数据。准确率低于50%的警报是已经破坏的；即使那些 10% 的误报的也值得更多的考虑。</p>
+<p>一个适当的系统（例如，<strong>每周对所有紧急呼叫进行一次审查，每季度进行一次统计</strong>）有助于掌握大局，并梳理出传呼机从一个人传递到下一个人时丢失的模式。</p>
+<h3 id="你太天真了"><a href="#你太天真了" class="headerlink" title="你太天真了"></a>你太天真了</h3><p>是的，不过我更喜欢“野心勃勃”这个词。以下是打破上述准则的一些重要原因：</p>
+<ul>
+<li><strong>有一个已知的原因实际上位于现象的噪音之下</strong>。例如，如果您的服务有 99.99% 的可用性，但是有一个导致 0.001% 的请求失败的常见事件，那么您不能将其作为现象进行警报（因为它处于噪音中），但您可以捕获导致的事件。也许值得一试，把这些信息添加到栈上，但也许仅仅提醒原因是最简单的。警告值班人员。</li>
+<li><strong>您无法监控出口，因为丢失了数据分辨率</strong>。 例如，也许您可以容忍某些 handlers&#x2F;endpoints&#x2F;backends&#x2F;URLs 相当慢（例如，验证信用卡与浏览待售商品相比）或可用性低（例如，收件箱的后台刷新）。 在负载均衡器上，这种区分可能会丢失。 从栈中走下来，并从有区分的最高位置发出警报。</li>
+<li><strong>现象出现时已经太晚，就像已经用完配额</strong>。当然，您需要在太迟之前紧急呼叫，有时这意味着要找到紧急呼叫的原因（例如，使用率 &gt;80%，并将在 &lt;4 小时内以最后 1 小时的增长率用完）。但如果你能做到这一点，你也应该能够找到一个类似的原因，不那么紧迫（例如配额 &gt;90%，并将在 &lt;4d 以过去 1d 的增长率耗尽），这将抓住大多数情况，并处理作为一张单据或电子邮件警报或每日问题报告，而不是最后的升级，一个紧急呼叫所代表的。</li>
+<li><strong>警报设置听起来比试图检测的问题更复杂</strong>。有时如此。目标应该是趋向于简单、健壮、自我保护的系统（你怎么没有注意到配额已经用完了？为什么这些数据不能转移到其他地方？）从长远来看，它们应该趋向于简单化，但在任何给定的时间，局部最优可能是相对复杂的规则，以保持安静和准确。</li>
+</ul>
+<p><em>原文：</em> <a target="_blank" rel="noopener" href="https://docs.google.com/document/d/199PqyG3UsyXlwieHaqbGiWVa8eMWi8zzAn0YfcApr8Q/edit#heading=h.f2j0epxtq9mi">My Philosophy On Alerting</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-05-2021/my-philosophy-on-alerting-cn.html">https://www.cyningsun.com/05-05-2021/my-philosophy-on-alerting-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-15-2021/channels-orchestrate-mutexes-serialize.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-19-2021/content-products-push-or-pull.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

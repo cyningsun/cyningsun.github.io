@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>当谈SQL优化时谈些什么</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2015-12-02 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/12-02-2015/mysql-index-optimize.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景MySQL数据库作为数据持久化的存储系统，在实际业务中应用广泛。在应用也经常会因为SQL遇到各种各样的瓶颈。最常用的MySQL引擎是innodb，索引类型是B-Tree索引，增删改查等操作最经常遇到的问题是“查”，查询又以索引为重点（没索引不是病，慢起来太要命）。踩过O2O优惠券、摇一摇周边两个业务的一些坑，当谈到SQL优化时，想分享下innodb下B-">
+
+<meta name="keywords" content="索引优化,数据库,MYSQL">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>当谈SQL优化时谈些什么</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2015-12-02
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%B4%A2%E5%BC%95%E5%A6%82%E4%BD%95%E5%B7%A5%E4%BD%9C"><span class="toc-text">索引如何工作</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%B4%A2%E5%BC%95%E5%8C%B9%E9%85%8D-match"><span class="toc-text">索引匹配(match)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%B4%A2%E5%BC%95%E7%9A%84COST"><span class="toc-text">索引的COST</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%B4%A2%E5%BC%95%E5%AE%9E%E4%BE%8B%E5%88%86%E6%9E%90"><span class="toc-text">索引实例分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%B4%A2%E5%BC%95%E9%97%AE%E9%A2%98%E6%8E%92%E6%9F%A5"><span class="toc-text">索引问题排查</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Explain%E8%B7%9F%E8%BF%9B%E9%97%AE%E9%A2%98"><span class="toc-text">Explain跟进问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E6%B1%87%E6%80%BB"><span class="toc-text">常见问题汇总</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>MySQL数据库作为数据持久化的存储系统，在实际业务中应用广泛。在应用也经常会因为SQL遇到各种各样的瓶颈。最常用的MySQL引擎是innodb，索引类型是B-Tree索引，增删改查等操作最经常遇到的问题是“查”，查询又以索引为重点（没索引不是病，慢起来太要命）。踩过O2O优惠券、摇一摇周边两个业务的一些坑，当谈到SQL优化时，想分享下innodb下B-Tree索引的一些理解与实践。</p>
+<p>接下来的内容，安排如下：</p>
+<ol>
+<li>介绍索引的工作原理；</li>
+<li>引用实例具体介绍索引；</li>
+<li>如何使用explain排查线上问题；</li>
+<li>实际碰到的问题汇总；</li>
+</ol>
+<h3 id="索引如何工作"><a href="#索引如何工作" class="headerlink" title="索引如何工作"></a>索引如何工作</h3><p>当查询时，MySQL的查询优化器会使用统计数据预估使用各个索引的代价（COST），与不使用索引的代价（COST）比较。MySQL会选择代价最低的方式执行查询。MySQL如何使用索引，可以用下面的伪代码来说明：</p>
+<pre><code class="hljs python">min_cost = INIT_VALUE
+min_cost_index = NONE
+<span class="hljs-keyword">for</span>(index <span class="hljs-keyword">in</span> all_indexs):
+    <span class="hljs-keyword">if</span> (index <span class="hljs-keyword">match</span> WHERE_CLAUSE):
+        cur_cost = COST(index)
+        <span class="hljs-keyword">if</span>(cur_cost &lt; min_cost):
+            min_cost = cur_cost
+            min_cost_index = index</code></pre>
+
+
+<p>INIT_VALUE：不使用索引时的代价<br>all_indexs：查询表上所有的索引COST：基本是由“估计需要扫描的行数”（rows）来确定<br>WHERE_CLAUSE：查询SQL中的WHERE子句</p>
+<p>大致的意思：MySQL会遍历该查询相关的表（table）的每一条索引，然后判断该索引能否被本次查询使用（possible_keys）。当索引可以使用时，MySQL预估使用该索引进行查询的cost，然后选择预估代价最低的代价的方式（key）执行查询。</p>
+<h3 id="索引匹配-match"><a href="#索引匹配-match" class="headerlink" title="索引匹配(match)"></a>索引匹配(match)</h3><p>怎样判断索引是否匹配（match）SQL查询？</p>
+<p>1、索引的左前缀规则；索引中的列由左向右逐一匹配，如果中间某一列不能使用索引则后序列不在查询中不再被使用。</p>
+<p>例如，如果有一个3列索引(str_col1,col2,col3)，其中str_col1为字符串，则对(str_col1)、(str_col1,col2)和(str_col1,col2,col3)上的查询进行了索引。<br>如果列不构成索引最左面的前缀，MySQL不能使用索引。假定有下面显示的SELECT语句。</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tbl_name <span class="hljs-keyword">WHERE</span> str_col1<span class="hljs-operator">=</span>val1;
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tbl_name <span class="hljs-keyword">WHERE</span> str_col1<span class="hljs-operator">=</span>val1 <span class="hljs-keyword">AND</span> col2<span class="hljs-operator">=</span>val2;
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tbl_name <span class="hljs-keyword">WHERE</span> col2<span class="hljs-operator">=</span>val2;
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tbl_name <span class="hljs-keyword">WHERE</span> col2<span class="hljs-operator">=</span>val2 <span class="hljs-keyword">AND</span> col3<span class="hljs-operator">=</span>val3;</code></pre>
+
+<p>如果 (str_col1，col2，col3)有一个索引，只有前2个查询使用索引。第3个和第4个查询确实包括索引的列，但(col2)和(col2，col3)不是 (col1，col2，col3)的最左边的前缀。</p>
+<p>2、where语句中列的表达式为&#x3D;、&gt;、&gt;&#x3D;、&lt;、&lt;&#x3D;、BETWEEN、ISNULL或者LIKE ’pattern’（其中’pattern’不以通配符开始）</p>
+<p>3、每个AND组作为表达式匹配索引。</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tbl_name <span class="hljs-keyword">WHERE</span> (str_col1<span class="hljs-operator">=</span>val1 <span class="hljs-keyword">OR</span> col4 <span class="hljs-operator">=</span>val4) <span class="hljs-keyword">AND</span> col2<span class="hljs-operator">=</span>val2;</code></pre>
+
+<p>因为str_col1&#x3D;val1 OR col4 &#x3D;val4作为一组，col4不匹配索引中的列，所以查询不匹配索引。</p>
+<p>4、如果表达式中存在类型转换或者列上有复杂函数则与该列不匹配索引中的列。</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tbl_name <span class="hljs-keyword">WHERE</span> str_col1<span class="hljs-operator">=</span><span class="hljs-number">1</span>;
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> tbl_name <span class="hljs-keyword">WHERE</span> <span class="hljs-built_in">SUBSTRING</span>(str_col1,<span class="hljs-number">1</span>,<span class="hljs-number">8</span>) <span class="hljs-operator">=</span> ‘title’;</code></pre>
+
+<p>第1个查询，因为1是整数、str_col1是字符串，所以不匹配索引；第2个查询str_col1有复杂函数，同样不匹配索引。</p>
+<h3 id="索引的COST"><a href="#索引的COST" class="headerlink" title="索引的COST"></a>索引的COST</h3><p>MySQL如何计算索引的COST？</p>
+<p>索引的cost基本是由“估计需要扫描的行数”（rows）来确定。数据来源于information_schema，在MySQL启动的时候读入内存，运行时只使用内存值，存储引擎会动态更新这些值。</p>
+<p>我们可以通过explain看下“估计需要扫描的函数”，可以通过optimizer_trace查询适用每一条SQL的具体的cost值。explain也是线上排查问题的利器，后面会重点介绍。</p>
+<h3 id="索引实例分析"><a href="#索引实例分析" class="headerlink" title="索引实例分析"></a>索引实例分析</h3><p>索引的字段究竟是怎么从where语句中提取，并被MySQL使用呢，下面将以一个实例分析这个过程。内容全文为摘取何登成的文章《SQL中的where条件，在数据库中提取与应用浅析》，并做了部分删改。</p>
+<p>我们创建一张测试表，一个索引索引，然后插入几条记录。(注意：下面的实例，使用的表的结构不是InnoDB引擎所采用的聚簇索引表。图例仅为说明，原理适用innodb)</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">create</span> <span class="hljs-keyword">table</span> t1 (a <span class="hljs-type">int</span> <span class="hljs-keyword">primary</span> key, b <span class="hljs-type">int</span>, c <span class="hljs-type">int</span>, d <span class="hljs-type">int</span>, e <span class="hljs-type">varchar</span>(<span class="hljs-number">20</span>));
+
+<span class="hljs-keyword">create</span> index idx_t1_bcd <span class="hljs-keyword">on</span> t1(b, c, d);
+ 
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> t1 <span class="hljs-keyword">values</span> (<span class="hljs-number">4</span>,<span class="hljs-number">3</span>,<span class="hljs-number">1</span>,<span class="hljs-number">1</span>,’d’);
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> t1 <span class="hljs-keyword">values</span> (<span class="hljs-number">1</span>,<span class="hljs-number">1</span>,<span class="hljs-number">1</span>,<span class="hljs-number">1</span>,’a’);
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> t1 <span class="hljs-keyword">values</span> (<span class="hljs-number">8</span>,<span class="hljs-number">8</span>,<span class="hljs-number">8</span>,<span class="hljs-number">8</span>,’h’):
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> t1 <span class="hljs-keyword">values</span> (<span class="hljs-number">2</span>,<span class="hljs-number">2</span>,<span class="hljs-number">2</span>,<span class="hljs-number">2</span>,’b’);
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> t1 <span class="hljs-keyword">values</span> (<span class="hljs-number">5</span>,<span class="hljs-number">2</span>,<span class="hljs-number">3</span>,<span class="hljs-number">5</span>,’e’);
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> t1 <span class="hljs-keyword">values</span> (<span class="hljs-number">3</span>,<span class="hljs-number">3</span>,<span class="hljs-number">2</span>,<span class="hljs-number">2</span>,’c’);
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> t1 <span class="hljs-keyword">values</span> (<span class="hljs-number">7</span>,<span class="hljs-number">4</span>,<span class="hljs-number">5</span>,<span class="hljs-number">5</span>,’g’);
+<span class="hljs-keyword">insert</span> <span class="hljs-keyword">into</span> t1 <span class="hljs-keyword">values</span> (<span class="hljs-number">6</span>,<span class="hljs-number">6</span>,<span class="hljs-number">4</span>,<span class="hljs-number">4</span>,’f’);</code></pre>
+
+<p>t1表的存储结构如下图所示(只画出了idx_t1_bcd索引与t1表结构，没有包括t1表的主键索引)：<br><img src="/images/mysql-index-optimize/sql.jpg" alt="mysql-btree"></p>
+<p>简单说明上图，idx_t1_bcd索引上有[b,c,d]三个字段，不包括[a,e]字段。idx_t1_bcd索引，首先按照b字段排序，b字段相同，则按照c字段排序，以此类推。 </p>
+<p>考虑以下SQL：</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">select</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">from</span> t1 <span class="hljs-keyword">where</span> b <span class="hljs-operator">&gt;=</span> <span class="hljs-number">2</span> <span class="hljs-keyword">and</span> b <span class="hljs-operator">&lt;</span> <span class="hljs-number">8</span> <span class="hljs-keyword">and</span> c <span class="hljs-operator">&gt;</span> <span class="hljs-number">1</span> <span class="hljs-keyword">and</span> d <span class="hljs-operator">!=</span> <span class="hljs-number">4</span> <span class="hljs-keyword">and</span> e <span class="hljs-operator">!=</span> ‘a’;</code></pre>
+
+<p>可以发现where条件使用到了[b,c,d,e]四个字段，而t1表的idx_t1_bcd索引，恰好使用了[b,c,d]这三个字段，那么走idx_t1_bcd索引进行条件过滤，应该是一个不错的选择。</p>
+<p>所有SQL的where条件，均可归纳为3大类：Index Key (First Key &amp; Last Key)，Index Filter，Table Filter。</p>
+<p>接下来，让我们来详细分析者3大类分别是如何定义，以及如何提取的。</p>
+<p><strong>l  Index Key</strong></p>
+<p>用于确定SQL查询在索引中的连续范围(起始范围+结束范围)的查询条件，被称之为Index Key。由于一个范围，至少包含一个起始与一个终止，Index Key也被拆分为Index First Key和Index Last Key，分别用于定位索引查找的起始，以及索引查询的终止条件。</p>
+<p><strong>Index First Key</strong></p>
+<p>提取规则：从索引的第一个键值开始，检查其在where条件中是否存在，若存在并且条件是&#x3D;、&gt;&#x3D;，则将对应的条件加入Index First Key之中，继续读取索引的下一个键值，使用同样的提取规则；若存在并且条件是&gt;，则将对应的条件加入Index First Key中，同时终止Index First Key的提取；若不存在，同样终止Index First Key的提取。</p>
+<p>针对上面的SQL，应用这个提取规则，提取出来的Index First Key为(b &gt;&#x3D; 2, c &gt; 1)。由于c的条件为 &gt;，提取结束，不包括d。</p>
+<p><strong>Index Last Key</strong></p>
+<p>提取规则：从索引的第一个键值开始，检查其在where条件中是否存在，若存在并且条件是&#x3D;、&lt;&#x3D;，则将对应条件加入到Index Last Key中，继续提取索引的下一个键值，使用同样的提取规则；若存在并且条件是 &lt; ，则将条件加入到Index Last Key中，同时终止提取；若不存在，同样终止Index Last Key的提取。</p>
+<p>针对上面的SQL，应用这个提取规则，提取出来的Index Last Key为(b &lt; 8)，由于是 &lt; 符号，因此提取b之后结束。</p>
+<p><strong>2  Index Filter</strong></p>
+<p>在完成Index Key的提取之后，我们根据where条件固定了索引的查询范围，但是此范围中的项，并不都是满足查询条件的项。在上面的SQL用例中，(3,1,1)，(6,4,4)均属于范围中，但是又均不满足SQL的查询条件。</p>
+<p>Index Filter的提取规则：同样从索引列的第一列开始，检查其在where条件中是否存在：若存在并且where条件仅为 &#x3D;，则跳过第一列继续检查索引下一列，下一索引列采取与索引第一列同样的提取规则；若where条件为 &gt;&#x3D;、&gt;、&lt;、&lt;&#x3D; 其中的几种，则跳过索引第一列，将其余where条件中索引相关列全部加入到Index Filter之中；若索引第一列的where条件包含 &#x3D;、&gt;&#x3D;、&gt;、&lt;、&lt;&#x3D; 之外的条件，则将此条件以及其余where条件中索引相关列全部加入到Index Filter之中；若第一列不包含查询条件，则将所有索引相关条件均加入到Index Filter之中。</p>
+<p>针对上面的用例SQL，索引第一列只包含 &gt;&#x3D;、&lt; 两个条件，因此第一列可跳过，将余下的c、d两列加入到Index Filter中。因此获得的Index Filter为 c &gt; 1 and d !&#x3D; 4 。</p>
+<p><strong>3  Table Filter</strong></p>
+<p>Table Filter是最简单，最易懂，也是提取最为方便的。提取规则：所有不属于索引列的查询条件，均归为Table Filter之中。</p>
+<p>同样，针对上面的用例SQL，Table Filter就为 e !&#x3D; ‘a’。</p>
+<p>根据以上实例其实可以总结出一些规律，WHERE语句究竟怎样（是否）匹配索引，不用迷信出自他人之口的规则。只需要简单的按照索引自左向右的每一列，从WHERE语句提取条件，能否从索引树的根节点出发，到达索引树的叶节点，成功匹配出一个或几个范围区间，即能自己自行判断是否能使用索引。反过来，最左前缀匹配、Like不能以通配符开始、AND分组，也都是由B-Tree本身特性决定的。</p>
+<h3 id="索引问题排查"><a href="#索引问题排查" class="headerlink" title="索引问题排查"></a>索引问题排查</h3><p>前面我们谈使用索引的cost的值提到过explain。下面介绍explain的值，并以一个实际遇到的问题说明如何排查问题。</p>
+<p>Explain详解<br>使用一个示例SQL来解释explain：</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">select</span> id <span class="hljs-keyword">from</span> v_ibeacon_device_d <span class="hljs-keyword">where</span>  ftime <span class="hljs-operator">&gt;=</span> <span class="hljs-number">20151126</span> <span class="hljs-keyword">and</span> ftime <span class="hljs-operator">&lt;=</span> <span class="hljs-number">20151126</span>  <span class="hljs-keyword">and</span> biz_id <span class="hljs-operator">=</span> <span class="hljs-number">11602</span> limit <span class="hljs-number">50</span>;</code></pre>
+<p>IDX_BID_FTIME&lt;biz_id,  ftime&gt;是表r_ibeacon_biz_device_d的其中一条索引。<br>Biz_id,ftime均为bigint类型。</p>
+<p>我们着重关注几个重点字段的重点值：<br>我们着重关注几个重点字段的重点值：</p>
+<ul>
+<li>type:索引的使用方式</li>
+</ul>
+<pre><code class="hljs pgsql">eq_ref      …  索引,关联匹配若干行
+<span class="hljs-keyword">ref</span>          …  索引(前缀)匹配   
+ range        …  索引范围扫(<span class="hljs-keyword">BETWEEN</span>、<span class="hljs-keyword">IN</span>、&gt;=、<span class="hljs-keyword">LIKE</span>)得到数据
+<span class="hljs-keyword">index</span>        …  索引全扫描
+ <span class="hljs-keyword">all</span>           …  表全扫描</code></pre>
+
+<p>示例中使用的索引是使用全索引范围扫描，所以type为range</p>
+<ul>
+<li><p>possible_keys：适用查询的索引列表。示例中有三条索引适用本次查询。</p>
+</li>
+<li><p>key: 查询实际执行使用的索引。示例使用的为IDX_BID_FTIME</p>
+</li>
+<li><p>key_len：查询使用索引的长度。</p>
+</li>
+</ul>
+<pre><code class="hljs apache"><span class="hljs-attribute">null</span>    <span class="hljs-number">1</span>字节
+<span class="hljs-attribute">tinyint</span>  <span class="hljs-number">1</span>字节
+<span class="hljs-attribute">int</span>    <span class="hljs-number">4</span>字节
+<span class="hljs-attribute">bigint</span>  <span class="hljs-number">8</span>字节
+<span class="hljs-attribute">double</span>  <span class="hljs-number">8</span>字节
+<span class="hljs-attribute">datetime</span> <span class="hljs-number">8</span>字节
+<span class="hljs-attribute">timestamp</span> <span class="hljs-number">4</span>字节
+<span class="hljs-attribute">varchr</span>(<span class="hljs-number">10</span>)变长字段且允许NULL: <span class="hljs-number">10</span>*(Character Set：utf8=<span class="hljs-number">3</span>,gbk=<span class="hljs-number">2</span>,latin1=<span class="hljs-number">1</span>)+<span class="hljs-number">1</span>(NULL)+<span class="hljs-number">2</span>(变长字段)
+<span class="hljs-attribute">char</span>(<span class="hljs-number">10</span>)固定字段且允许NULL: <span class="hljs-number">10</span>*(Character Set：utf8=<span class="hljs-number">3</span>,gbk=<span class="hljs-number">2</span>,latin1=<span class="hljs-number">1</span>)+<span class="hljs-number">1</span>(NULL)</code></pre>
+<p>   以上是常用类型的长度，示例中key_len为18，即：8字节(biz_idbigint)+1字节(biz_id允许为null)+8字节(ftimebigint)+1字节(ftime允许为null)。所以本次查询是使用了索引的所有字段加速查询</p>
+<ul>
+<li>rows：查询预估扫描的行数</li>
+</ul>
+<h3 id="Explain跟进问题"><a href="#Explain跟进问题" class="headerlink" title="Explain跟进问题"></a>Explain跟进问题</h3><p>摇一摇周边后台的数据统计接口尔会有小尖峰，涉及了一条SQL：</p>
+<pre><code class="hljs sql"><span class="hljs-keyword">select</span> d.id <span class="hljs-keyword">from</span> v_ibeacon_page d <span class="hljs-keyword">where</span> d.ftime <span class="hljs-operator">&gt;=</span> <span class="hljs-number">20151126</span> <span class="hljs-keyword">and</span> d.ftime <span class="hljs-operator">&lt;=</span> <span class="hljs-number">20151126</span>  <span class="hljs-keyword">and</span> d.biz_id <span class="hljs-operator">=</span> <span class="hljs-number">11023</span>  <span class="hljs-keyword">and</span> d.page_id <span class="hljs-operator">=</span> <span class="hljs-number">778495</span>  limit <span class="hljs-number">0</span>,<span class="hljs-number">20</span>；</code></pre>
+
+<p>表r_ibeacon_biz_page_d 的主要字段信息如下：<br>ftime  bigint(20)<br>biz_id  bigint(20)<br>page_id varchar(200)<br>索引为：IDX_BID_PID_FTIME&lt;biz_id,page_id,ftime&gt;</p>
+<p>Explain结果如下:</p>
+<pre><code class="hljs jboss-cli">explain select d.id from v_ibeacon_page d where d.ftime &gt;= 20151126 and d.ftime &lt;= 20151126  and d.biz_id = 11023  and d.page_id = 778495  limit 0,20；
+
++<span class="hljs-params">----</span>+<span class="hljs-params">-------------</span>+<span class="hljs-params">-------</span>+<span class="hljs-params">-------</span>+<span class="hljs-params">-------------------</span>+<span class="hljs-params">-------------------</span>+<span class="hljs-params">---------</span>+<span class="hljs-params">------</span>+<span class="hljs-params">------</span>+<span class="hljs-params">--------------------------</span>+
+| id | select_type | table | type  | possible_keys     | key               | key_len | ref  | rows | Extra                    |
++<span class="hljs-params">----</span>+<span class="hljs-params">-------------</span>+<span class="hljs-params">-------</span>+<span class="hljs-params">-------</span>+<span class="hljs-params">-------------------</span>+<span class="hljs-params">-------------------</span>+<span class="hljs-params">---------</span>+<span class="hljs-params">------</span>+<span class="hljs-params">------</span>+<span class="hljs-params">--------------------------</span>+
+|  1 | SIMPLE      | d     | ref   | IDX_BID_PID_FTIME | IDX_BID_PID_FTIME | 9       | const|141614| Using where; Using index | 
++<span class="hljs-params">----</span>+<span class="hljs-params">-------------</span>+<span class="hljs-params">-------</span>+<span class="hljs-params">-------</span>+<span class="hljs-params">-------------------</span>+<span class="hljs-params">-------------------</span>+<span class="hljs-params">---------</span>+<span class="hljs-params">------</span>+<span class="hljs-params">------</span>+<span class="hljs-params">--------------------------</span>+
+1 row in <span class="hljs-keyword">set</span> <span class="hljs-params">(0.00 sec)</span></code></pre>
+
+<p>观察以上explain结果可以看到一切正常，SQL“符合预期”的走了索引。但是rows稍微多了点，但是看起来也“好像”ok。但是问题就是出现尖峰。</p>
+<p>问题排查：</p>
+<p>首先，注意到的一点就是explain中的type异常，是ref。按照上面的解释，如果走了索引那应该是range类型才对啊。</p>
+<p>其次，观察key_len，9，发现确实有些不对，怎么会这么小。按照类型所占字节，9刚好为biz_id的长度，确定这条SQL虽然走了索引，但是只使用了biz_id字段。原因呢？</p>
+<p>然后执行“desc r_ibeacon_biz_page_d”，查看表结构的索引字段，突然发现page_id的类型怎么是varchar，再看SQL中page_id&#x3D;11023。突然意识到了什么，此时刚好违反索引匹配的第四条规则。更改SQL“page_id&#x3D;11023”为“page_id&#x3D;‘11023’”验证.看到type&#x3D;range、key_len&#x3D;621，符合预期。接下来要做的就是更改表中page_id的类型为bigint。隔天再看接口的尖峰果然削平。</p>
+<p>Explain是一个很好的工具，可以用来验证SQL是否使用了索引，更重要的是<strong>验证SQL是否如预期的使用索引上</strong>。排查线上问题还有profile和optimizer_trace，由于实际没有太多用到暂且不表。</p>
+<h3 id="常见问题汇总"><a href="#常见问题汇总" class="headerlink" title="常见问题汇总"></a>常见问题汇总</h3><ul>
+<li><p>Range怎么使用索引？</p>
+<p>  详见上文</p>
+</li>
+<li><p>Order by使用索引吗？</p>
+</li>
+</ul>
+<p>该问题可以由以下资料解释：</p>
+<p>SQL queries with an order by clause don’t need to sort the result explicitly if the relevant index already delivers the rows in the required order. That means the same index that is used for the where clause must also cover the order by clause.<br>  总之一句话：索引本身并不能避免排序，当根据索引取出的数据已经满足order by子句的要求就可以避免排序操作。</p>
+<ul>
+<li><p>order by太慢？</p>
+<p>避免数据排序，采用索引排序(分页查询文艺写法)</p>
+</li>
+<li><p>limit offset太慢？</p>
+</li>
+</ul>
+<p> 避免大offset，使用where语句过滤更多的行。更多参考的实践《Efficient Pagination Using MySQL》</p>
+<ul>
+<li>为什么不走索引（索引也走了，还是慢）？</li>
+</ul>
+<p>类型是否一致: int vs char（varchar）、varchar（32）vs varchar(64)<br>字符集是否一致：涉及表关联时，两表字符集是否一致。</p>
+<ul>
+<li>多列数据作为组合索引如何使用？</li>
+</ul>
+<p>多列索引的情况，如果存在复杂的查询操作，需要增加一列hash列用于数据的过滤，如下：<br>SELECT * FROM tbl_name WHERE hash_col&#x3D;MD5(CONCAT(val1,val2)) AND col1&#x3D;val1 AND col2&#x3D;val2;</p>
+<p>更新记录：<br>2016.02.01  增加组合索引复杂查询的使用方法</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/12-02-2015/mysql-index-optimize.html">https://www.cyningsun.com/12-02-2015/mysql-index-optimize.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/02-02-2016/communication.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/06-13-2015/vim-quickfix.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>如何配置 go-redis 连接池</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-06-05 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2023-06-16 00:00:00 +0800"/>
+
+<meta property="og:url" content="/06-05-2023/go-redis-connection-pool.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="连接池是各种服务绕不过去的模块，它在调用链路的上下游之间建立了一个缓冲区。客户端可以从连接池中获取连接来执行数据库操作，完成后将连接返回给连接池，而不是每次都建立新的连接。 连接池的作用显而易见： 提高性能：连接池可以减少连接的创建和销毁过程，避免了频繁地与服务端建立物理连接的开销，从而提高了客户端的性能和响应速度。 节省资源：服务端连接是一种有限的资源，每">
+
+<meta name="keywords" content="Redis,go-redis 配置,连接池">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>如何配置 go-redis 连接池</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-06-05
+         | 
+        Last Revised: 2023-06-16
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <p>连接池是各种服务绕不过去的模块，它在调用链路的上下游之间建立了一个缓冲区。客户端可以从连接池中获取连接来执行数据库操作，完成后将连接返回给连接池，而不是每次都建立新的连接。</p>
+<p>连接池的作用显而易见：</p>
+<ol>
+<li>提高性能：连接池可以减少连接的创建和销毁过程，避免了频繁地与服务端建立物理连接的开销，从而提高了客户端的性能和响应速度。</li>
+<li>节省资源：服务端连接是一种有限的资源，每个连接都占用着内存等系统资源。连接池可以限制连接的数量，避免过多的连接导致资源的浪费，提高了系统的资源利用率。</li>
+<li>连接的复用：连接池可以重复利用已经建立的连接，避免了频繁地创建和销毁连接的开销，提高了服务端的并发性能。</li>
+</ol>
+<p>但是，连接池配置众多，根据业务特征调整好连接池并不容易。</p>
+<p>go-redis 连接池的配置参数包括：</p>
+<pre><code class="hljs yaml"><span class="hljs-bullet">-</span> <span class="hljs-string">DialTimeout</span>  <span class="hljs-comment"># Dial timeout for establishing new connections.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">ReadTimeout</span>  <span class="hljs-comment"># Timeout for socket reads. If reached, commands will fail with a timeout instead of blocking.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">WriteTimeout</span>  <span class="hljs-comment"># Timeout for socket writes. If reached, commands will fail with a timeout instead of blocking.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">PoolFIFO</span>  <span class="hljs-comment"># Type of connection pool. true for FIFO pool, false for LIFO pool.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">PoolSize</span>  <span class="hljs-comment"># Maximum number of socket connections.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">PoolTimeout</span>  <span class="hljs-comment"># Amount of time client waits for connection if all connections are busy before returning an error.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">MinIdleConns</span>  <span class="hljs-comment"># Minimum number of idle connections which is useful when establishing new connection is slow.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">MaxIdleConns</span>  <span class="hljs-comment"># Maximum number of idle connections.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">ConnMaxIdleTime</span>  <span class="hljs-comment"># ConnMaxIdleTime is the maximum amount of time a connection may be idle.</span>
+<span class="hljs-bullet">-</span> <span class="hljs-string">ConnMaxLifetime</span>  <span class="hljs-comment"># Expired connections may be closed lazily before reuse.</span></code></pre>
+
+<h3 id="误区一：-DialTimeout-设置过小"><a href="#误区一：-DialTimeout-设置过小" class="headerlink" title="误区一： DialTimeout 设置过小"></a>误区一： DialTimeout 设置过小</h3><p><code>DialTimeout</code>（拨号超时）用于指定建立网络连接的超时时间。当客户端尝试连接到服务端时，如果在 <code>DialTimeout</code> 指定的时间内无法建立连接，连接操作将超时失败。它通常包括域名解析、建立 TCP 连接等步骤的超时时间。</p>
+<p><code>DialTimeout</code> 设置过小，可能会导致服务由于无法成功建立连接，启动失败。尤其是使用 DNS 作为服务发现以及跨 IDC 调用的场景下。</p>
+<p>go-redis 默认是 5 s。3~5 s 是比较合适的，可以直接使用默认值。</p>
+<h3 id="误区二：-PoolSize-设置不合理"><a href="#误区二：-PoolSize-设置不合理" class="headerlink" title="误区二： PoolSize 设置不合理"></a>误区二： PoolSize 设置不合理</h3><p>如果连接池的大小设置过小，无法满足应用程序的并发需求，可能会导致连接不足的问题，影响应用程序的性能和响应速度。</p>
+<p>如果连接池的大小设置过大，最大连接总数超过服务端最大连接数。在业务请求峰值时，会出现新建连接失败导致的请求失败。</p>
+<p>那怎么评估连接池大小呢？</p>
+<p>假如请求服务端的平均延迟是 duration ms，客户端进程的峰值 QPS 是 qps。单个连接 1 秒（1000）能否处理的请求总数是 1000 &#x2F; duration；同时，预留一定的 Buffer 连接数 buffer 给请求变慢或请求量因为需求变化增加等场景。那么合适的连接池大小为：</p>
+<pre><code class="hljs awk">PoolSize = qps <span class="hljs-regexp">/ (1000 /</span> duration) + buffer</code></pre>
+
+<h3 id="误区三：ConnMaxLifetime-设置不当"><a href="#误区三：ConnMaxLifetime-设置不当" class="headerlink" title="误区三：ConnMaxLifetime 设置不当"></a>误区三：ConnMaxLifetime 设置不当</h3><p>如果连接生存时间设置得过短，则可能频繁地创建和销毁连接，影响性能。此问题比较容易理解。</p>
+<p>如果连接生存时间设置得过长，可能会导致连接过期或失效。举个极端的例子，不设置连接生存时间。</p>
+<p>考虑以下场景</p>
+<blockquote>
+<p>场景一：<br>服务端新版本发布。假如该服务有两个实例 A、B。考虑发布过程，首先，A 升级重启，连接全部请求到 B。然后，B 升级重启，连接全部回到 A。因为没有设置连接生存时间，调用 A 不出现错误的前提下，连接永远不均匀。</p>
+<p>场景二：<br>客户端到服务端短暂网络异常。假如该服务有两个实例 A、B，新建连接的机制是 Round Robin。考虑到 B 的网络异常，导致请求全部断开。然后客户端开始新建连接，到 B 的连接全部失败，最终连接池的中的连接全部连接到 A。因为没有设置连接生存时间，调用 A 不出现错误的前提下，连接永远不均匀。</p>
+</blockquote>
+<p>go-redis 该设置默认关闭。为避免类似问题，连接生存时间一般建议配置为小时级，既避免频繁地创建和销毁连接，影响性能；同时也避免连接不均匀。</p>
+<h3 id="误区四：PoolFIFO-设置不当"><a href="#误区四：PoolFIFO-设置不当" class="headerlink" title="误区四：PoolFIFO 设置不当"></a>误区四：PoolFIFO 设置不当</h3><p>在连接池中连接到服务端每个实例的连接数大致均匀的前提下。客户端从连接池获取连接发起请求，本质来说是一个负载均衡的问题。常见的负载均衡算法包括：</p>
+<ul>
+<li>Round-Robin(FIFO)</li>
+<li>Random</li>
+<li>Weighted Round Robin</li>
+<li>Weighted Random</li>
+<li>Hashing</li>
+</ul>
+<p>很显然，go-redis 默认使用的 LIFO 并不在列。</p>
+<p>LIFO 并不适合作为负载均衡算法的选择。因为 LIFO 会优先处理最近使用过的连接，这可能会导致某些服务实例负载过重，而其他的服务实例却得不到充分的利用。这种不均衡的分配会影响系统的可用性、性能和容错能力。</p>
+<p>因此，在使用 go-redis 时，PoolFIFO 应永远设置为 true。</p>
+<h3 id="附：连接池图例"><a href="#附：连接池图例" class="headerlink" title="附：连接池图例"></a>附：连接池图例</h3><p><strong>连接使用：获取&#x2F;释放流程图</strong></p>
+<p><img src="/images/go-redis-connection-pool/go-redis%20%E8%BF%9E%E6%8E%A5%E7%AE%A1%E7%90%86-20230605190856.png"></p>
+<p><strong>连接管理：连接状态机</strong></p>
+<p><img src="/images/go-redis-connection-pool/go-redis%20%E8%BF%9E%E6%8E%A5%E7%AE%A1%E7%90%86-20230605191310.png"></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/06-05-2023/go-redis-connection-pool.html">https://www.cyningsun.com/06-05-2023/go-redis-connection-pool.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/06-13-2023/heavy-hitter.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/05-10-2023/a-scalable-commodity-data-center-network-architecture-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

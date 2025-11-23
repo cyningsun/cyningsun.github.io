@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Kubernetes 下的文件、账号与权限</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2025-05-03 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-05-04 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-03-2025/files-accounts-and-permissions-under-kubernetes.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="一、背景在容器化环境中，文件权限和用户管理常常会引发各种问题，例如：遇到 “Permission denied” 错误，却不知从何处着手解决。问题背后往往涉及容器文件系统、用户权限和挂载机制等细节。本文将从几个关键问题出发，系统地探讨容器中的文件、账号与权限管理，以更好地理解和解决这些问题。 进程创建的目录、文件，默认权限是怎么指定的？ 宿主机不存在的路径，">
+
+<meta name="keywords" content="account,permission">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Kubernetes 下的文件、账号与权限</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2025-05-03
+         | 
+        Last Revised: 2025-05-04
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E8%83%8C%E6%99%AF"><span class="toc-text">一、背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%96%87%E4%BB%B6-x2F-%E7%9B%AE%E5%BD%95%E5%88%9B%E5%BB%BA%E6%8E%A9%E7%A0%81"><span class="toc-text">二、文件&#x2F;目录创建掩码</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-umask-%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="toc-text">2.1 umask 的作用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E6%9D%83%E9%99%90%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%88%B6"><span class="toc-text">2.2 权限计算机制</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%AE%BF%E4%B8%BB%E6%9C%BA%E7%9B%AE%E5%BD%95%E6%9D%83%E9%99%90"><span class="toc-text">三、宿主机目录权限</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%AE%B9%E5%99%A8%E6%8C%82%E8%BD%BD%E7%9B%AE%E5%BD%95%E6%9D%83%E9%99%90"><span class="toc-text">四、容器挂载目录权限</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E8%99%9A%E6%8B%9F%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F-%E2%80%93-%E6%8C%82%E8%BD%BD%E6%9C%BA%E5%88%B6"><span class="toc-text">五、虚拟文件系统 – 挂载机制</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E7%9B%AE%E5%BD%95%E6%8C%82%E8%BD%BD%E6%9D%83%E9%99%90%E7%AE%A1%E7%90%86"><span class="toc-text">六、目录挂载权限管理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E5%9F%BA%E6%9C%AC%E6%9D%83%E9%99%90%E5%8E%9F%E7%90%86"><span class="toc-text">6.1 基本权限原理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-Pod-%E5%AE%89%E5%85%A8%E4%B8%8A%E4%B8%8B%E6%96%87"><span class="toc-text">6.2 Pod 安全上下文</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E4%B8%8D%E5%90%8C%E5%8D%B7%E7%B1%BB%E5%9E%8B%E7%9A%84%E6%9D%83%E9%99%90%E7%89%B9%E6%80%A7"><span class="toc-text">6.3 不同卷类型的权限特性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-4-%E6%96%B0%E6%96%87%E4%BB%B6%E5%88%9B%E5%BB%BA%E7%9A%84%E6%9D%83%E9%99%90%E8%A7%84%E5%88%99"><span class="toc-text">6.4 新文件创建的权限规则</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#6-4-1-emptyDir-%E5%92%8C%E6%8C%81%E4%B9%85%E5%8D%B7-PV-%E7%9A%84%E6%96%B0%E6%96%87%E4%BB%B6"><span class="toc-text">6.4.1 emptyDir 和持久卷 (PV) 的新文件</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#6-4-2-hostPath-%E5%8D%B7%E7%9A%84%E6%96%B0%E6%96%87%E4%BB%B6"><span class="toc-text">6.4.2 hostPath 卷的新文件</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E5%AE%B9%E5%99%A8%E5%90%AF%E5%8A%A8-%E2%80%93-%E8%BF%9B%E7%A8%8B%E8%B4%A6%E5%8F%B7"><span class="toc-text">七、容器启动 – 进程账号</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E2%80%9DPermission-denied%E2%80%9D-%E9%94%99%E8%AF%AF%E6%8E%92%E6%9F%A5"><span class="toc-text">八、”Permission denied” 错误排查</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E7%A1%AE%E5%AE%9A%E5%AE%B9%E5%99%A8%E5%90%AF%E5%8A%A8%E8%B4%A6%E5%8F%B7"><span class="toc-text">8.1 确定容器启动账号</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E7%A1%AE%E5%AE%9A%E8%BF%9B%E7%A8%8B%E5%90%AF%E5%8A%A8%E8%B4%A6%E5%8F%B7"><span class="toc-text">8.2 确定进程启动账号</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-3-%E6%A3%80%E6%9F%A5%E7%9B%AE%E5%BD%95%E5%92%8C%E6%96%87%E4%BB%B6%E6%9D%83%E9%99%90"><span class="toc-text">8.3 检查目录和文件权限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-4-%E9%AA%8C%E8%AF%81%E6%9D%83%E9%99%90%E5%8C%B9%E9%85%8D"><span class="toc-text">8.4 验证权限匹配</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81%E6%A1%88%E4%BE%8B%E5%88%86%E6%9E%90%EF%BC%9ARedis-Dockerfile"><span class="toc-text">九、案例分析：Redis Dockerfile</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#9-1-%E7%94%A8%E6%88%B7%E5%88%9B%E5%BB%BA"><span class="toc-text">9.1 用户创建</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-2-%E6%9D%83%E9%99%90%E9%99%8D%E7%BA%A7%E5%B7%A5%E5%85%B7%E5%AE%89%E8%A3%85"><span class="toc-text">9.2 权限降级工具安装</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-3-%E6%9D%83%E9%99%90%E9%99%8D%E7%BA%A7%E5%AE%9E%E7%8E%B0"><span class="toc-text">9.3 权限降级实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-4-%E6%95%B0%E6%8D%AE%E7%9B%AE%E5%BD%95%E6%9D%83%E9%99%90%E7%AE%A1%E7%90%86"><span class="toc-text">9.4 数据目录权限管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-5-umask-%E8%AE%BE%E7%BD%AE"><span class="toc-text">9.5 umask 设置</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">十、总结</span></a></li></ol>
+ 
+        <h2 id="一、背景"><a href="#一、背景" class="headerlink" title="一、背景"></a>一、背景</h2><p>在容器化环境中，文件权限和用户管理常常会引发各种问题，例如：遇到 “Permission denied” 错误，却不知从何处着手解决。问题背后往往涉及容器文件系统、用户权限和挂载机制等细节。本文将从几个关键问题出发，系统地探讨容器中的文件、账号与权限管理，以更好地理解和解决这些问题。</p>
+<ol>
+<li>进程创建的目录、文件，默认权限是怎么指定的？</li>
+<li>宿主机不存在的路径，是由谁来创建，权限是怎样的？</li>
+<li>容器的挂载路径中不存在的目录是由谁来创建的，权限是怎样的？</li>
+<li>虚拟文件系统是怎么实现挂载、挂载目录读写？</li>
+<li>同一个文件系统 (目录) 挂载到不同的容器 (机器)，权限是怎么管理的？</li>
+<li>root 启动的容器，进程启动用户一定是 root 么？</li>
+<li>“Permission denied” 错误如何排查？</li>
+</ol>
+<p>本文从最基础的 Linux 文件权限系统开始，逐步深入分析容器中的权限机制。</p>
+<h2 id="二、文件-x2F-目录创建掩码"><a href="#二、文件-x2F-目录创建掩码" class="headerlink" title="二、文件&#x2F;目录创建掩码"></a>二、文件&#x2F;目录创建掩码</h2><p>在 Linux 系统中，当进程创建新文件或目录时，它们的默认权限是由进程的 umask（用户文件创建模式掩码）决定的。这个机制在容器环境中同样适用，是理解权限问题的关键。</p>
+<h3 id="2-1-umask-的作用"><a href="#2-1-umask-的作用" class="headerlink" title="2.1 umask 的作用"></a>2.1 umask 的作用</h3><p>umask 是一个三位或四位八进制数，每一位分别对应文件权限的用户（owner）、用户组（group）和其他人（others）。它定义了从基准权限中需要减去哪些权限位。</p>
+<h3 id="2-2-权限计算机制"><a href="#2-2-权限计算机制" class="headerlink" title="2.2 权限计算机制"></a>2.2 权限计算机制</h3><p>当创建新文件或目录时：</p>
+<ul>
+<li>文件的基准权限是 0666（<code>rw-rw-rw-</code>）</li>
+<li>目录的基准权限是 0777（<code>rwxrwxrwx</code>）</li>
+<li>实际权限 &#x3D; 基准权限 - umask</li>
+</ul>
+<p>例如，如果 umask 是 022：</p>
+<ul>
+<li>新文件权限：0666 - 022 &#x3D; 0644（<code>rw-r--r--</code>）</li>
+<li>新目录权限：0777 - 022 &#x3D; 0755（<code>rwxr-xr-x</code>）</li>
+</ul>
+<p>容器中可通过以下命令查看和设置 umask：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 查看当前 umask</span>
+<span class="hljs-built_in">umask</span>
+0022
+
+<span class="hljs-comment"># 设置新的 umask</span>
+<span class="hljs-built_in">umask</span> 0027</code></pre>
+
+<p>设置 umask 为 0027 后，新创建的文件默认权限为 0640（<code>rw-r-----</code>），新创建的目录默认权限为 0750（<code>rwxr-x---</code>）。</p>
+<p>以下是一个简单的验证实验：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 设置 umask 为 0022</span>
+<span class="hljs-built_in">umask</span> 0022
+
+<span class="hljs-comment"># 创建文件和目录</span>
+<span class="hljs-built_in">touch</span> test-file
+<span class="hljs-built_in">mkdir</span> test-dir
+
+<span class="hljs-comment"># 检查权限</span>
+<span class="hljs-built_in">ls</span> -l test-file
+-rw-r--r-- 1 root root 0 Jun 14 10:15 test-file
+
+<span class="hljs-built_in">ls</span> -ld test-dir
+drwxr-xr-x 2 root root 4096 Jun 14 10:15 test-dir
+
+<span class="hljs-comment"># 修改 umask 为 0027</span>
+<span class="hljs-built_in">umask</span> 0027
+
+<span class="hljs-comment"># 创建文件和目录</span>
+<span class="hljs-built_in">touch</span> test-file-2
+<span class="hljs-built_in">mkdir</span> test-dir-2
+
+<span class="hljs-comment"># 检查权限</span>
+<span class="hljs-built_in">ls</span> -l test-file-2
+-rw-r----- 1 root root 0 Jun 14 10:16 test-file-2
+
+<span class="hljs-built_in">ls</span> -ld test-dir-2
+drwxr-x--- 2 root root 4096 Jun 14 10:16 test-dir-2</code></pre>
+
+<p>理解 umask 机制是掌握容器环境中目录和文件权限设置的基础。下面将分析这一机制在宿主机和容器环境中的具体应用。</p>
+<h2 id="三、宿主机目录权限"><a href="#三、宿主机目录权限" class="headerlink" title="三、宿主机目录权限"></a>三、宿主机目录权限</h2><p>在 Kubernetes 中，当需要将主机上的目录挂载到容器内时，常常会使用 HostPath 卷。如果该主机目录不存在，可以使用 HostPathType 设置为 DirectoryOrCreate 来自动创建该目录。这时，一个关键问题出现了：<strong>这个目录是由谁创建的？它的权限是什么？</strong></p>
+<p>目录由节点上的 <strong>kubelet</strong> 组件创建。kubelet 是运行在每个节点上的 Kubernetes 代理，负责管理 Pod 和容器生命周期。如果目标目录不存在，kubelet 会在挂载卷时自动创建该目录。</p>
+<p><strong>目录的权限</strong>：</p>
+<ul>
+<li><strong>所有者</strong>：目录的所有者为 <strong>kubelet 进程的运行用户</strong>（通常为 <code>root</code>，但取决于节点上的 kubelet 配置）。</li>
+<li><strong>权限</strong>：默认权限为 <strong>0755</strong>（即 <code>drwxr-xr-x</code>），遵循 Linux 的默认目录权限规则。如果 kubelet 的配置被修改过，权限可能会变化，但通常情况下默认是 <code>0755</code>。</li>
+</ul>
+<p>以下是一个实际的例子：</p>
+<pre><code class="hljs yaml"><span class="hljs-attr">apiVersion:</span> <span class="hljs-string">v1</span>
+<span class="hljs-attr">kind:</span> <span class="hljs-string">Pod</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">hostpath-pod</span>
+<span class="hljs-attr">spec:</span>
+  <span class="hljs-attr">containers:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">mycontainer</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">busybox:1.28</span>
+    <span class="hljs-attr">command:</span> [<span class="hljs-string">&quot;/bin/sh&quot;</span>]
+    <span class="hljs-attr">args:</span> [<span class="hljs-string">&quot;-c&quot;</span>, <span class="hljs-string">&quot;sleep 3600&quot;</span>]  <span class="hljs-comment"># 使容器保持运行</span>
+    <span class="hljs-attr">volumeMounts:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-attr">mountPath:</span> <span class="hljs-string">/container/path</span>
+      <span class="hljs-attr">name:</span> <span class="hljs-string">host-volume</span>
+  <span class="hljs-attr">volumes:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">host-volume</span>
+    <span class="hljs-attr">hostPath:</span>
+      <span class="hljs-attr">path:</span> <span class="hljs-string">/data/log/hostpath-pod</span>
+      <span class="hljs-attr">type:</span> <span class="hljs-string">DirectoryOrCreate</span></code></pre>
+
+<p>当该 Pod 被创建后，可以检查宿主机上自动创建的目录权限：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 查看 Pod 所在宿主机</span>
+kubectl get pod hostpath-pod -o wide
+NAME           READY   STATUS    RESTARTS   AGE   IP              NODE                                               NOMINATED NODE   READINESS GATES
+hostpath-pod   1/1     Running   0          16m   192.168.1.100   worker-node-01   &lt;none&gt;           &lt;none&gt;
+
+<span class="hljs-comment"># 登录宿主机查看目录权限</span>
+<span class="hljs-built_in">ls</span> -ld /data/log/hostpath-pod/
+drwxr-xr-x 2 root root 4096 Jun 13 10:06 /data/log/hostpath-pod/</code></pre>
+
+<p>如上所示，自动创建的目录属于 root 用户和 root 组，权限为 0755，这与 umask 0022 结合基础权限 0777 的结果一致。</p>
+<h2 id="四、容器挂载目录权限"><a href="#四、容器挂载目录权限" class="headerlink" title="四、容器挂载目录权限"></a>四、容器挂载目录权限</h2><p>类似地，在容器挂载过程中，如果容器内的挂载路径不存在，Kubelet 也会自动创建这个路径。这里的权限管理与宿主机上相似，同样受 umask 影响：</p>
+<p><strong>容器内路径的创建</strong></p>
+<ul>
+<li><strong>自动创建逻辑</strong>：<br> 无论挂载的是 <strong>HostPath 卷</strong>、<strong>emptyDir 卷</strong>还是其他类型的卷，如果容器内的挂载路径（如 <code>/app/data</code>）不存在，Kubelet 会在容器启动前自动创建该路径。</li>
+<li><strong>创建者身份</strong>：<br> 容器内的路径由 <strong>Kubelet 以容器运行时（如 Docker、containerd）的默认用户身份创建</strong>。默认情况下，容器运行时可能以 <code>root</code> 用户运行（除非显式配置了非 root 用户）。</li>
+</ul>
+<p>继续使用上面的例子，进入容器检查挂载目录的权限：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 进入容器</span>
+kubectl <span class="hljs-built_in">exec</span> -it hostpath-pod -- /bin/sh
+
+<span class="hljs-comment"># 检查挂载目录权限</span>
+<span class="hljs-built_in">ls</span> -ld /container/path
+drwxr-xr-x    2 root     root          4096 Jun 13 02:06 /container/path</code></pre>
+
+<p>在容器内，挂载目录同样属于 root 用户和 root 组，权限为 0755，这再次验证了 umask 机制在容器环境中的应用。</p>
+<p>理解了基本的权限机制后，需要进一步分析更复杂的场景：当同一个文件系统被挂载到不同的容器时，权限是如何管理的？这涉及到虚拟文件系统的实现。</p>
+<h2 id="五、虚拟文件系统-–-挂载机制"><a href="#五、虚拟文件系统-–-挂载机制" class="headerlink" title="五、虚拟文件系统 – 挂载机制"></a>五、虚拟文件系统 – 挂载机制</h2><p>要深入理解容器中的文件权限管理，必须了解底层的虚拟文件系统挂载原理。容器环境中的挂载实际依赖于 Linux VFS(虚拟文件系统) 层的实现。</p>
+<p><img src="/images/files-accounts-and-permissions-under-kubernetes/Kubernetes%20%E4%B8%8B%E7%9A%84%E6%96%87%E4%BB%B6%E3%80%81%E8%B4%A6%E5%8F%B7%E4%B8%8E%E6%9D%83%E9%99%90-20250503232727-1.png" alt="Kubernetes 下的文件、账号与权限-20250503232727-1.png"></p>
+<ul>
+<li><strong>目录游走</strong>：目录游走是逐渐实例化该组件对应的 inode 和 dentry 的过程。在没有任何缓存的情况下，dentry 会先被初始化，在 dentry 中包含文件&#x2F;目录名字符串。在具体某一级目录中，会调用该目录 inode 的 lookup() 函数查找该目录中的对应子项（子目录或子文件），然后完成子项 dentry 和 inode 的初始化</li>
+</ul>
+<p><img src="/images/files-accounts-and-permissions-under-kubernetes/Kubernetes%20%E4%B8%8B%E7%9A%84%E6%96%87%E4%BB%B6%E3%80%81%E8%B4%A6%E5%8F%B7%E4%B8%8E%E6%9D%83%E9%99%90-20250503232727-2.png" alt="Kubernetes 下的文件、账号与权限-20250503232727-2.png"></p>
+<ul>
+<li><p><strong>挂载点初始化</strong>：涉及挂载的关键信息的初始化在挂载的时候就已经完成。即，为源目录添加挂载点标记，同时添加挂载信息（包括，源和目标文件系统的信息）到挂载点列表</p>
+</li>
+<li><p><strong>挂载点游走</strong>：在目录游走时，如果发现该目录标记为挂载点，则从挂载点列表寻找目标文件系统的信息，然后从目标文件系统继续往下遍历</p>
+</li>
+</ul>
+<p>这种挂载机制是理解不同类型的卷在权限处理上存在差异的基础。当目录被挂载后，访问该目录的进程实际上会穿过挂载点，访问到目标文件系统上的内容，而权限检查则会基于目标文件系统上的权限设置。</p>
+<p>有了这些挂载机制的基础知识，接下来可以进一步分析 Kubernetes 中如何管理挂载卷的权限。</p>
+<h2 id="六、目录挂载权限管理"><a href="#六、目录挂载权限管理" class="headerlink" title="六、目录挂载权限管理"></a>六、目录挂载权限管理</h2><p>基于前面介绍的挂载机制，下面分析容器环境中如何管理挂载卷的权限。当文件系统挂载到容器中时，权限管理涉及几个核心机制：</p>
+<h3 id="6-1-基本权限原理"><a href="#6-1-基本权限原理" class="headerlink" title="6.1 基本权限原理"></a>6.1 基本权限原理</h3><p>文件系统的权限体系在容器环境中仍然遵循 Linux 标准：</p>
+<ul>
+<li><strong>权限继承</strong>：挂载的文件和目录保留其原始的 UID&#x2F;GID 和权限位</li>
+<li><strong>用户映射</strong>：容器内的进程根据其 UID&#x2F;GID 访问文件，若容器内不存在对应用户，则直接显示数字 ID</li>
+</ul>
+<pre><code class="hljs sh"><span class="hljs-comment"># 宿主机上以特定用户创建文件</span>
+cyningsun$&gt; <span class="hljs-built_in">touch</span> uid-gid.txt
+
+<span class="hljs-comment"># 查看文件归属用户、用户组</span>
+$&gt; <span class="hljs-built_in">ls</span> -l /data/cyningsun/k8s/dir/uid-gid.txt
+-rw-r--r-- 1 cyningsun dev 0 6月  13 11:29 /data/cyningsun/k8s/dir/uid-gid.txt
+
+<span class="hljs-comment"># 查看用户 UID、GID</span>
+$&gt; <span class="hljs-built_in">id</span> cyningsun
+uid=1002(cyningsun) gid=1001(dev) <span class="hljs-built_in">groups</span>=1001(dev),1002(dev_sudo)
+
+<span class="hljs-comment"># 查看文件归属 UID、GID</span>
+$&gt; <span class="hljs-built_in">ls</span> -<span class="hljs-built_in">ln</span> /data/cyningsun/k8s/dir/uid-gid.txt
+-rw-r--r-- 1 1002 1001 0 6月  13 11:29 /data/cyningsun/k8s/dir/uid-gid.txt</code></pre>
+
+<h3 id="6-2-Pod-安全上下文"><a href="#6-2-Pod-安全上下文" class="headerlink" title="6.2 Pod 安全上下文"></a>6.2 Pod 安全上下文</h3><p>Kubernetes 通过 SecurityContext 控制 Pod 和容器的权限：</p>
+<pre><code class="hljs yaml"><span class="hljs-attr">apiVersion:</span> <span class="hljs-string">v1</span>
+<span class="hljs-attr">kind:</span> <span class="hljs-string">Pod</span>
+<span class="hljs-attr">metadata:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">security-context-pod</span>
+<span class="hljs-attr">spec:</span>
+  <span class="hljs-attr">securityContext:</span>
+    <span class="hljs-attr">runAsUser:</span> <span class="hljs-number">1000</span>  <span class="hljs-comment"># 进程用户ID</span>
+    <span class="hljs-attr">runAsGroup:</span> <span class="hljs-number">2000</span> <span class="hljs-comment"># 进程组ID</span>
+    <span class="hljs-attr">fsGroup:</span> <span class="hljs-number">2000</span>    <span class="hljs-comment"># 文件系统组ID</span>
+  <span class="hljs-attr">containers:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">busybox-container</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">busybox:1.28</span>
+    <span class="hljs-attr">command:</span> [<span class="hljs-string">&quot;/bin/sh&quot;</span>]
+    <span class="hljs-attr">args:</span> [<span class="hljs-string">&quot;-c&quot;</span>, <span class="hljs-string">&quot;sleep 3600&quot;</span>]  <span class="hljs-comment"># 使容器保持运行</span>
+    <span class="hljs-attr">volumeMounts:</span>
+    <span class="hljs-bullet">-</span> <span class="hljs-attr">mountPath:</span> <span class="hljs-string">/container/path</span>
+      <span class="hljs-attr">name:</span> <span class="hljs-string">host-volume</span>
+  <span class="hljs-attr">volumes:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">host-volume</span>
+    <span class="hljs-attr">hostPath:</span>
+      <span class="hljs-attr">path:</span> <span class="hljs-string">/data/log/security-context-pod</span></code></pre>
+
+<p><strong>关键参数作用</strong>：</p>
+<ul>
+<li><code>runAsUser/runAsGroup</code>: 控制容器进程的用户&#x2F;组身份</li>
+<li><code>fsGroup</code>: 控制挂载卷的组权限，影响现有文件和新创建文件的组所有权</li>
+</ul>
+<h3 id="6-3-不同卷类型的权限特性"><a href="#6-3-不同卷类型的权限特性" class="headerlink" title="6.3 不同卷类型的权限特性"></a>6.3 不同卷类型的权限特性</h3><p>Kubernetes 中不同卷类型对 <code>fsGroup</code> 的处理机制存在显著差异，这主要与它们的存储实现原理、安全模型和权限管理方式有关：</p>
+<ol>
+<li><p><strong>持久卷（PersistentVolume，如 AWS EBS、Azure Disk、NFS 等）</strong>：</p>
+<ul>
+<li><strong>支持 <code>fsGroup</code></strong>: 对大多数类型的 PV，<code>fsGroup</code> 设置<strong>生效</strong></li>
+<li><strong>原因</strong>：<ul>
+<li><strong>存储驱动支持</strong>：持久卷通常由云服务商或分布式存储系统提供，其存储驱动支持 Kubernetes 的所有权和权限动态修改</li>
+<li><strong>多租户隔离需求</strong>：PV 是集群级别的资源，设计上需要支持多租户场景，确保不同用户或 Pod 挂载同一卷时能通过 <code>fsGroup</code> 自动隔离权限</li>
+</ul>
+</li>
+<li><strong>生效机制</strong>：<ul>
+<li>挂载时自动递归修改卷内所有文件和目录的组所有权为 <code>fsGroup</code> 值</li>
+<li>确保组权限生效，例如设置目录的 setgid 位，使新创建的文件继承父目录的组所有权</li>
+<li>若同一 PV 被多个 Pod 挂载，后挂载的 Pod 的 <code>fsGroup</code> 会覆盖之前的设置</li>
+</ul>
+</li>
+<li><strong>持久性</strong>：<code>fsGroup</code> 的修改是持久的，即使 Pod 删除后也会保留</li>
+</ul>
+</li>
+<li><p><strong>临时卷（emptyDir）</strong>：</p>
+<ul>
+<li><strong>支持 <code>fsGroup</code></strong>: <code>fsGroup</code> 对 emptyDir 卷<strong>生效</strong></li>
+<li><strong>原因</strong>：<ul>
+<li>emptyDir 卷是 Pod 级别的临时存储，完全受 Kubernetes 控制</li>
+<li>每次 Pod 创建时都会新建，无需考虑多租户权限冲突</li>
+</ul>
+</li>
+<li><strong>生效机制</strong>：<ul>
+<li>卷创建时自动应用 <code>fsGroup</code> 设置</li>
+<li>确保 Pod 中的所有容器都能通过组权限访问卷内文件</li>
+</ul>
+</li>
+<li><strong>临时性</strong>：Pod 删除时卷内容被清除，权限问题不会持续存在</li>
+</ul>
+</li>
+<li><p><strong>hostPath 卷</strong>：</p>
+<ul>
+<li><strong>不支持 <code>fsGroup</code></strong>: <code>fsGroup</code> 设置对 hostPath 卷<strong>不生效</strong></li>
+<li><strong>原因</strong>：<ul>
+<li><strong>直接绑定宿主机文件系统</strong>：hostPath 卷直接挂载宿主机上的目录或文件，权限完全依赖宿主机现有设置</li>
+<li><strong>安全限制</strong>：Kubernetes 设计上避免自动修改宿主机文件系统权限，防止因权限篡改引发安全风险</li>
+<li><strong>存储驱动不支持</strong>：hostPath 卷的实现不包含动态修改文件组所有权的逻辑</li>
+</ul>
+</li>
+<li><strong>权限行为</strong>：<ul>
+<li>挂载后，容器内访问的目录权限与宿主机目录完全一致，不会触发任何所有权或权限修改</li>
+<li>如需修改宿主机上的文件权限，需要通过初始化容器或其他机制手动设置</li>
+</ul>
+</li>
+<li><strong>权限协调</strong>：若容器进程用户需要访问 hostPath 目录，必须手动设置宿主机目录的权限</li>
+</ul>
+</li>
+</ol>
+<h3 id="6-4-新文件创建的权限规则"><a href="#6-4-新文件创建的权限规则" class="headerlink" title="6.4 新文件创建的权限规则"></a>6.4 新文件创建的权限规则</h3><p>当 Pod 内进程创建新文件时，权限规则根据卷类型有所不同：</p>
+<h4 id="6-4-1-emptyDir-和持久卷-PV-的新文件"><a href="#6-4-1-emptyDir-和持久卷-PV-的新文件" class="headerlink" title="6.4.1 emptyDir 和持久卷 (PV) 的新文件"></a>6.4.1 emptyDir 和持久卷 (PV) 的新文件</h4><p>当进程在 emptyDir 卷或支持 fsGroup 的持久卷上创建新文件时：</p>
+<ol>
+<li><strong>文件所有者</strong>：为创建进程的 UID（受 <code>runAsUser</code> 影响）</li>
+<li><strong>文件组</strong>：为 Pod 的 <code>fsGroup</code> 值，不受进程主组影响</li>
+<li><strong>权限位</strong>：由基准权限减去 umask 值计算得出<ul>
+<li>文件基准权限：0666 (<code>rw-rw-rw-</code>)</li>
+<li>目录基准权限：0777 (<code>rwxrwxrwx</code>)</li>
+<li>常见 umask 为 0022，则新文件权限为 0644 (<code>rw-r--r--</code>)</li>
+</ul>
+</li>
+</ol>
+<h4 id="6-4-2-hostPath-卷的新文件"><a href="#6-4-2-hostPath-卷的新文件" class="headerlink" title="6.4.2 hostPath 卷的新文件"></a>6.4.2 hostPath 卷的新文件</h4><p>当进程在 hostPath 卷上创建新文件时：</p>
+<ol>
+<li><strong>文件所有者</strong>：为创建进程的 UID（受 <code>runAsUser</code> 影响）</li>
+<li><strong>文件组</strong>：为创建进程的主组 ID（受 <code>runAsGroup</code> 影响），<strong>不会</strong>应用 Pod 的 <code>fsGroup</code> 值</li>
+<li><strong>权限位</strong>：同样受 umask 影响，但权限最终保存在宿主机文件系统上</li>
+</ol>
+<p>这种差异解释了为什么在使用 hostPath 卷时，即使设置了 <code>fsGroup</code>，新创建的文件组所有权也不会按预期设置。</p>
+<p>通过这种机制，Kubernetes 在支持 fsGroup 的卷类型上确保了跨容器的文件权限一致性，同时对 hostPath 卷保持了安全限制。</p>
+<h2 id="七、容器启动-–-进程账号"><a href="#七、容器启动-–-进程账号" class="headerlink" title="七、容器启动 – 进程账号"></a>七、容器启动 – 进程账号</h2><p>在容器环境中，一个重要问题是：当以 root 用户启动容器时，容器内的进程是否也一定以 root 用户运行？答案并不总是肯定的。</p>
+<p>在很多容器镜像中，即使以 root 用户启动容器，实际运行的应用进程可能会自动降级到非 root 用户。这是一种安全最佳实践，因为以 root 用户运行容器会有以下风险：</p>
+<ul>
+<li>进程拥有容器内的全部权限</li>
+<li>如果有数据卷映射到宿主机，容器内的 root 用户可能会影响宿主机文件</li>
+</ul>
+<p>这种权限降级通常通过 docker-entrypoint.sh 脚本实现。以下是一个简化的示例：</p>
+<pre><code class="hljs bash"><span class="hljs-meta">#!/bin/sh</span>
+<span class="hljs-built_in">set</span> -e
+
+<span class="hljs-comment"># 如果是以 root 用户运行 redis-server 命令</span>
+<span class="hljs-keyword">if</span> [ <span class="hljs-string">&quot;<span class="hljs-variable">$1</span>&quot;</span> = <span class="hljs-string">&#x27;redis-server&#x27;</span> -a <span class="hljs-string">&quot;<span class="hljs-subst">$(id -u)</span>&quot;</span> = <span class="hljs-string">&#x27;0&#x27;</span> ]; <span class="hljs-keyword">then</span>
+    <span class="hljs-comment"># 将当前目录下所有非 redis 用户拥有的文件改为 redis 用户所有</span>
+    find . \! -user redis -<span class="hljs-built_in">exec</span> <span class="hljs-built_in">chown</span> redis <span class="hljs-string">&#x27;&#123;&#125;&#x27;</span> +
+    <span class="hljs-comment"># 使用 gosu 切换到 redis 用户运行命令</span>
+    <span class="hljs-built_in">exec</span> gosu redis <span class="hljs-string">&quot;<span class="hljs-variable">$0</span>&quot;</span> <span class="hljs-string">&quot;<span class="hljs-variable">$@</span>&quot;</span>
+<span class="hljs-keyword">fi</span>
+
+<span class="hljs-comment"># 执行传入的命令</span>
+<span class="hljs-built_in">exec</span> <span class="hljs-string">&quot;<span class="hljs-variable">$@</span>&quot;</span></code></pre>
+
+<p>在这个例子中，如果容器以 root 用户启动并执行 redis-server 命令，entrypoint 脚本会自动将进程降级为 redis 用户运行。这是许多官方容器镜像的常见做法。</p>
+<p>通过以下命令可验证实际运行的进程用户：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 启动容器</span>
+docker run --name redis-test -d redis
+
+<span class="hljs-comment"># 查看容器内进程</span>
+docker <span class="hljs-built_in">exec</span> redis-test ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+redis        1  0.2  0.1  55344 15080 ?        Ssl  10:20   0:00 redis-server *:6379</code></pre>
+
+<p>可以看到，尽管容器是以 root 用户启动的，但实际运行 redis-server 的进程是以 redis 用户运行的。</p>
+<h2 id="八、”Permission-denied”-错误排查"><a href="#八、”Permission-denied”-错误排查" class="headerlink" title="八、”Permission denied” 错误排查"></a>八、”Permission denied” 错误排查</h2><p>通过前面分析的 umask 机制、挂载原理和权限管理知识，可以系统性地排查容器中常见的 “Permission denied” 错误。这些错误通常源于文件系统权限、进程用户身份和挂载卷类型之间的不匹配。当遇到 “Permission denied” 错误时，可按照以下步骤进行系统排查：</p>
+<h3 id="8-1-确定容器启动账号"><a href="#8-1-确定容器启动账号" class="headerlink" title="8.1 确定容器启动账号"></a>8.1 确定容器启动账号</h3><p>首先查看 POD&#x2F;容器 的配置，确定启动账号：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 查看 Pod 的 SecurityContext</span>
+kubectl get pod security-context-pod -o jsonpath=<span class="hljs-string">&#x27;&#123;.spec.securityContext&#125;&#x27;</span>
+&#123;<span class="hljs-string">&quot;fsGroup&quot;</span>:2000,<span class="hljs-string">&quot;runAsGroup&quot;</span>:2000,<span class="hljs-string">&quot;runAsUser&quot;</span>:1000&#125;</code></pre>
+
+<p>如果这些设置为空，则默认使用 root 用户（UID 0）。</p>
+<h3 id="8-2-确定进程启动账号"><a href="#8-2-确定进程启动账号" class="headerlink" title="8.2 确定进程启动账号"></a>8.2 确定进程启动账号</h3><p>接下来，判断实际运行进程的用户：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 查看容器启动命令</span>
+kubectl get pod security-context-pod -o jsonpath=<span class="hljs-string">&#x27;&#123;.spec.containers[*].command&#125;&#x27;</span>
+[<span class="hljs-string">&quot;/bin/sh&quot;</span>]
+
+<span class="hljs-comment"># 如果启动命令为空，可能使用镜像的默认 ENTRYPOINT</span>
+kubectl get pod dts-controller -n dts -o jsonpath=<span class="hljs-string">&#x27;&#123;.spec.containers[*].command&#125;&#x27;</span></code></pre>
+
+<p>如果容器使用的是镜像默认的 ENTRYPOINT，需要检查 entrypoint 脚本：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 查看镜像的 Entrypoint</span>
+docker inspect redis:latest -f <span class="hljs-string">&#x27;&#123;&#123;.Config.Entrypoint&#125;&#125;&#x27;</span>
+[docker-entrypoint.sh]
+
+<span class="hljs-comment"># 检查 entrypoint 脚本内容</span>
+docker run --<span class="hljs-built_in">rm</span> redis:latest <span class="hljs-built_in">cat</span> /usr/local/bin/docker-entrypoint.sh</code></pre>
+
+<h3 id="8-3-检查目录和文件权限"><a href="#8-3-检查目录和文件权限" class="headerlink" title="8.3 检查目录和文件权限"></a>8.3 检查目录和文件权限</h3><p>创建临时容器，以 root 用户检查相关目录和文件的权限：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 启动临时容器，挂载相关目录</span>
+docker run --<span class="hljs-built_in">rm</span> -it --user root -v /path/to/problem/dir:/inspect alpine sh
+
+<span class="hljs-comment"># 在容器内检查文件权限</span>
+<span class="hljs-built_in">ls</span> -la /inspect</code></pre>
+
+<h3 id="8-4-验证权限匹配"><a href="#8-4-验证权限匹配" class="headerlink" title="8.4 验证权限匹配"></a>8.4 验证权限匹配</h3><p>最后，确认进程用户是否有权限访问所需的目录和文件：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 检查进程用户</span>
+ps aux | grep [process_name]
+
+<span class="hljs-comment"># 确认文件权限是否匹配</span>
+<span class="hljs-built_in">ls</span> -la /path/to/file</code></pre>
+
+<p>通过这四个步骤，大多数权限问题都能被准确定位和解决。下面通过一个实际案例来展示这些概念的应用。</p>
+<h2 id="九、案例分析：Redis-Dockerfile"><a href="#九、案例分析：Redis-Dockerfile" class="headerlink" title="九、案例分析：Redis Dockerfile"></a>九、案例分析：Redis Dockerfile</h2><p>Redis 的官方 Dockerfile 是一个很好的案例，展示了如何在容器环境中正确处理文件权限和用户管理。下面分析 Redis Dockerfile 的关键部分：</p>
+<h3 id="9-1-用户创建"><a href="#9-1-用户创建" class="headerlink" title="9.1 用户创建"></a>9.1 用户创建</h3><p>Redis 的 Alpine 版本 Dockerfile 中创建了专用的系统用户：</p>
+<pre><code class="hljs dockerfile"><span class="hljs-comment"># add our user and group first to make sure their IDs get assigned consistently</span>
+<span class="hljs-keyword">RUN</span><span class="language-bash"> <span class="hljs-built_in">set</span> -eux; \</span>
+<span class="language-bash"><span class="hljs-comment"># alpine already has a gid 999, so we&#x27;ll use the next id</span></span>
+    addgroup -S -g <span class="hljs-number">1000</span> redis; \
+    adduser -S -G redis -u <span class="hljs-number">999</span> redis</code></pre>
+
+<p>这段代码创建了一个系统用户 redis（UID 999）和一个系统组 redis（GID 1000），确保了 Redis 进程将使用固定 UID&#x2F;GID 的非 root 用户运行，提高了安全性。</p>
+<h3 id="9-2-权限降级工具安装"><a href="#9-2-权限降级工具安装" class="headerlink" title="9.2 权限降级工具安装"></a>9.2 权限降级工具安装</h3><p>Redis 镜像安装 gosu 工具实现权限降级：</p>
+<pre><code class="hljs dockerfile"><span class="hljs-comment"># grab gosu for easy step-down from root</span>
+<span class="hljs-keyword">ENV</span> GOSU_VERSION <span class="hljs-number">1.17</span>
+<span class="hljs-keyword">RUN</span><span class="language-bash"> <span class="hljs-built_in">set</span> -eux; \</span>
+<span class="language-bash">    apk add --no-cache --virtual .gosu-fetch gnupg; \</span>
+<span class="language-bash">    <span class="hljs-built_in">arch</span>=<span class="hljs-string">&quot;<span class="hljs-subst">$(apk --print-arch)</span>&quot;</span>; \</span>
+<span class="language-bash">    <span class="hljs-keyword">case</span> <span class="hljs-string">&quot;<span class="hljs-variable">$arch</span>&quot;</span> <span class="hljs-keyword">in</span> \</span>
+<span class="language-bash">        <span class="hljs-string">&#x27;x86_64&#x27;</span>) url=<span class="hljs-string">&#x27;https://github.com/tianon/gosu/releases/download/1.17/gosu-amd64&#x27;</span>; sha256=<span class="hljs-string">&#x27;bbc4136d03ab138b1ad66fa4fc051bafc6cc7ffae632b069a53657279a450de3&#x27;</span> ;; \</span>
+<span class="language-bash">        <span class="hljs-string">&#x27;aarch64&#x27;</span>) url=<span class="hljs-string">&#x27;https://github.com/tianon/gosu/releases/download/1.17/gosu-arm64&#x27;</span>; sha256=<span class="hljs-string">&#x27;c3805a85d17f4454c23d7059bcb97e1ec1af272b90126e79ed002342de08389b&#x27;</span> ;; \</span>
+<span class="language-bash">        <span class="hljs-comment"># ... 其他架构 ...</span></span>
+    esac; \
+    <span class="hljs-comment"># ... 下载和验证 gosu ...</span>
+    chmod +x /usr/local/bin/gosu; \
+    gosu --version; \
+    gosu nobody true</code></pre>
+
+<p>这确保了容器可以安全地从 root 用户降级到非 root 用户。</p>
+<h3 id="9-3-权限降级实现"><a href="#9-3-权限降级实现" class="headerlink" title="9.3 权限降级实现"></a>9.3 权限降级实现</h3><p>在 docker-entrypoint.sh 中实现实际的用户切换：</p>
+<pre><code class="hljs bash"><span class="hljs-comment"># allow the container to be started with `--user`</span>
+<span class="hljs-keyword">if</span> [ <span class="hljs-string">&quot;<span class="hljs-variable">$1</span>&quot;</span> = <span class="hljs-string">&#x27;redis-server&#x27;</span> -a <span class="hljs-string">&quot;<span class="hljs-subst">$(id -u)</span>&quot;</span> = <span class="hljs-string">&#x27;0&#x27;</span> ]; <span class="hljs-keyword">then</span>
+    find . \! -user redis -<span class="hljs-built_in">exec</span> <span class="hljs-built_in">chown</span> redis <span class="hljs-string">&#x27;&#123;&#125;&#x27;</span> +
+    <span class="hljs-built_in">exec</span> gosu redis <span class="hljs-string">&quot;<span class="hljs-variable">$0</span>&quot;</span> <span class="hljs-string">&quot;<span class="hljs-variable">$@</span>&quot;</span>
+<span class="hljs-keyword">fi</span></code></pre>
+
+<p>这段代码在以 root 用户启动容器时，会自动将当前目录下的文件所有权调整为 redis 用户，然后切换到 redis 用户继续执行。这正是前面讨论的 “ 容器启动 – 进程账号 “ 部分的实际应用。</p>
+<h3 id="9-4-数据目录权限管理"><a href="#9-4-数据目录权限管理" class="headerlink" title="9.4 数据目录权限管理"></a>9.4 数据目录权限管理</h3><p>Redis 为数据目录设置了正确的权限：</p>
+<pre><code class="hljs dockerfile"><span class="hljs-keyword">RUN</span><span class="language-bash"> <span class="hljs-built_in">mkdir</span> /data &amp;&amp; <span class="hljs-built_in">chown</span> redis:redis /data</span>
+<span class="hljs-keyword">VOLUME</span><span class="language-bash"> /data</span>
+<span class="hljs-keyword">WORKDIR</span><span class="language-bash"> /data</span></code></pre>
+
+<p>这确保了数据目录完全归属于 redis 用户，避免了权限问题。这也呼应了 “ 容器挂载目录权限 “ 部分的讨论。</p>
+<h3 id="9-5-umask-设置"><a href="#9-5-umask-设置" class="headerlink" title="9.5 umask 设置"></a>9.5 umask 设置</h3><p>在 docker-entrypoint.sh 中，Redis 还实现了精细的 umask 控制：</p>
+<pre><code class="hljs bash"><span class="hljs-comment"># set an appropriate umask (if one isn&#x27;t set already)</span>
+<span class="hljs-comment"># - https://github.com/docker-library/redis/issues/305</span>
+<span class="hljs-comment"># - https://github.com/redis/redis/blob/bb875603fb7ff3f9d19aad906bd45d7db98d9a39/utils/systemd-redis_server.service#L37</span>
+um=<span class="hljs-string">&quot;<span class="hljs-subst">$(umask)</span>&quot;</span>
+<span class="hljs-keyword">if</span> [ <span class="hljs-string">&quot;<span class="hljs-variable">$um</span>&quot;</span> = <span class="hljs-string">&#x27;0022&#x27;</span> ]; <span class="hljs-keyword">then</span>
+    <span class="hljs-built_in">umask</span> 0077
+<span class="hljs-keyword">fi</span></code></pre>
+
+<p>这将默认的 umask 从 0022 改为 0077，确保新创建的文件只对所有者开放权限，大大提高了安全性。这与 “ 文件&#x2F;目录创建掩码 “ 部分讨论的内容完全吻合。</p>
+<p>通过实际操作可验证 Redis 镜像的这些特性：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># 启动 Redis 容器</span>
+docker run --name redis-test -d redis
+
+<span class="hljs-comment"># 查看容器内进程</span>
+docker <span class="hljs-built_in">exec</span> redis-test ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+redis        1  0.2  0.1  55344 15080 ?        Ssl  10:20   0:00 redis-server *:6379
+
+<span class="hljs-comment"># 查看数据目录权限</span>
+docker <span class="hljs-built_in">exec</span> redis-test <span class="hljs-built_in">ls</span> -ld /data
+drwxr-xr-x 1 redis redis 4096 Jun 14 10:30 /data
+
+<span class="hljs-comment"># 在容器内创建文件，检查权限</span>
+docker <span class="hljs-built_in">exec</span> -it redis-test sh -c <span class="hljs-string">&quot;cd /data &amp;&amp; touch test-file &amp;&amp; ls -l test-file&quot;</span>
+-rw------- 1 redis redis 0 Jun 14 10:31 test-file</code></pre>
+
+<p>可以看到，Redis 容器成功地实现了:</p>
+<ol>
+<li>以非 root 用户运行服务</li>
+<li>正确设置数据目录权限</li>
+<li>使用安全的 umask 值（0077）</li>
+</ol>
+<h2 id="十、总结"><a href="#十、总结" class="headerlink" title="十、总结"></a>十、总结</h2><p>Kubernetes 生态中的文件账号与权限管理涉及多层次的技术细节，从基础的 Linux 权限机制到容器特有的挂载与隔离特性。正确理解 umask 机制、挂载原理和安全上下文设置，是解决权限问题的关键。在实践中，遵循最小权限原则，采用非 root 用户运行容器进程，并为不同场景选择合适的存储卷类型，能有效构建安全稳定的容器化应用，避免常见的 “Permission denied” 等问题。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-03-2025/files-accounts-and-permissions-under-kubernetes.html">https://www.cyningsun.com/05-03-2025/files-accounts-and-permissions-under-kubernetes.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Kubernetes" rel="category"># Kubernetes</a>
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/05-04-2025/rocksdb-sst-file-size.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-13-2025/flamegraph-summary.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

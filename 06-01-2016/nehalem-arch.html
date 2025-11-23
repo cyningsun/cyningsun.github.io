@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>根据Nehalem架构了解CPU内部细节</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2016-06-01 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-01-25 00:00:00 +0800"/>
+
+<meta property="og:url" content="/06-01-2016/nehalem-arch.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景这是由C++ volatile引发的血案，血案第一部：了解CPU内核的细节。 Nehalem内核设计背景Core架构具有一个移动计算的起源，它源自Banias Pentium M处理器，Pentium M处理器是以色列（Israel）的海法（Haifa）研究中心专门针对笔记本电脑的产品，特点是高效、低耗。Core架构之后迅速地成为Intel的主要架构，产">
+
+<meta name="keywords" content="CPU,架构">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>根据Nehalem架构了解CPU内部细节</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2016-06-01
+         | 
+        Last Revised: 2020-01-25
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Nehalem%E5%86%85%E6%A0%B8%E8%AE%BE%E8%AE%A1%E8%83%8C%E6%99%AF"><span class="toc-text">Nehalem内核设计背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%EF%BC%9A%E5%8A%9F%E8%83%BD%E5%8C%BA%E9%97%B4%E5%88%92%E5%88%86"><span class="toc-text">核心：功能区间划分</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%89%8D%E7%AB%AF%EF%BC%9A%E6%8C%87%E4%BB%A4%E6%8B%BE%E5%8F%96%E5%92%8C%E8%A7%A3%E7%A0%81"><span class="toc-text">前端：指令拾取和解码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%89%A7%E8%A1%8C%E5%BC%95%E6%93%8E%EF%BC%9A%E4%B9%B1%E5%BA%8F%E6%89%A7%E8%A1%8C"><span class="toc-text">执行引擎：乱序执行</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%93%E8%AF%AD"><span class="toc-text">结语</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8F%82%E8%80%83"><span class="toc-text">参考</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>这是由C++ volatile引发的血案，血案第一部：了解CPU内核的细节。</p>
+<h3 id="Nehalem内核设计背景"><a href="#Nehalem内核设计背景" class="headerlink" title="Nehalem内核设计背景"></a>Nehalem内核设计背景</h3><p>Core架构具有一个移动计算的起源，它源自Banias Pentium M处理器，Pentium M处理器是以色列（Israel）的海法（Haifa）研究中心专门针对笔记本电脑的产品，特点是高效、低耗。Core架构之后迅速地成为Intel的主要架构，产品开始扩展到桌面乃至服务器产品线。Core架构古老的双核设计（4核是两个双核粘在一起，6核则是三个双核粘结）、过时的FSB总线以及没有充分为64位计算准备等等，让其无法获得很好的伸缩性，难以未来需要高性能多处理器需求的企业级市场。</p>
+<p>Intel对Core架构作出了改动，首先它将原来的架构扩展为原生4核（甚至6核、8核）设计，并为多核的需要准备了新的总线QPI来满足巨大的带宽需求，结果就是Nehalem内核。<br><img src="/images/nehalem/1.png" alt="nehalem"><br>4核心Nehalem处理器架构</p>
+<h3 id="核心：功能区间划分"><a href="#核心：功能区间划分" class="headerlink" title="核心：功能区间划分"></a>核心：功能区间划分</h3><p>Nehalem是一款OOOE（Out of Order Execute）乱序执行的Superscaler超标量x86处理器。超标量的意思就是多个执行单元，可以同时执行多条没有相互依赖性的指令，从而达到提升ILP（Instruction Level Parallelism）指令级并行化的目的。乱序执行是指在多个执行单元的超标量设计当中，一系列的执行单元可以同时运行一些没有数据关联性的若干指令，只有需要等待其他指令运算结果的数据会按照顺序执行，从而总体提升了运行效率。<br><img src="/images/nehalem/2.png" alt="nehalem"><br>High-level diagram of a Nehalem core pipeline.</p>
+<p>Core由以下部分组成：<br><strong>in-order前端</strong>：拾取Intel64指令，使用四个解码器将指令解码为micro-ops，放入下游阶段的缓存中。<br><strong>out-of-order执行引擎</strong>：输入数据和资源具备，每个时钟周期动态分配六个micro-ops到执行单元<br><strong>in-order回退单元</strong>：确保micro-ops 的执行结果和结构状态(architected state )的更新符合源程序的顺序<br>以及多级缓存体系和地址转换资源</p>
+<h3 id="前端：指令拾取和解码"><a href="#前端：指令拾取和解码" class="headerlink" title="前端：指令拾取和解码"></a>前端：指令拾取和解码</h3><p>处理器在执行指令之前，必须先装载指令。指令会先保存在L1缓存的I-cache（Instruction-cache，L1D和L1I都是通过256bit的带宽连接到L2 Cache）指令缓存中，Nehalem的指令拾取单元通过访问 ITLB里的索引来从I-cache中读取指令。读取的指令做相应的 predecode 和 branch predication。结果送到指令队列 buffer（Instruction Queue）。再从 Instruction Queue fetch和decode，经过指令融和操作后，送调度单元分派指令。<br><img src="/images/nehalem/3.png" alt="nehalem"><br>The Core Front-End: Instruction Fetch</p>
+<p><strong>指令拾取单元(IFU，Instruction Fetch Unit)</strong> 由ITLB ( Instruction Translation Lookaside Buffer)、instruction pre-fetcher、L1 i-cache(L1 instruction cache)和指令预解码器(instruction pre-decoder)组成。IFU每个时钟周期从L1 i-cache拾取16字节的指令到 Instruction Length Decoder。IFU使用ITLB来定位L1 i-cache和指令预取缓存中的16字节块。当命中缓存时，16字节的指令将会传输给instruction pre-decoder。</p>
+<p>**分支预测单元(BPU，Branch-Prediction Unit)**在分支指令（如if then这样的语句）结果确定之前预取和处理后续指令，使得处理器执行预测路径上的指令时不“stalling”。 </p>
+<p>**指令预解码器(ILD or “Pre-Decoder”，Instruction Length Decoder)**接收Intel64 instructions ，确定指令长度、解码指令前缀、为解码器标注指令类型（如branch指令）。</p>
+<p>**指令队列(Instruction Queue)**缓存预解码后的指令，并每个时钟周期传递5条指令给指令解码器(Instruction Decoder)。</p>
+<blockquote>
+<p>在将指令充填到指令队列之后，就可以进行解码工作了，解码是类RISC（精简指令集或简单指令集）处理器导致的一项设计。处理器接受的是x86指令（CISC指令，复杂指令集），而在执行引擎内部执行的却不是x86指令，而是一条一条的类RISC指令，Intel称之为Micro Operation——micro-op，或者写为µ-op，一般用比较方便的写法来替代掉希腊字母：u-op或者uop。相对地，一条一条的x86指令就称之为Macro Operation，或macro-op。<br>RISC架构的特点就是指令长度相等，执行时间恒定（通常为一个时钟周期），因此处理器设计起来就很简单，可以通过深长的流水线达到很高的频率。和RISC相反，CISC指令的长度不固定，执行时间也不固定，因此Intel的RISC&#x2F;CISC混合处理器架构就要通过解码器将x86指令翻译为uop，从而获得RISC架构的长处，提升内部执行效率。Nehalem有3个简单解码器加1个复杂解码器。简单解码器可以将一条x86指令翻译为一条uop，而复杂解码器则将一些特别的（单条）x86指令翻译为1~4条uops。在极少数的情况下，某些指令需要通过额外的可编程microcode解码器(MS ROM for Complex Decoder)解码为更多的uops。</p>
+</blockquote>
+<p>指令解码单元(IDU, Instruction Decode Unit)解码预处理后的Intel64指令(macro-ops)为uop,并将uop放入下游的 instruction decoder queue (IDQ)。</p>
+<blockquote>
+<p>对于一组uop，IDU会有一些优化措施，如：<br>循环流监测器(Loop Stream Detection)：假如程序使用的循环段（如for..do&#x2F;do..while等）少于28个uops，那么Nehalem就可以将这个循环保存起来，不再需要重新通过取指单元、分支预测操作，以及解码器，Core 2的LSD放在解码器前方，因此无法省下解码的工作。<br>Micro-Fusion: 将多条uops聚合用于降低uop的数量，提高Front-End的吞吐量和reorder buffer(ROB)的使用效率</p>
+</blockquote>
+<h3 id="执行引擎：乱序执行"><a href="#执行引擎：乱序执行" class="headerlink" title="执行引擎：乱序执行"></a>执行引擎：乱序执行</h3><p>执行引擎从上游的IDQ中选择micro-ops，动态调度分配给下游的执行单元执行。执行引擎是“out-of-order”的动态调度，超标量流水线允许micro-ops在代码语义不冲突的情况下并行的使用可用的执行单元。<br><img src="/images/nehalem/4.png" alt="nehalem"><br>High-level diagram of a the out-of-order execution engine in the Nehalem core</p>
+<p>执行引擎包含以下主要组件：<br>**Register Rename and Allocation Unit (RRAU)**：分配执行引擎的资源给IDQ中的micro-ops，并移动micro-ops给执行引擎。<br>**Reorder Buffer (ROB)**：追踪所有执行中的micro-ops。（没有结果的指令将在ROB等待）<br><strong>Unified Reservation Station (URS)</strong>:排队最大36条micro-ops直到操作资源ready，调度和分配ready的micro-ops到可用的执行单元。（没有数据的指令将在RS等待）<br>**Memory Order Buffer (MOB)**：支持推测、乱序load&#x2F;store，确保正确的次序和数据写回内存<br><strong>Execution Units and Operand Forwarding Network</strong>：每个时钟周期最多为一个micro-ops产生一个结果   </p>
+<blockquote>
+<p>在乱序执行架构中，不同的指令可能都会需要用到相同的通用寄存器（GPR，General Purpose Registers），为此Intel开始引入重命名寄存器（Rename Register），不同的指令可以通过具有名字相同但实际不同的寄存器来解决。</p>
+</blockquote>
+<p>乱序执行从Allocator定位器开始，Allocator管理着RAT（Register Alias Table，寄存器别名表）、ROB（Re-Order Buffer，重排序缓冲区）和RRF（Retirement Register File，退回寄存器文件）。RAT将重命名的、虚拟的寄存器指向ROB或者RRF。RAT指向在ROB里面的最近的执行寄存器状态，或者指向RRF保存的最终的提交状态。当一条指令通过RAT发往下一个阶段确实执行的时候这条指令（包括寄存器状态在内）将被加入ROB队列的一端，在“乱序”之前，ROB的指令就已经确定了，指令并不是在ROB当中乱序挑选的（这在RS当中进行）。从执行单元返回的数据会将先前由调度器加入ROB的指令刷新数据部分并标志为结束（Finished），再经过其他检查通过后才能标志为完毕（Complete）。执行完毕的指令（包括寄存器状态）将从ROB队列的另一端移除（期间这些指令的数据可以被一些中间计算结果刷新）,并提交寄存器状态。ROB担当的是流水线的最终阶段：一个指令的Retire回退单元；以及担当中间计算结果的缓冲区。提交状态的工作由Retirement Unit（回退单元）完成，它将确实完毕的指令包含的数据写入RRF（“确实”的意思是，非猜测执性、具备正确因果关系，程序可以见到的最终的寄存器状态）。RFF的数据最终先写入MOB（Memory Order Buffer，内存重排序缓冲区），再由MOB来完成写入L1D缓存。</p>
+<p>猜测执行允许预先执行方向未定的分支指令。分支猜对了，其在ROB里产生的结果被标志为已结束，可以立即地被后继指令使用而不需要进行L1 Data Cache的Load操作。分支未能按照如期的情况进行，这时猜测的分支指令段将被清除，相应指令们的流水线阶段清空，对应的寄存器状态也就全都无效了。所以当指令和micro-ops在正确预测路径上才会发生状态的“Retirement”和“writeback”。Retirement处理满足以下两个条件：</p>
+<blockquote>
+<p>1.与回退micro-op相关的所有micro-ops已经完毕”complete”，允许整条指令的Retirement。当一个指令的micro-ops的数量超大，填满回退窗口时，micro-ops可以回退。<br>2.正确预测路径上之前的指令的micro-ops已经发生回退。</p>
+</blockquote>
+<p>这些保证处理器更新的状态与in-order执行的代码的micro-ops一致。</p>
+<p>当之前的指令发生阻塞等待时，不会阻塞无依赖的新指令和micro-op执行。新指令的micro-ops将分配到执行单元，并且在ROB中等待执行完成。</p>
+<h3 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h3><p>以上是指令在CPU内部的执行过程，从指令获取到计算结果回存。</p>
+<p>敬请期待下篇《根据Nehalem架构了解CPU缓存体系》。</p>
+<h3 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h3><p><a target="_blank" rel="noopener" href="http://www.mouseos.com/arch/intel_microarchitecture.html">解读 Intel® Microarchitecture</a><br><a target="_blank" rel="noopener" href="http://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-823-computer-system-architecture-fall-2005/lecture-notes/l12_ooo_pipes.pdf">乱序执行引擎</a><br><a target="_blank" rel="noopener" href="https://courses.cs.washington.edu/courses/csep548/06au/lectures/reorderBuf.pdf">ROB</a><br><a target="_blank" rel="noopener" href="http://www.realworldtech.com/nehalem">inside nehalem</a><br><a target="_blank" rel="noopener" href="http://sc.tamu.edu/systems/eos/">A High-Performance Nehalem iDataPlex Cluster and DDN S2A9990 Storage for Texas A&amp;M University</a>   </p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/06-01-2016/nehalem-arch.html">https://www.cyningsun.com/06-01-2016/nehalem-arch.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/06-16-2016/critical-thinking.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/05-01-2016/decision.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

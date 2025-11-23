@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜Monitoring and Tuning the Linux Networking Stack: Receiving Data</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-04-24 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/04-24-2023/monitoring-and-tuning-the-linux-networking-stack-recv-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="TL;DR本文解释了 Linux 内核的计算机如何接收数据包，以及当数据包从网络流向用户程序时，如何监视和调优网络栈的每个组件。 更新 我们已经发布了本文的姊妹篇：监控和调优 Linux 网络栈：发送数据。 更新 查看 监控和调优 Linux 网络栈图解指南：接收数据，它为下面的内容添加了一些图表。 如果不阅读内核的源代码，不深入了解到底发生了什么，就不可能">
+
+<meta name="keywords" content="Linux 协议栈，监控，调优，接收">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜Monitoring and Tuning the Linux Networking Stack: Receiving Data</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-04-24
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#TL-DR"><span class="toc-text">TL;DR</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%89%B9%E5%88%AB%E6%84%9F%E8%B0%A2"><span class="toc-text">特别感谢</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%E5%92%8C%E8%B0%83%E4%BC%98-Linux-%E7%BD%91%E7%BB%9C%E6%A0%88%E7%9A%84%E4%B8%80%E8%88%AC%E5%BB%BA%E8%AE%AE"><span class="toc-text">监控和调优 Linux 网络栈的一般建议</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A6%82%E8%A7%88"><span class="toc-text">概览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%A6%E7%BB%86%E6%8E%A2%E8%AE%A8"><span class="toc-text">详细探讨</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F"><span class="toc-text">网络设备驱动程序</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">初始化</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#PCI-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">PCI 初始化</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#PCI-%E6%8E%A2%E6%B5%8B"><span class="toc-text">PCI 探测</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#PCI-%E5%88%9D%E5%A7%8B%E5%8C%96%E4%B8%80%E7%9E%A5"><span class="toc-text">PCI 初始化一瞥</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%9B%B4%E5%A4%9A-Linux-PCI-%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E4%BF%A1%E6%81%AF"><span class="toc-text">更多 Linux PCI 驱动程序信息</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">网络设备初始化</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#struct-net-device-ops"><span class="toc-text">struct net_device_ops</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#ethtool-%E6%B3%A8%E5%86%8C"><span class="toc-text">ethtool 注册</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%A1%AC%E4%B8%AD%E6%96%AD"><span class="toc-text">硬中断</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#NAPI"><span class="toc-text">NAPI</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#igb-%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E7%9A%84-NAPI-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">igb 驱动程序的 NAPI 初始化</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%90%AF%E5%8A%A8%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87"><span class="toc-text">启动网络设备</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%87%86%E5%A4%87%E4%BB%8E%E7%BD%91%E7%BB%9C%E6%8E%A5%E6%94%B6%E6%95%B0%E6%8D%AE"><span class="toc-text">准备从网络接收数据</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%90%AF%E7%94%A8NAPI"><span class="toc-text">启用NAPI</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%B3%A8%E5%86%8C%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F"><span class="toc-text">注册中断处理程序</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%90%AF%E7%94%A8%E4%B8%AD%E6%96%AD"><span class="toc-text">启用中断</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E7%8E%B0%E5%B7%B2%E5%90%AF%E5%8A%A8"><span class="toc-text">网络设备现已启动</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87"><span class="toc-text">监控网络设备</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#ethtool-S-%E4%BD%BF%E7%94%A8"><span class="toc-text">ethtool -S 使用</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#sysfs-%E4%BD%BF%E7%94%A8"><span class="toc-text">sysfs 使用</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#proc-net-dev-%E4%BD%BF%E7%94%A8"><span class="toc-text">&#x2F;proc&#x2F;net&#x2F;dev 使用</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87"><span class="toc-text">调优网络设备</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%A3%80%E6%9F%A5%E6%AD%A3%E5%9C%A8%E4%BD%BF%E7%94%A8%E7%9A%84%E6%8E%A5%E6%94%B6%E9%98%9F%E5%88%97%E6%95%B0%E9%87%8F"><span class="toc-text">检查正在使用的接收队列数量</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B0%83%E6%95%B4%E6%8E%A5%E6%94%B6%E9%98%9F%E5%88%97%E7%9A%84%E6%95%B0%E9%87%8F"><span class="toc-text">调整接收队列的数量</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B0%83%E6%95%B4%E6%8E%A5%E6%94%B6%E9%98%9F%E5%88%97%E7%9A%84%E5%A4%A7%E5%B0%8F"><span class="toc-text">调整接收队列的大小</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B0%83%E6%95%B4%E6%8E%A5%E6%94%B6%E9%98%9F%E5%88%97%E7%9A%84%E5%A4%84%E7%90%86%E6%9D%83%E9%87%8D"><span class="toc-text">调整接收队列的处理权重</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B0%83%E6%95%B4%E7%BD%91%E7%BB%9C%E6%B5%81%E7%9A%84%E6%8E%A5%E6%94%B6%E5%93%88%E5%B8%8C%E5%AD%97%E6%AE%B5"><span class="toc-text">调整网络流的接收哈希字段</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#ntuple-%E8%BF%87%E6%BB%A4%E5%BC%95%E5%AF%BC%E7%BD%91%E7%BB%9C%E6%B5%81"><span class="toc-text">ntuple 过滤引导网络流</span></a></li></ol></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BD%AF%E4%B8%AD%E6%96%AD"><span class="toc-text">软中断</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E8%BD%AF%E4%B8%AD%E6%96%AD%EF%BC%9F"><span class="toc-text">什么是软中断？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#ksoftirqd"><span class="toc-text">ksoftirqd</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#do-softirq"><span class="toc-text">__do_softirq</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7"><span class="toc-text">监控</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#proc-softirqs"><span class="toc-text">&#x2F;proc&#x2F;softirqs</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Linux-%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E5%AD%90%E7%B3%BB%E7%BB%9F"><span class="toc-text">Linux 网络设备子系统</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E5%AD%90%E7%B3%BB%E7%BB%9F%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">网络设备子系统初始化</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#struct-softnet-data-%E7%BB%93%E6%9E%84%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">struct softnet_data 结构初始化</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%BD%AF%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F%E7%9A%84%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">软中断处理程序的初始化</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BE"><span class="toc-text">数据到达</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F"><span class="toc-text">中断处理程序</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#NAPI-%E5%92%8C-napi-schedule"><span class="toc-text">NAPI 和 napi_schedule</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%85%B3%E4%BA%8E-CPU-%E5%92%8C%E7%BD%91%E7%BB%9C%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E7%9A%84%E8%AF%B4%E6%98%8E"><span class="toc-text">关于 CPU 和网络数据处理的说明</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%E7%BD%91%E7%BB%9C%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BE"><span class="toc-text">监控网络数据到达</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#%E7%A1%AC%E4%BB%B6%E4%B8%AD%E6%96%AD%E8%AF%B7%E6%B1%82"><span class="toc-text">硬件中断请求</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%E7%BD%91%E7%BB%9C%E6%95%B0%E6%8D%AE%E5%88%B0%E8%BE%BE"><span class="toc-text">调优网络数据到达</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#%E4%B8%AD%E6%96%AD%E5%90%88%E5%B9%B6"><span class="toc-text">中断合并</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#%E8%B0%83%E6%95%B4-IRQ-%E4%BA%B2%E5%92%8C%E6%80%A7"><span class="toc-text">调整 IRQ 亲和性</span></a></li></ol></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86%E5%BC%80%E5%A7%8B"><span class="toc-text">网络数据处理开始</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#net-rx-action-%E5%A4%84%E7%90%86%E5%BE%AA%E7%8E%AF"><span class="toc-text">net_rx_action 处理循环</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#NAPI-poll-%E5%87%BD%E6%95%B0%E5%92%8C-%E6%9D%83%E9%87%8D"><span class="toc-text">NAPI poll 函数和 权重</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#NAPI-x2F-%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E9%A9%B1%E5%8A%A8%E7%A8%8B%E5%BA%8F%E5%A5%91%E7%BA%A6"><span class="toc-text">NAPI &#x2F; 网络设备驱动程序契约</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%AE%8C%E6%88%90-net-rx-action-%E5%BE%AA%E7%8E%AF"><span class="toc-text">完成 net_rx_action 循环</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%BE%BE%E5%88%B0%E9%99%90%E5%88%B6%E6%97%B6%E9%80%80%E5%87%BA%E5%BE%AA%E7%8E%AF"><span class="toc-text">达到限制时退出循环</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#NAPI-poll"><span class="toc-text">NAPI poll</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#igb-poll"><span class="toc-text">igb_poll</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#igb-clean-rx-irq"><span class="toc-text">igb_clean_rx_irq</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%E7%BD%91%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86"><span class="toc-text">监控网数据处理</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#proc-net-softnet-stat"><span class="toc-text">&#x2F;proc&#x2F;net&#x2F;softnet_stat</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B0%83%E6%95%B4%E7%BD%91%E7%BB%9C%E6%95%B0%E6%8D%AE%E5%A4%84%E7%90%86"><span class="toc-text">调整网络数据处理</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#%E8%B0%83%E6%95%B4-net-rx-action-%E9%A2%84%E7%AE%97"><span class="toc-text">调整 net_rx_action 预算</span></a></li></ol></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Generic-Receive-Offloading-GRO"><span class="toc-text">Generic Receive Offloading (GRO)</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E4%BD%BF%E7%94%A8-ethtool-%E8%B0%83%E6%95%B4-GRO-%E8%AE%BE%E7%BD%AE"><span class="toc-text">调优：使用 ethtool 调整 GRO 设置</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#napi-gro-receive"><span class="toc-text">napi_gro_receive</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#dev-gro-receive"><span class="toc-text">dev_gro_receive</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#napi-skb-finish"><span class="toc-text">napi_skb_finish</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Receive-Packet-Steering-RPS"><span class="toc-text">Receive Packet Steering (RPS)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E5%90%AF%E7%94%A8-RPS"><span class="toc-text">调优：启用 RPS</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Receive-Flow-Steering-RFS"><span class="toc-text">Receive Flow Steering (RFS)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E5%90%AF%E7%94%A8-RFS"><span class="toc-text">调优：启用 RFS</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%A1%AC%E4%BB%B6%E5%8A%A0%E9%80%9F-Receive-Flow-Steering-aRFS"><span class="toc-text">硬件加速 Receive Flow Steering (aRFS)</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E5%90%AF%E7%94%A8%E5%8A%A0%E9%80%9F-RFS%EF%BC%88aRFS%EF%BC%89"><span class="toc-text">调优：启用加速 RFS（aRFS）</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8-netif-receive-skb-%E5%90%91%E4%B8%8A%E7%A7%BB%E5%8A%A8%E7%BD%91%E7%BB%9C%E6%A0%88%E3%80%82"><span class="toc-text">使用 netif_receive_skb 向上移动网络栈。</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E6%8E%A5%E6%94%B6%E6%95%B0%E6%8D%AE%E5%8C%85%E6%97%B6%E9%97%B4%E6%88%B3"><span class="toc-text">调优：接收数据包时间戳</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#netif-receive-skb"><span class="toc-text">netif_receive_skb</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#RPS-%E7%A6%81%E7%94%A8%EF%BC%88%E9%BB%98%E8%AE%A4%E8%AE%BE%E7%BD%AE%EF%BC%89"><span class="toc-text">RPS 禁用（默认设置）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#RPS-%E5%90%AF%E7%94%A8"><span class="toc-text">RPS 启用</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#enqueue-to-backlog"><span class="toc-text">enqueue_to_backlog</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%B5%81%E9%87%8F%E9%99%90%E5%88%B6"><span class="toc-text">流量限制</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%EF%BC%9A%E7%9B%91%E6%8E%A7-input-pkt-queue-%E5%B7%B2%E6%BB%A1%E6%88%96%E6%B5%81%E9%87%8F%E9%99%90%E5%88%B6%E5%AF%BC%E8%87%B4%E7%9A%84%E4%B8%A2%E5%BC%83"><span class="toc-text">监控：监控 input_pkt_queue 已满或流量限制导致的丢弃</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%B0%83%E4%BC%98"><span class="toc-text">调优</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E8%B0%83%E4%BC%98-netdev-max-backlog-%E9%98%B2%E6%AD%A2%E4%B8%A2%E5%BC%83"><span class="toc-text">调优：调优 netdev_max_backlog 防止丢弃</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E8%B0%83%E4%BC%98-backlog-%E7%9A%84-NAPI-poll-%E6%9D%83%E9%87%8D"><span class="toc-text">调优：调优 backlog 的 NAPI poll 权重</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E5%90%AF%E7%94%A8%E6%B5%81%E9%87%8F%E9%99%90%E5%88%B6%E5%B9%B6%E8%B0%83%E4%BC%98%E6%B5%81%E9%87%8F%E9%99%90%E5%88%B6%E5%93%88%E5%B8%8C%E8%A1%A8%E5%A4%A7%E5%B0%8F"><span class="toc-text">调优：启用流量限制并调优流量限制哈希表大小</span></a></li></ol></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#backlog-%E9%98%9F%E5%88%97-NAPI-%E8%BD%AE%E8%AF%A2%E5%99%A8"><span class="toc-text">backlog 队列 NAPI 轮询器</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#process-backlog"><span class="toc-text">process_backlog</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#netif-receive-skb-core-%E4%BC%A0%E9%80%81%E6%95%B0%E6%8D%AE%E5%88%B0%E6%95%B0%E6%8D%AE%E5%8C%85%E6%8A%93%E5%8F%96%E5%92%8C%E5%8D%8F%E8%AE%AE%E5%B1%82"><span class="toc-text">__netif_receive_skb_core 传送数据到数据包抓取和协议层</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%8C%85%E6%8A%93%E5%8F%96%E4%BC%A0%E9%80%81"><span class="toc-text">数据包抓取传送</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%8D%8F%E8%AE%AE%E5%B1%82%E4%BA%A4%E4%BB%98"><span class="toc-text">协议层交付</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%8F%E8%AE%AE%E5%B1%82%E6%B3%A8%E5%86%8C"><span class="toc-text">协议层注册</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#IP-%E5%8D%8F%E8%AE%AE%E5%B1%82"><span class="toc-text">IP 协议层</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#ip-rcv"><span class="toc-text">ip_rcv</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#netfilter-%E5%92%8C-iptables"><span class="toc-text">netfilter 和 iptables</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#ip-rcv-finish"><span class="toc-text">ip_rcv_finish</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E8%B0%83%E6%95%B4-IP-%E5%8D%8F%E8%AE%AE-early-demux"><span class="toc-text">调优：调整 IP 协议 early demux</span></a></li></ol></li><li class="toc-item toc-level-5"><a class="toc-link" href="#ip-local-deliver"><span class="toc-text">ip_local_deliver</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#ip-local-deliver-finish"><span class="toc-text">ip_local_deliver_finish</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%EF%BC%9AIP-%E5%8D%8F%E8%AE%AE%E5%B1%82%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF"><span class="toc-text">监控：IP 协议层统计信息</span></a></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9B%B4%E9%AB%98%E7%BA%A7%E5%88%AB%E5%8D%8F%E8%AE%AE%E6%B3%A8%E5%86%8C"><span class="toc-text">更高级别协议注册</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#UDP%E5%8D%8F%E8%AE%AE%E5%B1%82"><span class="toc-text">UDP协议层</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#udp-rcv"><span class="toc-text">udp_rcv</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#udp4-lib-rcv"><span class="toc-text">__udp4_lib_rcv</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#udp-queue-rcv-skb"><span class="toc-text">udp_queue_rcv_skb</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#sk-rcvqueues-full"><span class="toc-text">sk_rcvqueues_full</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#%E8%B0%83%E4%BC%98%EF%BC%9A%E5%A5%97%E6%8E%A5%E5%AD%97%E6%8E%A5%E6%94%B6%E9%98%9F%E5%88%97%E5%86%85%E5%AD%98"><span class="toc-text">调优：套接字接收队列内存</span></a></li></ol></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#udp-queue-rcv-skb-1"><span class="toc-text">udp_queue_rcv_skb</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#udp-queue-rcv-skb-2"><span class="toc-text">__udp_queue_rcv_skb</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%EF%BC%9AUDP-%E5%8D%8F%E8%AE%AE%E5%B1%82%E7%BB%9F%E8%AE%A1%E4%BF%A1%E6%81%AF"><span class="toc-text">监控：UDP 协议层统计信息</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#proc-net-snmp"><span class="toc-text">&#x2F;proc&#x2F;net&#x2F;snmp</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#proc-net-udp"><span class="toc-text">&#x2F;proc&#x2F;net&#x2F;udp</span></a></li></ol></li></ol></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%8E%92%E9%98%9F%E6%95%B0%E6%8D%AE%E5%88%B0%E5%A5%97%E6%8E%A5%E5%AD%97"><span class="toc-text">排队数据到套接字</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B6%E4%BB%96"><span class="toc-text">其他</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%97%B6%E9%97%B4%E6%88%B3"><span class="toc-text">时间戳</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BD%8E%E5%BB%B6%E8%BF%9F%E5%A5%97%E6%8E%A5%E5%AD%97%E7%9A%84%E5%BF%99%E8%BD%AE%E8%AF%A2"><span class="toc-text">低延迟套接字的忙轮询</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Netpoll%EF%BC%9A%E6%94%AF%E6%8C%81%E5%85%B3%E9%94%AE%E7%8E%AF%E5%A2%83%E4%B8%AD%E7%9A%84%E8%81%94%E7%BD%91"><span class="toc-text">Netpoll：支持关键环境中的联网</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#SO-INCOMING-CPU"><span class="toc-text">SO_INCOMING_CPU</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#DMA%E5%BC%95%E6%93%8E"><span class="toc-text">DMA引擎</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E8%8B%B1%E7%89%B9%E5%B0%94%E7%9A%84-I-x2F-O-%E5%8A%A0%E9%80%9F%E6%8A%80%E6%9C%AF%EF%BC%88IOAT%EF%BC%89"><span class="toc-text">英特尔的 I&#x2F;O 加速技术（IOAT）</span></a><ol class="toc-child"><li class="toc-item toc-level-6"><a class="toc-link" href="#%E7%9B%B4%E6%8E%A5%E7%BC%93%E5%AD%98%E8%AE%BF%E9%97%AE"><span class="toc-text">直接缓存访问</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7-IOAT-DMA-%E5%BC%95%E6%93%8E"><span class="toc-text">监控 IOAT DMA 引擎</span></a></li><li class="toc-item toc-level-6"><a class="toc-link" href="#%E8%B0%83%E4%BC%98-IOAT-DMA-%E5%BC%95%E6%93%8E"><span class="toc-text">调优 IOAT DMA 引擎</span></a></li></ol></li></ol></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-text">结论</span></a></li></ol>
+ 
+        <h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>本文解释了 Linux 内核的计算机如何接收数据包，以及当数据包从网络流向用户程序时，如何监视和调优网络栈的每个组件。</p>
+<p><strong>更新</strong> 我们已经发布了本文的姊妹篇：<a target="_blank" rel="noopener" href="https://packagecloud.io/blog/monitoring-tuning-linux-networking-stack-sending-data/">监控和调优 Linux 网络栈：发送数据</a>。</p>
+<p><strong>更新</strong> 查看 <a target="_blank" rel="noopener" href="https://packagecloud.io/blog/illustrated-guide-monitoring-tuning-linux-networking-stack-receiving-data/">监控和调优 Linux 网络栈图解指南：接收数据</a>，它为下面的内容添加了一些图表。</p>
+<p>如果不阅读内核的源代码，不深入了解到底发生了什么，就不可能调优或监控 Linux 网络栈。</p>
+<p>希望本文能给想做这方面工作的人提供参考。</p>
+<h2 id="特别感谢"><a href="#特别感谢" class="headerlink" title="特别感谢"></a>特别感谢</h2><p>特别感谢 <a target="_blank" rel="noopener" href="https://privateinternetaccess.com/">Private Internet Access</a> 的工作人员雇用我们，结合其他网络研究进行进一步研究，并慷慨地允许以研究为基础发布这些信息。</p>
+<p>本文基于为 <a target="_blank" rel="noopener" href="https://privateinternetaccess.com/">Private Internet Access</a> 所做的工作，最初以 <a target="_blank" rel="noopener" href="https://www.privateinternetaccess.com/blog/2016/01/linux-networking-stack-from-the-ground-up-part-1/">5 部分的系列文章</a>的形式发表。</p>
+<h2 id="监控和调优-Linux-网络栈的一般建议"><a href="#监控和调优-Linux-网络栈的一般建议" class="headerlink" title="监控和调优 Linux 网络栈的一般建议"></a>监控和调优 Linux 网络栈的一般建议</h2><p>Linux 网络栈是复杂的，没有一刀切的监控或调优解决方案。 如果您真的想调优网络栈，您别无选择，只能投入大量的时间、精力和金钱来了解网络系统的各个部分是如何交互的。</p>
+<p>理想情况下，您应该考虑在网络栈的每一层测量数据包丢弃。 这样您就可以确定并缩小需要调优的组件的范围。</p>
+<p>这就是我认为许多运营商偏离轨道的地方：假设一组 sysctl 设置或 <code>/proc</code> 值可以简单地被大规模重用。在某些情况下，也许可以，但事实证明，整个系统是如此微妙和交织在一起，如果您希望有意义的监控或调优，您必须努力深入了解系统如何运作。否则，您可以直接使用默认设置，在必要的进一步优化（以及推导这些设置所需的投资）之前，已经足够好。</p>
+<p>本文中提供的许多示例设置仅用于说明目的，并不是对某个配置或默认设置的推荐或反对。 在调整任何设置之前，您应该围绕您需要监控的内容制定一个参考框架，以注意到有意义的变化。</p>
+<p>通过网络连接到计算机时调整网络设置是危险的；你很容易地把自己锁在外面，或者完全关闭你的网络。 不要在生产机器上调整这些设置；相反，如果可能的话，在新机器上进行调整，再投入生产中。</p>
+<h2 id="概览"><a href="#概览" class="headerlink" title="概览"></a>概览</h2><p>作为参考，您可能需要手边有一份设备数据手册。 这篇文章将研究由 <code>igb</code> 设备驱动程序控制的 Intel I350 以太网控制器。 您可以找到该数据手册（警告：大型 PDF）<a target="_blank" rel="noopener" href="http://www.intel.com/content/dam/www/public/us/en/documents/datasheets/ethernet-controller-i350-datasheet.pdf">供您参考</a>。</p>
+<p>数据包从到达到套接字接收缓冲区的流程概览：</p>
+<ol>
+<li>驱动程序已加载并初始化。</li>
+<li>数据包从网络到达 NIC。</li>
+<li>数据包被复制（通过 DMA）到内核内存中的环形缓冲区。</li>
+<li>产生硬件中断通知系统知道数据包到达内存。</li>
+<li>驱动程序调用 <a target="_blank" rel="noopener" href="http://www.linuxfoundation.org/collaborate/workgroups/networking/napi">NAPI</a> 启动轮询循环（如果尚未运行轮询循环）。</li>
+<li><code>ksoftirqd</code> 进程运行在系统的每个 CPU 上。 它们在启动时注册。 <code>ksoftirqd</code> 进程调用设备驱动程序在初始化期间注册的 NAPI  <code>poll</code> 函数，从环形缓冲区收取数据包。</li>
+<li>环形缓冲区中已写入网络数据的内存区域被取消映射。</li>
+<li>DMA 到内存的数据以 “skb” 向上传递到网络层，以进行更多处理。</li>
+<li>如果 packet steering 启用或 NIC 具有多个接收队列，则传入的网络数据帧将分布在多个CPU 中。</li>
+<li>网络数据帧从队列传递到协议层。</li>
+<li>协议层处理数据。</li>
+<li>协议层添加数据到套接字关联的接收缓冲区。</li>
+</ol>
+<p>整个流程将在以下各节中详细介绍。</p>
+<p>下面检查的协议层是IP和UDP协议层。 本文提供的许多信息也将作为其他协议层的参考。</p>
+<h2 id="详细探讨"><a href="#详细探讨" class="headerlink" title="详细探讨"></a>详细探讨</h2><p>本文将探讨 Linux 3.13.0 版本内核，贯穿全文提供了 GitHub 代码链接和代码片段。</p>
+<p>准确理解 Linux 内核如何接收数据包是非常复杂的。 我们需要仔细检查和理解网络驱动程序是如何工作的，以便更加清晰理解后面的网络栈部分。</p>
+<p>本文将介绍 <code>igb</code> 网络驱动程序。 此驱动程序用于相对常见的服务器  NIC，即 Intel Ethernet Controller I350。 那么，让我们从理解 <code>igb</code> 网络驱动程序的工作原理开始。</p>
+<h3 id="网络设备驱动程序"><a href="#网络设备驱动程序" class="headerlink" title="网络设备驱动程序"></a>网络设备驱动程序</h3><h4 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h4><p>驱动程序注册一个初始化函数，当驱动程序被加载时，内核会调用该函数。 此函数使用<code>module_init</code> 宏注册。</p>
+<p><code>igb</code> 初始化函数（<code>igb_init_module</code>）及其与 <code>module_init</code> 的注册可以在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L676-L697">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a> 中找到。</p>
+<p>两者都非常简单明了：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/**</span>
+<span class="hljs-comment"> *  igb_init_module - Driver Registration Routine</span>
+<span class="hljs-comment"> *</span>
+<span class="hljs-comment"> *  igb_init_module is the first routine called when the driver is</span>
+<span class="hljs-comment"> *  loaded. All it does is register with the PCI subsystem.</span>
+<span class="hljs-comment"> **/</span>
+<span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> __init <span class="hljs-title">igb_init_module</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span></span>
+<span class="hljs-function"></span>&#123;
+  <span class="hljs-type">int</span> ret;
+  <span class="hljs-built_in">pr_info</span>(<span class="hljs-string">&quot;%s - version %s\n&quot;</span>, igb_driver_string, igb_driver_version);
+  <span class="hljs-built_in">pr_info</span>(<span class="hljs-string">&quot;%s\n&quot;</span>, igb_copyright);
+
+  <span class="hljs-comment">/* ... */</span>
+
+  ret = <span class="hljs-built_in">pci_register_driver</span>(&amp;igb_driver);
+  <span class="hljs-keyword">return</span> ret;
+&#125;
+
+<span class="hljs-built_in">module_init</span>(igb_init_module);</code></pre>
+
+<p>初始化设备的大部分工作都是调用 <code>pci_register_driver</code> 完成的，我们将在下面看到。</p>
+<h5 id="PCI-初始化"><a href="#PCI-初始化" class="headerlink" title="PCI 初始化"></a>PCI 初始化</h5><p>英特尔 I350 网卡是一种 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/PCI_Express">PCI express</a> 设备。</p>
+<p>PCI 设备通过 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/PCI_configuration_space#Standardized_registers">PCI 配置空间</a> 中的一系列寄存器标识自己。</p>
+<p>当设备驱动程序被编译时，会使用一个名为 <code>MODULE_DEVICE_TABLE</code> 的宏（来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/include/linux/module.h#L145-L146"><code>include/module.h</code></a>）来导出一个 PCI 设备 ID 表，标识设备驱动程序可以控制的设备。该表注册为一个结构的一部分，我们稍后将看到。</p>
+<p>内核使用此表来确定要加载哪个设备驱动程序来控制设备。</p>
+<p>这就是操作系统如何确定哪些设备连接到系统，以及应该使用哪个驱动程序与设备通信。</p>
+<p>此表和 <code>igb</code> 驱动程序的 PCI 设备 ID 位于 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L79-L117"><code>drivers/net/ethernet/intel/igb/igb_main.c</code></a> 和 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/e1000_hw.h#L41-L75"><code>drivers/net/ethernet/intel/igb/e1000_hw.h</code></a>：</p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-title">DEFINE_PCI_DEVICE_TABLE</span><span class="hljs-params">(igb_pci_tbl)</span> </span>= &#123;
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I354_BACKPLANE_1GBPS) &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I354_SGMII) &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I354_BACKPLANE_2_5GBPS) &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I211_COPPER), board_82575 &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I210_COPPER), board_82575 &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I210_FIBER), board_82575 &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I210_SERDES), board_82575 &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I210_SGMII), board_82575 &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I210_COPPER_FLASHLESS), board_82575 &#125;,
+  &#123; <span class="hljs-built_in">PCI_VDEVICE</span>(INTEL, E1000_DEV_ID_I210_SERDES_FLASHLESS), board_82575 &#125;,
+
+  <span class="hljs-comment">/* ... */</span>
+&#125;;
+<span class="hljs-built_in">MODULE_DEVICE_TABLE</span>(pci, igb_pci_tbl);</code></pre>
+
+<p>如上一节所示，驱动程序的初始化函数会调用 <code>pci_register_driver</code>。</p>
+<p>这个函数注册一个指针结构。 大多数指针是函数指针，但 PCI 设备 ID 表也被注册。 内核使用驱动程序注册的函数启动 PCI 设备。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L238-L249"><code>drivers/net/ethernet/intel/igb/igb_main.c</code></a>：</p>
+<pre><code class="hljs c++"><span class="hljs-type">static</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">pci_driver</span> igb_driver = &#123;
+  .name     = igb_driver_name,
+  .id_table = igb_pci_tbl,
+  .probe    = igb_probe,
+  .remove   = igb_remove,
+
+  <span class="hljs-comment">/* ... */</span>
+&#125;;</code></pre>
+
+<h5 id="PCI-探测"><a href="#PCI-探测" class="headerlink" title="PCI 探测"></a>PCI 探测</h5><p>一旦通过 PCI ID 识别了设备，内核就可以选择适当的驱动程序来控制该设备。每个 PCI 驱动程序都在内核的 PCI 系统中注册了一个探测函数。内核为尚未被设备驱动程序认领的设备调用此函数。一旦设备被认领，不会再就该设备询问其他驱动程序。大多数驱动程序都有大量的代码运行，以使设备做好使用准备。所做的确切事情因驱动程序而异。</p>
+<p>要执行的一些典型操作包括：</p>
+<ol>
+<li>启用 PCI 设备。</li>
+<li>请求内存范围和 <a target="_blank" rel="noopener" href="http://wiki.osdev.org/I/O_Ports">IO 端口</a>。</li>
+<li>设置 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">DMA</a> 掩码。</li>
+<li>注册驱动程序支持的 ethtool 函数（下面将详细描述）。</li>
+<li>启动看门狗任务（例如，e1000e 有一个看门狗任务来检查硬件是否挂起）。</li>
+<li>其他设备相关的内容，如替代方法或处理硬件特定的状况之类。</li>
+<li>创建、初始化和注册 <code>struct net_device_ops</code> 结构。此结构包含指向打开设备、发送数据到网络、设置 MAC 地址等各种函数的函数指针。</li>
+<li>创建、初始化和注册抽象 <code>struct net_device</code>，表示网络设备。</li>
+</ol>
+<p>让我们快速看一下 <code>igb</code> 驱动程序中 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L2005-L2429"><code>igb_probe</code></a> 函数的一些操作。</p>
+<h6 id="PCI-初始化一瞥"><a href="#PCI-初始化一瞥" class="headerlink" title="PCI 初始化一瞥"></a>PCI 初始化一瞥</h6><p>下面的 <code>igb_probe</code> 函数代码执行一些基本的 PCI 配置。 来自<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L2038-L2059">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a>：</p>
+<pre><code class="hljs c++">err = <span class="hljs-built_in">pci_enable_device_mem</span>(pdev);
+
+<span class="hljs-comment">/* ... */</span>
+
+err = <span class="hljs-built_in">dma_set_mask_and_coherent</span>(&amp;pdev-&gt;dev, <span class="hljs-built_in">DMA_BIT_MASK</span>(<span class="hljs-number">64</span>));
+
+<span class="hljs-comment">/* ... */</span>
+
+err = <span class="hljs-built_in">pci_request_selected_regions</span>(pdev, <span class="hljs-built_in">pci_select_bars</span>(pdev,
+           IORESOURCE_MEM),
+           igb_driver_name);
+
+<span class="hljs-built_in">pci_enable_pcie_error_reporting</span>(pdev);
+
+<span class="hljs-built_in">pci_set_master</span>(pdev);
+<span class="hljs-built_in">pci_save_state</span>(pdev);</code></pre>
+
+<p>首先，设备使用 <code>pci_enable_device_mem</code> 进行初始化。这将唤醒设备（如果它处于挂起状态），启用内存资源等。</p>
+<p>接下来，将设置 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">DMA</a> 掩码。此设备可以读写 64 位内存地址，因此使用 <code>DMA_BIT_MASK(64)</code> 调用 <code>dma_set_mask_and_coherent</code>。</p>
+<p>调用 <code>pci_request_selected_regions</code> 保留内存区域，启用 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/PCI/pcieaer-howto.txt">PCI Express 高级错误报告</a>（如果加载了 PCI AER 驱动程序），调用 <code>pci_set_master</code> 启用 DMA，并调用 <code>pci_save_state</code> 保存 PCI 配置空间。</p>
+<h5 id="更多-Linux-PCI-驱动程序信息"><a href="#更多-Linux-PCI-驱动程序信息" class="headerlink" title="更多 Linux PCI 驱动程序信息"></a>更多 Linux PCI 驱动程序信息</h5><p>全面解释 PCI 设备如何工作超出了本文的范围，但<a target="_blank" rel="noopener" href="http://free-electrons.com/doc/pci-drivers.pdf">这个精彩的演讲</a>，<a target="_blank" rel="noopener" href="http://wiki.osdev.org/PCI">这个 wiki</a>和<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/PCI/pci.txt">这个来自 Linux 内核的文件都</a>是很好的资源。</p>
+<h4 id="网络设备初始化"><a href="#网络设备初始化" class="headerlink" title="网络设备初始化"></a>网络设备初始化</h4><p><code>igb_probe</code> 函数执行一些重要的网络设备初始化。除了 PCI 特定的工作外，它还执行更多通用的网络和网络设备工作：</p>
+<ol>
+<li>注册 <code>struct net_device_ops</code>。</li>
+<li>注册 <code>ethtool</code> 操作。</li>
+<li>从 NIC 获取默认 MAC 地址。</li>
+<li>设置 <code>net_device</code> 特性标志。</li>
+<li>还有更多。</li>
+</ol>
+<p>让我们逐个来看看，它们很有趣。</p>
+<h5 id="struct-net-device-ops"><a href="#struct-net-device-ops" class="headerlink" title="struct net_device_ops"></a><code>struct net_device_ops</code></h5><p><code>struct net_device_ops</code> 包含指向许多重要操作的函数指针，网络子系统需要这些操作来控制设备。在本文的其余部分，我们将多次提到这个结构。</p>
+<p><code>net_device_ops</code> 结构被关联到 <code>igb_probe</code> 中的 <code>struct net_device</code> 上。来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L2090">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a></p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">igb_probe</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> pci_dev *pdev, <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> pci_device_id *ent)</span></span>
+<span class="hljs-function"></span>&#123;
+  <span class="hljs-comment">/* ... */</span>
+
+  netdev-&gt;netdev_ops = &amp;igb_netdev_ops;</code></pre>
+
+<p>并且此 <code>net_device_ops</code> 结构保存的指针指向的函数也在同一个文件中设置。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L1905-L1913">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">net_device_ops</span> igb_netdev_ops = &#123;
+  .ndo_open               = igb_open,
+  .ndo_stop               = igb_close,
+  .ndo_start_xmit         = igb_xmit_frame,
+  .ndo_get_stats64        = igb_get_stats64,
+  .ndo_set_rx_mode        = igb_set_rx_mode,
+  .ndo_set_mac_address    = igb_set_mac,
+  .ndo_change_mtu         = igb_change_mtu,
+  .ndo_do_ioctl           = igb_ioctl,
+
+  <span class="hljs-comment">/* ... */</span></code></pre>
+
+<p>如您所见，该 <code>struct</code> 有几个有趣的字段，如 <code>ndo_open</code>、<code>ndo_stop</code>、<code>ndo_start_xmit</code> 和 <code>ndo_get_stats64</code>，它们保存了 <code>igb</code> 驱动程序实现的函数地址。</p>
+<p>稍后我们将更详细地了解其中的一些内容。</p>
+<h5 id="ethtool-注册"><a href="#ethtool-注册" class="headerlink" title="ethtool 注册"></a><code>ethtool</code> 注册</h5><p><a target="_blank" rel="noopener" href="https://www.kernel.org/pub/software/network/ethtool/"><code>ethtool</code></a> 是一个命令行程序，您可以使用它来获取和设置各种驱动程序和硬件选项。在 Ubuntu 上，您可以运行 <code>apt-get install ethtool</code> 安装它。</p>
+<p><code>ethtool</code> 的一个常见用途是从网络设备收集详细统计信息。其他有趣的 <code>ethtool</code> 设置将在后面描述。</p>
+<p><code>ethtool</code> 程序使用 <a target="_blank" rel="noopener" href="http://man7.org/linux/man-pages/man2/ioctl.2.html"><code>ioctl</code></a> 系统调用与设备驱动程序通信。设备驱动程序注册一系列 <code>ethtool</code> 操作的函数，内核负责粘合。</p>
+<p>当从 <code>ethtool</code> 发出 <code>ioctl</code> 调用时，内核找到驱动程序注册的 <code>ethtool</code> 结构，并执行已注册的函数。驱动程序的 <code>ethtool</code> 函数实现可以做任何事情，从更改驱动程序中的简单软件标志到向设备写入寄存器值来调整实际 NIC 硬件的工作方式。</p>
+<p><code>igb</code> 驱动程序调用 <code>igb_set_ethtool_ops</code> 在 <code>igb_probe</code> 中注册其 <code>ethtool</code> 操作：</p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">igb_probe</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> pci_dev *pdev, <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> pci_device_id *ent)</span></span>
+<span class="hljs-function"></span>&#123;
+  <span class="hljs-comment">/* ... */</span>
+
+  <span class="hljs-built_in">igb_set_ethtool_ops</span>(netdev);</code></pre>
+
+<p><code>igb</code> 驱动程序的 <code>ethtool</code> 代码可以在文件 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_ethtool.c"><code>drivers/net/ethernet/intel/igb/igb_ethtool.c</code></a> 中找到，同时还有 <code>igb_set_ethtool_ops</code> 函数。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_ethtool.c#L3012-L3015"><code>drivers/net/ethernet/intel/igb/igb_ethtool.c</code></a>：</p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">igb_set_ethtool_ops</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> net_device *netdev)</span></span>
+<span class="hljs-function"></span>&#123;
+  <span class="hljs-built_in">SET_ETHTOOL_OPS</span>(netdev, &amp;igb_ethtool_ops);
+&#125;</code></pre>
+
+<p>在上面，您可以找到 <code>igb_ethtool_ops</code> 结构，其中 <code>igb</code> 驱动程序支持的 <code>ethtool</code> 函数设置为适当的字段。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_ethtool.c#L2970-L2979"><code>drivers/net/ethernet/intel/igb/igb_ethtool.c</code></a>：</p>
+<pre><code class="hljs c++"><span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">ethtool_ops</span> igb_ethtool_ops = &#123;
+  .get_settings           = igb_get_settings,
+  .set_settings           = igb_set_settings,
+  .get_drvinfo            = igb_get_drvinfo,
+  .get_regs_len           = igb_get_regs_len,
+  .get_regs               = igb_get_regs,
+  <span class="hljs-comment">/* ... */</span></code></pre>
+
+<p>各个驱动程序决定哪些 <code>ethtool</code> 函数是相关的，哪些应该实现。不幸的是，并非所有驱动程序都实现了所有 <code>ethtool</code> 函数。</p>
+<p>一个有趣的 <code>ethtool</code> 函数是 <code>get_ethtool_stats</code>，它（如果实现）会产生详细的统计计数器，这些计数器要么在驱动程序中的软件中跟踪，要么通过设备本身跟踪。</p>
+<p>下面的监控部分将展示如何使用 <code>ethtool</code> 访问这些详细统计信息。</p>
+<h5 id="硬中断"><a href="#硬中断" class="headerlink" title="硬中断"></a>硬中断</h5><p>当数据帧通过 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">DMA</a> 写入 RAM 时，NIC 如何告诉系统其余部分数据已准备好处理？</p>
+<p>传统上，NIC 会生成一个 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Interrupt_request_(PC_architecture)">硬中断请求 (IRQ)</a>，指示数据已到达。有三种常见类型的 IRQ：MSI-X、MSI 和legacy IRQ。这些将在稍后提及。当数据通过 DMA 写入 RAM 时，设备生成  IRQ 是很简单的，但如果大量数据帧到达，则会生成大量 IRQ。生成的 IRQ 越多，更高级任务（如用户进程）的 CPU 时间就越少。</p>
+<p><a target="_blank" rel="noopener" href="http://www.linuxfoundation.org/collaborate/workgroups/networking/napi">新 API (NAPI)</a> 被创建为一种减少网络设备在数据包到达时生成的 IRQ 数量的机制。虽然 NAPI 减少了 IRQ 的数量，但不能完全消除它们。</p>
+<p>我们将在后面的部分看到为什么会这样。</p>
+<h5 id="NAPI"><a href="#NAPI" class="headerlink" title="NAPI"></a>NAPI</h5><p><a target="_blank" rel="noopener" href="http://www.linuxfoundation.org/collaborate/workgroups/networking/napi">NAPI</a> 与传统的收集数据方法在几个重要方面有所不同。NAPI 允许设备驱动程序注册一个 <code>poll</code> 函数，NAPI 子系统将调用该函数来收集数据帧。</p>
+<p>在网络设备驱动程序中，NAPI 的预期用法如下：</p>
+<ol>
+<li>驱动程序启用 NAPI，但最初处于关闭状态。</li>
+<li>数据包到达，并由 NIC 通过 DMA 写入内存。</li>
+<li>NIC 生成 IRQ，触发驱动程序中的 IRQ 处理程序。</li>
+<li>驱动程序使用 softirq（稍后将详细介绍）唤醒 NAPI 子系统。开始在单独的执行线程中调用驱动程序注册的 <code>poll</code> 函数来收集数据包。</li>
+<li>驱动程序应禁用来自 NIC 的进一步 IRQ。这样做是为了让 NAPI 子系统在没有设备中断的情况下处理数据包。</li>
+<li>一旦没有更多工作要做，NAPI 子系统被禁用，设备的 IRQ 被重新启用。</li>
+<li>过程从第 2 步重新开始。</li>
+</ol>
+<p>与传统方法相比，这种收集数据帧的方法减少了开销，因为可以一次处理多个数据帧，而无需处理每个数据帧一次 IRQ。</p>
+<p>设备驱动程序实现一个 <code>poll</code> 函数并调用 <code>netif_napi_add</code> 将其注册到 NAPI。当使用 <code>netif_napi_add</code> 注册 NAPI <code>poll</code> 函数时，驱动程序还将指定 <code>weight</code>。大多数驱动程序硬编码一个为 <code>64</code> 的值。这个值及其含义将在下面更详细地描述。</p>
+<p>通常，驱动程序在驱动程序初始化期间注册它们的 NAPI <code>poll</code> 函数。</p>
+<h5 id="igb-驱动程序的-NAPI-初始化"><a href="#igb-驱动程序的-NAPI-初始化" class="headerlink" title="igb 驱动程序的 NAPI 初始化"></a><code>igb</code> 驱动程序的 NAPI 初始化</h5><p><code>igb</code> 驱动程序通过一个长调用链来实现：</p>
+<ol>
+<li><code>igb_probe</code> 调用 <code>igb_sw_init</code>。</li>
+<li><code>igb_sw_init</code> 调用 <code>igb_init_interrupt_scheme</code>。</li>
+<li><code>igb_init_interrupt_scheme</code> 调用 <code>igb_alloc_q_vectors</code>。</li>
+<li><code>igb_alloc_q_vectors</code> 调用 <code>igb_alloc_q_vector</code>。</li>
+<li><code>igb_alloc_q_vector</code> 调用 <code>netif_napi_add</code>。</li>
+</ol>
+<p>该调用跟踪发生了一些高级的事情：</p>
+<ol>
+<li>如果支持 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Message_Signaled_Interrupts#MSI-X">MSI-X</a>，则调用 <code>pci_enable_msix</code> 启用它。</li>
+<li>计算并初始化各种设置；最值得注意的是设备和驱动程序发送和接收数据包的传输和接收队列的数量。</li>
+<li>为每个创建的传输和接收队列调用一次 <code>igb_alloc_q_vector</code>。</li>
+<li>每次调用 <code>igb_alloc_q_vector</code> 都会调用 <code>netif_napi_add</code> 为该队列注册一个 <code>poll</code> 函数，当调用以收集数据包时，将传递一个 <code>struct napi_struct</code> 实例给 <code>poll</code>。</li>
+</ol>
+<p>让我们看一下 <code>igb_alloc_q_vector</code>，看看如何注册 <code>poll</code> 回调及其私有数据。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L1145-L1271">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">igb_alloc_q_vector</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> igb_adapter *adapter,</span></span>
+<span class="hljs-params"><span class="hljs-function">                              <span class="hljs-type">int</span> v_count, <span class="hljs-type">int</span> v_idx,</span></span>
+<span class="hljs-params"><span class="hljs-function">                              <span class="hljs-type">int</span> txr_count, <span class="hljs-type">int</span> txr_idx,</span></span>
+<span class="hljs-params"><span class="hljs-function">                              <span class="hljs-type">int</span> rxr_count, <span class="hljs-type">int</span> rxr_idx)</span></span>
+<span class="hljs-function"></span>&#123;
+  <span class="hljs-comment">/* ... */</span>
+
+  <span class="hljs-comment">/* allocate q_vector and rings */</span>
+  q_vector = <span class="hljs-built_in">kzalloc</span>(size, GFP_KERNEL);
+  <span class="hljs-keyword">if</span> (!q_vector)
+          <span class="hljs-keyword">return</span> -ENOMEM;
+
+  <span class="hljs-comment">/* initialize NAPI */</span>
+  <span class="hljs-built_in">netif_napi_add</span>(adapter-&gt;netdev, &amp;q_vector-&gt;napi, igb_poll, <span class="hljs-number">64</span>);
+
+  <span class="hljs-comment">/* ... */</span></code></pre>
+
+<p>上面的代码为接收队列分配内存，并注册函数 <code>igb_poll</code> 到 NAPI 子系统。它提供了一个指向与此新创建的接收队列关联的 <code>struct napi_struct</code> 的引用（上面的 <code>&amp;q_vector-&gt;napi</code>）。当 NAPI 子系统调用它来从此接收队列收集数据包时，将传递给 <code>igb_poll</code>。</p>
+<p>当我们探讨数据从驱动程序到网络栈的流动时，这一点很重要。</p>
+<h4 id="启动网络设备"><a href="#启动网络设备" class="headerlink" title="启动网络设备"></a>启动网络设备</h4><p>我们之前看到的 <code>net_device_ops</code> 结构体注册了一组函数，用于启动网络设备、传输数据包、设置 MAC 地址等。</p>
+<p>当网络设备启动时（例如，使用 <code>ifconfig eth0 up</code>），<code>net_device_ops</code> 结构体中的 <code>ndo_open</code> 字段所关联的函数会被调用。</p>
+<p><code>ndo_open</code> 函数通常会执行以下操作：</p>
+<ol>
+<li>分配接收队列 和传输队列内存</li>
+<li>启用 NAPI</li>
+<li>注册中断处理程序</li>
+<li>启用硬件中断</li>
+<li>等等。</li>
+</ol>
+<p>在 <code>igb</code> 驱动程序的情况下，<code>net_device_ops</code> 结构体中 <code>ndo_open</code> 字段所关联的函数被称为 <code>igb_open</code>。</p>
+<h5 id="准备从网络接收数据"><a href="#准备从网络接收数据" class="headerlink" title="准备从网络接收数据"></a>准备从网络接收数据</h5><p>现在大多数网卡都使用 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">DMA</a> 直接将数据写入 RAM，操作系统可以从中获取数据进行处理。大多数网卡用于此目的的数据结构类似于基于循环缓冲区（或环形缓冲区）构建的队列。</p>
+<p>为了做到这一点，设备驱动程序必须与操作系统协作，保留一块网卡硬件可以使用的内存区域。一旦保留了这个区域，就会告知硬件其位置，传入的数据将被写入 RAM，在 RAM 中稍后将被网络子系统拾取并处理。</p>
+<p>这看起来很简单，但如果数据包速率足够高，以至于单个 CPU 无法正确处理所有传入的数据包呢？数据结构建立在固定长度的内存区域上，因此传入的数据包将被丢弃。</p>
+<p>这就是 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Network_interface_controller#RSS">接收端扩展 (RSS)</a> 或多队列能够改善的点。</p>
+<p>有些设备能够同时将传入的数据包写入几个不同的 RAM 区域；每个区域都是一个单独的队列。这允许操作系统从硬件层面开始，使用多个 CPU 并行处理传入的数据。并非所有网卡都支持此功能。</p>
+<p>Intel I350 网卡支持多队列。我们可以在 <code>igb</code> 驱动程序中看到这一点。当 <code>igb</code> 驱动程序启动时，它首先调用一个名为 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L2801-L2804"><code>igb_setup_all_rx_resources</code></a> 的函数。这个函数为每个 接收队列调用另一个函数 <code>igb_setup_rx_resources</code>，以安排设备将传入数据写入 DMA支持内存。</p>
+<p>如果您想了解这是如何工作的，请参阅 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/DMA-API-HOWTO.txt">Linux 内核的 DMA API HOWTO</a>。</p>
+<p>事实证明，可以使用 <code>ethtool</code> 调整接收队列的数量和大小。调整这些值会对处理的帧数与丢弃的帧数产生明显影响。</p>
+<p>网卡使用数据包头字段（如源、目的地、端口等）上的哈希函数来确定数据应该发送到哪个接收队列。</p>
+<p>有些网卡允许您调整接收队列的权重，因此您可以向特定队列发送更多流量。</p>
+<p>少部分网卡允许您调整哈希函数本身。如果您可以调整哈希函数，您可以发送某些流量到特定的接收队列进行处理，甚至在硬件层面丢弃数据包（如果需要）。</p>
+<p>我们稍后将看看如何调整这些设置。</p>
+<h5 id="启用NAPI"><a href="#启用NAPI" class="headerlink" title="启用NAPI"></a>启用NAPI</h5><p>当网络设备启动时，驱动程序通常会启用 <a target="_blank" rel="noopener" href="http://www.linuxfoundation.org/collaborate/workgroups/networking/napi">NAPI</a>。</p>
+<p>我们之前看到驱动程序如何向 NAPI 注册 <code>poll</code> 函数，但 NAPI 通常不会在设备启动之前启用。</p>
+<p>启用 NAPI 相对简单。调用 <code>napi_enable</code> 翻转 <code>struct napi_struct</code> 的一个位，以指示它现在已启用。如上所述，虽然 NAPI 被启用，但它将处于关闭状态。</p>
+<p>在 <code>igb</code> 驱动程序的情况下，当驱动程序加载或使用 <code>ethtool</code> 更改队列计数或大小时，会为每个已初始化的 <code>q_vector</code> 启用 NAPI。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L2833-L2834">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; adapter-&gt;num_q_vectors; i++)
+  <span class="hljs-built_in">napi_enable</span>(&amp;(adapter-&gt;q_vector[i]-&gt;napi));</code></pre>
+
+<h5 id="注册中断处理程序"><a href="#注册中断处理程序" class="headerlink" title="注册中断处理程序"></a>注册中断处理程序</h5><p>启用 NAPI 后，下一步是注册中断处理程序。设备可以使用不同的方法来发出中断信号：MSI-X、MSI 和 legacy interrupt。因此，代码因设备而异，具体取决于特定硬件支持的中断方法。</p>
+<p>驱动程序必须确定设备支持哪种方法，并注册适当的处理程序函数，在接收到中断时执行。</p>
+<p>有些驱动程序，如 <code>igb</code> 驱动程序，会尝试使用每种方法注册中断处理程序，在失败时回退到下一个未测试的方法。</p>
+<p>MSI-X 中断是首选方法，特别是对于支持多个接收队列的网卡。这是因为每个接收队列都可以分配自己的硬件中断，然后由特定的 CPU 处理（使用 <code>irqbalance</code> 或修改 <code>/proc/irq/IRQ_NUMBER/smp_affinity</code>）。我们稍后将看到，处理中断的 CPU 将是处理数据包的 CPU。通过这种方式，从硬件中断层次到网络栈，到达的数据包可以由单独的 CPU 处理。</p>
+<p>如果 MSI-X 不可用，MSI 仍然比 legacy interrupt 具有优势。如果设备支持它，驱动程序将使用它。阅读 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Message_Signaled_Interrupts">这个有用的维基页面</a> 了解更多关于 MSI 和 MSI-X 的信息。</p>
+<p>在 <code>igb</code> 驱动程序中，函数 <code>igb_msix_ring</code>、<code>igb_intr_msi</code>、<code>igb_intr</code> 分别是 MSI-X、MSI 和 legacy interrupt 模式的中断处理程序方法。</p>
+<p>您可以在驱动程序中找到尝试每种中断方法的代码<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L1360-L1413">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a>:</p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">igb_request_irq</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> igb_adapter *adapter)</span></span>
+<span class="hljs-function"></span>&#123;
+  <span class="hljs-keyword">struct</span> <span class="hljs-title class_">net_device</span> *netdev = adapter-&gt;netdev;
+  <span class="hljs-keyword">struct</span> <span class="hljs-title class_">pci_dev</span> *pdev = adapter-&gt;pdev;
+  <span class="hljs-type">int</span> err = <span class="hljs-number">0</span>;
+
+  <span class="hljs-keyword">if</span> (adapter-&gt;msix_entries) &#123;
+    err = <span class="hljs-built_in">igb_request_msix</span>(adapter);
+    <span class="hljs-keyword">if</span> (!err)
+      <span class="hljs-keyword">goto</span> request_done;
+    <span class="hljs-comment">/* fall back to MSI */</span>
+
+    <span class="hljs-comment">/* ... */</span>
+  &#125;
+
+  <span class="hljs-comment">/* ... */</span>
+
+  <span class="hljs-keyword">if</span> (adapter-&gt;flags &amp; IGB_FLAG_HAS_MSI) &#123;
+    err = <span class="hljs-built_in">request_irq</span>(pdev-&gt;irq, igb_intr_msi, <span class="hljs-number">0</span>,
+          netdev-&gt;name, adapter);
+    <span class="hljs-keyword">if</span> (!err)
+      <span class="hljs-keyword">goto</span> request_done;
+
+    <span class="hljs-comment">/* fall back to legacy interrupts */</span>
+
+    <span class="hljs-comment">/* ... */</span>
+  &#125;
+
+  err = <span class="hljs-built_in">request_irq</span>(pdev-&gt;irq, igb_intr, IRQF_SHARED,
+        netdev-&gt;name, adapter);
+
+  <span class="hljs-keyword">if</span> (err)
+    <span class="hljs-built_in">dev_err</span>(&amp;pdev-&gt;dev, <span class="hljs-string">&quot;Error %d getting interrupt\n&quot;</span>, err);
+
+request_done:
+  <span class="hljs-keyword">return</span> err;
+&#125;</code></pre>
+
+<p>如上面的简略代码所示，驱动程序首先尝试使用 <code>igb_request_msix</code> 设置 MSI-X 中断处理程序，在失败时回退到 MSI。接下来，使用 <code>request_irq</code> 注册 <code>igb_intr_msi</code>，即 MSI 中断处理程序。如果这失败了，驱动程序将回退到传统中断。再次使用 <code>request_irq</code> 注册 legacy interrupt 处理程序 <code>igb_intr</code>。</p>
+<p>这就是 <code>igb</code> 驱动程序如何注册一个函数，在网卡引发中断信号表明数据已到达并准备好处理时执行。</p>
+<h5 id="启用中断"><a href="#启用中断" class="headerlink" title="启用中断"></a>启用中断</h5><p>此时，几乎所有东西都已设置好。剩下的只是启用网卡的中断并等待数据到达。启用中断是硬件特定的，但 <code>igb</code> 驱动程序在 <code>__igb_open</code> 中调用名为 <code>igb_irq_enable</code> 的辅助函数来实现。</p>
+<p>写入寄存器为此设备启用中断。</p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">void</span> <span class="hljs-title">igb_irq_enable</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> igb_adapter *adapter)</span></span>
+<span class="hljs-function"></span>&#123;
+
+  <span class="hljs-comment">/* ... */</span>
+
+    <span class="hljs-built_in">wr32</span>(E1000_IMS, IMS_ENABLE_MASK | E1000_IMS_DRSTA);
+    <span class="hljs-built_in">wr32</span>(E1000_IAM, IMS_ENABLE_MASK | E1000_IMS_DRSTA);
+
+  <span class="hljs-comment">/* ... */</span>
+&#125;</code></pre>
+
+<h5 id="网络设备现已启动"><a href="#网络设备现已启动" class="headerlink" title="网络设备现已启动"></a>网络设备现已启动</h5><p>驱动程序可能会做一些其他事情，如启动计时器、工作队列或其他硬件特定的设置。一旦完成，网络设备就已启动并准备好使用。</p>
+<p>让我们看看如何监控和调优网络设备驱动程序的设置。</p>
+<h4 id="监控网络设备"><a href="#监控网络设备" class="headerlink" title="监控网络设备"></a>监控网络设备</h4><p>有几种不同的方法可以监控您的网络设备，提供不同程度的粒度和复杂性。让我们从最精细的开始，逐渐过渡到最粗略的。</p>
+<h5 id="ethtool-S-使用"><a href="#ethtool-S-使用" class="headerlink" title="ethtool -S 使用"></a><code>ethtool -S</code> 使用</h5><p>您可以运行 <code>sudo apt-get install ethtool</code> 在 Ubuntu 系统上安装 <code>ethtool</code>。</p>
+<p>安装完成后，您可以传递 <code>-S</code> 标志以及您想要获取统计信息的网络设备名称来访问统计信息。</p>
+<p>使用 <code>ethtool -S</code> 监控详细的网卡设备统计信息（例如，数据包丢弃）。</p>
+<pre><code class="hljs bash">$ sudo ethtool -S eth0
+NIC statistics:
+     rx_packets: 597028087
+     tx_packets: 5924278060
+     rx_bytes: 112643393747
+     tx_bytes: 990080156714
+     rx_broadcast: 96
+     tx_broadcast: 116
+     rx_multicast: 20294528
+     ....</code></pre>
+
+<p>监控这些数据可能很困难。它很容易获得，但字段值没有标准化。不同的驱动程序，甚至不同版本的 <em>相同</em> 驱动程序可能会产生具有相同含义的不同字段名称。</p>
+<p>您应该寻找带有 “drop”、“buffer”、“miss” 等标签的值。接下来，您将不得不阅读驱动程序源代码。您能够确定哪些值完全在软件中计算（例如，没有内存时增加），哪些值直接读取寄存器从硬件获得。对于寄存器值，您应该查阅硬件的数据表，以确定计数器的真实含义； <code>ethtool</code> 给出的许多标签都可能是误导性的。</p>
+<h5 id="sysfs-使用"><a href="#sysfs-使用" class="headerlink" title="sysfs 使用"></a>sysfs 使用</h5><p>sysfs 也提供了许多统计值，但它们的层级比直接提供的网卡级别统计值略高一些。</p>
+<p>您可以使用 <code>cat</code> 在文件上查找丢弃的传入网络数据帧的数量，例如 eth0。</p>
+<p>使用 sysfs 监控更高层级的网卡统计信息。</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /sys/class/net/eth0/statistics/rx_dropped
+2</code></pre>
+
+<p>计数器值分为 <code>collisions</code>、<code>rx_dropped</code>、<code>rx_errors</code>、<code>rx_missed_errors</code> 等文件。</p>
+<p>不幸的是，由驱动程序决定每个字段的含义，何时增加它们以及值来自哪里。您可能会注意到，有些驱动程序将某种类型的错误条件计为丢弃，但其他驱动程序可能将其计为错过。</p>
+<p>如果这些值对您至关重要，您需要阅读驱动程序源代码，以准确了解您的驱动程序认为每个值的含义。</p>
+<h5 id="proc-net-dev-使用"><a href="#proc-net-dev-使用" class="headerlink" title="/proc/net/dev 使用"></a><code>/proc/net/dev</code> 使用</h5><p>一个更高层级的文件是 <code>/proc/net/dev</code>，它为系统上的每个网络适配器提供高层级概要信息。</p>
+<p>读取 <code>/proc/net/dev</code> 监控高层级网卡统计信息。</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/net/dev
+Inter-|   Receive                                                                                                               |  Transmit
+ face |                   bytes         packets errs drop fifo frame compressed     multicast |                   bytes           packets errs drop fifo colls carrier compressed
+  eth0:    110346752214   597737500     0      2    0        0                    0  20963860   990024805984 6066582604     0       0    0      0         0                    0
+       lo: 428349463836 1579868535     0      0    0        0                    0                  0    428349463836  1579868535     0       0    0      0         0                    0</code></pre>
+
+<p>这个文件显示了上面提到的 sysfs 文件中找到的值的子集，但它可能作为一个有用的一般参考。</p>
+<p>上面提到的警告在这里也适用：如果这些值对您很重要，您仍然需要阅读驱动程序源代码，以准确了解何时、何地以及为什么它们会增加，以确保您对 error、drop 或 fifo 的理解与你的驱动程序相同。</p>
+<h4 id="调优网络设备"><a href="#调优网络设备" class="headerlink" title="调优网络设备"></a>调优网络设备</h4><h5 id="检查正在使用的接收队列数量"><a href="#检查正在使用的接收队列数量" class="headerlink" title="检查正在使用的接收队列数量"></a>检查正在使用的接收队列数量</h5><p>如果您的网卡和系统上加载的设备驱动程序支持 RSS &#x2F; 多队列，您通常可以使用 <code>ethtool</code> 调整接收队列（也称为接收通道）的数量。</p>
+<p>使用 <code>ethtool</code> 检查网卡接收队列的数量。</p>
+<pre><code class="hljs bash">$ sudo ethtool -l eth0
+Channel parameters <span class="hljs-keyword">for</span> eth0:
+Pre-<span class="hljs-built_in">set</span> maximums:
+RX:   0
+TX:   0
+Other:    0
+Combined: 8
+Current hardware settings:
+RX:   0
+TX:   0
+Other:    0
+Combined: 4</code></pre>
+
+<p>此输出显示预设的最大值（由驱动程序和硬件强制执行）和当前设置。</p>
+<p><strong>注意：</strong> 并非所有设备驱动程序都支持此操作。</p>
+<p>如果您的 NIC 不支持此操作，则会出现错误。</p>
+<pre><code class="hljs bash">$ sudo ethtool -l eth0
+Channel parameters <span class="hljs-keyword">for</span> eth0:
+Cannot get device channel parameters
+: Operation not supported</code></pre>
+
+<p>这意味着您的驱动程序没有实现 ethtool 的 <code>get_channels</code> 操作。这可能是因为网卡不支持调整队列数量，不支持 RSS &#x2F; 多队列，或者您的驱动程序尚未更新以处理此功能。</p>
+<h5 id="调整接收队列的数量"><a href="#调整接收队列的数量" class="headerlink" title="调整接收队列的数量"></a>调整接收队列的数量</h5><p>一旦您找到了当前和最大队列数，您可以使用 <code>sudo ethtool -L</code> 调整这些值。</p>
+<p><strong>注意：</strong> 一些设备及其驱动程序仅支持组合队列，用于传输和接收，如上一节中的示例。</p>
+<p>使用 <code>ethtool -L</code> 设置组合网卡传输和接收队列为 8。</p>
+<pre><code class="hljs bash">$ sudo ethtool -L eth0 combined 8</code></pre>
+
+<p>如果您的设备和驱动程序支持单独设置接收队列和传输队列，并且您只想更改接收队列数为 8，则可以运行：</p>
+<p>使用 <code>ethtool -L</code> 设置 NIC 接收队列数为 8。</p>
+<pre><code class="hljs bash">$ sudo ethtool -L eth0 rx 8</code></pre>
+
+<p><strong>注意：</strong> 对于大多数驱动程序，这些更改将使接口下线，然后重新启动；与此接口的连接将中断。对于一次性更改，这可能并不重要。</p>
+<h5 id="调整接收队列的大小"><a href="#调整接收队列的大小" class="headerlink" title="调整接收队列的大小"></a>调整接收队列的大小</h5><p>一些网卡及其驱动程序也支持调整接收队列的大小。具体如何操作取决于硬件，但幸运的是，<code>ethtool</code> 为用户提供了一种通用的调整大小的方法。在接收大量数据帧的时期，增加接收队列的大小可以帮助防止网卡丢失网络数据。不过，数据仍然可能在软件中丢失，并且需要其他调整来减少或完全消除丢失。</p>
+<p>使用 <code>ethtool -g</code> 检查当前网卡队列大小。</p>
+<pre><code class="hljs bash">$ sudo ethtool -g eth0
+Ring parameters <span class="hljs-keyword">for</span> eth0:
+Pre-<span class="hljs-built_in">set</span> maximums:
+RX:   4096
+RX Mini:  0
+RX Jumbo: 0
+TX:   4096
+Current hardware settings:
+RX:   512
+RX Mini:  0
+RX Jumbo: 0
+TX:   512</code></pre>
+
+<p>上述输出表明硬件支持最多 4096 个接收和传输描述符，但目前仅使用 512 个。</p>
+<p>使用 <code>ethtool -G</code> 增加每个接收队列的大小到 4096。</p>
+<pre><code class="hljs crystal"><span class="hljs-variable">$ </span>sudo ethtool -G eth0 rx <span class="hljs-number">4096</span></code></pre>
+
+<p><strong>注意：</strong> 对于大多数驱动程序，这些更改将使接口下线，然后重新启动；与此接口的连接将中断。对于一次性更改，这可能并不重要。</p>
+<h5 id="调整接收队列的处理权重"><a href="#调整接收队列的处理权重" class="headerlink" title="调整接收队列的处理权重"></a>调整接收队列的处理权重</h5><p>一些网卡支持设置权重来调整网络数据在接收队列之间的分配。</p>
+<p>如果满足以下条件，您可以进行配置：</p>
+<ul>
+<li>网卡支持流量引导。</li>
+<li>驱动程序实现了 <code>ethtool</code> 函数 <code>get_rxfh_indir_size</code> 和 <code>get_rxfh_indir</code>。</li>
+<li>运行的 <code>ethtool</code> 版本足够新，支持命令行选项 <code>-x</code> 和 <code>-X</code> 分别显示和设置引导表。</li>
+</ul>
+<p>使用 <code>ethtool -x</code> 检查 RX 流量引导表。</p>
+<pre><code class="hljs bash">$ sudo ethtool -x eth0
+RX flow <span class="hljs-built_in">hash</span> indirection table <span class="hljs-keyword">for</span> eth3 with 2 RX ring(s):
+0: 0 1 0 1 0 1 0 1
+8: 0 1 0 1 0 1 0 1
+16: 0 1 0 1 0 1 0 1
+24: 0 1 0 1 0 1 0 1</code></pre>
+
+<p>此输出在左侧显示数据包哈希值，其中列出了接收队列 0 和 1。 因此，散列到 2 的数据包将被递送到接收队列 0，而散列到 3 的数据包将被递送到接收队列 1。</p>
+<p>示例：在前两个接收队列之间均匀扩散处理</p>
+<pre><code class="hljs bash">$ sudo ethtool -X eth0 equal 2</code></pre>
+
+<p>如果你想设置自定义权重来改变命中特定接收队列（以及CPU）的数据包数量，你也可以在命令行中指定这些权重：</p>
+<p>使用 <code>ethtool -X</code> 设置自定义收队队列权重</p>
+<pre><code class="hljs bash">$ sudo ethtool -X eth0 weight 6 2</code></pre>
+
+<p>上述命令指定接收队列 0 的权重为 6，接收队列 1 权重为 2，使得推送更多的数据到队列 0 处理。</p>
+<p>一些网卡还允许您调整哈希算法中使用的字段，我们接下来会看到。</p>
+<h5 id="调整网络流的接收哈希字段"><a href="#调整网络流的接收哈希字段" class="headerlink" title="调整网络流的接收哈希字段"></a>调整网络流的接收哈希字段</h5><p>您可以使用 <code>ethtool</code> 来调整计算 RSS 时使用的哈希字段。</p>
+<p>使用 <code>ethtool -n</code> 检查 UDP 接收流哈希所用的字段。</p>
+<pre><code class="hljs bash">$ sudo ethtool -n eth0 rx-flow-hash udp4
+UDP over IPV4 flows use these fields <span class="hljs-keyword">for</span> computing Hash flow key:
+IP SA
+IP DA</code></pre>
+
+<p>对于 eth0，计算 UDP 流的哈希的字段是 IPv4 源地址和目标地址。让我们添加源端口和目标端口：</p>
+<p>使用 <code>ethtool -N</code> 设置 UDP 接收流哈希字段。</p>
+<pre><code class="hljs bash">$ sudo ethtool -N eth0 rx-flow-hash udp4 sdfn</code></pre>
+
+<p><code>sdfn</code> 字符串有点神秘；请查看 <code>ethtool</code> 手册页获取每个字母的解释。</p>
+<p>调整哈希的字段很有用，但是，对于更精细地控制哪些流将由哪个接收队列处理， <code>ntuple</code> 过滤更有用。</p>
+<h5 id="ntuple-过滤引导网络流"><a href="#ntuple-过滤引导网络流" class="headerlink" title="ntuple 过滤引导网络流"></a>ntuple 过滤引导网络流</h5><p>一些网卡支持一种称为 “ntuple 过滤” 的功能。此功能允许用户通过 <code>ethtool</code> 指定一组参数，在硬件中过滤传入的网络数据并将其排队到特定的接收队列。例如，用户可以指定目标为特定端口的 TCP 数据包应发送到接收队列 1。</p>
+<p>在英特尔网卡上，此功能通常称为 <a target="_blank" rel="noopener" href="http://www.intel.com/content/www/us/en/ethernet-products/ethernet-flow-director-video.html">Intel Ethernet Flow Director</a>。其他网卡供应商可能为此功能提供其他营销名称。</p>
+<p>正如我们稍后将看到的，ntuple 过滤是另一种称为加速接收流引导 (aRFS) 的功能的关键组成部分，如果您的网卡支持它，则使用 ntuple 更容易。aRFS 将在后面介绍。</p>
+<p>如果系统的运行要求最大化数据局部性，以期在处理网络数据时提高 CPU 缓存命中率，那么此功能可能很有用。例如，考虑在端口 80 上运行的 Web 服务器的以下配置：</p>
+<ul>
+<li>在端口 80 上运行的 Web 服务器被固定在 CPU 2 上运行。</li>
+<li>接收队列的 IRQ 被分配给 CPU 2 处理。</li>
+<li>目标为端口 80 的 TCP 流量使用 ntuple 过滤到 CPU 2。</li>
+<li>所有传入端口 80 的流量都由 CPU 2 处理，从数据到达用户程序开始。</li>
+<li>需要仔细监控系统，包括缓存命中率和网络堆栈延迟，以确定有效性。</li>
+</ul>
+<p>如前所述，可以使用 <code>ethtool</code> 配置 ntuple 过滤，但首先，您需要确保在您的设备上启用了此功能。</p>
+<p>使用 <code>ethtool -k</code> 检查是否启用了 ntuple 过滤。</p>
+<pre><code class="hljs bash">$ sudo ethtool -k eth0
+Offload parameters <span class="hljs-keyword">for</span> eth0:
+...
+ntuple-filters: off
+receive-hashing: on</code></pre>
+
+<p>正如所见，在这个设备上 <code>ntuple-filters</code> 被禁用。</p>
+<p>使用 <code>ethtool -K</code> 启用 ntuple 过滤</p>
+<pre><code class="hljs bash">$ sudo ethtool -K eth0 ntuple on</code></pre>
+
+<p>一旦你启用了 ntuple 过滤，或者验证它已经启用，你可以使用 <code>ethtool</code> 检查现有的ntuple 规则：</p>
+<p>使用 <code>ethtool -u</code> 检查现有的 ntuple 过滤</p>
+<pre><code class="hljs bash">$ sudo ethtool -u eth0
+40 RX rings available
+Total 0 rules</code></pre>
+
+<p>如您所见，此设备没有 ntuple 过滤规则。您可以在 <code>ethtool</code> 命令行上指定它来添加规则。让我们添加一个规则，定向目标端口为 80 的所有 TCP 流量到接收队列 2：</p>
+<p>添加 ntuple 过滤器，发送目标端口为 80 的 TCP 流量到接收队列 2。</p>
+<pre><code class="hljs bash">$ sudo ethtool -U eth0 flow-type tcp4 dst-port 80 action 2</code></pre>
+
+<p>您还可以使用 ntuple 过滤在硬件级别丢弃特定流的数据包。这对于缓解来自特定 IP 地址的大量传入流量很有用。有关配置 ntuple 过滤规则的更多信息，请参阅 <code>ethtool</code> 手册页。</p>
+<p>您通常可以检查 <code>ethtool -S [设备名称]</code> 输出的值来获取有关 ntuple 规则成功（或失败）的统计信息。例如，在英特尔网卡上，统计信息 <code>fdir_match</code> 和 <code>fdir_miss</code> 计算您的 ntuple 过滤规则的匹配和未命中次数。请查阅您的设备驱动程序源代码和设备数据表以追查统计计数器（如果可用）。</p>
+<h3 id="软中断"><a href="#软中断" class="headerlink" title="软中断"></a>软中断</h3><p>在研究网络栈之前，我们需要稍微了解一下 Linux 内核名为软中断的东西。</p>
+<h4 id="什么是软中断？"><a href="#什么是软中断？" class="headerlink" title="什么是软中断？"></a>什么是软中断？</h4><p>Linux 内核中的软中断系统是一种在驱动程序中实现的中断处理程序上下文之外执行代码的机制。这个系统很重要，因为在中断处理程序的全部或部分执行期间，硬件中断可能被禁用。中断被禁用的时间越长，错过事件的机会就越大。因此，推迟任何长时间运行的操作到中断处理程序之外是很重要的，以便它能尽快完成并重新启用来自设备的中断。</p>
+<p>内核中还有其他机制推迟工作，但对于网络栈，我们将探讨 softirq。</p>
+<p>可以将 softirq 系统想象为一系列内核线程（每个 CPU 一个），它们运行已为不同 softirq 事件注册的处理程序函数。如果您曾经查看过 top 并在内核线程列表中看到 <code>ksoftirqd/0</code>，那么您正在查看在 CPU 0 上运行的 softirq 内核线程。</p>
+<p>内核子系统（如网络）可以执行 <code>open_softirq</code> 函数来注册软中断处理程序。我们稍后将看到网络系统如何注册其软中断处理程序。现在，让我们了解更多关于软中断如何工作的信息。</p>
+<h4 id="ksoftirqd"><a href="#ksoftirqd" class="headerlink" title="ksoftirqd"></a><code>ksoftirqd</code></h4><p>既然软中断对于推迟设备驱动程序的工作非常重要，您可能会想象内核生命周期早期就会产生 <code>ksoftirqd</code> 进程，这是正确的。</p>
+<p>查看 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/kernel/softirq.c#L743-L758">kernel&#x2F;softirq.c</a> 中的代码，可以发现 <code>ksoftirqd</code> 系统是如何初始化的。</p>
+<pre><code class="hljs reasonml">static <span class="hljs-keyword">struct</span> smp_hotplug_thread softirq_threads = &#123;
+  .store              = &amp;ksoftirqd,
+  .thread_should_run  = ksoftirqd_should_run,
+  .thread_fn          = run_ksoftirqd,
+  .thread_comm        = <span class="hljs-string">&quot;ksoftirqd/%u&quot;</span>,
+&#125;;
+
+static __init <span class="hljs-built_in">int</span> spawn<span class="hljs-constructor">_ksoftirqd(<span class="hljs-params">void</span>)</span>
+&#123;
+  register<span class="hljs-constructor">_cpu_notifier(&amp;<span class="hljs-params">cpu_nfb</span>)</span>;
+
+  <span class="hljs-constructor">BUG_ON(<span class="hljs-params">smpboot_register_percpu_thread</span>(&amp;<span class="hljs-params">softirq_threads</span>)</span>);
+
+  return <span class="hljs-number">0</span>;
+&#125;
+early<span class="hljs-constructor">_initcall(<span class="hljs-params">spawn_ksoftirqd</span>)</span>;</code></pre>
+
+<p>从上面的 <code>struct smp_hotplug_thread</code> 定义中可以看出，注册了两个函数指针：<code>ksoftirqd_should_run</code> 和 <code>run_ksoftirqd</code>。</p>
+<p>作为类似于事件循环的一部分，这两个函数都是从 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/kernel/smpboot.c#L94-L163">kernel&#x2F;smpboot.c</a> 中调用的。</p>
+<p><code>kernel/smpboot.c</code> 中的代码首先调用 <code>ksoftirqd_should_run</code>，确定是否有未决的软中断，如果有未决的软中断，则执行 <code>run_ksoftirqd</code>。<code>run_ksoftirqd</code> 在调用 <code>__do_softirq</code> 之前进行了一些小的簿记工作。</p>
+<h4 id="do-softirq"><a href="#do-softirq" class="headerlink" title="__do_softirq"></a><code>__do_softirq</code></h4><p><code>__do_softirq</code> 函数做了一些有趣的事情：</p>
+<ul>
+<li>确定哪个软中断处于未决状态</li>
+<li>出于统计目的，记录软中断时间</li>
+<li>增加软中断执行统计</li>
+<li>执行未决软中断的软中断处理程序（已调用 <code>open_softirq</code> 注册）。</li>
+</ul>
+<p>因此，当您查看 CPU 使用率图表并看到 <code>softirq</code> 或 <code>si</code> 时，您现在知道这是在测量延迟工作上下文中的 CPU 使用量。</p>
+<h4 id="监控"><a href="#监控" class="headerlink" title="监控"></a>监控</h4><h4 id="proc-softirqs"><a href="#proc-softirqs" class="headerlink" title="/proc/softirqs"></a><code>/proc/softirqs</code></h4><p> <code>softirq</code> 系统增加统计计数器，可以从 <code>/proc/softirqs</code> 读取。监控这些统计数据可以让您了解各种事件的软中断产生的速率。</p>
+<p>读取 <code>/proc/softirqs</code> 检查软中断统计信息。</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/softirqs
+                    CPU0       CPU1       CPU2       CPU3
+          HI:          0          0          0          0
+       TIMER: 2831512516 1337085411 1103326083 1423923272
+      NET_TX:   15774435     779806     733217     749512
+      NET_RX: 1671622615 1257853535 2088429526 2674732223
+       BLOCK: 1800253852    1466177    1791366     634534
+BLOCK_IOPOLL:          0          0          0          0
+     TASKLET:         25          0          0          0
+       SCHED: 2642378225 1711756029  629040543  682215771
+     HRTIMER:    2547911    2046898    1558136    1521176
+         RCU: 2056528783 4231862865 3545088730  844379888</code></pre>
+
+<p>这个文件可以让您了解您的网络接收（<code>NET_RX</code>）处理当前如何分布在您的 CPU 上。如果分布不均匀，您会看到某些 CPU 的计数值比其他 CPU 大。这是一个指示器，表明您可能会从下面描述的 Receive Packet Steering &#x2F; Receive Flow Steering 中受益。在监控性能时要小心使用这个文件：在网络活动高峰期，您可能会期望看到 <code>NET_RX</code> 增量率增加，但这并不一定是这样。事实证明，这有点微妙，因为网络栈中还有其他调节旋钮会影响 <code>NET_RX</code> 软中断触发的速率，我们很快就会看到。</p>
+<p>但是，您应该注意到这一点，以便在调整其他调节旋钮时，您将知道检查 <code>/proc/softirqs</code> 并期望看到变化。</p>
+<p>现在，让我们继续探讨网络栈，并从上到下追踪网络数据的接收方式。</p>
+<h3 id="Linux-网络设备子系统"><a href="#Linux-网络设备子系统" class="headerlink" title="Linux 网络设备子系统"></a>Linux 网络设备子系统</h3><p>现在我们已经了解了网络驱动程序和软中断是如何工作的，让我们看看 Linux 网络设备子系统是如何初始化的。 然后，我们可以从数据包的到达开始跟踪数据包的路径。</p>
+<h4 id="网络设备子系统初始化"><a href="#网络设备子系统初始化" class="headerlink" title="网络设备子系统初始化"></a>网络设备子系统初始化</h4><p>网络设备（netdev）子系统在函数 <code>net_dev_init</code> 中初始化。 这个初始化函数中发生了很多有趣的事情。</p>
+<h5 id="struct-softnet-data-结构初始化"><a href="#struct-softnet-data-结构初始化" class="headerlink" title="struct softnet_data 结构初始化"></a><code>struct softnet_data</code> 结构初始化</h5><p><code>net_dev_init</code> 为系统的每个 CPU 创建一组 <code>struct softnet_data</code> 结构。这些结构将保存指向处理网络数据的几个重要内容的指针：</p>
+<ul>
+<li>注册到此 CPU 的 NAPI 结构列表。</li>
+<li>数据处理的积压。</li>
+<li>处理 <code>weight</code>。</li>
+<li><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Large_receive_offload">接收卸载</a> 结构列表。</li>
+<li><a target="_blank" rel="noopener" href="https://lwn.net/Articles/362339/">Receive packet steering</a> 设置。</li>
+<li>更多。</li>
+</ul>
+<p>随着我们在网络栈中向上移动，将更详细地探讨这些点。</p>
+<h5 id="软中断处理程序的初始化"><a href="#软中断处理程序的初始化" class="headerlink" title="软中断处理程序的初始化"></a>软中断处理程序的初始化</h5><p><code>net_dev_init</code> 注册一个发送和接收软中断处理程序，它将处理传入或传出的网络数据。 这段代码非常简单：</p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> __init <span class="hljs-title">net_dev_init</span><span class="hljs-params">(<span class="hljs-type">void</span>)</span></span>
+<span class="hljs-function"></span>&#123;
+  <span class="hljs-comment">/* ... */</span>
+
+  <span class="hljs-built_in">open_softirq</span>(NET_TX_SOFTIRQ, net_tx_action);
+  <span class="hljs-built_in">open_softirq</span>(NET_RX_SOFTIRQ, net_rx_action);
+
+ <span class="hljs-comment">/* ... */</span>
+&#125;</code></pre>
+
+<p>我们很快就会看到驱动程序的中断处理程序如何“引发”（或触发）注册到 <code>NET_RX_SOFTIRQ</code> 软中断的 <code>net_rx_action</code> 函数。</p>
+<h4 id="数据到达"><a href="#数据到达" class="headerlink" title="数据到达"></a>数据到达</h4><p>终于，网络数据到达了！</p>
+<p>假设接收队列有足够的可用描述符，数据包将通过 DMA 写入 RAM。然后设备引发分配给它的中断（或者在 MSI-X 的情况下，与数据包到达的接收队列绑定的中断）。</p>
+<h5 id="中断处理程序"><a href="#中断处理程序" class="headerlink" title="中断处理程序"></a>中断处理程序</h5><p>通常，当中断被引发时，运行的中断处理程序应该尽量推迟尽可能多的处理到中断上下文之外发生。这至关重要，因为在处理中断时，其他中断可能会被阻塞。</p>
+<p>让我们看一下 MSI-X 中断处理程序的源代码；它将真正有助于说明中断处理程序尽可能少地工作的理念。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L5148-L5158">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">irqreturn_t</span> <span class="hljs-title">igb_msix_ring</span><span class="hljs-params">(<span class="hljs-type">int</span> irq, <span class="hljs-type">void</span> *data)</span></span>
+<span class="hljs-function"></span>&#123;
+  <span class="hljs-keyword">struct</span> <span class="hljs-title class_">igb_q_vector</span> *q_vector = data;
+
+  <span class="hljs-comment">/* Write the ITR value calculated from the previous interrupt. */</span>
+  <span class="hljs-built_in">igb_write_itr</span>(q_vector);
+
+  <span class="hljs-built_in">napi_schedule</span>(&amp;q_vector-&gt;napi);
+
+  <span class="hljs-keyword">return</span> IRQ_HANDLED;
+&#125;</code></pre>
+
+<p>这个中断处理程序非常短，执行 2 个非常快速的操作后返回。</p>
+<p>首先，此函数调用 <code>igb_write_itr</code>，它只更新一个硬件特定的寄存器。在这种情况下，更新的寄存器是跟踪硬件中断到达速率的寄存器。</p>
+<p>此寄存器与称为“中断节流”（也称为“中断合并”）的硬件功能结合使用，可控制中断传递到 CPU 的速度。我们很快就会看到 <code>ethtool</code> 如何提供一种调整 IRQ 触发速率的机制。</p>
+<p>其次，调用 <code>napi_schedule</code>，如果 NAPI 处理循环尚未激活，则唤醒它。请注意，NAPI 处理循环在软中断中执行；NAPI 处理循环不从中断处理程序执行。中断处理程序只是使其开始执行（如果尚未执行）。</p>
+<p>显示如何工作的实际代码非常重要；它将指导我们了解如何在多 CPU 系统上处理网络数据。</p>
+<h5 id="NAPI-和-napi-schedule"><a href="#NAPI-和-napi-schedule" class="headerlink" title="NAPI 和 napi_schedule"></a>NAPI 和 <code>napi_schedule</code></h5><p>让我们弄清楚硬件中断处理程序中的 <code>napi_schedule</code> 调用是如何工作的。</p>
+<p>请记住，NAPI 的存在是为了在不需要来自 NIC 的中断来信号数据准备好处理的情况下收集网络数据。如前所述，NAPI <code>poll</code> 循环是接收硬件中断引导的。换句话说：NAPI 已启用，但关闭，直到第一个数据包到达时，NIC 引发硬件中断并启动 NAPI。正如我们很快就会看到的那样，还有一些其他情况，其中 NAPI 可能被禁用，并且需要引发硬件中断才能再次启动。</p>
+<p>当驱动程序中的中断处理程序调用 <code>napi_schedule</code> 时，将启动 NAPI 轮询循环。<code>napi_schedule</code> 实际上只是一个在头文件中定义的包装函数，它调用 <code>__napi_schedule</code>。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L4154-L4168">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/**</span>
+<span class="hljs-comment"> * __napi_schedule - schedule for receive</span>
+<span class="hljs-comment"> * @n: entry to schedule</span>
+<span class="hljs-comment"> *</span>
+<span class="hljs-comment"> * The entry&#x27;s receive function will be scheduled to run</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-type">void</span> __napi_schedule(<span class="hljs-keyword">struct</span> napi_struct *n)
+&#123;
+  <span class="hljs-type">unsigned</span> <span class="hljs-type">long</span> flags;
+
+  <span class="hljs-built_in">local_irq_save</span>(flags);
+  ____napi_schedule(&amp;__get_cpu_var(softnet_data), n);
+  <span class="hljs-built_in">local_irq_restore</span>(flags);
+&#125;
+<span class="hljs-built_in">EXPORT_SYMBOL</span>(__napi_schedule);</code></pre>
+
+<p>这段代码使用 <code>__get_cpu_var</code> 获取注册到当前 CPU 的 <code>softnet_data</code> 结构。这个 <code>softnet_data</code> 结构和从驱动程序传递上来的 <code>struct napi_struct</code> 结构被传递到 <code>____napi_schedule</code>。哇，这是很多下划线 ;)</p>
+<p>让我们看一下 <code>____napi_schedule</code>，来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L2914-L2920">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/* Called with irq disabled */</span>
+<span class="hljs-type">static</span> <span class="hljs-keyword">inline</span> <span class="hljs-type">void</span> ____napi_schedule(<span class="hljs-keyword">struct</span> softnet_data *sd,
+                                     <span class="hljs-keyword">struct</span> napi_struct *napi)
+&#123;
+  <span class="hljs-built_in">list_add_tail</span>(&amp;napi-&gt;poll_list, &amp;sd-&gt;poll_list);
+  __raise_softirq_irqoff(NET_RX_SOFTIRQ);
+&#125;</code></pre>
+
+<p>这段代码做了两件重要的事情：</p>
+<ol>
+<li>从设备驱动程序的中断处理程序代码传递上来的 <code>struct napi_struct</code>，被添加到与当前 CPU 关联的 <code>softnet_data</code> 结构的 <code>poll_list</code> 中。</li>
+<li>使用 <code>__raise_softirq_irqoff</code> 来“引发”（或触发）NET_RX_SOFTIRQ 软中断。将执行（如果当前未执行）在网络设备子系统初始化期间注册的 <code>net_rx_action</code>。</li>
+</ol>
+<p>正如我们很快就会看到的那样，软中断处理函数 <code>net_rx_action</code> 将调用 NAPI <code>poll</code> 函数来收集数据包。</p>
+<h5 id="关于-CPU-和网络数据处理的说明"><a href="#关于-CPU-和网络数据处理的说明" class="headerlink" title="关于 CPU 和网络数据处理的说明"></a>关于 CPU 和网络数据处理的说明</h5><p>请注意，我们迄今为止看到的所有推迟硬件中断处理程序中的工作到 softirq 的代码，都使用了与当前 CPU 相关联的结构。</p>
+<p>虽然驱动程序的硬中断处理程序本身所做的工作非常少，但软中断处理程序在与驱动程序的硬中断处理程序相同的 CPU 上执行。</p>
+<p>这就是为什么设置硬中断处理的 CPU 处理很重要：该 CPU 不仅执行驱动程序中的中断处理程序，而且在 NAPI 以软中断方式收集数据包时也将使用相同的 CPU。</p>
+<p>正如我们稍后将看到的，像 <a target="_blank" rel="noopener" href="https://lwn.net/Articles/362339/">Receive Packet Steering</a> 的功能可以将一些工作分配给网络栈更高层级的其他 CPU。</p>
+<h5 id="监控网络数据到达"><a href="#监控网络数据到达" class="headerlink" title="监控网络数据到达"></a>监控网络数据到达</h5><h6 id="硬件中断请求"><a href="#硬件中断请求" class="headerlink" title="硬件中断请求"></a>硬件中断请求</h6><p><strong>注意：</strong> 监视硬件中断并不能全面了解数据包处理的健康状况。 许多驱动程序在 NAPI 运行时关闭硬件中断，我们将在后面看到。 它是整个监控解决方案的重要组成部分。</p>
+<p>读取 <code>/proc/interrupts</code> 检查硬件中断状态。</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/interrupts
+            CPU0       CPU1       CPU2       CPU3
+   0:         46          0          0          0 IR-IO-APIC-edge      timer
+   1:          3          0          0          0 IR-IO-APIC-edge      i8042
+  30: 3361234770          0          0          0 IR-IO-APIC-fasteoi   aacraid
+  64:          0          0          0          0 DMAR_MSI-edge      dmar0
+  65:          1          0          0          0 IR-PCI-MSI-edge      eth0
+  66:  863649703          0          0          0 IR-PCI-MSI-edge      eth0-TxRx-0
+  67:  986285573          0          0          0 IR-PCI-MSI-edge      eth0-TxRx-1
+  68:         45          0          0          0 IR-PCI-MSI-edge      eth0-TxRx-2
+  69:        394          0          0          0 IR-PCI-MSI-edge      eth0-TxRx-3
+ NMI:    9729927    4008190    3068645    3375402  Non-maskable interrupts
+ LOC: 2913290785 1585321306 1495872829 1803524526  Local timer interrupts</code></pre>
+
+<p>您可以监控 <code>/proc/interrupts</code> 中的统计信息，以查看随着数据包到达而硬件中断的数量和速率如何变化，并确保您的 NIC 的每个接收队列都由适当的 CPU 处理。正如我们不久将看到的，这个数字只告诉我们发生了多少次硬件中断，但它并不一定是了解接收或处理了多少数据的好指标，因为许多驱动程序会作为与 NAPI 子系统协作的一部分禁用 NIC 硬中断。此外，使用中断合并也会影响从此文件收集的统计信息。监控此文件可以帮助您确定所选的中断合并设置是否真正起作用。</p>
+<p>要获得更完整的网络处理健康状况图像，您需要监控 <code>/proc/softirqs</code>（如上所述）以及我们将在下面介绍的 <code>/proc</code> 中的其他文件。</p>
+<h5 id="调优网络数据到达"><a href="#调优网络数据到达" class="headerlink" title="调优网络数据到达"></a>调优网络数据到达</h5><h6 id="中断合并"><a href="#中断合并" class="headerlink" title="中断合并"></a>中断合并</h6><p><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Interrupt_coalescing">中断合并</a> 是一种防止设备向 CPU 发出中断的方法，直到有特定数量的工作或事件处于挂起状态。</p>
+<p>这可以帮助防止<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Interrupt_storm">中断风暴</a>，并可以根据使用的设置帮助提高吞吐量或延迟。产生的中断较少会导致吞吐量更高，延迟增加，CPU 使用率降低。产生的中断较多会导致相反的结果：延迟降低，吞吐量降低，但 CPU 使用率增加。</p>
+<p>历史上，早期版本的 <code>igb</code>、<code>e1000</code> 和其他驱动程序都包含对名为 <code>InterruptThrottleRate</code> 的参数的支持。在较新的驱动程序中，此参数已替换为通用的 <code>ethtool</code> 函数。</p>
+<p>使用 <code>ethtool -c</code> 获取当前的 IRQ 合并设置。</p>
+<pre><code class="hljs bash">$ sudo ethtool -c eth0
+Coalesce parameters <span class="hljs-keyword">for</span> eth0:
+Adaptive RX: off  TX: off
+stats-block-usecs: 0
+sample-interval: 0
+pkt-rate-low: 0
+pkt-rate-high: 0
+...</code></pre>
+
+<p><code>ethtool</code> 提供了一个通用接口，设置各种合并设置。但是，请记住，并非每个设备或驱动程序都支持所有设置。您应该检查驱动程序文档或驱动程序源代码以确定支持或不支持的内容。根据 ethtool 文档：“驱动程序未实现的任何内容都会导致这些值被静默忽略。”</p>
+<p>一些驱动程序支持的一个有趣选项是“自适应接收&#x2F;传输硬中断合并”。此选项通常在硬件中实现。驱动程序通常需要做一些工作来通知 NIC 启用了此功能，并进行一些簿记（如上面的 <code>igb</code> 驱动程序代码所示）。</p>
+<p>启用自适应接收&#x2F;传输硬中断合并的结果是，在数据包速率低时调整中断传递以改善延迟，并在数据包速率高时提高吞吐量。</p>
+<p>使用 <code>ethtool -C</code> 启用自适应接收硬中断合并。</p>
+<pre><code class="hljs bash">$ sudo ethtool -C eth0 adaptive-rx on</code></pre>
+
+<p>你可以使用 <code>ethtool -C</code> 来设置多个选项。一些常见的选项包括：</p>
+<ul>
+<li><code>rx-usecs</code>：在数据包到达后，延迟多少微秒才触发接收中断。</li>
+<li><code>rx-frames</code>：在触发接收中断之前，最多接收多少个数据帧。</li>
+<li><code>rx-usecs-irq</code>：当主机正在处理中断时，延迟多少微秒才触发接收中断。</li>
+<li><code>rx-frames-irq</code>：当系统正在处理中断时，在触发接收中断之前，最多接收多少个数据帧。</li>
+</ul>
+<p>还有更多选项。</p>
+<p><strong>提醒</strong>，你的硬件和驱动程序可能只支持上述选项的一个子集。你应该查阅驱动程序源代码和硬件数据表，以获取有关支持的合并选项的更多信息。</p>
+<p>不幸的是，除了头文件之外，你可以设置的选项并没有在其他地方得到很好的记录。查看 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/include/uapi/linux/ethtool.h#L184-L255">include&#x2F;uapi&#x2F;linux&#x2F;ethtool.h</a> 的源代码，以找到 <code>ethtool</code> 支持的每个选项的解释（但不一定是你的驱动程序和 NIC）。</p>
+<p><strong>注意</strong>：虽然中断合并看起来是一个非常有用的优化，但在尝试优化时，网络栈的其他内部也会受到影响。在某些情况下，中断合并可能很有用，但你应该确保网络栈的其他部分也调整得当。仅仅修改合并设置本身可能带来的好处微不足道。</p>
+<h6 id="调整-IRQ-亲和性"><a href="#调整-IRQ-亲和性" class="headerlink" title="调整 IRQ 亲和性"></a>调整 IRQ 亲和性</h6><p>如果你的网卡支持 RSS&#x2F;多队列，或者你想优化数据本地性，你可能希望使用特定的 CPU 来处理网卡产生的中断。</p>
+<p>设置特定的 CPU 可以让你划分哪些 CPU 处理哪些 IRQ。这些更改可能会影响上层操作，正如在网络栈中看到的那样。</p>
+<p>如果你决定调整 IRQ 亲和性，你应该首先检查是否运行了 <code>irqbalance</code> 守护程序。这个守护程序试图自动平衡 IRQ 到 CPU 上，它可能会覆盖你的设置。如果你正在运行 <code>irqbalance</code>，你应该禁用 <code>irqbalance</code> 或使用 <code>--banirq</code> 与 <code>IRQBALANCE_BANNED_CPUS</code> 结合使用，让 <code>irqbalance</code> 知道它不应该触碰你想要自己分配的 IRQ 和 CPU 集合。</p>
+<p>接下来，你应该检查文件 <code>/proc/interrupts</code>，查看网卡每个网络 RX 队列的 IRQ 编号列表。</p>
+<p>最后，你可以修改每个 IRQ 编号的 <code>/proc/irq/IRQ_NUMBER/smp_affinity</code> 来调整每个 IRQ 将由哪些 CPU 处理。</p>
+<p>你只需写入十六进制位掩码到此文件，以指示内核应使用哪些 CPU 来处理 IRQ。</p>
+<p>示例：设置 IRQ 8 的 IRQ 亲和性为 CPU 0</p>
+<pre><code class="hljs bash">$ sudo bash -c <span class="hljs-string">&#x27;echo 1 &gt; /proc/irq/8/smp_affinity&#x27;</span></code></pre>
+
+<h4 id="网络数据处理开始"><a href="#网络数据处理开始" class="headerlink" title="网络数据处理开始"></a>网络数据处理开始</h4><p>当软中断代码确定软中断（译者注：软中断信号）正在等待时，它开始处理并执行 <code>net_rx_action</code>，网络数据处理就开始了。</p>
+<p>让我们来看看 <code>net_rx_action</code> 处理循环的部分内容，以了解它是如何工作的，哪些部分是可调的，以及可以监控什么。</p>
+<h5 id="net-rx-action-处理循环"><a href="#net-rx-action-处理循环" class="headerlink" title="net_rx_action 处理循环"></a><code>net_rx_action</code> 处理循环</h5><p><code>net_rx_action</code> 开始从设备通过 DMA 传输数据包到内存中的数据包进行处理。</p>
+<p>该函数遍历当前 CPU 队列中的 NAPI 结构列表，对每个结构执行出队操作，并对其进行操作。</p>
+<p>处理循环限制了注册的 NAPI <code>poll</code> 函数所能消耗的工作量和执行时间。它通过两种方式实现这一点：</p>
+<ol>
+<li>跟踪工作 <code>budget</code>（可以调整），以及</li>
+<li>检查运行时间</li>
+</ol>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L4300-L4309">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">while</span> (!<span class="hljs-built_in">list_empty</span>(&amp;sd-&gt;poll_list)) &#123;
+  <span class="hljs-keyword">struct</span> <span class="hljs-title class_">napi_struct</span> *n;
+  <span class="hljs-type">int</span> work, weight;
+
+  <span class="hljs-comment">/* If softirq window is exhausted then punt.</span>
+<span class="hljs-comment">   * Allow this to run for 2 jiffies since which will allow</span>
+<span class="hljs-comment">   * an average latency of 1.5/HZ.</span>
+<span class="hljs-comment">   */</span>
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">unlikely</span>(budget &lt;= <span class="hljs-number">0</span> || <span class="hljs-built_in">time_after_eq</span>(jiffies, time_limit)))
+    <span class="hljs-keyword">goto</span> softnet_break;</code></pre>
+
+<p>这就是内核如何防止数据包处理占用整个 CPU 的方法。上面提到的 <code>budget</code> 是在这个 CPU 上注册的所有可用 NAPI 结构花费的总预算。</p>
+<p>这也是多队列网卡应该仔细调整 IRQ 亲和性的另一个原因。回想一下，处理设备的 IRQ 的 CPU 将是执行软中断处理程序的 CPU，因此也将是上述循环和预算计算运行的 CPU。</p>
+<p>具有多个网卡，每个网卡都有多个队列的系统可能会出现多个 NAPI 结构注册到同一个 CPU 的情况。同一 CPU 上所有 NAPI 结构的数据处理都从同一个 <code>budget</code> 中扣减。</p>
+<p>如果您没有足够的 CPU 来分布您的网卡的 IRQ，您可以考虑增加 <code>net_rx_action</code> 的 <code>budget</code>，以允许每个 CPU 处理更多的数据包。增加预算将增加 CPU 使用率（具体来说是 <code>sitime</code> 或 <code>top</code> 或其他程序中的 <code>si</code>），但减少延迟，因为数据处理更及时。</p>
+<p><strong>注意：</strong> 无论如何分配预算，CPU 仍然受到 2 个 <a target="_blank" rel="noopener" href="http://elinux.org/Kernel_Timer_Systems#Timer_Wheel.2C_Jiffies_and_HZ_.28or.2C_the_way_it_was.29">jiffies</a> 的时间限制。</p>
+<h5 id="NAPI-poll-函数和-权重"><a href="#NAPI-poll-函数和-权重" class="headerlink" title="NAPI poll 函数和 权重"></a>NAPI <code>poll</code> 函数和 <code>权重</code></h5><p>回想一下，网络设备驱动程序使用 <code>netif_napi_add</code> 来注册 <code>poll</code> 函数。正如我们在本文前面看到的那样，<code>igb</code> 驱动程序有一段类似这样的代码：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/* initialize NAPI */</span>
+<span class="hljs-built_in">netif_napi_add</span>(adapter-&gt;netdev, &amp;q_vector-&gt;napi, igb_poll, <span class="hljs-number">64</span>);</code></pre>
+
+<p>这行代码注册了具有硬编码权重 64 的 NAPI 结构。 现在我们将看到如何在 <code>net_rx_action</code> 处理循环中使用它。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L4322-L4338">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++">weight = n-&gt;weight;
+
+work = <span class="hljs-number">0</span>;
+<span class="hljs-keyword">if</span> (<span class="hljs-built_in">test_bit</span>(NAPI_STATE_SCHED, &amp;n-&gt;state)) &#123;
+        work = n-&gt;<span class="hljs-built_in">poll</span>(n, weight);
+        <span class="hljs-built_in">trace_napi_poll</span>(n);
+&#125;
+
+<span class="hljs-built_in">WARN_ON_ONCE</span>(work &gt; weight);
+
+budget -= work;</code></pre>
+
+<p>这段代码获取了注册到 NAPI 结构的权重（上面驱动程序代码中的 <code>64</code>）并传递其给也注册到 NAPI 结构的 <code>poll</code> 函数（上面代码中的 <code>igb_poll</code>）。</p>
+<p><code>poll</code> 函数返回处理的数据帧数。这个数量被保存为上面的 <code>work</code>，然后从总 <code>budget</code> 中扣减。</p>
+<p>因此，假设：</p>
+<ol>
+<li>您使用来自驱动程序的权重 <code>64</code>（在 Linux 3.13.0 中，所有驱动程序都使用这个值硬编码），并且</li>
+<li>您设置 <code>budget</code> 为默认值 <code>300</code></li>
+</ol>
+<p>当满足以下任一条件时，您的系统将<strong>停止</strong>处理数据：</p>
+<ol>
+<li>最多调用了 5 次 <code>igb_poll</code> 函数（如果没有数据要处理，我们接下来会看到次数更少），或者</li>
+<li>至少经过了 2 个 jiffies 的时间。</li>
+</ol>
+<h5 id="NAPI-x2F-网络设备驱动程序契约"><a href="#NAPI-x2F-网络设备驱动程序契约" class="headerlink" title="NAPI &#x2F; 网络设备驱动程序契约"></a>NAPI &#x2F; 网络设备驱动程序契约</h5><p>关于 NAPI 子系统和设备驱动程序之间的契约，有一个重要的信息尚未提及，那就是关闭 NAPI 的要求。</p>
+<p>这部分契约如下：</p>
+<ul>
+<li>如果驱动程序的 <code>poll</code> 函数消耗了其全部权重（硬编码为 <code>64</code>），则它<strong>不得</strong>修改 NAPI 状态。<code>net_rx_action</code> 循环将接管。</li>
+<li>如果驱动程序的 <code>poll</code> 函数<strong>未</strong>消耗其全部权重，则必须禁用 NAPI。下次收到 IRQ 并且驱动程序的 IRQ 处理程序调用 <code>napi_schedule</code> 时，NAPI 将重新启用。</li>
+</ul>
+<p>我们现在将看到 <code>net_rx_action</code> 如何处理该契约的第一部分。接下来，我们检查 <code>poll</code> 函数，我们将看到如何处理该契约的第二部分。</p>
+<h5 id="完成-net-rx-action-循环"><a href="#完成-net-rx-action-循环" class="headerlink" title="完成 net_rx_action 循环"></a>完成 <code>net_rx_action</code> 循环</h5><p><code>net_rx_action</code> 处理循环以最后一段代码结束，该代码处理前一节中解释的 NAPI 合约的第一部分。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L4342-L4363">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/* Drivers must not modify the NAPI state if they</span>
+<span class="hljs-comment"> * consume the entire weight.  In such cases this code</span>
+<span class="hljs-comment"> * still &quot;owns&quot; the NAPI instance and therefore can</span>
+<span class="hljs-comment"> * move the instance around on the list at-will.</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-keyword">if</span> (<span class="hljs-built_in">unlikely</span>(work == weight)) &#123;
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">unlikely</span>(<span class="hljs-built_in">napi_disable_pending</span>(n))) &#123;
+    <span class="hljs-built_in">local_irq_enable</span>();
+    <span class="hljs-built_in">napi_complete</span>(n);
+    <span class="hljs-built_in">local_irq_disable</span>();
+  &#125; <span class="hljs-keyword">else</span> &#123;
+    <span class="hljs-keyword">if</span> (n-&gt;gro_list) &#123;
+      <span class="hljs-comment">/* flush too old packets</span>
+<span class="hljs-comment">       * If HZ &lt; 1000, flush all packets.</span>
+<span class="hljs-comment">       */</span>
+      <span class="hljs-built_in">local_irq_enable</span>();
+      <span class="hljs-built_in">napi_gro_flush</span>(n, HZ &gt;= <span class="hljs-number">1000</span>);
+      <span class="hljs-built_in">local_irq_disable</span>();
+    &#125;
+    <span class="hljs-built_in">list_move_tail</span>(&amp;n-&gt;poll_list, &amp;sd-&gt;poll_list);
+  &#125;
+&#125;</code></pre>
+
+<p>如果整个工作都被消耗了，<code>net_rx_action</code> 会处理两种情况：</p>
+<ol>
+<li>网络设备应该关闭（例如，因为用户运行了 <code>ifconfig eth0 down</code>），</li>
+<li>如果设备未关闭，请检查是否存在 generic receive offload（GRO）清单。 如果定时<a target="_blank" rel="noopener" href="http://www.makelinux.net/books/lkd2/ch10lev1sec2">器滴答速率</a>〉&#x3D; 1000，则最近刷新更新的所有 GRO 网络流。 稍后我们将详细讨论GRO。 移动 NAPI 结构到该 CPU 的列表末尾，以便循环的下一次迭代获得注册的下一个 NAPI 结构。</li>
+</ol>
+<p>这就是包处理循环调用驱动程序的注册 <code>poll</code> 函数处理包的方式。 我们很快就会看到，<code>poll</code> 函数将收集网络数据，并发送其到栈上进行处理。</p>
+<h5 id="达到限制时退出循环"><a href="#达到限制时退出循环" class="headerlink" title="达到限制时退出循环"></a>达到限制时退出循环</h5><p>当以下任一条件满足时，<code>net_rx_action</code> 循环将退出：</p>
+<ul>
+<li>此 CPU 注册的轮询列表中没有更多的 NAPI 结构 (<code>!list_empty(&amp;sd-&gt;poll_list)</code>)，或</li>
+<li>剩余预算 &lt;&#x3D; 0，或</li>
+<li>已达到 2 个 jiffies 的时间限制</li>
+</ul>
+<p>这是我们之前看到的代码：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/* If softirq window is exhausted then punt.</span>
+<span class="hljs-comment"> * Allow this to run for 2 jiffies since which will allow</span>
+<span class="hljs-comment"> * an average latency of 1.5/HZ.</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-keyword">if</span> (<span class="hljs-built_in">unlikely</span>(budget &lt;= <span class="hljs-number">0</span> || <span class="hljs-built_in">time_after_eq</span>(jiffies, time_limit)))
+  <span class="hljs-keyword">goto</span> softnet_break;</code></pre>
+
+<p>如果跟随 <code>softnet_break</code> 标签，你会偶然发现一些有趣的东西。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L4380-L4383">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++">softnet_break:
+  sd-&gt;time_squeeze++;
+  __raise_softirq_irqoff(NET_RX_SOFTIRQ);
+  <span class="hljs-keyword">goto</span> out;</code></pre>
+
+<p><code>struct softnet_data</code> 结构会增加一些统计数据，然后关闭 softirq <code>NET_RX_SOFTIRQ</code>。<code>time_squeeze</code> 字段是衡量 <code>net_rx_action</code> 有更多工作要做，但预算耗尽或时间限制到达之前无法完成的次数。这是一个<strong>极其</strong>有用的计数器，理解网络处理中的瓶颈。我们稍后将看到如何监控这个值。禁用 <code>NET_RX_SOFTIRQ</code> 以释放处理时间给其他任务。这是有道理的，因为这段小代码只在有更多工作可以完成时执行，但我们不希望垄断 CPU。</p>
+<p>然后执行转移到 <code>out</code> 标签。如果没有更多的 NAPI 结构要处理，执行也可以到达 <code>out</code> 标签，换句话说，预算比网络活动多，所有驱动程序都关闭了 NAPI，而且 <code>net_rx_action</code> 没有剩下任何事情要做。</p>
+<p>在从 <code>net_rx_action</code> 返回之前，<code>out</code> 部分做了一件重要的事情：它调用了 <code>net_rps_action_and_irq_enable</code>。如果启用了 <a target="_blank" rel="noopener" href="https://lwn.net/Articles/362339/">Receive Packet Steering</a>，此函数具有重要作用；它唤醒远程 CPU 开始处理网络数据。</p>
+<p>我们稍后将了解更多关于 RPS 的工作原理。现在，让我们看看如何监控 <code>net_rx_action</code> 处理循环的健康状况，并继续深入了解 NAPI <code>poll</code> 函数的内部工作原理，以便我们能够沿着网络栈向上。</p>
+<h5 id="NAPI-poll"><a href="#NAPI-poll" class="headerlink" title="NAPI poll"></a>NAPI poll</h5><p>在前面的章节中，我们提到设备驱动程序会为设备分配一块内存区域，用于对传入数据包进行 DMA。正如驱动程序负责分配这些区域一样，它也负责取消映射这些区域，收集数据并发送其到网络栈。</p>
+<p>让我们看看 <code>igb</code> 驱动程序是如何做到这一点的，以便了解这在实践中是如何运作的。</p>
+<h6 id="igb-poll"><a href="#igb-poll" class="headerlink" title="igb_poll"></a><code>igb_poll</code></h6><p>最后，我们终于可以探讨我们的朋友 <code>igb_poll</code>。 <code>igb_poll</code> 看起来很简单。 我们来看看。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L5987-L6018">drivers&#x2F;net&#x2F;ethernet&#x2F;intel&#x2F;igb&#x2F;igb_main.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/**</span>
+<span class="hljs-comment"> *  igb_poll - NAPI Rx polling callback</span>
+<span class="hljs-comment"> *  @napi: napi polling structure</span>
+<span class="hljs-comment"> *  @budget: count of how many packets we should handle</span>
+<span class="hljs-comment"> **/</span>
+<span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-type">int</span> <span class="hljs-title">igb_poll</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> napi_struct *napi, <span class="hljs-type">int</span> budget)</span></span>
+<span class="hljs-function"></span>&#123;
+        <span class="hljs-keyword">struct</span> <span class="hljs-title class_">igb_q_vector</span> *q_vector = <span class="hljs-built_in">container_of</span>(napi,
+                                                     <span class="hljs-keyword">struct</span> igb_q_vector,
+                                                     napi);
+        <span class="hljs-type">bool</span> clean_complete = <span class="hljs-literal">true</span>;
+
+<span class="hljs-meta">#<span class="hljs-keyword">ifdef</span> CONFIG_IGB_DCA</span>
+        <span class="hljs-keyword">if</span> (q_vector-&gt;adapter-&gt;flags &amp; IGB_FLAG_DCA_ENABLED)
+                <span class="hljs-built_in">igb_update_dca</span>(q_vector);
+<span class="hljs-meta">#<span class="hljs-keyword">endif</span></span>
+
+        <span class="hljs-comment">/* ... */</span>
+
+        <span class="hljs-keyword">if</span> (q_vector-&gt;rx.ring)
+                clean_complete &amp;= <span class="hljs-built_in">igb_clean_rx_irq</span>(q_vector, budget);
+
+        <span class="hljs-comment">/* If all work not completed, return budget and keep polling */</span>
+        <span class="hljs-keyword">if</span> (!clean_complete)
+                <span class="hljs-keyword">return</span> budget;
+
+        <span class="hljs-comment">/* If not enough Rx work done, exit the polling mode */</span>
+        <span class="hljs-built_in">napi_complete</span>(napi);
+        <span class="hljs-built_in">igb_ring_irq_enable</span>(q_vector);
+
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+&#125;</code></pre>
+
+<p>这段代码做了一些有趣的事情：</p>
+<ul>
+<li>如果内核中启用了 <a target="_blank" rel="noopener" href="https://lwn.net/Articles/247493/">直接缓存访问 (DCA)</a> 支持，则会预热 CPU 缓存，以便对接收环的访问能够命中 CPU 缓存。您可以在本博客文章末尾的额外部分中了解更多关于 DCA 的信息。</li>
+<li>接下来，调用 <code>igb_clean_rx_irq</code> 进行繁重的工作，我们接下来会看到。</li>
+<li>然后，检查 <code>clean_complete</code> 以确定是否还有更多的工作可以完成。如果是这样，返回 <code>budget</code>（记住，这是硬编码为 <code>64</code> 的）。正如我们前面看到的，<code>net_rx_action</code> 会移动此 NAPI 结构到轮询列表的末尾。</li>
+<li>否则，驱动程序调用 <code>napi_complete</code> 关闭 NAPI，并调用 <code>igb_ring_irq_enable</code> 重新启用中断。下一个到达的中断将重新启用 NAPI。</li>
+</ul>
+<p>让我们看看 <code>igb_clean_rx_irq</code> 如何发送网络数据到栈。</p>
+<h6 id="igb-clean-rx-irq"><a href="#igb-clean-rx-irq" class="headerlink" title="igb_clean_rx_irq"></a><code>igb_clean_rx_irq</code></h6><p><code>igb_clean_rx_irq</code> 函数是一个循环，每次处理一个数据包，直到用尽 <code>budget</code> 或没有更多数据需要处理为止。</p>
+<p>这个函数中的循环做了一些重要的事情：</p>
+<ol>
+<li>在清理使用过的缓冲区时，为接收数据分配额外的缓冲区。每次添加 <code>IGB_RX_BUFFER_WRITE</code>（16）个额外的缓冲区。</li>
+<li>从接收队列中获取一个缓冲区并存储在 <code>skb</code> 结构中。</li>
+<li>检查缓冲区是否为“数据包结束”缓冲区。如果是，则继续处理。否则，继续从接收队列中获取额外的缓冲区，并添加到 <code>skb</code> 中。如果接收到的数据帧大于缓冲区大小，则需要这样做。</li>
+<li>验证数据的布局和头部是否正确。</li>
+<li>已处理字节数统计计数器增加 <code>skb-&gt;len</code>。</li>
+<li>设置 skb 的哈希、校验和、时间戳、VLAN id 和协议字段。哈希、校验和、时间戳和 VLAN id 由硬件提供。如果硬件发出校验和错误信号，则增加 <code>csum_error</code> 统计量。如果校验和成功且数据为 UDP 或 TCP 数据，则标记 <code>skb</code> 为 <code>CHECKSUM_UNNECESSARY</code>。如果校验和失败，则协议栈负责处理此数据包。协议调用 <code>eth_type_trans</code> 计算并存储在 <code>skb</code> 结构中。</li>
+<li>调用 <code>napi_gro_receive</code> 传递构建的 <code>skb</code> 到网络栈。</li>
+<li>增加已处理数据包数量统计计数器。</li>
+<li>循环继续，直到处理的数据包数量达到预算。</li>
+</ol>
+<p>循环结束后，函数为接收数据包和已处理字节数分配统计计数器。</p>
+<p>在继续上行网络栈之前，现在是时候先兵分两路了。首先，让我们看看如何监控和调整网络子系统的 softirqs。接下来，让我们谈谈通用接收卸载 (GRO)。之后，当我们进入 <code>napi_gro_receive</code> 时，网络栈的其余部分将更有意义。</p>
+<h5 id="监控网数据处理"><a href="#监控网数据处理" class="headerlink" title="监控网数据处理"></a>监控网数据处理</h5><h6 id="proc-net-softnet-stat"><a href="#proc-net-softnet-stat" class="headerlink" title="/proc/net/softnet_stat"></a><code>/proc/net/softnet_stat</code></h6><p>如前一节所述，在退出 <code>net_rx_action</code> 循环并且可以完成更多工作，但 softirq 的 <code>budget</code> 或时间限制被触发时，<code>net_rx_action</code> 会增加一个统计量。这个统计量作为与 CPU 关联的 <code>struct softnet_data</code> 的一部分进行跟踪。</p>
+<p>这些统计数据输出到 proc 中的一个文件：<code>/proc/net/softnet_stat</code>，不幸的是，关于这个文件的文档非常少。proc 文件中的字段没有标记，并且可能在内核版本之间发生变化。</p>
+<p>在 Linux 3.13.0 中，您可以阅读内核源代码来查找哪些值映射到 <code>/proc/net/softnet_stat</code> 中的哪个字段。从 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/net-procfs.c#L161-L165">net&#x2F;core&#x2F;net-procfs.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-built_in">seq_printf</span>(seq,
+     <span class="hljs-string">&quot;%08x %08x %08x %08x %08x %08x %08x %08x %08x %08x %08x\n&quot;</span>,
+     sd-&gt;processed, sd-&gt;dropped, sd-&gt;time_squeeze, <span class="hljs-number">0</span>,
+     <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">/* was fastroute */</span>
+     sd-&gt;cpu_collision, sd-&gt;received_rps, flow_limit_count);</code></pre>
+
+<p>这些统计数据中包含许多令人困惑的名称，并且在您可能未预期的地方增加。在探讨网络栈时，将提供每个统计数据何时以及在哪里增加的解释。由于在 <code>net_rx_action</code> 中看到了 <code>squeeze_time</code> 统计量，我认为现在记录这个文件是有意义的。</p>
+<p>读取 <code>/proc/net/softnet_stat</code> 监控网络数据处理统计信息。</p>
+<pre><code class="hljs c++">$ cat /proc/net/softnet_stat
+<span class="hljs-number">6</span>dcad223 <span class="hljs-number">00000000</span> <span class="hljs-number">00000001</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span>
+<span class="hljs-number">6f</span>0e1565 <span class="hljs-number">00000000</span> <span class="hljs-number">00000002</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span>
+<span class="hljs-number">660774</span>ec <span class="hljs-number">00000000</span> <span class="hljs-number">00000003</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span>
+<span class="hljs-number">61</span>c99331 <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span>
+<span class="hljs-number">6794b</span>1b3 <span class="hljs-number">00000000</span> <span class="hljs-number">00000005</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span>
+<span class="hljs-number">6488</span>cb92 <span class="hljs-number">00000000</span> <span class="hljs-number">00000001</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span> <span class="hljs-number">00000000</span></code></pre>
+
+<p>关于 <code>/proc/net/softnet_stat</code> 的重要细节：</p>
+<ul>
+<li>每一行 <code>/proc/net/softnet_stat</code> 对应一个 <code>struct softnet_data</code> 结构，每个 CPU 都有一个。</li>
+<li>值之间用一个空格分隔，并以十六进制显示</li>
+<li>第一个值，<code>sd-&gt;processed</code>，是处理的网络帧数。如果您使用以太网绑定，这可能会超过接收到的网络帧总数。有些情况下，以太网绑定驱动程序会触发网络数据重新处理，同一数据包将使 <code>sd-&gt;processed</code> 计数增加不止一次。</li>
+<li>第二个值，<code>sd-&gt;dropped</code>，是因处理队列没有空间而丢弃的网络帧数。稍后再谈。</li>
+<li>第三个值，<code>sd-&gt;time_squeeze</code>，（如我们所见）是 <code>net_rx_action</code> 循环因消耗预算或达到时间限制而终止的次数，但仍然可以完成更多工作。如前所述，增加 <code>budget</code> 可以帮助减少这种情况。</li>
+<li>接下来的 5 个值始终为 0。</li>
+<li>第九个值，<code>sd-&gt;cpu_collision</code>，是在发送数据包尝试获取设备锁时发生冲突的次数。本文讨论的是接收，因此下面不会看到这个统计量。</li>
+<li>第十个值，<code>sd-&gt;received_rps</code>，是唤醒此 CPU 通过 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Inter-processor_interrupt">处理器间中断</a> 处理数据包的次数。</li>
+<li>最后一个值，<code>flow_limit_count</code>，是达到流量限制的次数。流量限制是可选的 <a target="_blank" rel="noopener" href="https://lwn.net/Articles/362339">Receive Packet Steering</a> 功能，稍后会探讨到该特性。</li>
+</ul>
+<p>如果您决定监控此文件并绘制结果图表，则必须非常小心这些字段的顺序是否发生了变化，并且每个字段的含义是否得到了保留。您需要阅读内核源代码来验证这一点。</p>
+<h5 id="调整网络数据处理"><a href="#调整网络数据处理" class="headerlink" title="调整网络数据处理"></a>调整网络数据处理</h5><h6 id="调整-net-rx-action-预算"><a href="#调整-net-rx-action-预算" class="headerlink" title="调整 net_rx_action 预算"></a>调整 <code>net_rx_action</code> 预算</h6><p>您可以调整 <code>net_rx_action</code> 预算，设置名为 <code>net.core.netdev_budget</code> 的 sysctl 值来确定注册到 CPU 的所有 NAPI 结构数据包处理可以消耗多少。</p>
+<p>示例：设置总体数据包处理预算为 600。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.core.netdev_budget=600</code></pre>
+
+<p>您可能还希望写入此设置到 <code>/etc/sysctl.conf</code> 文件，以便在重启前后保持更改。</p>
+<p>Linux 3.13.0上的默认值是 300。</p>
+<h4 id="Generic-Receive-Offloading-GRO"><a href="#Generic-Receive-Offloading-GRO" class="headerlink" title="Generic Receive Offloading (GRO)"></a>Generic Receive Offloading (GRO)</h4><p>Generic Receive Offloading (GRO) 是 Large Receive Offloading (LRO) 硬件优化的软件实现。</p>
+<p>这两种方法的主要思想是，将“足够相似”的数据包组合在一起，减少传递到网络栈的数据包数量，从而减少 CPU 使用率。例如，想象一种情况，正在进行大文件传输，大多数数据包都包含文件中的数据块。与其一次发送一个小数据包到栈，不如将传入的数据包组合成一个具有巨大有效负载的数据包。然后传递该数据包到栈。这样可以让协议层处理单个数据包的头部，同时传递更大的数据块给用户程序。</p>
+<p>当然，这种优化的问题是信息丢失。如果一个数据包设置了某些重要选项或标志，则如果该数据包与另一个数据包合并，则该选项或标志可能会丢失。这正是为什么大多数人不使用或鼓励使用 LRO 的原因。一般来说，对于合并数据包，LRO 实现的规则非常宽松。</p>
+<p>GRO 作为 LRO 的软件实现被引入，但对于哪些数据包可以合并有更严格的规则。</p>
+<p>顺便说一句：如果您曾经使用过 <code>tcpdump</code> 并看到过不切实际的大型传入数据包大小，那么很可能是因为您的系统启用了 GRO。正如您很快就会看到的那样，在 GRO 已经发生之后，数据包抓取被插入栈中。</p>
+<h5 id="调优：使用-ethtool-调整-GRO-设置"><a href="#调优：使用-ethtool-调整-GRO-设置" class="headerlink" title="调优：使用 ethtool 调整 GRO 设置"></a>调优：使用 <code>ethtool</code> 调整 GRO 设置</h5><p>您可以使用 <code>ethtool</code> 检查是否启用了 GRO，也可以调整设置。</p>
+<p>使用 <code>ethtool -k</code> 检查您的 GRO 设置。</p>
+<pre><code class="hljs bash">$ ethtool -k eth0 | grep generic-receive-offload
+generic-receive-offload: on</code></pre>
+
+<p>如您所见，在这个系统上，我设置 <code>generic-receive-offload</code> 为启用。</p>
+<p>使用 <code>ethtool -K</code> 启用（或禁用）GRO。</p>
+<pre><code class="hljs bash">$ sudo ethtool -K eth0 gro on</code></pre>
+
+<p><strong>注意：</strong> 对于大多数驱动程序来说，进行这些更改将使接口关闭，然后再将其重新打开；到该接口的连接将被中断。 不过，这对于一次性的改变来说可能并不重要。</p>
+<h4 id="napi-gro-receive"><a href="#napi-gro-receive" class="headerlink" title="napi_gro_receive"></a><code>napi_gro_receive</code></h4><p>函数 <code>napi_gro_receive</code> 处理 GRO 的网络数据（如果系统启用了GRO），并向上发送数据到协议层。 这个逻辑的大部分是在一个名为 <code>dev_gro_receive</code> 的函数中。</p>
+<h5 id="dev-gro-receive"><a href="#dev-gro-receive" class="headerlink" title="dev_gro_receive"></a><code>dev_gro_receive</code></h5><p>这个函数首先检查是否启用了 GRO，如果是，则准备进行 GRO。在启用 GRO 的情况下，遍历 GRO 卸载过滤器列表，以便高层协议栈对正在考虑进行 GRO 的数据进行操作。这样做是为了使得协议层让网络设备层知道此数据包是否属于当前正在接收卸载的 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Traffic_flow_(computer_networking)">网络流</a>，并处理应该为 GRO 发生的任何协议相关内容。例如，TCP 协议需要决定是否&#x2F;何时对正在合并到现有数据包中的数据包进行 ACK。</p>
+<p>下面是来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3844-L3856"><code>net/core/dev.c</code></a> 的代码，它执行此操作：</p>
+<pre><code class="hljs c++"><span class="hljs-built_in">list_for_each_entry_rcu</span>(ptype, head, list) &#123;
+  <span class="hljs-keyword">if</span> (ptype-&gt;type != type || !ptype-&gt;callbacks.gro_receive)
+    <span class="hljs-keyword">continue</span>;
+
+  <span class="hljs-built_in">skb_set_network_header</span>(skb, <span class="hljs-built_in">skb_gro_offset</span>(skb));
+  <span class="hljs-built_in">skb_reset_mac_len</span>(skb);
+  <span class="hljs-built_in">NAPI_GRO_CB</span>(skb)-&gt;same_flow = <span class="hljs-number">0</span>;
+  <span class="hljs-built_in">NAPI_GRO_CB</span>(skb)-&gt;flush = <span class="hljs-number">0</span>;
+  <span class="hljs-built_in">NAPI_GRO_CB</span>(skb)-&gt;free = <span class="hljs-number">0</span>;
+
+  pp = ptype-&gt;callbacks.<span class="hljs-built_in">gro_receive</span>(&amp;napi-&gt;gro_list, skb);
+  <span class="hljs-keyword">break</span>;
+&#125;</code></pre>
+
+<p>如果协议层指示是时候刷新 GRO 的数据包，则接下来进行处理。 这是调用<code>napi_gro_complete</code> 来实现的，它调用协议层的 <code>gro_complete</code> 回调，然后调用 <code>netif_receive_skb</code> 向上传递数据包到网络栈。</p>
+<p>下面是 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3862-L3872"><code>net/core/dev.c</code></a> 中的代码，它可以做到这一点：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">if</span> (pp) &#123;
+  <span class="hljs-keyword">struct</span> <span class="hljs-title class_">sk_buff</span> *nskb = *pp;
+
+  *pp = nskb-&gt;next;
+  nskb-&gt;next = <span class="hljs-literal">NULL</span>;
+  <span class="hljs-built_in">napi_gro_complete</span>(nskb);
+  napi-&gt;gro_count--;
+&#125;</code></pre>
+
+<p>接下来，如果协议层合并此数据包到现有流中，<code>napi_gro_receive</code> 将简单地返回，因为没有其他事情要做。</p>
+<p>如果数据包未合并，并且系统上的 GRO 流少 于<code>MAX_GRO_SKBS</code>（8），则会向该CPU的NAPI结构上的 <code>gro_list</code> 添加一个新条目。</p>
+<p>下面是 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3877-L3886"><code>net/core/dev.c</code></a> 中的代码，它可以做到这一点：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">if</span> (<span class="hljs-built_in">NAPI_GRO_CB</span>(skb)-&gt;flush || napi-&gt;gro_count &gt;= MAX_GRO_SKBS)
+  <span class="hljs-keyword">goto</span> normal;
+
+napi-&gt;gro_count++;
+<span class="hljs-built_in">NAPI_GRO_CB</span>(skb)-&gt;count = <span class="hljs-number">1</span>;
+<span class="hljs-built_in">NAPI_GRO_CB</span>(skb)-&gt;age = jiffies;
+<span class="hljs-built_in">skb_shinfo</span>(skb)-&gt;gso_size = <span class="hljs-built_in">skb_gro_len</span>(skb);
+skb-&gt;next = napi-&gt;gro_list;
+napi-&gt;gro_list = skb;
+ret = GRO_HELD;</code></pre>
+
+<p>这就是 Linux 网络栈中 GRO 系统的工作方式。</p>
+<h4 id="napi-skb-finish"><a href="#napi-skb-finish" class="headerlink" title="napi_skb_finish"></a><code>napi_skb_finish</code></h4><p>一旦 <code>dev_gro_receive</code> 执行完毕，就会调用 <code>napi_skb_finish</code>，它要么释放不需要的数据结构（因为数据包已经被合并），要么调用 <code>netif_receive_skb</code> 向上传递数据到网络栈（因为已经有 <code>MAX_GRO_SKBS</code> 流被 GRO）。</p>
+<p>接下来，是时候让 <code>netif_receive_skb</code> 看看数据是如何传递到协议层的了。 在对此进行探讨之前，我们首先需要了解一下 Receive Packet Steering (RPS)。</p>
+<h3 id="Receive-Packet-Steering-RPS"><a href="#Receive-Packet-Steering-RPS" class="headerlink" title="Receive Packet Steering (RPS)"></a>Receive Packet Steering (RPS)</h3><p>回想一下我们之前讨论的网络设备驱动程序注册 NAPI <code>poll</code> 函数的过程。 每个 <code>NAPI</code> 轮询器实例在软中断的上下文中执行，每个 CPU 有一个软中断。 进一步回想一下，驱动程序的 IRQ 处理程序运行的 CPU 将唤醒其 softirq 处理循环来处理数据包。</p>
+<p>换句话说：单个 CPU 处理硬件中断并轮询数据包以处理输入数据。</p>
+<p>某些 NIC（如Intel I350）在硬件级别支持多个队列。 这意味着传入的数据包可以被 DMA 到每个队列的单独的内存区域，并且还具有单独的 NAPI 结构来管理轮询该区域。 因此，多个 CPU 将处理来自设备的中断，并且还处理数据包。</p>
+<p>该特征通常被称为 Receive Side Scaling (RSS)。</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/networking/scaling.txt#L99-L222">Receive Packet Steering (RPS)</a> 是 RSS 的软件实现。 由于它是在软件中实现的，这意味着它可以为任何 NIC 启用，即使是只有单个接收队列的 NIC。 然而，由于它是在软件中，这意味着 RPS 只能在已经从 DMA 存储器区域收取数据包之后进入流。</p>
+<p>这意味着您不会注意到处理 IRQ 或 NAPI <code>poll</code> 循环所花费的 CPU 时间减少，但您可以在收集数据包后分布处理数据包的负载，并减少网络栈上的 CPU 时间。</p>
+<p>RPS 的工作原理是为传入数据生成一个散列，以确定哪个 CPU 应该处理数据。 然后排队数据到每 CPU 接收网络积压中以进行处理。 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Inter-processor_interrupt">处理器间中断（IPI）</a>被传送到拥有积压的 CPU。 如果当前没有处理积压工作中的数据，这有助于启动积压工作处理。 <code>/proc/net/softnet_stat</code> 包含每个 <code>softnet_data</code> 结构体接收 IPI（<code>received_rps</code>字段）的次数计数。</p>
+<p>因此，<code>netif_receive_skb</code> 将继续向网络栈发送网络数据，或者将其移交给 RPS 以在不同的 CPU 上进行处理。</p>
+<h4 id="调优：启用-RPS"><a href="#调优：启用-RPS" class="headerlink" title="调优：启用 RPS"></a>调优：启用 RPS</h4><p>要使 RPS 工作，必须在内核配置中启用它（Ubuntu 内核 3.13.0 是启用的），并使用位掩码描述哪些 CPU 应该处理给定接口和接收队列的数据包。</p>
+<p>您可以在<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/networking/scaling.txt#L138-L164">内核文档</a>中找到有关这些位掩码的一些文档。</p>
+<p>简而言之，要修改的位掩码位于：</p>
+<p><code>/sys/class/net/DEVICE_NAME/queues/QUEUE/rps_cpus</code></p>
+<p>因此，对于 <code>eth0</code> 和 接收队列 0，你将修改 <code>/sys/class/net/eth0/queues/rx-0/rps_cpus</code> 文件，其中十六进制数指示哪些 CPU 应处理来自 <code>eth0</code> 的接收队列 0 的数据包。 正如<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/networking/scaling.txt#L160-L164">文档</a>指出的，在某些配置中可能不需要 RPS。</p>
+<p><strong>注：</strong> 启用 RPS 将数据包处理分配给以前未处理数据包的 CPU，将导致该 CPU 的 <code>NET_RX</code> 软中断数增加，以及 CPU 使用率图中的 <code>si</code> 或 <code>sitime</code> 增加。 您可以比较软中断和 CPU 使用率图表的前后对比，以确认 RPS 配置是否符合您的喜好。</p>
+<h3 id="Receive-Flow-Steering-RFS"><a href="#Receive-Flow-Steering-RFS" class="headerlink" title="Receive Flow Steering (RFS)"></a>Receive Flow Steering (RFS)</h3><p>Receive flow steering (RFS) 与 RPS 配合使用。 RPS 尝试在多个 CPU 之间分配传入数据包负载，但不考虑任何数据局部性问题以最大化 CPU 缓存命中率。 您可以使用 RFS 定向同一个流的数据包到同一个 CPU 进行处理，从而帮助提高缓存命中率。</p>
+<h4 id="调优：启用-RFS"><a href="#调优：启用-RFS" class="headerlink" title="调优：启用 RFS"></a>调优：启用 RFS</h4><p>要使 RFS 工作，您必须启用并配置 RPS。</p>
+<p>RFS 跟踪所有流的全局哈希表，并且可以设置 <code>net.core.rps_sock_flow_entries</code>  sysctl 来调整该哈希表的大小。</p>
+<p>设置 <code>sysctl</code> 增加 RFS 套接字流哈希的大小。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.core.rps_sock_flow_entries=32768</code></pre>
+
+<p>接下来，您还可以设置每个接收队列的流数，方法是写入此值每个接收队列的名为<code>rps_flow_cnt</code> 的 sysfs 文件。</p>
+<p>示例：增加 eth0 上接收队列 0 的流数到 2048。</p>
+<pre><code class="hljs bash">$ sudo bash -c <span class="hljs-string">&#x27;echo 2048 &gt; /sys/class/net/eth0/queues/rx-0/rps_flow_cnt&#x27;</span></code></pre>
+
+<h3 id="硬件加速-Receive-Flow-Steering-aRFS"><a href="#硬件加速-Receive-Flow-Steering-aRFS" class="headerlink" title="硬件加速 Receive Flow Steering (aRFS)"></a>硬件加速 Receive Flow Steering (aRFS)</h3><p>RFS 可以使用硬件加速来加速；NIC 和内核可以一起工作以确定哪些流应该在哪些 CPU 上被处理。 要使用此功能，NIC 和驱动程序必须支持此功能。</p>
+<p>请参阅您的网卡数据手册以确定是否支持此功能。 如果您的 NIC 驱动程序公开了一个名为 <code>ndo_rx_flow_steer</code> 的函数，则该驱动程序支持加速 RFS。</p>
+<h4 id="调优：启用加速-RFS（aRFS）"><a href="#调优：启用加速-RFS（aRFS）" class="headerlink" title="调优：启用加速 RFS（aRFS）"></a>调优：启用加速 RFS（aRFS）</h4><p>假设您的 NIC 和驱动程序支持它，您可以启用和配置一组内容来启用加速 RFS：</p>
+<ol>
+<li>启用并配置 RPS。</li>
+<li>启用并配置 RFS。</li>
+<li>x在编译内核时启用 <code>CONFIG_RFS_ACCEL</code>。 Ubuntu kernel 3.13.0 启用</li>
+<li>如前所述，为设备启用 ntuple 支持。 您可以使用 <code>ethtool</code> 来验证是否为设备启用了ntuple 支持。</li>
+<li>配置 IRQ 设置以确保每个接收队列由所需的网络处理 CPU 之一处理。</li>
+</ol>
+<p>一旦配置了上述内容，加速 RFS 自动移动数据到与处理该流数据的CPU核心绑定的接收队列，并且您不需要为每个流手动指定 ntuple 过滤规则。</p>
+<h3 id="使用-netif-receive-skb-向上移动网络栈。"><a href="#使用-netif-receive-skb-向上移动网络栈。" class="headerlink" title="使用 netif_receive_skb 向上移动网络栈。"></a>使用 <code>netif_receive_skb</code> 向上移动网络栈。</h3><p>接着我们上次讲到的 <code>netif_receive_skb</code>，它从几个地方调用。最常见的两个（也是我们已经看过的两个）：</p>
+<ul>
+<li>如果数据包不会合并到现有的 GRO 流中，则为 <code>napi_skb_finish</code>，或者</li>
+<li>如果协议层指示现在是刷新流的时候，则为 <code>napi_gro_complete</code>，或者</li>
+</ul>
+<p><strong>提醒：</strong> <code>netif_receive_skb</code> 及其后代在 softirq 处理循环的上下文中运行，使用像 <code>top</code> 这样的工具，您将看到这里花费的时间计入 <code>sitime</code> 或 <code>si</code>。</p>
+<p><code>netif_receive_skb</code> 首先检查一个 <code>sysctl</code> 值，以确定用户是否在数据包进入积压队列之前或之后请求接收时间戳。如果启用了此设置，则在数据进入 RPS（和 CPU 的关联积压队列）之前对数据进行时间戳。如果禁用了此设置，则在进入队列后进行时间戳。如果启用了 RPS，则可以使用此功能在多个 CPU 之间分配时间戳的负载，但会因此引入一些延迟。</p>
+<h4 id="调优：接收数据包时间戳"><a href="#调优：接收数据包时间戳" class="headerlink" title="调优：接收数据包时间戳"></a>调优：接收数据包时间戳</h4><p>您可以调整一个名为 <code>net.core.netdev_tstamp_prequeue</code> 的 sysctl 来调优接收到数据包后的时间戳：</p>
+<p>调整 <code>sysctl</code> 禁用接收数据包的时间戳</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.core.netdev_tstamp_prequeue=0</code></pre>
+
+<p>默认值为 1。 请参阅上一节的解释，以了解此设置的确切含义。</p>
+<h3 id="netif-receive-skb"><a href="#netif-receive-skb" class="headerlink" title="netif_receive_skb"></a><code>netif_receive_skb</code></h3><p>处理完时间戳后，<code>netif_receive_skb</code> 的操作方式会因 RPS 是否启用而不同。 让我们先从更简单的路径开始：RPS 已禁用。</p>
+<h4 id="RPS-禁用（默认设置）"><a href="#RPS-禁用（默认设置）" class="headerlink" title="RPS 禁用（默认设置）"></a>RPS 禁用（默认设置）</h4><p>如果未启用 RPS，则调用 <code>__netif_receive_skb</code>，它执行一些簿记工作，然后调用 <code>__netif_receive_skb_core</code> 移动数据到协议栈附近。</p>
+<p>我们将看到 <code>__netif_receive_skb_core</code> 的工作原理，但首先让我们看看启用 RPS 的代码路径如何工作，因为该代码也将调用 <code>__netif_receive_skb_core</code>。</p>
+<h4 id="RPS-启用"><a href="#RPS-启用" class="headerlink" title="RPS 启用"></a>RPS 启用</h4><p>如果启用了 RPS，在处理上述提到的时间戳选项之后，<code>netif_receive_skb</code> 将执行一些计算，以确定应使用哪个 CPU 的积压队列。这是使用 <code>get_rps_cpu</code> 函数完成的。来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3699-L3705">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++">cpu = <span class="hljs-built_in">get_rps_cpu</span>(skb-&gt;dev, skb, &amp;rflow);
+
+<span class="hljs-keyword">if</span> (cpu &gt;= <span class="hljs-number">0</span>) &#123;
+  ret = <span class="hljs-built_in">enqueue_to_backlog</span>(skb, cpu, &amp;rflow-&gt;last_qtail);
+  <span class="hljs-built_in">rcu_read_unlock</span>();
+  <span class="hljs-keyword">return</span> ret;
+&#125;</code></pre>
+
+<p><code>get_rps_cpu</code> 将考虑上述 RFS 和 aRFS 设置，以确保调用 <code>enqueue_to_backlog</code> 排队数据到所需的 CPU 的 backlog。</p>
+<h5 id="enqueue-to-backlog"><a href="#enqueue-to-backlog" class="headerlink" title="enqueue_to_backlog"></a><code>enqueue_to_backlog</code></h5><p>此函数首先获取指向远程 CPU 的 <code>softnet_data</code> 结构指针，该结构包含指向<code>input_pkt_queue</code> 的指针。 接下来，检查远程 CPU 的 <code>input_pkt_queue</code>。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3199-L3200">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++">qlen = <span class="hljs-built_in">skb_queue_len</span>(&amp;sd-&gt;input_pkt_queue);
+<span class="hljs-keyword">if</span> (qlen &lt;= netdev_max_backlog &amp;&amp; !<span class="hljs-built_in">skb_flow_limit</span>(skb, qlen)) &#123;</code></pre>
+
+<p>首先比较 <code>input_pkt_queue</code> 的长度与 <code>netdev_max_backlog</code> 。如果队列长度大于此值，则<strong>丢弃</strong>数据。同样，检查流量限制，如果超过了流量限制，则<strong>丢弃</strong>数据。在这两种情况下，都会增加 <code>softnet_data</code> 结构的丢弃计数。请注意，这是数据将要排队到的 CPU 的 <code>softnet_data</code> 结构。阅读上面关于 <code>/proc/net/softnet_stat</code> 的部分，基于监控的目的了解如何获取丢弃计数。</p>
+<p><code>enqueue_to_backlog</code> 在很少地方调用。它用于已启用 RPS 的数据包处理，也从 <code>netif_rx</code> 调用。大多数驱动程序都 <strong>不应</strong> 使用 <code>netif_rx</code>，而应使用 <code>netif_receive_skb</code>。如果您没有使用 RPS 并且您的驱动程序没有使用 <code>netif_rx</code>，则增加积压不会对您的系统产生任何明显影响，因为它不会被使用。</p>
+<p><strong>注意</strong>：您需要检查正在使用的驱动程序。如果它调用了 <code>netif_receive_skb</code> 并且您 <strong>没有</strong> 使用 RPS，则增加 <code>netdev_max_backlog</code> 将不会产生任何性能改进，因为没有任何数据会进入 <code>input_pkt_queue</code>。</p>
+<p>假设 <code>input_pkt_queue</code> 足够小且未达到流量限制（接下来会详细介绍），则可以排队数据。这里的逻辑有点奇怪，但可以总结为：</p>
+<ul>
+<li>如果队列为空：检查远程 CPU 上是否已启动 NAPI。如果没有，则检查是否已排队发送 IPI。如果没有，则排队一个并调用 <code>____napi_schedule</code> 启动 NAPI 处理循环。继续排队数据。</li>
+<li>如果队列不为空，或者前面描述的操作已完成，则将数据入队。</li>
+</ul>
+<p>这段代码使用了 <code>goto</code>，所以要仔细阅读。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3201-L3218">net&#x2F;core&#x2F;dev.c</a>：</p>
+<pre><code class="hljs c++">  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">skb_queue_len</span>(&amp;sd-&gt;input_pkt_queue)) &#123;
+enqueue:
+         __skb_queue_tail(&amp;sd-&gt;input_pkt_queue, skb);
+         <span class="hljs-built_in">input_queue_tail_incr_save</span>(sd, qtail);
+         <span class="hljs-built_in">rps_unlock</span>(sd);
+         <span class="hljs-built_in">local_irq_restore</span>(flags);
+         <span class="hljs-keyword">return</span> NET_RX_SUCCESS;
+ &#125;
+
+ <span class="hljs-comment">/* Schedule NAPI for backlog device</span>
+<span class="hljs-comment">  * We can use non atomic operation since we own the queue lock</span>
+<span class="hljs-comment">  */</span>
+ <span class="hljs-keyword">if</span> (!__test_and_set_bit(NAPI_STATE_SCHED, &amp;sd-&gt;backlog.state)) &#123;
+         <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">rps_ipi_queued</span>(sd))
+                 ____napi_schedule(sd, &amp;sd-&gt;backlog);
+ &#125;
+ <span class="hljs-keyword">goto</span> enqueue;</code></pre>
+
+<h5 id="流量限制"><a href="#流量限制" class="headerlink" title="流量限制"></a>流量限制</h5><p>RPS 可以在多个 CPU 之间分配数据包处理负载，但是单个大流量可能会垄断 CPU 处理时间并使较小的流量饥饿。流量限制是一种功能，限制每个流量排队到积压的数据包数量为一定数量。这有助于确保即使大流量推送数据包，也能处理较小的流量。</p>
+<p>上面来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3199-L3200">net&#x2F;core&#x2F;dev.c</a> 的 if 语句调用 <code>skb_flow_limit</code> 检查流量限制：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">if</span> (qlen &lt;= netdev_max_backlog &amp;&amp; !<span class="hljs-built_in">skb_flow_limit</span>(skb, qlen)) &#123;</code></pre>
+
+<p>这段代码检查队列中是否还有空间，以及是否尚未达到<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/networking/scaling.txt#L166-L188">流量限制</a>。 默认情况下，禁用流量限制。 要启用流量限制，必须指定位图（类似于 RPS 的位图）。</p>
+<h5 id="监控：监控-input-pkt-queue-已满或流量限制导致的丢弃"><a href="#监控：监控-input-pkt-queue-已满或流量限制导致的丢弃" class="headerlink" title="监控：监控 input_pkt_queue 已满或流量限制导致的丢弃"></a>监控：监控 <code>input_pkt_queue</code> 已满或流量限制导致的丢弃</h5><p>请参阅上面有关监视<code>/proc/net/softnet_stat</code>。 <code>dropped</code>字段是一个计数器，每次数据被丢弃而不是排队到CPU的 <code>input_pkt_queue</code> 时，它都会递增。</p>
+<h5 id="调优"><a href="#调优" class="headerlink" title="调优"></a>调优</h5><h6 id="调优：调优-netdev-max-backlog-防止丢弃"><a href="#调优：调优-netdev-max-backlog-防止丢弃" class="headerlink" title="调优：调优 netdev_max_backlog 防止丢弃"></a>调优：调优 <code>netdev_max_backlog</code> 防止丢弃</h6><p>在调整此调优值之前，请参阅上一节中的注释。</p>
+<p>如果使用 RPS 或驱动程序调用 <code>netif_rx</code>，则可以增加 <code>netdev_max_backlog</code> 来帮助防止 <code>enqueue_to_backlog</code> 的丢弃。</p>
+<p>示例：使用 <code>sysctl</code> 增加 backlog 到 3000。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.core.netdev_max_backlog=3000</code></pre>
+
+<p>默认值为 1000。</p>
+<h6 id="调优：调优-backlog-的-NAPI-poll-权重"><a href="#调优：调优-backlog-的-NAPI-poll-权重" class="headerlink" title="调优：调优 backlog 的 NAPI poll 权重"></a>调优：调优 backlog 的 NAPI <code>poll</code> 权重</h6><p>您可以设置 <code>net.core.dev_weight</code> sysctl 来调整积压的 NAPI 轮询器的权重。调整此值可以确定积压 <code>poll</code> 循环可以消耗的总预算的多少（请参阅上面调整 <code>net.core.netdev_budget</code> 的部分）：</p>
+<p>示例：使用 <code>sysctl</code> 增加 NAPI <code>poll</code> 积压处理循环。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.core.dev_weight=600</code></pre>
+
+<p>默认值为 64。</p>
+<p>记住，backlog 处理运行在 softirq 上下文，类似于设备驱动程序注册的 <code>poll</code> 函数，并且将受到总 <code>budget</code> 和时间的限制，如前几节所述。</p>
+<h6 id="调优：启用流量限制并调优流量限制哈希表大小"><a href="#调优：启用流量限制并调优流量限制哈希表大小" class="headerlink" title="调优：启用流量限制并调优流量限制哈希表大小"></a>调优：启用流量限制并调优流量限制哈希表大小</h6><p>使用 <code>sysctl</code> 设置流量限制表的大小。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.core.flow_limit_table_len=8192</code></pre>
+
+<p>默认值为 4096。</p>
+<p>此更改仅影响新分配的流哈希表。 因此，如果您想增加表的大小，应该在启用流量限制之前进行。</p>
+<p>要启用 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/networking/scaling.txt#L166-L188">流量限制</a>，您应该在 <code>/proc/sys/net/core/flow_limit_cpu_bitmap</code> 中指定一个位掩码，该位掩码类似于 RPS 位掩码，指示哪些 CPU 启用了流量限制。</p>
+<h4 id="backlog-队列-NAPI-轮询器"><a href="#backlog-队列-NAPI-轮询器" class="headerlink" title="backlog 队列 NAPI 轮询器"></a>backlog 队列 NAPI 轮询器</h4><p>每个 CPU 的 backlog 队列插入 NAPI 的方式与设备驱动程序相同。提供了一个 <code>poll</code> 函数，从 softirq 上下文处理数据包。就像设备驱动程序一样，还提供了一个 <code>weight</code>。</p>
+<p>这个 NAPI 结构在初始化网络系统时提供。来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L6952-L6955"><code>net/core/dev.c</code></a> 中的 <code>net_dev_init</code>：</p>
+<pre><code class="hljs c++">sd-&gt;backlog.poll = process_backlog;
+sd-&gt;backlog.weight = weight_p;
+sd-&gt;backlog.gro_list = <span class="hljs-literal">NULL</span>;
+sd-&gt;backlog.gro_count = <span class="hljs-number">0</span>;</code></pre>
+
+<p>backlog NAPI 结构与设备驱动程序 NAPI 结构的不同之处在于 <code>weight</code> 参数是可调整的，其中驱动程序编码其 NAPI 权重硬为 64。 我们将在下面的调优部分看到如何使用 <code>sysctl</code> 调整权重。</p>
+<h4 id="process-backlog"><a href="#process-backlog" class="headerlink" title="process_backlog"></a><code>process_backlog</code></h4><p><code>process_backlog</code> 函数是一个循环，直到其权重（如前一节所述）被消耗完或 backlog 中没有更多数据为止。</p>
+<p>backlog 队列中的每个数据都从 backlog 队列中移除，并传递给 <code>__netif_receive_skb</code>。一旦数据进入 <code>__netif_receive_skb</code>，代码路径与上面解释的 RPS 禁用情况相同。也就是说，在调用 <code>__netif_receive_skb_core</code> 传递网络数据到协议层之前，<code>__netif_receive_skb</code> 会进行一些簿记工作。</p>
+<p><code>process_backlog</code> 遵循与设备驱动程序相同的 NAPI 契约，即：如果不使用总权重，则禁用 NAPI。通过上面描述的 <code>enqueue_to_backlog</code> 中对 <code>____napi_schedule</code> 的调用，轮询器重新启动。</p>
+<p>该函数返回完成的工作量，<code>net_rx_action</code>（上面描述）将从预算中扣减该工作量（使用上面描述的 <code>net.core.netdev_budget</code> 进行调整）。</p>
+<h4 id="netif-receive-skb-core-传送数据到数据包抓取和协议层"><a href="#netif-receive-skb-core-传送数据到数据包抓取和协议层" class="headerlink" title="__netif_receive_skb_core 传送数据到数据包抓取和协议层"></a><code>__netif_receive_skb_core</code> 传送数据到数据包抓取和协议层</h4><p><code>__netif_receive_skb_core</code> 执行传递数据到协议栈的繁重工作。 在此之前，它检查是否安装了捕获传入数据包的数据包抓取。 <code>AF_PACKET</code> 地址族就是一个这样的例子，它通常通过 <a target="_blank" rel="noopener" href="http://www.tcpdump.org/manpages/pcap.3pcap.html">libpcap库</a>使用。</p>
+<p>如果存在这样的抓取，则首先传送数据到那里，然后传送到下一个协议层。</p>
+<h4 id="数据包抓取传送"><a href="#数据包抓取传送" class="headerlink" title="数据包抓取传送"></a>数据包抓取传送</h4><p>如果安装了一个数据包抓取（通常通过 libpcap），数据包将通过来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3548-L3554">net&#x2F;core&#x2F;dev.c</a> 的代码发送到那里：</p>
+<pre><code class="hljs c++"><span class="hljs-built_in">list_for_each_entry_rcu</span>(ptype, &amp;ptype_all, list) &#123;
+  <span class="hljs-keyword">if</span> (!ptype-&gt;dev || ptype-&gt;dev == skb-&gt;dev) &#123;
+    <span class="hljs-keyword">if</span> (pt_prev)
+      ret = <span class="hljs-built_in">deliver_skb</span>(skb, pt_prev, orig_dev);
+    pt_prev = ptype;
+  &#125;
+&#125;</code></pre>
+
+<p>如果你对数据如何通过 pcap 的路径感到好奇，请阅读 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/packet/af_packet.c">net&#x2F;packet&#x2F;af_packet.c</a>。</p>
+<h4 id="协议层交付"><a href="#协议层交付" class="headerlink" title="协议层交付"></a>协议层交付</h4><p>一旦满足抓取，<code>__netif_receive_skb_core</code> 发送数据到协议层。它从数据中获取协议字段并遍历为该协议类型注册的传递函数列表来实现这一点。</p>
+<p>这可以在  <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3548-L3554">net&#x2F;core&#x2F;dev.c</a> 中的 <code>__netif_receive_skb_core</code> 中看到：</p>
+<pre><code class="hljs c++">type = skb-&gt;protocol;
+<span class="hljs-built_in">list_for_each_entry_rcu</span>(ptype,
+                &amp;ptype_base[<span class="hljs-built_in">ntohs</span>(type) &amp; PTYPE_HASH_MASK], list) &#123;
+        <span class="hljs-keyword">if</span> (ptype-&gt;type == type &amp;&amp;
+            (ptype-&gt;dev == null_or_dev || ptype-&gt;dev == skb-&gt;dev ||
+             ptype-&gt;dev == orig_dev)) &#123;
+                <span class="hljs-keyword">if</span> (pt_prev)
+                        ret = <span class="hljs-built_in">deliver_skb</span>(skb, pt_prev, orig_dev);
+                pt_prev = ptype;
+        &#125;
+&#125;</code></pre>
+
+<p>上面的 <code>ptype_base</code> 标识符被定义为  <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L146">net&#x2F;core&#x2F;dev.c</a> 中链表组成的散列表：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">list_head</span> ptype_base[PTYPE_HASH_SIZE] __read_mostly;</code></pre>
+
+<p>每个协议层在哈希表中的给定槽处向链表添加过滤器，使用称为 <code>ptype_head</code> 的辅助函数计算：</p>
+<pre><code class="hljs c++"><span class="hljs-type">static</span> <span class="hljs-keyword">inline</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">list_head</span> *<span class="hljs-built_in">ptype_head</span>(<span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> packet_type *pt)
+&#123;
+        <span class="hljs-keyword">if</span> (pt-&gt;type == <span class="hljs-built_in">htons</span>(ETH_P_ALL))
+                <span class="hljs-keyword">return</span> &amp;ptype_all;
+        <span class="hljs-keyword">else</span>
+                <span class="hljs-keyword">return</span> &amp;ptype_base[<span class="hljs-built_in">ntohs</span>(pt-&gt;type) &amp; PTYPE_HASH_MASK];
+&#125;</code></pre>
+
+<p>调用 <code>dev_add_pack</code> 向链表中添加筛选器。 这就是协议层如何为它们的协议类型的网络数据传送，注册它们自己的。</p>
+<p>现在您知道了网络数据是如何从 NIC 传输到协议层的。</p>
+<h3 id="协议层注册"><a href="#协议层注册" class="headerlink" title="协议层注册"></a>协议层注册</h3><p>现在我们知道了数据是如何从网络设备子系统传递到协议栈的，让我们看看协议层是如何注册自己的。</p>
+<p>本文将探讨 IP 协议栈，因为它是一种常用的协议，并且与大多数读者相关。</p>
+<h4 id="IP-协议层"><a href="#IP-协议层" class="headerlink" title="IP 协议层"></a>IP 协议层</h4><p>IP 协议层将自身插入 <code>ptype_base</code> 哈希表，以便从前面部分描述的网络设备层传递数据到它。</p>
+<p>这发生在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/af_inet.c#L1788">net&#x2F;ipv4&#x2F;af_inet.c</a> 的 <code>inet_init</code> 函数中：</p>
+<pre><code class="hljs c++"><span class="hljs-built_in">dev_add_pack</span>(&amp;ip_packet_type);</code></pre>
+
+<p>这将注册在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/af_inet.c#L1673-L1676">net&#x2F;ipv4&#x2F;af_inet.c</a> 中定义的 IP 数据包类型结构：</p>
+<pre><code class="hljs c++"><span class="hljs-type">static</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">packet_type</span> ip_packet_type __read_mostly = &#123;
+        .type = <span class="hljs-built_in">cpu_to_be16</span>(ETH_P_IP),
+        .func = ip_rcv,
+&#125;;</code></pre>
+
+<p><code>__netif_receive_skb_core</code> 调用 <code>deliver_skb</code>（如上一节所示），deliver_skb 调用<code>func</code>（在本例中为 <code>ip_rcv</code>）。</p>
+<h5 id="ip-rcv"><a href="#ip-rcv" class="headerlink" title="ip_rcv"></a><code>ip_rcv</code></h5><p>从高层次来看，<code>ip_rcv</code> 函数非常简单。有几个完整性检查以确保数据有效。统计计数器也会增加。</p>
+<p><code>ip_rcv</code> 通过 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Netfilter">netfilter</a> 传递数据包给 <code>ip_rcv_finish</code> 结束。这样做是为了让任何应该在 IP 协议层匹配的 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Iptables">iptables</a> 规则在数据包继续之前查看数据包。</p>
+<p>我们可以在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/ip_input.c#L453-L454">net&#x2F;ipv4&#x2F;ip_input.c</a> 中的 <code>ip_rcv</code> 结尾处看到将数据交给 netfilter 的代码：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">return</span> <span class="hljs-built_in">NF_HOOK</span>(NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, dev, <span class="hljs-literal">NULL</span>, ip_rcv_finish);</code></pre>
+
+<h5 id="netfilter-和-iptables"><a href="#netfilter-和-iptables" class="headerlink" title="netfilter 和 iptables"></a>netfilter 和 iptables</h5><p>为了简洁（和我的 RSI），我决定跳过对 netfilter、iptables 和 conntrack 的深入研究。</p>
+<p>简而言之，<code>NF_HOOK_THRESH</code> 会检查是否安装了过滤器，并尝试返回执行到 IP 协议层，以避免深入到 netfilter 和 iptables 和 conntrack 等下面的任何钩子。</p>
+<p>请记住：如果您有许多或非常复杂的 netfilter 或 iptables 规则，那么这些规则将在 softirq 上下文中执行，并可能产生网络堆栈中的延迟。不过，如果您需要安装特定的规则集，这可能是不可避免的。</p>
+<h5 id="ip-rcv-finish"><a href="#ip-rcv-finish" class="headerlink" title="ip_rcv_finish"></a><code>ip_rcv_finish</code></h5><p>一旦 net filter 有机会查看数据并决定如何处理它，就会调用 <code>ip_rcv_finish</code>。 当然，只有当数据没有被 netfilter 丢弃时才会发生这种情况。</p>
+<p><code>ip_rcv_finish</code> 以一个优化开始。为了传递数据包到适当的位置，来自路由系统的<code>dst_entry</code> 需要到位。 为了获得一个 <code>dst_entry</code>，代码最初尝试从该数据的目的地的更高级别协议调用 <code>early_demux</code> 函数。</p>
+<p><code>early_demux</code> 流程是一种<a target="_blank" rel="noopener" href="https://patchwork.ozlabs.org/patch/280718/">优化</a>，它试图检查 <code>dst_entry</code> 是否缓存在套接字结构上，来找到传递数据包所需的 <code>dst_entry</code>。</p>
+<p>下面是 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/ip_input.c#L317-L327">net&#x2F;ipv4&#x2F;ip_input.c</a> 中的内容：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">if</span> (sysctl_ip_early_demux &amp;&amp; !<span class="hljs-built_in">skb_dst</span>(skb) &amp;&amp; skb-&gt;sk == <span class="hljs-literal">NULL</span>) &#123;
+  <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">net_protocol</span> *ipprot;
+  <span class="hljs-type">int</span> protocol = iph-&gt;protocol;
+
+  ipprot = <span class="hljs-built_in">rcu_dereference</span>(inet_protos[protocol]);
+  <span class="hljs-keyword">if</span> (ipprot &amp;&amp; ipprot-&gt;early_demux) &#123;
+    ipprot-&gt;<span class="hljs-built_in">early_demux</span>(skb);
+    <span class="hljs-comment">/* must reload iph, skb-&gt;head might have changed */</span>
+    iph = <span class="hljs-built_in">ip_hdr</span>(skb);
+  &#125;
+&#125;</code></pre>
+
+<p>如您所见，上述代码受到 <code>sysctl_ip_early_demux</code> 的保护。默认情况下，<code>early_demux</code> 是启用的。下一节将介绍如何禁用它以及为什么要禁用它。</p>
+<p>如果启用了优化并且没有缓存条目（因为这是第一个到达的数据包），则移交该数据包给内核中的路由系统，在那里将计算并分配 <code>dst_entry</code>。</p>
+<p>路由层完成后，更新统计计数器，并调用 <code>dst_input(skb)</code> 结束函数，该函数又调用了由路由系统关联的数据包的 <code>dst_entry</code> 结构上的输入函数指针。</p>
+<p>如果数据包的最终目的地是本地系统，则路由系统将在数据包的 <code>dst_entry</code> 结构上的输入函数指针中关联 <code>ip_local_deliver</code> 函数。</p>
+<h6 id="调优：调整-IP-协议-early-demux"><a href="#调优：调整-IP-协议-early-demux" class="headerlink" title="调优：调整 IP 协议 early demux"></a>调优：调整 IP 协议 early demux</h6><p>设置 <code>sysctl</code> 禁用 <code>early_demux</code> 优化。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.ipv4.ip_early_demux=0</code></pre>
+
+<p>默认值为1；启用 <code>early_demux</code>。</p>
+<p>添加此 sysctl 是因为一些用户发现在某些情况下使用 <code>early_demux</code> 优化会使<a target="_blank" rel="noopener" href="https://patchwork.ozlabs.org/patch/166441/">吞吐量降低约 5%</a>。</p>
+<h5 id="ip-local-deliver"><a href="#ip-local-deliver" class="headerlink" title="ip_local_deliver"></a><code>ip_local_deliver</code></h5><p>回想一下在 IP 协议层中看到的以下模式：</p>
+<ol>
+<li>调用 <code>ip_rcv</code> 做一些初始簿记。</li>
+<li>移交数据包给 netfilter 进行处理，并带有一个指针，指向处理完成时要执行的回调。</li>
+<li><code>ip_rcv_finish</code> 是该回调函数，它完成了数据包的处理，并继续推送数据包到网络栈。</li>
+</ol>
+<p><code>ip_local_deliver</code> 具有相同的模式。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/ip_input.c#L241-L258">net&#x2F;ipv4&#x2F;ip_input.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/*</span>
+<span class="hljs-comment"> *      Deliver IP Packets to the higher protocol layers.</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">ip_local_deliver</span><span class="hljs-params">(<span class="hljs-keyword">struct</span> sk_buff *skb)</span></span>
+<span class="hljs-function"></span>&#123;
+        <span class="hljs-comment">/*</span>
+<span class="hljs-comment">         *      Reassemble IP fragments.</span>
+<span class="hljs-comment">         */</span>
+
+        <span class="hljs-keyword">if</span> (<span class="hljs-built_in">ip_is_fragment</span>(<span class="hljs-built_in">ip_hdr</span>(skb))) &#123;
+                <span class="hljs-keyword">if</span> (<span class="hljs-built_in">ip_defrag</span>(skb, IP_DEFRAG_LOCAL_DELIVER))
+                        <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+        &#125;
+
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">NF_HOOK</span>(NFPROTO_IPV4, NF_INET_LOCAL_IN, skb, skb-&gt;dev, <span class="hljs-literal">NULL</span>,
+                       ip_local_deliver_finish);
+&#125;</code></pre>
+
+<p>假设数据没有首先被 netfilter 丢弃，一旦 netfilter 有机会查看数据，将调用 <code>ip_local_deliver_finish</code>。</p>
+<h5 id="ip-local-deliver-finish"><a href="#ip-local-deliver-finish" class="headerlink" title="ip_local_deliver_finish"></a><code>ip_local_deliver_finish</code></h5><p><code>ip_local_deliver_finish</code> 从数据包中获取协议，查找为该协议注册的 <code>net_protocol</code> 结构，并调用 <code>net_protocol</code> 结构中 <code>handler</code> 指向的函数。</p>
+<p>这向上传递数据包到更高级别的协议层。</p>
+<h5 id="监控：IP-协议层统计信息"><a href="#监控：IP-协议层统计信息" class="headerlink" title="监控：IP 协议层统计信息"></a>监控：IP 协议层统计信息</h5><p>读取 <code>/proc/net/snmp</code> 监控详细的 IP 协议统计信息。</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/net/snmp
+Ip: Forwarding DefaultTTL InReceives InHdrErrors InAddrErrors ForwDatagrams InUnknownProtos InDiscards InDelivers OutRequests OutDiscards OutNoRoutes ReasmTimeout ReasmReqds ReasmOKs ReasmFails FragOKs FragFails FragCreates
+Ip:                   1           64 25922988125                0                    0             15771700                            0           0 25898327616 22789396404 12987882                    51          
+                       1       10129840     2196520                  1              0              0                    0
+...</code></pre>
+
+<p>此文件包含多个协议层的统计信息。 首先显示 IP 协议层。第一行包含空格分隔的名称，每个名称对应下一行中的相应值。</p>
+<p>在 IP 协议层中，您会发现统计计数器正在增加。计数器引用 C 枚举类型。 <code>/proc/net/snmp</code> 所有有效的枚举值和它们对应的字段名称可以在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/include/uapi/linux/snmp.h#L10-L59">include&#x2F;uapi&#x2F;linux&#x2F;snmp.h</a> 中找到：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">enum</span>
+&#123;
+  IPSTATS_MIB_NUM = <span class="hljs-number">0</span>,
+<span class="hljs-comment">/* frequently written fields in fast path, kept in same cache line */</span>
+  IPSTATS_MIB_INPKTS,     <span class="hljs-comment">/* InReceives */</span>
+  IPSTATS_MIB_INOCTETS,     <span class="hljs-comment">/* InOctets */</span>
+  IPSTATS_MIB_INDELIVERS,     <span class="hljs-comment">/* InDelivers */</span>
+  IPSTATS_MIB_OUTFORWDATAGRAMS,   <span class="hljs-comment">/* OutForwDatagrams */</span>
+  IPSTATS_MIB_OUTPKTS,      <span class="hljs-comment">/* OutRequests */</span>
+  IPSTATS_MIB_OUTOCTETS,      <span class="hljs-comment">/* OutOctets */</span>
+
+  <span class="hljs-comment">/* ... */</span></code></pre>
+
+<p>读取 <code>/proc/net/netstat</code> 监控扩展 IP 协议统计信息。</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/net/netstat | grep IpExt
+IpExt: InNoRoutes InTruncatedPkts InMcastPkts OutMcastPkts InBcastPkts OutBcastPkts InOctets OutOctets InMcastOctets OutMcastOctets InBcastOctets OutBcastOctets InCsumErrors InNoECTPkts InECT0Pktsu InCEPkts
+IpExt: 0 0 0 0 277959 0 14568040307695 32991309088496 0 0 58649349 0 0 0 0 0</code></pre>
+
+<p>格式类似于 <code>/proc/net/snmp</code>，不同之处在于行的前缀是 <code>IpExt</code>。</p>
+<p>一些有趣的统计数据：</p>
+<ul>
+<li><code>InReceives</code>：到达 <code>ip_rcv</code> 的 IP 数据包总数，未进行任何数据完整性检查。</li>
+<li><code>InHdrErrors</code>：头部损坏的 IP 数据包总数。头部过短、过长、不存在、IP 协议版本号错误等。</li>
+<li><code>InAddrErrors</code>：主机不可达的 IP 数据包总数。</li>
+<li><code>ForwDatagrams</code>：已转发的 IP 数据包总数。</li>
+<li><code>InUnknownProtos</code>：头部中指定了未知或不支持协议的 IP 数据包总数。</li>
+<li><code>InDiscards</code>：由于内存分配失败而丢弃的 IP 数据包或校验和失败修剪的数据包总数。</li>
+<li><code>InDelivers</code>：成功传递到更高协议层的 IP 数据包总数。请注意，即使 IP 层没有丢弃数据，更高协议层也可能丢弃数据。</li>
+<li><code>InCsumErrors</code>：校验和错误的 IP 数据包总数。</li>
+</ul>
+<p>请注意，这些值都是在 IP 层的特定位置增加的。代码有时会移动，可能会出现双重计数错误或其他统计错误。如果这些统计数据对您很重要，强烈建议您阅读 IP 协议层源代码，了解您重要的指标何时增加（或不增加）。</p>
+<h4 id="更高级别协议注册"><a href="#更高级别协议注册" class="headerlink" title="更高级别协议注册"></a>更高级别协议注册</h4><p>本文将研究 UDP，但 TCP 协议处理程序的注册方式和时间与 UDP 协议处理程序相同。</p>
+<p>在 <code>net/ipv4/af_inet.c</code> 中，可以找到包含将 UDP、TCP 和 ICMP 协议连接到 IP 协议层的处理程序函数的结构定义。来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/af_inet.c#L1526-L1547">net&#x2F;ipv4&#x2F;af_inet.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">net_protocol</span> tcp_protocol = &#123;
+        .early_demux    =       tcp_v4_early_demux,
+        .handler        =       tcp_v4_rcv,
+        .err_handler    =       tcp_v4_err,
+        .no_policy      =       <span class="hljs-number">1</span>,
+        .netns_ok       =       <span class="hljs-number">1</span>,
+&#125;;
+
+<span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">net_protocol</span> udp_protocol = &#123;
+        .early_demux =  udp_v4_early_demux,
+        .handler =      udp_rcv,
+        .err_handler =  udp_err,
+        .no_policy =    <span class="hljs-number">1</span>,
+        .netns_ok =     <span class="hljs-number">1</span>,
+&#125;;
+
+<span class="hljs-type">static</span> <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> <span class="hljs-title class_">net_protocol</span> icmp_protocol = &#123;
+        .handler =      icmp_rcv,
+        .err_handler =  icmp_err,
+        .no_policy =    <span class="hljs-number">1</span>,
+        .netns_ok =     <span class="hljs-number">1</span>,
+&#125;;</code></pre>
+
+<p>这些结构在 inet 地址族的初始化代码中注册。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/af_inet.c#L1720-L1725">net&#x2F;ipv4&#x2F;af_inet.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/*</span>
+<span class="hljs-comment"> *      Add all the base protocols.</span>
+<span class="hljs-comment"> */</span>
+
+<span class="hljs-keyword">if</span> (<span class="hljs-built_in">inet_add_protocol</span>(&amp;icmp_protocol, IPPROTO_ICMP) &lt; <span class="hljs-number">0</span>)
+        <span class="hljs-built_in">pr_crit</span>(<span class="hljs-string">&quot;%s: Cannot add ICMP protocol\n&quot;</span>, __func__);
+<span class="hljs-keyword">if</span> (<span class="hljs-built_in">inet_add_protocol</span>(&amp;udp_protocol, IPPROTO_UDP) &lt; <span class="hljs-number">0</span>)
+        <span class="hljs-built_in">pr_crit</span>(<span class="hljs-string">&quot;%s: Cannot add UDP protocol\n&quot;</span>, __func__);
+<span class="hljs-keyword">if</span> (<span class="hljs-built_in">inet_add_protocol</span>(&amp;tcp_protocol, IPPROTO_TCP) &lt; <span class="hljs-number">0</span>)
+        <span class="hljs-built_in">pr_crit</span>(<span class="hljs-string">&quot;%s: Cannot add TCP protocol\n&quot;</span>, __func__);</code></pre>
+
+<p>我们将研究 UDP 协议层。 如上所述，UDP 的 <code>handler</code> 函数称为 <code>udp_rcv</code>。</p>
+<p>IP 层在此处理数据，这是进入 UDP 层的入口点。 让我们继续旅程。</p>
+<h4 id="UDP协议层"><a href="#UDP协议层" class="headerlink" title="UDP协议层"></a>UDP协议层</h4><p>UDP 协议层的代码可以在以下文件中找到：<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/udp.c">net&#x2F;ipv4&#x2F;udp. c</a>.</p>
+<h5 id="udp-rcv"><a href="#udp-rcv" class="headerlink" title="udp_rcv"></a><code>udp_rcv</code></h5><p><code>udp_rcv</code> 函数的代码只有一行，它直接调用 <code>__udp4_lib_rcv</code> 来接收数据报。</p>
+<h5 id="udp4-lib-rcv"><a href="#udp4-lib-rcv" class="headerlink" title="__udp4_lib_rcv"></a><code>__udp4_lib_rcv</code></h5><p><code>__udp4_lib_rcv</code> 函数检查以确保数据包有效，并获取 UDP 报头、UDP 数据报长度、源地址和目标地址。 接下来，是一些附加的完整性检查和校验和验证。</p>
+<p>回想一下，在前面的 IP 协议层，我们看到在将数据包交到上层协议（在我们的情况下是 UDP）之前执行了一个优化，以附加 <code>dst_entry</code>  到数据包。</p>
+<p>如果找到一个套接字和相应的 <code>dst_entry</code>，<code>__udp4_lib_rcv</code> 将把数据包排队到套接字：</p>
+<pre><code class="hljs c++">sk = <span class="hljs-built_in">skb_steal_sock</span>(skb);
+<span class="hljs-keyword">if</span> (sk) &#123;
+  <span class="hljs-keyword">struct</span> <span class="hljs-title class_">dst_entry</span> *dst = <span class="hljs-built_in">skb_dst</span>(skb);
+  <span class="hljs-type">int</span> ret;
+
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">unlikely</span>(sk-&gt;sk_rx_dst != dst))
+    <span class="hljs-built_in">udp_sk_rx_dst_set</span>(sk, dst);
+
+  ret = <span class="hljs-built_in">udp_queue_rcv_skb</span>(sk, skb);
+  <span class="hljs-built_in">sock_put</span>(sk);
+  <span class="hljs-comment">/* a return value &gt; 0 means to resubmit the input, but</span>
+<span class="hljs-comment">   * it wants the return to be -protocol, or 0</span>
+<span class="hljs-comment">   */</span>
+  <span class="hljs-keyword">if</span> (ret &gt; <span class="hljs-number">0</span>)
+    <span class="hljs-keyword">return</span> -ret;
+  <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+&#125; <span class="hljs-keyword">else</span> &#123;</code></pre>
+
+<p>如果 early_demux 操作没有附加套接字，则现在将调用 <code>__udp4_lib_lookup_skb</code> 来查找接收套接字 。</p>
+<p>在上述两种情况下，数据报将排队到套接字：</p>
+<pre><code class="hljs c++">ret = <span class="hljs-built_in">udp_queue_rcv_skb</span>(sk, skb);
+<span class="hljs-built_in">sock_put</span>(sk);</code></pre>
+
+<p>如果没有找到套接字，则丢弃数据报：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/* No socket. Drop packet silently, if checksum is wrong */</span>
+<span class="hljs-keyword">if</span> (<span class="hljs-built_in">udp_lib_checksum_complete</span>(skb))
+        <span class="hljs-keyword">goto</span> csum_error;
+
+<span class="hljs-built_in">UDP_INC_STATS_BH</span>(net, UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
+<span class="hljs-built_in">icmp_send</span>(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, <span class="hljs-number">0</span>);
+
+<span class="hljs-comment">/*</span>
+<span class="hljs-comment"> * Hmm.  We got an UDP packet to a port to which we</span>
+<span class="hljs-comment"> * don&#x27;t wanna listen.  Ignore it.</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-built_in">kfree_skb</span>(skb);
+<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;</code></pre>
+
+<h5 id="udp-queue-rcv-skb"><a href="#udp-queue-rcv-skb" class="headerlink" title="udp_queue_rcv_skb"></a><code>udp_queue_rcv_skb</code></h5><p>此函数的初始部分如下所示：</p>
+<ol>
+<li>确定与数据报关联的套接字是否是<a target="_blank" rel="noopener" href="https://tools.ietf.org/html/rfc3948">封装</a>套接字。 如果是，在继续之前传递数据包到该层的处理函数。</li>
+<li>确定数据报是否为 UDP-Lite 数据报，并执行一些完整性检查。</li>
+<li>验证数据报的 UDP 校验和，如果校验和失败，则丢弃数据报。</li>
+</ol>
+<p>最后，我们到达接收队列逻辑，它首先检查套接字的接收队列是否已满。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/udp.c#L1548-L1549"><code>net/ipv4/udp.c</code></a>：</p>
+<pre><code class="hljs c++"><span class="hljs-keyword">if</span> (<span class="hljs-built_in">sk_rcvqueues_full</span>(sk, skb, sk-&gt;sk_rcvbuf))
+  <span class="hljs-keyword">goto</span> drop;</code></pre>
+
+<h5 id="sk-rcvqueues-full"><a href="#sk-rcvqueues-full" class="headerlink" title="sk_rcvqueues_full"></a><code>sk_rcvqueues_full</code></h5><p><code>sk_rcvqueues_full</code> 函数检查套接字的 backlog 长度和套接字的 <code>sk_rmem_alloc</code>，以确定总和是否大于套接字的 <code>sk_rcvbuf</code>（<code>sk-&gt;sk_rcvbuf</code>）：</p>
+<pre><code class="hljs c++"><span class="hljs-comment">/*</span>
+<span class="hljs-comment"> * Take into account size of receive queue and backlog queue</span>
+<span class="hljs-comment"> * Do not take into account this skb truesize,</span>
+<span class="hljs-comment"> * to allow even a single big packet to come.</span>
+<span class="hljs-comment"> */</span>
+<span class="hljs-function"><span class="hljs-type">static</span> <span class="hljs-keyword">inline</span> <span class="hljs-type">bool</span> <span class="hljs-title">sk_rcvqueues_full</span><span class="hljs-params">(<span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> sock *sk, <span class="hljs-type">const</span> <span class="hljs-keyword">struct</span> sk_buff *skb,</span></span>
+<span class="hljs-params"><span class="hljs-function">                                     <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> limit)</span></span>
+<span class="hljs-function"></span>&#123;
+        <span class="hljs-type">unsigned</span> <span class="hljs-type">int</span> qsize = sk-&gt;sk_backlog.len + <span class="hljs-built_in">atomic_read</span>(&amp;sk-&gt;sk_rmem_alloc);
+
+        <span class="hljs-keyword">return</span> qsize &gt; limit;
+&#125;</code></pre>
+
+<p>调优这些值有点棘手，因为有很多东西可以调整。</p>
+<h6 id="调优：套接字接收队列内存"><a href="#调优：套接字接收队列内存" class="headerlink" title="调优：套接字接收队列内存"></a>调优：套接字接收队列内存</h6><p>sk<code>sk-&gt;sk_rcvbuf</code>（在上面的<code>sk_rcvqueues_full</code>中称为limit）值可以增加到 sysctl<code>net.core.rmem_max</code> 设置的值。</p>
+<p>设置 <code>sysctl</code> 增加最大接收缓冲区大小。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.core.rmem_max=8388608</code></pre>
+
+<p><code>sk-&gt;sk_rcvbuf</code> 从 <code>net.core.rmem_default</code> 值开始，也可以设置 sysctl 来调整，如下所示：</p>
+<p>设置 <code>sysctl</code> 来调整默认的初始接收缓冲区大小。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.core.rmem_default=8388608</code></pre>
+
+<p>您可以在应用程序中调用 <a target="_blank" rel="noopener" href="http://www.manpagez.com/man/2/setsockopt/"><code>setsockopt</code></a> 并传递 <code>SO_RCVBUF</code> 来设置 <code>sk-&gt;sk_rcvbuf</code> 的大小。您可以使用 <code>setsockopt</code> 设置的最大值为 <code>net.core.rmem_max</code>。</p>
+<p>但是，您可以调用 <code>setsockopt</code> 并传递 <code>SO_RCVBUFFORCE</code> 来覆盖 <code>net.core.rmem_max</code> 的限制，但运行应用程序的用户需要具有 <code>CAP_NET_ADMIN</code> 权限。</p>
+<p>当调用 <code>skb_set_owner_r</code> 设置数据报的所有者套接字时，会增加 <code>sk-&gt;sk_rmem_alloc</code> 的值。我们稍后将在 UDP 层中看到这个调用。</p>
+<p>当调用 <code>sk_add_backlog</code> 时，会增加 <code>sk-&gt;sk_backlog.len</code> 的值，我们接下来将看到这个调用。</p>
+<h4 id="udp-queue-rcv-skb-1"><a href="#udp-queue-rcv-skb-1" class="headerlink" title="udp_queue_rcv_skb"></a><code>udp_queue_rcv_skb</code></h4><p>一旦验证队列未满，则可以继续对数据报进行排队。 来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/udp.c#L1554-L1561">net&#x2F;ipv4&#x2F;udp.c</a>：</p>
+<pre><code class="hljs c++"><span class="hljs-built_in">bh_lock_sock</span>(sk);
+<span class="hljs-keyword">if</span> (!<span class="hljs-built_in">sock_owned_by_user</span>(sk))
+  rc = __udp_queue_rcv_skb(sk, skb);
+<span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (<span class="hljs-built_in">sk_add_backlog</span>(sk, skb, sk-&gt;sk_rcvbuf)) &#123;
+  <span class="hljs-built_in">bh_unlock_sock</span>(sk);
+  <span class="hljs-keyword">goto</span> drop;
+&#125;
+<span class="hljs-built_in">bh_unlock_sock</span>(sk);
+
+<span class="hljs-keyword">return</span> rc;</code></pre>
+
+<p>第一步是确定套接字当前是否有任何来自用户空间程序的系统调用。 如果<strong>没有</strong>，则可以调用 <code>__udp_queue_rcv_skb</code> 添加数据报到接收队列。 如果是，则调用 <code>sk_add_backlog</code> 排队数据报到 backlog。</p>
+<p>当套接字系统调用调用内核中的 <code>release_sock</code> 释放套接字时，backlog 上的数据报被添加到接收队列。</p>
+<h5 id="udp-queue-rcv-skb-2"><a href="#udp-queue-rcv-skb-2" class="headerlink" title="__udp_queue_rcv_skb"></a><code>__udp_queue_rcv_skb</code></h5><p><code>__udp_queue_rcv_skb</code> 函数调用 <code>sock_queue_rcv_skb</code> 添加数据报到接收队列，如果数据报无法添加到套接字的接收队列，则会增加统计计数器。</p>
+<p>来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/ipv4/udp.c#L1431-L1443">net&#x2F;ipv4&#x2F;udp.c</a>：</p>
+<pre><code class="hljs c++">rc = <span class="hljs-built_in">sock_queue_rcv_skb</span>(sk, skb);
+<span class="hljs-keyword">if</span> (rc &lt; <span class="hljs-number">0</span>) &#123;
+  <span class="hljs-type">int</span> is_udplite = <span class="hljs-built_in">IS_UDPLITE</span>(sk);
+
+  <span class="hljs-comment">/* Note that an ENOMEM error is charged twice */</span>
+  <span class="hljs-keyword">if</span> (rc == -ENOMEM)
+    <span class="hljs-built_in">UDP_INC_STATS_BH</span>(<span class="hljs-built_in">sock_net</span>(sk), UDP_MIB_RCVBUFERRORS,is_udplite);
+
+  <span class="hljs-built_in">UDP_INC_STATS_BH</span>(<span class="hljs-built_in">sock_net</span>(sk), UDP_MIB_INERRORS, is_udplite);
+  <span class="hljs-built_in">kfree_skb</span>(skb);
+  <span class="hljs-built_in">trace_udp_fail_queue_rcv_skb</span>(rc, sk);
+  <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;
+&#125;</code></pre>
+
+<h5 id="监控：UDP-协议层统计信息"><a href="#监控：UDP-协议层统计信息" class="headerlink" title="监控：UDP 协议层统计信息"></a>监控：UDP 协议层统计信息</h5><p>获取 UDP 协议统计信息的两个非常有用的文件是：</p>
+<ul>
+<li><code>/proc/net/snmp</code></li>
+<li><code>/proc/net/udp</code></li>
+</ul>
+<h6 id="proc-net-snmp"><a href="#proc-net-snmp" class="headerlink" title="/proc/net/snmp"></a><code>/proc/net/snmp</code></h6><p>读取 <code>/proc/net/snmp</code> 监控详细的 UDP 协议统计信息。</p>
+<pre><code class="hljs tcl">$ cat /<span class="hljs-keyword">proc</span>/net/snmp |<span class="hljs-title"> grep</span> Udp\:<span class="hljs-title"></span>
+<span class="hljs-title">Udp:</span> InDatagrams<span class="hljs-title"> NoPorts</span> InErrors<span class="hljs-title"> OutDatagrams</span> RcvbufErrors<span class="hljs-title"> SndbufErrors</span>
+Udp: 16314 0 0 17161 0 0</code></pre>
+
+<p>与此文件中 I P协议的详细统计信息非常相似，您需要阅读协议层源文件，以准确确定这些值在何时何地递增。</p>
+<ul>
+<li><code>InDatagrams</code>：当用户程序使用 <code>recvmsg</code> 读取数据报时递增。当 UDP 数据包被封装并发送回来进行处理时也会递增。</li>
+<li><code>NoPorts</code>：当 UDP 数据包到达目标端口，但没有程序在监听时递增。</li>
+<li><code>InErrors</code>：在几种情况下递增：接收队列中没有内存，检测到校验和错误，以及如果 <code>sk_add_backlog</code> 未能添加数据报。</li>
+<li><code>OutDatagrams</code>：当 UDP 数据包无错误地传递给 IP 协议层发送时递增。</li>
+<li><code>RcvbufErrors</code>：当 <code>sock_queue_rcv_skb</code> 报告没有可用内存时递增；如果 <code>sk-&gt;sk_rmem_alloc</code> 大于或等于 <code>sk-&gt;sk_rcvbuf</code> 时会发生这种情况。</li>
+<li><code>SndbufErrors</code>：如果 IP 协议层在尝试发送数据包时报告错误且未设置错误队列，则递增。如果没有可用的发送队列空间或内核内存也会递增。</li>
+<li><code>InCsumErrors</code>：当检测到 UDP 校验和失败时递增。请注意，在我能找到的所有情况中，<code>InCsumErrors</code> 都与 <code>InErrors</code> 同时递增。因此，<code>InErrors - InCsumErros</code> 应该得出接收端内存相关错误的计数。</li>
+</ul>
+<h6 id="proc-net-udp"><a href="#proc-net-udp" class="headerlink" title="/proc/net/udp"></a><code>/proc/net/udp</code></h6><p>读取 <code>/proc/net/udp</code> 监控 UDP 套接字统计信息</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /proc/net/udp
+  sl  local_address rem_address   st tx_queue rx_queue <span class="hljs-built_in">tr</span> tm-&gt;when retrnsmt   uid  <span class="hljs-built_in">timeout</span> inode ref pointer drops
+  515: 00000000:B346 00000000:0000 07 00000000:00000000 00:00000000 00000000   104        0 7518 2 0000000000000000 0
+  558: 00000000:0371 00000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 7408 2 0000000000000000 0
+  588: 0100007F:038F 00000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 7511 2 0000000000000000 0
+  769: 00000000:0044 00000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 7673 2 0000000000000000 0
+  812: 00000000:006F 00000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 7407 2 0000000000000000 0</code></pre>
+
+<p>第一行描述后续行中的每个字段：</p>
+<ul>
+<li><code>sl</code>：套接字的内核哈希槽</li>
+<li><code>local_address</code>：套接字的十六进制本地地址和端口号，用 <code>:</code> 分隔。</li>
+<li><code>rem_address</code>：套接字的十六进制远程地址和端口号，用 <code>:</code> 分隔。</li>
+<li><code>st</code>：套接字的状态。奇怪的是，UDP 协议层似乎使用了一些 TCP 套接字状态。在上面的示例中，<code>7</code> 是 <code>TCP_CLOSE</code>。</li>
+<li><code>tx_queue</code>：内核为传出 UDP 数据报分配的内存量。</li>
+<li><code>rx_queue</code>：内核为传入 UDP 数据报分配的内存量。</li>
+<li><code>tr</code>、<code>tm-&gt;when</code>、<code>retrnsmt</code>：这些字段未被 UDP 协议层使用。</li>
+<li><code>uid</code>：创建此套接字的用户的有效用户 ID。</li>
+<li><code>timeout</code>：未被 UDP 协议层使用。</li>
+<li><code>inode</code>：与此套接字对应的 inode 编号。您可以使用它来帮助您确定哪个用户进程打开了此套接字。检查 <code>/proc/[pid]/fd</code>，其中包含指向 <code>socket[:inode]</code> 的符号链接。</li>
+<li><code>ref</code>：套接字的当前引用计数。</li>
+<li><code>pointer</code>：内核中 <code>struct sock</code> 的内存地址。</li>
+<li><code>drops</code>：与此套接字关联的数据报丢弃数。 请注意，这不包括任何与发送数据报有关的丢弃（在 corked 的 UDP 套接字上，或其他）；在本博客考察的内核版本中，只在接收路径中增加。</li>
+</ul>
+<p>可以在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/master/net/ipv4/udp.c#L2396-L2431"><code>net/ipv4/udp.c</code></a> 中找到输出此内容的代码。</p>
+<h4 id="排队数据到套接字"><a href="#排队数据到套接字" class="headerlink" title="排队数据到套接字"></a>排队数据到套接字</h4><p>网络数据调用 <code>sock_queue_rcv</code> 排队到套接字。在添加数据报到队列之前，此函数会执行一些操作：</p>
+<ol>
+<li>检查套接字的分配内存，以确定它是否超过了接收缓冲区大小。如果是，则增加套接字的丢弃计数。</li>
+<li>接下来使用 <code>sk_filter</code> 处理已应用于套接字的 Berkeley Packet Filter 过滤器。</li>
+<li>运行 <code>sk_rmem_schedule</code>，以确保有足够的接收缓冲区空间来接受此数据报。</li>
+<li>接下来调用 <code>skb_set_owner_r</code> 将数据报的大小计入套接字。这会增加 <code>sk-&gt;sk_rmem_alloc</code>。</li>
+<li>调用 <code>__skb_queue_tail</code> 添加数据到队列中。</li>
+<li>最后，调用 <code>sk_data_ready</code> 通知处理程序函数通知任何等待套接字中数据到达的进程。</li>
+</ol>
+<p>这就是数据如何到达系统并遍历网络堆栈，直到它到达套接字并准备好被用户程序读取。</p>
+<h3 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h3><p>有一些额外的事情值得一提，值得一提的是，似乎不太正确的其他任何地方。</p>
+<h4 id="时间戳"><a href="#时间戳" class="headerlink" title="时间戳"></a>时间戳</h4><p>正如上面的博客文章中提到的，网络栈可以收集传出数据的时间戳。 请参阅上面的网络栈演练，了解软件中的传输时间戳发生的位置。 一些 NIC 甚至还支持硬件中的时间戳。</p>
+<p>如果您想尝试确定内核网络栈在发送数据包时增加了多少延迟，这是一个有用的特性。</p>
+<p>关于<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/networking/timestamping.txt">时间戳的内核文档</a>非常好，甚至还有一个包含的示例程序和 Makefile，<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/tree/v3.13/Documentation/networking/timestamping">你可以查看</a>！</p>
+<p>使用 <code>ethtool -T</code> 确定您的驱动程序和设备支持的时间戳模式。</p>
+<pre><code class="hljs bash">$ sudo ethtool -T eth0
+Time stamping parameters <span class="hljs-keyword">for</span> eth0:
+Capabilities:
+  software-transmit     (SOF_TIMESTAMPING_TX_SOFTWARE)
+  software-receive      (SOF_TIMESTAMPING_RX_SOFTWARE)
+  software-system-clock (SOF_TIMESTAMPING_SOFTWARE)
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none</code></pre>
+
+<p>不幸的是，这个网卡不支持硬件接收时间戳，但是软件时间戳仍然可以在这个系统上使用，以帮助我确定内核给我的数据包接收路径增加了多少延迟。</p>
+<h4 id="低延迟套接字的忙轮询"><a href="#低延迟套接字的忙轮询" class="headerlink" title="低延迟套接字的忙轮询"></a>低延迟套接字的忙轮询</h4><p>可以使用名为 <code>SO_BUSY_POLL</code> 的套接字选项，当执行阻塞接收且没有数据时，它会导致内核忙碌轮询新数据。</p>
+<p>重要提示：要使此选项正常工作，您的设备驱动程序必须支持它。Linux 内核 3.13.0 的 <code>igb</code> 驱动程序不支持此选项。然而，<code>ixgbe</code> 驱动程序支持。如果您的驱动程序在其 <code>struct net_device_ops</code> 结构（在上面的博客文章中提到）的 <code>ndo_busy_poll</code> 字段中设置了一个函数，则它支持 <code>SO_BUSY_POLL</code>。</p>
+<p><a target="_blank" rel="noopener" href="http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/open-source-kernel-enhancements-paper.pdf">Intel</a> 提供了一篇很棒的论文，解释了这是如何工作的以及如何使用它。</p>
+<p>当为单个套接字使用此套接字选项时，您应该传递一个以微秒为单位的时间值，作为在设备驱动程序的接收队列中忙碌轮询新数据的时间。在设置此值后，当您对此套接字发出阻塞读取时，内核将忙碌轮询新数据。</p>
+<p>您还可以设置 sysctl 值 <code>net.core.busy_poll</code> 为以微秒为单位的时间值，表示使用 <code>poll</code> 或 <code>select</code> 的调用应忙碌轮询等待新数据到达的时间。</p>
+<p>此选项可以减少延迟，但会增加 CPU 使用率和功耗。</p>
+<h4 id="Netpoll：支持关键环境中的联网"><a href="#Netpoll：支持关键环境中的联网" class="headerlink" title="Netpoll：支持关键环境中的联网"></a>Netpoll：支持关键环境中的联网</h4><p>Linux 内核提供了一种方法，可以在内核崩溃时使用设备驱动程序在 NIC 上发送和接收数据。这个 API 被称为 Netpoll，它被一些东西使用，但最值得注意的是：<a target="_blank" rel="noopener" href="http://sysprogs.com/VisualKernel/kgdboe/launch/">kgdb</a>、<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/networking/netconsole.txt">netconsole</a>。</p>
+<p>大多数驱动程序都支持 Netpoll；您的驱动程序需要实现 <code>ndo_poll_controller</code> 函数，并将其关联到探测期间注册的 <code>struct net_device_ops</code>（如上所示）。</p>
+<p>当网络设备子系统对传入或传出数据执行操作时，首先检查 netpoll 系统以确定数据包是否目标为 netpoll。</p>
+<p>例如，我们可以在 <code>__netif_receive_skb_core</code> 中看到以下代码，来自 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/net/core/dev.c#L3511-L3514"><code>net/dev/core.c</code></a>：</p>
+<pre><code class="hljs c++"><span class="hljs-type">static</span> <span class="hljs-type">int</span> __netif_receive_skb_core(<span class="hljs-keyword">struct</span> sk_buff *skb, <span class="hljs-type">bool</span> pfmemalloc)
+&#123;
+
+  <span class="hljs-comment">/* ... */</span>
+
+  <span class="hljs-comment">/* if we&#x27;ve gotten here through NAPI, check netpoll */</span>
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">netpoll_receive_skb</span>(skb))
+    <span class="hljs-keyword">goto</span> out;
+
+  <span class="hljs-comment">/* ... */</span>
+&#125;</code></pre>
+
+<p>Netpoll 检查发生在大多数处理传输或接收网络数据的 Linux 网络设备子系统代码之前。</p>
+<p>Netpoll API 的使用者可以调用 <code>netpoll_setup</code> 来注册 <code>struct netpoll</code> 结构。<code>struct netpoll</code> 结构具有关联接收钩子的函数指针，API 导出了一个发送数据的函数。</p>
+<p>如果您对使用 Netpoll API 感兴趣，您应该查看 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/netconsole.c"><code>netconsole</code> 驱动程序</a>、Netpoll API 头文件 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/include/linux/netpoll.h"><code>include/linux/netpoll.h</code></a> 和 <a target="_blank" rel="noopener" href="http://people.redhat.com/~jmoyer/netpoll-linux_kongress-2005.pdf">这个优秀的演讲</a>。</p>
+<h4 id="SO-INCOMING-CPU"><a href="#SO-INCOMING-CPU" class="headerlink" title="SO_INCOMING_CPU"></a><code>SO_INCOMING_CPU</code></h4><p><code>SO_INCOMING_CPU</code> 标志直到 Linux 3.19 才被添加，但它非常有用，应该包含在此博客文章中。</p>
+<p>您可以使用 <code>getsockopt</code> 和 <code>SO_INCOMING_CPU</code> 选项来确定哪个 CPU 处理特定套接字的网络数据包。然后，您的应用程序可以使用此信息将套接字交给在所需 CPU 上运行的线程，以帮助增加数据局部性和 CPU 缓存命中。</p>
+<p>引入 <code>SO_INCOMING_CPU</code> 的<a target="_blank" rel="noopener" href="https://patchwork.ozlabs.org/patch/408257/">邮件列表消息</a>提供了一个简短的示例架构，其中此选项很有用。</p>
+<h4 id="DMA引擎"><a href="#DMA引擎" class="headerlink" title="DMA引擎"></a>DMA引擎</h4><p><a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Direct_memory_access">DMA</a> 引擎是一种硬件，它允许 CPU 卸载大型复制操作。这使得 CPU 使用硬件完成内存复制时可以执行其他任务。启用 DMA 引擎并运行利用它的代码，应该会降低 CPU 使用率。</p>
+<p>Linux 内核具有通用的 DMA 引擎接口，DMA 引擎驱动程序作者可以插入。您可以在 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/Documentation/dmaengine.txt">内核源代码文档</a> 中了解更多关于 Linux DMA 引擎接口的信息。</p>
+<p>尽管内核支持一些 DMA 引擎，但我们将讨论一种非常常见的特定 DMA 引擎：<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/I/O_Acceleration_Technology">Intel IOAT DMA 引擎</a>。</p>
+<h5 id="英特尔的-I-x2F-O-加速技术（IOAT）"><a href="#英特尔的-I-x2F-O-加速技术（IOAT）" class="headerlink" title="英特尔的 I&#x2F;O 加速技术（IOAT）"></a>英特尔的 I&#x2F;O 加速技术（IOAT）</h5><p>许多服务器都包含 <a target="_blank" rel="noopener" href="http://www.intel.com/content/www/us/en/wireless-network/accel-technology.html">Intel I&#x2F;O AT 组件包</a>，它由一系列性能更改组成。</p>
+<p>其中一个更改是包含硬件 DMA 引擎。您可以检查 <code>dmesg</code> 输出中的 <code>ioatdma</code>，以确定模块是否正在加载并且是否找到了支持的硬件。</p>
+<p>DMA 卸载引擎在几个地方使用，最值得注意的是在 TCP 栈中。</p>
+<p>对 Intel IOAT DMA 引擎的支持包含在 Linux 2.6.18 中，但由于一些不幸的 <a target="_blank" rel="noopener" href="https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=77873803363c9e831fc1d1e6895c084279090c22">数据损坏错误</a>，它在 3.13.11.10 中被禁用。</p>
+<p>在 3.13.11.10 之前的内核上的用户可能默认在其服务器上使用 <code>ioatdma</code> 模块。也许这将在未来的内核版本中得到修复。</p>
+<h6 id="直接缓存访问"><a href="#直接缓存访问" class="headerlink" title="直接缓存访问"></a>直接缓存访问</h6><p>与 <a target="_blank" rel="noopener" href="http://www.intel.com/content/www/us/en/wireless-network/accel-technology.html">Intel I&#x2F;O AT 组件包</a> 一起包含的另一个有趣功能是直接缓存访问 (DCA)。</p>
+<p>此功能允许网络设备（通过其驱动程序）直接放置网络数据到 CPU 缓存中。具体如何实现这一点是特定于驱动程序的。对于 <code>igb</code> 驱动程序，您可以检查 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L5202-L5219">函数 <code>igb_update_dca</code> 的代码</a>，以及 <a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v3.13/drivers/net/ethernet/intel/igb/igb_main.c#L5182-L5200"><code>igb_update_rx_dca</code> 的代码</a>。<code>igb</code> 驱动程序向 NIC 写入寄存器值来使用 DCA。</p>
+<p>要使用 DCA，您需要确保在 BIOS 中启用了 DCA，加载了 <code>dca</code> 模块，并且您的网络卡和驱动程序都支持 DCA。</p>
+<h6 id="监控-IOAT-DMA-引擎"><a href="#监控-IOAT-DMA-引擎" class="headerlink" title="监控 IOAT DMA 引擎"></a>监控 IOAT DMA 引擎</h6><p>如果您正在使用 <code>ioatdma</code> 模块，尽管有上面提到的数据损坏的风险，您可以检查 <code>sysfs</code> 中的一些条目监控它。</p>
+<p>监控 DMA 通道的卸载 <code>memcpy</code> 操作总数。</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /sys/class/dma/dma0chan0/memcpy_count
+123205655</code></pre>
+
+<p>类似地，要获取此 DMA 通道卸载的字节数，可以运行以下命令：</p>
+<p>监控 DMA 通道传输的总字节数。</p>
+<pre><code class="hljs bash">$ <span class="hljs-built_in">cat</span> /sys/class/dma/dma0chan0/bytes_transferred
+131791916307</code></pre>
+
+<h6 id="调优-IOAT-DMA-引擎"><a href="#调优-IOAT-DMA-引擎" class="headerlink" title="调优 IOAT DMA 引擎"></a>调优 IOAT DMA 引擎</h6><p>IOAT DMA 引擎仅在数据包大小高于某个阈值时使用。 这个阈值被称为 <code>copybreak</code>。 之所以进行此检查，是因为对于小型副本，设置和使用 DMA 引擎的开销不值得加速传输。</p>
+<p>使用 <code>sysctl</code> 调整 DMA 引擎 <code>copybreak</code>。</p>
+<pre><code class="hljs bash">$ sudo sysctl -w net.ipv4.tcp_dma_copybreak=2048</code></pre>
+
+<p>默认值为 4096。</p>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>Linux 网络堆栈非常复杂。</p>
+<p>如果不深入了解究竟发生了什么，就不可能监控或调优它（或任何其他复杂的软件）。通常，在互联网的荒野中，您可能会偶然发现一个包含一组 sysctl 值的示例 <code>sysctl.conf</code>，复制并粘贴到您的计算机上。这可能不是优化您的网络堆栈的最佳方法。</p>
+<p>监控网络堆栈需要在每一层仔细核算网络数据。从驱动程序开始，然后向上进行。这样您就可以确定丢弃和错误发生在哪里，然后调整设置以确定如何减少您看到的错误。</p>
+<p>不幸的是，没有简单的出路。</p>
+<p><em>原文：</em> <a target="_blank" rel="noopener" href="https://blog.packagecloud.io/monitoring-tuning-linux-networking-stack-receiving-data/">Monitoring and Tuning the Linux Networking Stack: Receiving Data</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/04-24-2023/monitoring-and-tuning-the-linux-networking-stack-recv-cn.html">https://www.cyningsun.com/04-24-2023/monitoring-and-tuning-the-linux-networking-stack-recv-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Network" rel="category"># Network</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/10-08-2023/dive-into-dns-resolution.html">深入理解 DNS 解析</a></span></li>
+          
+            <li><span><a href="/05-10-2023/a-scalable-commodity-data-center-network-architecture-cn.html">译｜A scalable, commodity data center network architecture</a></span></li>
+          
+            <li><span><a href="/04-26-2023/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn.html">译｜llustrated Guide to Monitoring and Tuning the Linux Networking Stack: Receiving Data</a></span></li>
+          
+            <li><span><a href="/04-25-2023/monitoring-and-tuning-the-linux-networking-stack-sent-cn.html">译｜Monitoring and Tuning the Linux Networking Stack: Sending Data</a></span></li>
+          
+            <li><span><a href="/03-30-2023/network-transmission.html">TCP/IP 网络传输</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-25-2023/monitoring-and-tuning-the-linux-networking-stack-sent-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/03-30-2023/network-transmission.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

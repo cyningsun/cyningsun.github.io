@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜Thinking Clearly about Performance (Part 1)</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-10-21 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-10-27 00:00:00 +0800"/>
+
+<meta property="og:url" content="/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="当我 1989 年加入 Oracle 公司时，性能优化（大家称之为“Oracle 调优”）尚非易事。 只有少数人声称他们能做得很好，并以此获得很高的咨询率。情况迫使我进入“Oracle 调优”领域时，我却毫无准备。与20多年前 Oracle 的经历非常相似，最近我被引荐入“MySQL 调优”领域。 它唤起了我的许多回忆，那时我大约13岁，多么艰难的开始学习代">
+
+<meta name="keywords" content="性能调优,performance tuning">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜Thinking Clearly about Performance (Part 1)</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-10-21
+         | 
+        Last Revised: 2020-10-27
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%98%AF%E6%80%A7%E8%83%BD%EF%BC%9F"><span class="toc-text">什么是性能？</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%93%8D%E5%BA%94%E6%97%B6%E9%97%B4-vs-%E5%90%9E%E5%90%90%E9%87%8F"><span class="toc-text">响应时间 vs 吞吐量</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%99%BE%E5%88%86%E4%BD%8D%E6%8C%87%E6%A0%87"><span class="toc-text">百分位指标</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%97%AE%E9%A2%98%E8%AF%8A%E6%96%AD"><span class="toc-text">问题诊断</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%97%B6%E5%BA%8F%E5%9B%BE"><span class="toc-text">时序图</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E5%89%96%E6%9E%90"><span class="toc-text">性能剖析</span></a><ol class="toc-child"><li class="toc-item toc-level-5"><a class="toc-link" href="#%E9%98%BF%E5%A7%86%E8%BE%BE%E5%B0%94%E5%AE%9A%E5%BE%8B"><span class="toc-text">阿姆达尔定律</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E5%80%BE%E6%96%9C"><span class="toc-text">倾斜</span></a></li><li class="toc-item toc-level-5"><a class="toc-link" href="#%E6%9C%80%E5%B0%8F%E5%8C%96%E9%A3%8E%E9%99%A9"><span class="toc-text">最小化风险</span></a></li></ol></li></ol></li></ol>
+ 
+        <p>当我 1989 年加入 Oracle 公司时，性能优化（大家称之为“Oracle 调优”）尚非易事。 只有少数人声称他们能做得很好，并以此获得很高的咨询率。情况迫使我进入“Oracle 调优”领域时，我却毫无准备。与20多年前 Oracle 的经历非常相似，最近我被引荐入“MySQL 调优”领域。</p>
+<p>它唤起了我的许多回忆，那时我大约13岁，多么艰难的开始学习代数。在那个年纪，我不得不强烈地依赖于试错才能完成。我记得看到一个方程，比如 3x + 4 &#x3D; 13，基本上磕磕绊绊得到答案，x&#x3D;3。</p>
+<p>解决简单的方程式，试错法速度缓慢、不好用，随着问题变得复杂，却不再成立，例如：3x + 4 &#x3D; 14，接下来呢？问题在于我还没有把代数思考清楚。直到15岁时，詹姆斯·哈基（James R. Harkey）老师指引我走上解决该问题的道路。</p>
+<p>在高中时，哈基先生教导我们使用他所谓的公理化方法来求解代数方程。 他教给我们一套每次都有效的步骤（而且给了我们大量的作业作为练习）。此外，通过执行这些步骤，随着解答我们必须记录下我们的想法。使用一系列可靠且可重复的步骤，我们不仅思考得很清楚，还向阅读我们作业的人证明我们思考得很清楚。</p>
+<p>给哈基先生的作业类似如下：</p>
+<pre><code class="hljs c++"><span class="hljs-number">3.1</span>x + <span class="hljs-number">4</span> = <span class="hljs-number">13</span> <span class="hljs-comment">// 待求解方程</span>
+<span class="hljs-number">3.1</span>x + <span class="hljs-number">4</span> - <span class="hljs-number">4</span> = <span class="hljs-number">13</span> - <span class="hljs-number">4</span> <span class="hljs-comment">// 减去相等的值</span>
+<span class="hljs-number">3.1</span>x = <span class="hljs-number">9</span> <span class="hljs-comment">// 加法逆运算，化简</span>
+<span class="hljs-number">3.1</span>x ∕ <span class="hljs-number">3.1</span> = <span class="hljs-number">9</span> ∕ <span class="hljs-number">3.1</span> <span class="hljs-comment">// 除以相等的值</span>
+x ≈ <span class="hljs-number">2.903</span> <span class="hljs-comment">// 乘法逆运算，化简</span></code></pre>
+
+<p>哈基先生解决代数、几何学、三角学和微积分的公理化方法就是这样：一次只需一小步，合乎逻辑的、可证明的、可审查的一步。这是我第一次真正掌握数学。</p>
+<p>自然，当时我并没有意识到，却证明是我在课后的世界中取得成功至关重要的一项技能。在生活中，我发现了解事物很重要，但向别人证明事物更重要。没有良好的证明技术，很难成为一名优秀的顾问、一名优秀的领导者，甚至是一名优秀的员工。</p>
+<p>自1990年代中期以来，我的目标一直是为 Oracle 性能优化创建类似的严格方法。最近，我将目标的范围扩展到Oracle之外：“创建一个计算机软件性能优化的公理化方法。”我发现没有多少人喜欢我这样说，所以换而言之：“我的目标是帮助你清楚地思考如何优化你的计算机软件的性能。”</p>
+<h3 id="什么是性能？"><a href="#什么是性能？" class="headerlink" title="什么是性能？"></a>什么是性能？</h3><p>搜索 <code>performance</code> 一词可以得到超过5亿次点击的概念，涉及从自行车比赛，到许多公司如今正在尝试避免的、可怕的员工评估流程。大多数热门话题都与本文的主题有关：计算机软件执行您要执行的任务所花费的时间。</p>
+<p>任务，一个面向业务的工作单位，是一个很重要的概念。任务可以嵌套：“打印发票”是一项任务；“打印一张发票”（一个子任务）也是一个任务。对于计算机用户而言，性能通常是指系统执行某些任务所花费的时间。响应时间是任务执行的持续时间，以每次任务的时间来衡量，例如：“每次点击的秒数”。 例如，我在 Google 搜索单词 <code>performance</code> 的响应时间为0.24秒。 Google 网页直接在浏览器中显示了该数据。以此向我证明 Google 重视我对 Google 性能的看法。</p>
+<p>有些人关心另一种性能衡量标准：吞吐量，在指定时间间隔内完成的任务执行次数，例如“一秒内的点击次数”。 通常，负责团队绩效的人比单独贡献者角色的人更关心吞吐量。例如，单个会计师通常更关心每日报告的响应时间是否会需要该会计师推迟下班。账户中心的经理还关心系统是否能够处理组内所有会计师要处理的数据。</p>
+<h4 id="响应时间-vs-吞吐量"><a href="#响应时间-vs-吞吐量" class="headerlink" title="响应时间 vs 吞吐量"></a>响应时间 vs 吞吐量</h4><p>吞吐量和响应时间通常具有倒数关系，但不完全如此。真正的关系微妙地复杂。</p>
+<p><strong>例一：</strong>想象一下，在某些基准测试种，吞吐量是每秒1000个任务。那么，您的用户的平均响应时间是多少？人们很容易认为平均响应时间是每个任务1&#x2F;1000&#x3D;.001秒，但并非一定如此。</p>
+<p>想象一下，处理此吞吐量的系统具有1000个并行、独立、同质的服务通道（也就是说，它是一个具有1000个独立、同等服务能力的系统，每个都在等待服务的请求）。在这种情况下，每个请求可能都恰好消耗了1秒。</p>
+<p>现在，您就知道每个任务的平均响应时间介于0到1秒之间。但是，仅凭吞吐量测量数据，您不能得出响应时间。您必须单独度量它（我仔细地在此句中包含 <code>exclusively</code> 这个词，因为有些数学模型可以计算给定吞吐量的响应时间，但模型需要更多输入，而不仅仅是吞吐量）。</p>
+<p>反之也同样成立。你当然可以反过来证明该例子。然而，一个更惊人的例子会更有趣。</p>
+<p><strong>例二：</strong>您的客户要求你正在编写的新任务，在一台单CPU计算机上实现每秒100次任务的吞吐量。假如您编写的新任务只需0.001秒即可在客户的系统上执行完毕。您的程序能否会满足客户所需的吞吐量？</p>
+<p>人们很容易认为，如果可以在千分之一秒内运行一次任务，那么毫无疑问，能够在一秒钟内运行该任务至少100次。如果任务请求被很好地串行化，你的程序可以在循环内，一个接一个地执行客户要求的100次任务，此时你是对的。</p>
+<p>但是，如果有100个不同的用户登陆到你的单CPU计算机，每秒100次任务随机出现在您的系统该怎样？最终，CPU调度程序和串行资源（例如 Oracle latch、lock 以及存储缓冲区的可写访问）的可怕现实可能会限制您的吞吐量，使其数量大大少于所要求的每秒100次任务。如此可能可行，也可能不行。仅凭响应时间测量数据，您不能得出响应时间。你必须单独度量它。</p>
+<p>响应时间和吞吐量不一定是倒数。要了解两者，需要对它们都进行度量。哪个更重要？对于特定情况，您可以从不同角度合理的回答。在许多情况下，答案是两者都是至关重要的测量数据，都需要管理。例如，系统所有者可能面临以下业务要求，对于给定任务，不仅要99%及以上的执行，响应时间必须小于等于1.0秒，且系统必须支持10分钟内持续不低于1000次任务执行的吞吐量。</p>
+<h4 id="百分位指标"><a href="#百分位指标" class="headerlink" title="百分位指标"></a>百分位指标</h4><p>在上一节中，我使用“99%及以上的执行”短语来衡量响应时间期望。许多人更习惯于“平均响应时间必须为r秒或更短”这样的描述。百分位方式的描述需求更符合人类的经验。</p>
+<p><strong>例三：</strong>假设每天在你计算机上执行的某些任务响应时间的公差为1秒。进一步假设 table 1 中显示的数字列表表示该任务执行10次测得的响应时间。每列的平均响应时间均为1.000秒。你认为哪一个更好？</p>
+<p><img src="/images/thinking-clearly-about-performance-cn/millsap-table1.png" alt="millsap-table1.png"></p>
+<p>尽管 table 1 中的两列具有相同的平均响应时间，但两列的特征却大不相同。List A，90%的响应时间小于等于1秒。List B，只有60%的响应时间小于等于1秒。反而言之，List B 代表一组40%不满意的用户体验，但 List A（具有与 List B 相同的平均响应时间）仅有10%的不满意率。</p>
+<p>List A 第90百分位数响应时间是.987秒；List B 为1.273秒。这些关于百分位数的陈述比仅仅说每个列表代表1.000秒的平均响应时间更具参考价值。</p>
+<p>正如 GE 所说，“我们的客户会感受到方差，而不是平均值”[4]。将响应时间目标表示为百分位，可以得出更具说服力的需求规约，以符合最终用户的期望：例如，“快件跟踪”任务至少99.9%的执行必须小于0.5秒内完成。</p>
+<h3 id="问题诊断"><a href="#问题诊断" class="headerlink" title="问题诊断"></a>问题诊断</h3><p>在几乎所有邀请我修复的性能问题中，所述问题都与响应时间有关：“过去完成X不到1秒；现在有时需要20+”。当然，类似具体的表述通常掩盖在其他问题的表象下，例如：“我们整个系统太慢了，以至无法使用它”[8]。</p>
+<p>虽然我遇到很多类似的很多事情，并不意味着它会发生在你身上。你首先要做的最重要的事情，就是清楚地说明问题，以便可以清楚地思考它。</p>
+<p>提问是开始的好方法，你想要实现的目标状态是什么？找到一些可以测量的指标来表达它：例如，“在许多情况下，X的响应时间超过20秒。我们希望至少95%的执行响应时间为小于等于1秒。“听起来不错，但如果您的用户没有这样一个指标量化的目标呢？该目标有两个数值（1和95）；如果您的用户不知道其中任何一个，该怎么办？更糟糕的是，如果您的用户有不可能实现的具体的想法，该怎么办？你怎么确定什么是“可能”或“不可能”呢？</p>
+<p>我们一起寻找方法解决以上问题。</p>
+<h4 id="时序图"><a href="#时序图" class="headerlink" title="时序图"></a>时序图</h4><p>时序图是UML（统一建模语言）中指定的一种图形，用于按交互发生的顺序表示对象之间的交互。时序图是可视化响应时间的一个非常有用的工具。Figure 1 是一个标准的UML时序图，展示了由浏览器、应用服务器和数据库组成的简单应用系统。</p>
+<p><img src="/images/thinking-clearly-about-performance-cn/millsap-1.png" alt="millsap-1.png"></p>
+<p>假设现在按比例绘制时序图，使得每个进入的“请求”箭头与其相应的“响应”箭头之间的距离与处理请求所花费的持续时间成正比。我在 Figure 2 展示了这样一个图。很好的以图形化的形式表示了图中组件如何花费用户的时间。您可以通过看图来“感受”响应时间的相对比例。</p>
+<p><img src="/images/thinking-clearly-about-performance-cn/millsap-2.png" alt="millsap-2.png"></p>
+<p>时序图正合适帮助人们产生概念，在一层将任务的控制权交给下一层的过程中，响应如何消耗在给定系统上。时序图也很好地展示了同步处理线程如何并行工作，它是超出信息技术之外分析性能的好工具[10]。</p>
+<p>时序图是讨论性能的一个很好的概念性工具，但要把性能思考清楚，还需要其他工具。有一个问题。假设你需要处理的任务响应时间为2468秒（41分钟，8秒）。在这段时间内，运行该任务会使应用服务器执行322968次数据库调用。 Figure 3 显示了该任务的时序图。</p>
+<p><img src="/images/thinking-clearly-about-performance-cn/millsap-3.png" alt="millsap-3.png"></p>
+<p>应用和数据库层之间有很多请求和响应箭头，你看不到任何细节。在非常长的长卷上打印序列图并非有用的解决方案，因为在你需要数周的目视检查，才能从看到的细节中获取有用的信息。</p>
+<p>序列图是一个很好的工具，将控制流和相应的时间流形成概念。然而，要把响应时间思考清楚，你还需要其他一些工具。</p>
+<h4 id="性能剖析"><a href="#性能剖析" class="headerlink" title="性能剖析"></a>性能剖析</h4><p>时序图不能很好地扩展。为了处理具有大量调用次数的任务，你需要方便地汇总时序图，以便了解花费时间的最重要模式。Table 2 展示了一个性能剖析的例子，它做到了这一点。性能剖析是响应时间的表格分解，通常按响应时间占比降序列出。</p>
+<p><img src="/images/thinking-clearly-about-performance-cn/millsap-table2.png" alt="millsap-table2.png"></p>
+<p><strong>例四：</strong>Table 2 中的性能剖析是基本的，但它确切地显示了你缓慢任务花费用户2468秒的地方。例如，使用此处显示的数据，可以得到性能剖析标识的每个函数调用的响应时间的百分比。你还可以得到任务中每种类型函数调用的平均响应时间。</p>
+<p>性能剖析显示你的代码花费时间的地方，甚至更重要的是显示了没有花费时间的地方。不必猜测本身就有很大的价值。</p>
+<p>从 Table 2 展示的数据中，你可以知道 DB:fetch() 调用消耗了用户响应时间的70.8%。此外，调用的持续时间被聚合以创建此性能剖析，如果您可以深入单个调用，那么你可以知道有多少 DB:fetch() 调用，相应的 App:await_db_netIO() 调用有多少，并且你可以知道每个调用消耗了多少响应时间。“这个任务应该运行多长时间？”，通过性能剖析，您可以开始形成问题的答案。到目前为止，您已经知道在任何好的问题诊断的第一步，这都是的一个重要问题。</p>
+<h5 id="阿姆达尔定律"><a href="#阿姆达尔定律" class="headerlink" title="阿姆达尔定律"></a>阿姆达尔定律</h5><p>性能剖析有助于您清楚地思考性能。即使 Gene Amdahl 在1967年没有提出阿姆达尔定律，你也可能在看到最初几个性能剖析之后提出它。</p>
+<p>阿姆达尔定律指出：性能提升与程序使用你的改进点的程度成正比。如果你尝试改进的点仅占任务总响应时间的5%，那么您能够最大影响总响应时间的5%。意味着你的工作越接近您的性能剖析的顶部（假设性能剖析按响应时间降序），总体响应时间的收益潜力就越大。</p>
+<p>这并不意味着您总是使用性能剖析自上而下的顺序工作，因为您还需要考虑您要执行的改进措施的成本[9]。</p>
+<p><strong>例五：</strong>考虑 Table 3 的性能剖析。它与 Table 2 的性能剖析基本一样，除此之外，您可以看到你认为通过为性能剖析的每一行实施最佳的改进措施可以节省多少时间，以及每种改进措施实施的成本是多少。</p>
+<p><img src="/images/thinking-clearly-about-performance-cn/millsap-table3.png" alt="millsap-table3.png"></p>
+<p>您将首先实施哪种改进措施？阿姆达尔定律说，对第1行实施改进具有最大的潜在收益，可以节省约851秒（2468秒的34.5%）。但是，如果它确实“成本高昂”，那么第2行的改进措施可能会产生更好的净收益，即使可能节省的响应时间仅为305秒，这也是您真正需要优化的制约点。</p>
+<p>性能剖析的巨大价值在于，您可以准确预计投入带来的改进效果。它打开了一扇大门，让人们更好地决定首先实施哪些改进措施。作为分析师，您的预测为您提供了衡量自己表现的标准。最后，它让您有机会展示自己的聪明才智和您对技术的亲和力，因为您可以找到更有效的改进方法，以低于预期的成本缩短响应时间。</p>
+<p>首先采取什么改进措施，归根结底取决于你对成本估算的信任程度。“成本极其廉价”的提议改进是否真的考虑到了可能对系统造成的风险？例如，改动该参数或删除该索引似乎成本极低，当前您根本没能顾及的，改动是否会潜在地破坏某些对象的良好性能的行为？可靠的成本估算是另一个技术有所回报的领域。</p>
+<p>另一个值得考虑的因素，你可以通过创造小胜利获得政治资本。也许成本低廉、低风险的改进不会带来太多整体响应时间的改善，但建立小改进的跟踪记录是有价值的，它可以准确地兑现你对慢任务响应时间降低的预测。预测和实现的跟踪记录最终会让你获得影响同事（同事、经理、客户等）所需的可信度（尤其是在软件性能领域，几十年来神话和迷信在许多地方盛行）。使得你可以执行成本越来越高的改进措施，从而为企业带来更大的回报。</p>
+<p>不过，有一句话需要提醒：当你获得成功并提出更大、更昂贵、风险更大的改进措施时，千万不要大意。信誉是脆弱的。建立信誉需要大量的工作，但摧毁只需要一个疏忽大意的错误。</p>
+<h5 id="倾斜"><a href="#倾斜" class="headerlink" title="倾斜"></a>倾斜</h5><p>当使用性能剖析时，会反复遇到如下的子问题：</p>
+<p><strong>例六：</strong>Table 2 性能剖析表明 322,968 次 DB:fetch() 调用花费了1748.229秒的响应时间。如果你能去除一半的调用，你会减少多少不必要的响应时间？答案几乎永远不会是 “一半的响应时间”。考虑一下这个简单得多的例子：</p>
+<p><strong>例七：</strong>四个子程序调用花费四秒钟。如果你能去除一半的调用，您会减少多少不必要的响应时间？答案取决于可以去除的调用的响应时间。你可能已经假设每个调用持续时间的平均值为4&#x2F;4&#x3D;1秒，但描述中没有任何地方告诉你调用持续时间是一样的。</p>
+<p><strong>例八：</strong>设想以下两种可能，每个列表表示四个子程序调用的响应时间：</p>
+<pre><code class="hljs c++">A = &#123;<span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>&#125;
+B = &#123;<span class="hljs-number">3.7</span>, <span class="hljs-number">.1</span>, <span class="hljs-number">.1</span>, <span class="hljs-number">.1</span>&#125;</code></pre>
+
+<p>列表 A，响应时间是一样的，因此无论你去除哪一半（两个）调用，你都可以将总响应时间减少到两秒。然而，列表 B，哪两个调用被去除会有很大不同。如果去除前两个调用，则总响应时间将降至0.2秒（减少95%）。如果去除最后两个调用，则总响应时间将降至3.8秒（仅减少5%）。</p>
+<p>倾斜是一系列数值的不均匀性。各种可能的倾斜使你无法给我在本节开头提出的问题提供准确的答案。让我们再看看：</p>
+<p><strong>例九：</strong>Table 2 性能剖析表明 322,968次 DB:fetch() 调用花费了1748.229秒的响应时间。去除一半的调用，将去除多少不必要的响应时间？在不了解任何关于倾斜的情况下，您可以提供的最准确的答案是，“介于0到1748.229秒之间。”</p>
+<p>但是，假设你有 Table 4 中附加的信息。你就可以得出更精确的最佳情况和最坏情况的估计。具体来说，如果有这样的信息，您会聪明些想出如何确切地减少47444个响应时间在0.01到0.1秒范围内的调用。</p>
+<p><img src="/images/thinking-clearly-about-performance-cn/millsap-table4.png" alt="millsap-table4.png"></p>
+<h5 id="最小化风险"><a href="#最小化风险" class="headerlink" title="最小化风险"></a>最小化风险</h5><p>前几节我提到了一种风险，改进一个任务的性能可能会损害另一个任务的性能。这让我想起了一个发生在丹麦的故事。故事很简单：</p>
+<blockquote>
+<p>场景：丹麦的巴勒鲁普自治市（Måløv）的橡木餐桌（事实上，橡树桌网络名声在外，这是一个由 Oracle 从业者组成的网络，他们相信使用科学方法来改进基于甲骨文的系统的开发和管理）[12]。大约有10个人围坐在桌子旁，在笔记本电脑上工作，进行各种对话。</p>
+<p>Cary：伙计们，热死我了。你们介意我把窗户打开一点，让冷空气进来吗？<br>Carel-Jan：你为什么不脱下你的厚毛衣？</p>
+<p>完。</p>
+</blockquote>
+<p>有一个工作中普遍的原则，从事优化的人都知道：当除了你每个人都很高兴，在你乱搞那些影响到其他人的全局事务之前，确保你的本地事务井然有序。</p>
+<p>这就是为什么每当有人建议更改系统的 Oracle SQL * Net 数据包大小时，我都会退缩。因为问题实际上是几个写得不好的Java程序，进行了许多不必要的数据库调用（因此，也会产生不必要的网络I&#x2F;O调用）。如果除了一两个程序的用户外，每个人都相处得颇为融洽，那么解决这个问题最安全的办法就是将范围局限于这一两个程序。</p>
+<p>续下篇：<a href="/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">Thinking Clearly about Performance (Part 2)</a></p>
+<p>原文链接：<a target="_blank" rel="noopener" href="https://queue.acm.org/detail.cfm?id=1854041">Thinking Clearly about Performance</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">https://www.cyningsun.com/10-21-2020/thinking-clearly-about-performance-cn-part-one.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Performance" rel="category"># Performance</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/04-13-2025/flamegraph-summary.html">Flame Graph 机制小结</a></span></li>
+          
+            <li><span><a href="/09-17-2024/redis-latency-irqoff.html">Redis 延迟毛刺问题定位-软中断篇</a></span></li>
+          
+            <li><span><a href="/12-22-2023/redis-latency-spike.html">记一次 Redis 延时毛刺问题定位</a></span></li>
+          
+            <li><span><a href="/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">译｜Thinking Clearly about Performance (Part 2)</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/10-27-2020/thinking-clearly-about-performance-cn-part-two.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/10-15-2020/advanced-golang-article.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

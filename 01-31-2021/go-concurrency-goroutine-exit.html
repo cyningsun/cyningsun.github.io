@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>永远不要在不知道如何停止的情况下启动一个 goroutine</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2021-01-31 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2021-02-01 00:00:00 +0800"/>
+
+<meta property="og:url" content="/01-31-2021/go-concurrency-goroutine-exit.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景在 Go 中，goroutine 的创建成本低，调度效率高，同时存在数十万个 goroutine 并不奇怪。虽然单个 goroutine 使用的内存有限，但是不意味着可以毫无限制的创建 goroutine。 Never start a goroutine without knowing how it will stop 每次启动 goroutine 时，">
+
+<meta name="keywords" content="协程退出,并发控制,Parallelism">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>永远不要在不知道如何停止的情况下启动一个 goroutine</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2021-01-31
+         | 
+        Last Revised: 2021-02-01
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%8F%E7%A8%8B%E9%98%BB%E5%A1%9E"><span class="toc-text">协程阻塞</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#context"><span class="toc-text">context</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#channel-amp-select"><span class="toc-text">channel &amp; select</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%8F%E7%A8%8B%E9%80%80%E5%87%BA"><span class="toc-text">协程退出</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%8C%E7%BE%8E%E9%80%80%E5%87%BA"><span class="toc-text">完美退出</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在 Go 中，<code>goroutine</code> 的创建成本低，调度效率高，同时存在数十万个 <code>goroutine</code> 并不奇怪。虽然单个 <code>goroutine</code> 使用的内存有限，但是不意味着可以毫无限制的创建 <code>goroutine</code>。</p>
+<blockquote>
+<p>Never start a goroutine without knowing how it will stop</p>
+</blockquote>
+<p>每次启动 <code>goroutine</code> 时，必须知道 <code>goroutine</code> 何时、如何退出。否则，程序就潜藏着内存泄漏问题。在讨论协程退出前，先了解下协程为何阻塞</p>
+<h3 id="协程阻塞"><a href="#协程阻塞" class="headerlink" title="协程阻塞"></a>协程阻塞</h3><p>协程阻塞无法自由退出，主要因为以下两点：</p>
+<ul>
+<li>超时控制</li>
+<li>流程控制</li>
+</ul>
+<h4 id="context"><a href="#context" class="headerlink" title="context"></a>context</h4><p>前者，很容易理解。一般来说启动 <code>goroutine</code> 处理事务，对于事务的处理完成时间都有一定的预期 举例：</p>
+<blockquote>
+<ul>
+<li>RPC调用：最大超时时间不会超过用户的等待时间</li>
+<li>定时任务：执行一次的时间不应该超过启动的间隔</li>
+</ul>
+</blockquote>
+<p>针对何时退出，Go 中 提供了 <code>Context</code> 用于 <code>goroutine</code> 生命周期管理</p>
+<blockquote>
+<ul>
+<li>Cancellation via context.WithCancel.</li>
+<li>Timeout via context.WithDeadline.<pre><code class="hljs go">req, err := http.NewRequest(<span class="hljs-string">&quot;GET&quot;</span>, <span class="hljs-string">&quot;https://play.golang.org/&quot;</span>, <span class="hljs-literal">nil</span>)
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+	log.Fatalf(<span class="hljs-string">&quot;%v&quot;</span>, err)
+&#125;
+
+ctx, cancel := context.WithTimeout(req.Context(), <span class="hljs-number">1</span>*time.Second)
+<span class="hljs-keyword">defer</span> cancel()
+
+req = req.WithContext(ctx)
+client := http.DefaultClient
+resp, err := client.Do(req)
+<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+	log.Fatalf(<span class="hljs-string">&quot;%v&quot;</span>, err)
+&#125;
+fmt.Printf(<span class="hljs-string">&quot;%v\n&quot;</span>, resp.StatusCode)</code></pre></li>
+</ul>
+</blockquote>
+<h4 id="channel-amp-select"><a href="#channel-amp-select" class="headerlink" title="channel &amp; select"></a>channel &amp; select</h4><p>后者，相对来说比较难理解一些。尤其是其他语言的使用者，对于他们而言，程序中的流程控制一般意味着：</p>
+<blockquote>
+<ul>
+<li>if&#x2F;else</li>
+<li>for loop</li>
+</ul>
+</blockquote>
+<p>在 Go 中，类似的理解仅仅对了一小半。因为 <strong>channel 和 select 才是流程控制的重点</strong>。</p>
+<p>channel 提供了强大能力，帮助数据从一个 goroutine 流转到另一个 goroutine。也意味着，channel 对程序的 <code>数据流</code> 和 <code>控制流</code> 同时存在影响。</p>
+<blockquote>
+<ul>
+<li>closed 的 channel 永远不会阻塞<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-keyword">import</span> <span class="hljs-string">&quot;fmt&quot;</span>
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+    ch := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-type">bool</span>, <span class="hljs-number">2</span>)
+    ch &lt;- <span class="hljs-literal">true</span>
+    ch &lt;- <span class="hljs-literal">true</span>
+    <span class="hljs-built_in">close</span>(ch)
+
+    <span class="hljs-keyword">for</span> v := <span class="hljs-keyword">range</span> ch &#123;
+        fmt.Println(v) <span class="hljs-comment">// called twice</span>
+    &#125;
+&#125;</code></pre></li>
+<li>nil 的 channel 总是阻塞<pre><code class="hljs go"><span class="hljs-keyword">package</span> main
+
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span> &#123;
+    <span class="hljs-keyword">var</span> ch <span class="hljs-keyword">chan</span> <span class="hljs-type">bool</span>
+    ch &lt;- <span class="hljs-literal">true</span> <span class="hljs-comment">// blocks forever</span>
+&#125;</code></pre></li>
+<li>buffered&#x2F;unbuffered channel 介于两者之间，会因为 channel 是否可以读写阻塞</li>
+</ul>
+</blockquote>
+<p>那么究竟如何判断 channel 能否读写呢？答案就是 select。</p>
+<pre><code class="hljs go"><span class="hljs-keyword">select</span>&#123;
+<span class="hljs-keyword">case</span> channel_send_or_receive:
+    <span class="hljs-comment">//Dosomething</span>
+<span class="hljs-keyword">case</span> channel_send_or_receive:
+    <span class="hljs-comment">//Dosomething</span>
+<span class="hljs-keyword">default</span>:
+    <span class="hljs-comment">//Dosomething</span>
+&#125;</code></pre>
+
+<h3 id="协程退出"><a href="#协程退出" class="headerlink" title="协程退出"></a>协程退出</h3><p>说了这么多，协程怎么退出呢？相信通过以上部分很容易得到结论：</p>
+<ul>
+<li>超时返回</li>
+<li>根据 channel 可读状态返回</li>
+</ul>
+<blockquote>
+<pre><code class="hljs go"> <span class="hljs-comment">// 方式一：遍历关闭的 channel</span>
+<span class="hljs-keyword">for</span> x := <span class="hljs-keyword">range</span> closedCh &#123;
+    fmt.Printf(<span class="hljs-string">&quot;Process %d\n&quot;</span>, x)
+&#125;
+<span class="hljs-comment">// 方式二：Select 可读 channel</span>
+<span class="hljs-keyword">for</span> &#123;
+    <span class="hljs-keyword">select</span> &#123;
+        <span class="hljs-keyword">case</span> &lt;-stopCh:
+            fmt.Println(<span class="hljs-string">&quot;Recv stop signal&quot;</span>)
+            <span class="hljs-keyword">return</span>
+         <span class="hljs-keyword">case</span> &lt;-t.C:
+            fmt.Println(<span class="hljs-string">&quot;Working .&quot;</span>)
+    &#125;
+&#125;</code></pre>
+</blockquote>
+<h3 id="完美退出"><a href="#完美退出" class="headerlink" title="完美退出"></a>完美退出</h3><p>协程能够退出就够了么？还不够，完美的退出应该包含以下三点：</p>
+<ul>
+<li>通知协程退出</li>
+<li>通知确认，协程退出</li>
+<li>获取协程最终返回的错误</li>
+</ul>
+<blockquote>
+<p>举个例子：errgroup</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(g *Group)</span></span> Wait() <span class="hljs-type">error</span> &#123;
+    g.wg.Wait()
+    <span class="hljs-keyword">if</span> g.cancel != <span class="hljs-literal">nil</span> &#123;
+        g.cancel()
+    &#125;
+    <span class="hljs-keyword">return</span> g.err
+&#125;</code></pre>
+</blockquote>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/01-31-2021/go-concurrency-goroutine-exit.html">https://www.cyningsun.com/01-31-2021/go-concurrency-goroutine-exit.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/02-18-2021/high-concurrency-cache-design.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/01-19-2021/go-concurrency-patterns-context-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

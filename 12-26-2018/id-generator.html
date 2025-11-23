@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>如何选择合适的分布式ID生成方案？</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2018-12-26 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/12-26-2018/id-generator.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景在分布式系统中，经常需要用到全局唯一ID发生器，标识需要存储的数据。我们需要什么样的ID生成器？ ID生成器除了是数据的唯一标识以外，一般需要在系统中承担更多的责任，概括起来有以下几点： 唯一性：“全局唯一” vs “业务唯一”？分布式系统使用唯一的ID生成器，会有非常严重的申请互斥问题。互斥加锁意味着成本和性能的下降，不容易去实现一个高性能高可靠的架构">
+
+<meta name="keywords" content="分布式 ID,ID Generator">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>如何选择合适的分布式ID生成方案？</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2018-12-26
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%94%AF%E4%B8%80%E6%80%A7%EF%BC%9A%E2%80%9C%E5%85%A8%E5%B1%80%E5%94%AF%E4%B8%80%E2%80%9D-vs-%E2%80%9C%E4%B8%9A%E5%8A%A1%E5%94%AF%E4%B8%80%E2%80%9D%EF%BC%9F"><span class="toc-text">唯一性：“全局唯一” vs “业务唯一”？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%97%B6%E9%97%B4%E7%9B%B8%E5%85%B3%EF%BC%9A%E2%80%9C%E7%A7%92%E7%BA%A7%E2%80%9D-vs-%E2%80%9C%E6%AF%AB%E7%A7%92%E2%80%9D%EF%BC%9F"><span class="toc-text">时间相关：“秒级” vs “毫秒”？</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%9C%89%E5%BA%8F%EF%BC%9A%E2%80%9C%E7%B2%97%E7%95%A5%E6%9C%89%E5%BA%8F%E2%80%9D-vs-%E2%80%9C%E7%B2%BE%E7%A1%AE%E6%9C%89%E5%BA%8F%E2%80%9D%EF%BC%9F"><span class="toc-text">有序：“粗略有序” vs “精确有序”？</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%BE%E8%AE%A1%E7%BB%86%E8%8A%82"><span class="toc-text">设计细节</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#Shopee-Feeds-%E5%A6%82%E4%BD%95%E7%94%9F%E6%88%90ID-%EF%BC%9F"><span class="toc-text">Shopee Feeds 如何生成ID ？</span></a></li></ol></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在分布式系统中，经常需要用到全局唯一ID发生器，标识需要存储的数据。我们需要什么样的ID生成器？</p>
+<p>ID生成器除了是数据的唯一标识以外，一般需要在系统中承担更多的责任，概括起来有以下几点：</p>
+<h4 id="唯一性：“全局唯一”-vs-“业务唯一”？"><a href="#唯一性：“全局唯一”-vs-“业务唯一”？" class="headerlink" title="唯一性：“全局唯一” vs “业务唯一”？"></a>唯一性：“全局唯一” vs “业务唯一”？</h4><p>分布式系统使用唯一的ID生成器，会有非常严重的申请互斥问题。互斥加锁意味着成本和性能的下降，不容易去实现一个高性能高可靠的架构。在业务系统中，往往也不需要全局唯一的ID。比如在通讯系统里，聊天消息不需要全局唯一，标识一条用户发出的消息的ID，只要保证用户唯一性即可。因为消息本身归属于某一用户，因此用户唯一已经隐含了“全局唯一ID （ &#x3D; 用户ID + 消息ID ）”。</p>
+<h4 id="时间相关：“秒级”-vs-“毫秒”？"><a href="#时间相关：“秒级”-vs-“毫秒”？" class="headerlink" title="时间相关：“秒级” vs “毫秒”？"></a>时间相关：“秒级” vs “毫秒”？</h4><p>时间是天然唯一的，因此也是很多设计的选择。但对于一个8Byte的 ID 而言，时间并没有那么多。你如果精确到秒级别，三十年都要使用30bit，到毫秒级则要再增加10bit，你也只剩下20bit 可以做其他事情了。每秒一个或者每毫秒一个ID明显是不够的，刚才说到还有20bit 可以做其他事情，就包括一个SequenceID。</p>
+<p>那时间用秒还是毫秒呢？其实不用毫秒的时候就可以把空出来的10bit 送给 Sequence，但整个ID 的精度就下降了。峰值速度是更现实的考虑。Sequence 的空间决定了峰值的速度，而峰值也就意味着持续的时间不会太久。这方面，每秒100万比每毫秒1000限制更小。</p>
+<h4 id="有序：“粗略有序”-vs-“精确有序”？"><a href="#有序：“粗略有序”-vs-“精确有序”？" class="headerlink" title="有序：“粗略有序” vs “精确有序”？"></a>有序：“粗略有序” vs “精确有序”？</h4><p>首先，如果要达到精确的有序，就要对 Sequence 进行并发控制，性能上肯定会打折。其次，同一时间只能生成一个ID，意味着同一时间只有一个ID生成服务实例可以提供服务，精确有序还会面临容灾问题。另外一个选择就是，在这个秒的级别上不再保证顺序，而整个 ID 则只保证时间上的有序。后一秒的 ID肯定比前一秒的大，但同一秒内可能后取的ID比前面的号小。粗略有序在使用时非常关键，业务上可接受才能成为候选方案。</p>
+<h3 id="设计细节"><a href="#设计细节" class="headerlink" title="设计细节"></a>设计细节</h3><p>看下业界如何设计ID发生器</p>
+<p>SnowFlake</p>
+<p>41bit留给毫秒时间，10bit给机器 (MachineID) ，剩下12bit留给Sequence。</p>
+<p>Weibo</p>
+<p>微博 30bit的秒级时间，4bit来区分IDC，2bit 区分业务，15bit 给 Sequence。理论上限3.2w&#x2F;s的速度。由于当前发号服务是机房中心式的，1bit 来区分热备。最终，没有用满64bit。</p>
+<p>Flicker</p>
+<p>Flicker 在解决全局ID生成方案里就采用了MySQL自增长ID的机制（auto_increment + replace into + MyISAM）。<br>在我们的应用端需要做下面这两个操作，在一个事务会话里提交：</p>
+<pre><code class="hljs sql">REPLACE <span class="hljs-keyword">INTO</span> Tickets64 (stub) <span class="hljs-keyword">VALUES</span> (<span class="hljs-string">&#x27;a&#x27;</span>);
+<span class="hljs-keyword">SELECT</span> LAST_INSERT_ID();</code></pre>
+<p>Flicker启用了两台数据库服务器生成ID来容灾，通过区分auto_increment的起始值和步长来生成奇偶数的ID。</p>
+<pre><code class="hljs pgsql">TicketServer1:
+auto-<span class="hljs-keyword">increment</span>-<span class="hljs-keyword">increment</span> = <span class="hljs-number">2</span>
+auto-<span class="hljs-keyword">increment</span>-offset = <span class="hljs-number">1</span>
+
+TicketServer2:
+auto-<span class="hljs-keyword">increment</span>-<span class="hljs-keyword">increment</span> = <span class="hljs-number">2</span>
+auto-<span class="hljs-keyword">increment</span>-offset = <span class="hljs-number">2</span></code></pre>
+
+<p>微信</p>
+<p>微信使用MySQL持久化未分配的最大ID，每次从DB取一段放到内存分配给调用方。微信的ID生成是严格递增的，意味着同一时间只能有一台机器提供服务，因此使用仲裁服务+租约机制+路由表，进行容灾。</p>
+<p><img src="/images/id-generator/weixin-id-generator.jpg" alt="weixin-id-generator"></p>
+<h4 id="Shopee-Feeds-如何生成ID-？"><a href="#Shopee-Feeds-如何生成ID-？" class="headerlink" title="Shopee Feeds 如何生成ID ？"></a>Shopee Feeds 如何生成ID ？</h4><p>考虑到Feeds业务的特性，并不需要精确有序，因此我们使用snowflake算法进行ID生成。使用39 (毫秒)+ 5（机器） + 9（seq），来保证ID作为Redis的score不会溢出。</p>
+<blockquote>
+<p>Redis 有序集合的分数使用双精度64位浮点数, 表示为一个IEEE 754 floating point number，它能包括的整数范围是-(2^53) 到 +(2^53)</p>
+</blockquote>
+<p>这样的ID生成器可以使用大约17年，对于一款产品的生命周期来说已经足够使用。</p>
+<p>针对时间回拨产生的问题，因为发生的频率极小，所以只需要简单判断，如果不满足 currentMillis &lt;&#x3D; lastTime，则返回错误即可。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/12-26-2018/id-generator.html">https://www.cyningsun.com/12-26-2018/id-generator.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#System design" rel="category"># System design</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/06-13-2023/heavy-hitter.html">如何应对系统热点的挑战</a></span></li>
+          
+            <li><span><a href="/03-12-2023/why-is-the-system-so-fragile.html">系统为何如此脆弱</a></span></li>
+          
+            <li><span><a href="/11-13-2022/design-patterns-for-container-based-distributed-systems-cn.html">译｜Design patterns for container-based distributed systems</a></span></li>
+          
+            <li><span><a href="/02-18-2021/high-concurrency-cache-design.html">缓存(4) —— 结构化缓存</a></span></li>
+          
+            <li><span><a href="/12-15-2020/system-design-concept-and-relation.html">系统设计之概念与关系</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/12-29-2018/rand.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/07-27-2018/leaning-skill.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

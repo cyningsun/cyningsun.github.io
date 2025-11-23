@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>go-redis 连接池重建连接优化</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2025-11-23 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-11-23 00:00:00 +0800"/>
+
+<meta property="og:url" content="/11-23-2025/go-redis-connection-success-rate.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景在高并发场景下，当 go-redis 连接池耗尽时，客户端会尝试新建连接来服务请求。而旧版本（9.16.0 及以前）的实现直接使用请求的 context.Context 来控制整个新连接过程（包括 Dial、TLS 握手、AUTH 等）。这意味着如果请求的上下文（如 HTTP 请求的超时时间）到期，正在进行的拨号操作会被立即取消。 审视旧实现“按需新建连">
+
+<meta name="keywords" content="Redis,go-redis,连接池">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>go-redis 连接池重建连接优化</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2025-11-23
+         | 
+        Last Revised: 2025-11-23
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>在高并发场景下，当 go-redis 连接池耗尽时，客户端会尝试新建连接来服务请求。而旧版本（<a target="_blank" rel="noopener" href="https://github.com/redis/go-redis/releases/tag/v9.16.0">9.16.0</a> 及以前）的实现<strong>直接使用请求的 <code>context.Context</code></strong> 来控制整个新连接过程（包括 Dial、TLS 握手、AUTH 等）。这意味着如果请求的上下文（如 HTTP 请求的超时时间）到期，正在进行的<strong>拨号操作会被立即取消</strong>。</p>
+<p>审视旧实现“按需新建连接”的行为时，可以结合项目维护者的设计权衡与实际场景来理解。项目维护者提到：</p>
+<ul>
+<li>如果配置足够数量的 MinIdleConns 和 PoolSize，就不会导致大量的按需新建连接</li>
+<li>每次命令都创建新连接的方式并不理想，它仅作为连接池中没有可用连接时的备用方案</li>
+</ul>
+<p>然而在实际生产环境中，这种设计会导致微小的波动被放大：<strong>本应可用的连接被无谓丢弃，连接池反而得不到补充</strong>。原因如下：</p>
+<h3 id="1-客户端请求的-Context-剩余时间往往不足以支撑拨号"><a href="#1-客户端请求的-Context-剩余时间往往不足以支撑拨号" class="headerlink" title="1. 客户端请求的 Context 剩余时间往往不足以支撑拨号"></a>1. 客户端请求的 Context 剩余时间往往不足以支撑拨号</h3><p>请求上下文的 timeout 会随着链路深度逐层衰减（例如初始 1s timeout 经 3 次微服务透传后可能只剩 200ms）；其次，当连接池无空闲连接时，请求会等待池中连接释放，<code>PoolTimeout</code> 会进一步蚕食请求超时总时长，随后才开始拨号。</p>
+<p>此时请注意，请求上下文本身已经被压榨掉了大部分超时预算，剩下的时间往往远远低于完成一次网络拨号所需。因为在跨机房或网络不稳的场景下，一次完整的 TCP 握手 + TLS 握手往返可能需要几百毫秒甚至几秒的时间。如果请求上下文到期（<code>context.DeadlineExceeded</code>），go-redis 将关闭当前拨号连接并放弃它，而不是将该连接放入池中复用。反复使用短超时上下文去拨号，多次尝试会耗尽请求的剩余时间，造成性能抖动加剧。</p>
+<p>更进一步，超时失败还会导致诊断混淆：因为开发者往往看到了大量 “dial tcp: i&#x2F;o timeout” 错误，难以判断是后端 Redis 真出问题了，还是客户端过早取消了正常的拨号。</p>
+<h3 id="2-服务端已接收连接，资源白白浪费"><a href="#2-服务端已接收连接，资源白白浪费" class="headerlink" title="2. 服务端已接收连接，资源白白浪费"></a>2. 服务端已接收连接，资源白白浪费</h3><p>“客户端单方面丢弃连接”的行为，会给服务端带来直接的资源负担：</p>
+<p>服务端需要为已建立连接分配 FD、Socket Buffer、连接结构体，客户端立即关闭后，会导致服务端产生 TIME_WAIT &#x2F; CLOSE_WAIT 状态。若 Redis 层有连接初始化逻辑，还会进行额外操作。在高并发场景下会导致 accept 队列更快被填满，有效连接减少，FD 周期性分配与销毁增加 CPU 消耗。</p>
+<p>更进一步，如果服务端负载进一步升高，较大概率会需要更长时间来接受新的连接，甚至完全超过客户端连接超时控制，导致服务完全雪崩</p>
+<h3 id="误解-DialTimeout-过长会拖慢业务"><a href="#误解-DialTimeout-过长会拖慢业务" class="headerlink" title="误解 DialTimeout 过长会拖慢业务"></a>误解 DialTimeout 过长会拖慢业务</h3><p>请求上下文创建连接让许多用户误以为：</p>
+<blockquote>
+<p>“DialTimeout 设置太长，会导致业务变慢甚至请求超时。”</p>
+</blockquote>
+<p>然而这是一种典型误解，实际上 go-redis 会选择 <code>context.Context</code> 和 <code>DialTimeout</code> 的最小者作为最长超时时间。<a href="/08-20-2023/go-redis-connection-timeout.html">过短的 <code>DialTimeout</code> 设置反而会导致请求提前超时（相比能够业务接受的耗时）</a>。</p>
+<p>更进一步，在跨机房环境中，本身就存在更高的 RTT 波动与偶发丢包。当 Redis 客户端在压力下发起大量新连接时，轻微的网络丢包会导致 TCP SYN 或后续握手包被重传。如果客户端的 DialTimeout 设置过短，则在 TCP 仍在重传、连接即将成功建立前，客户端会因为本地超时而中断连接。结果是：</p>
+<p>某些 Redis 节点因轻微丢包导致握手时间稍长 → 客户端提前放弃 → 这些节点被视作“慢节点” → 负载倾向其他节点 → <strong>负载不均被放大</strong>。</p>
+<p><strong>TCP 丢包与重传机制的挑战</strong></p>
+<p>TCP 连接的建立需要经过三次握手：客户端发送 SYN 到服务端，服务端返回 SYN-ACK，客户端再回一个 ACK。如上图所示，如果任意一个握手包（例如初始的 SYN）在网络中丢失，TCP 会在初始<strong>重传超时（RTO）</strong>到期后重新发送该包，并采用<strong>指数回退</strong>的策略逐次延长超时。根据 <a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/html/rfc1122">RFC1122</a> 的建议，初始 RTO 通常设置在 3 秒左右（一些现代系统的最小 RTO 也在 200ms 以上，并且每次重传等待时间会翻倍增长）。如果应用层将 Dial 操作的超时时间设置得过短，未到第一次重传超时就放弃拨号，那么就可能永远等不到成功的握手应答，即连接直接失败。例如，在跨机房部署时，单程延迟可能达到几十至几百毫秒，加上可能的偶发丢包，完成三次握手通常需要上秒级别的时间；而如果拨号超时设置只有几百毫秒，握手过程还未完成就被强行中断，就会出现大量“dial tcp timeout”错误，严重影响可用连接数。简言之，<strong>应用层短超时可能挡住了底层 TCP 的重传机会</strong>。</p>
+<h2 id="Go-标准库的稳定实践"><a href="#Go-标准库的稳定实践" class="headerlink" title="Go 标准库的稳定实践"></a>Go 标准库的稳定实践</h2><p>在工程实践中，<code>database/sql</code> 和 <code>net/http/Transport</code> 是经受过大量生产验证的连接管理实现，参考的关键实现细节包括：</p>
+<ul>
+<li><strong>连接池与分离的连接生命周期</strong>：<code>database/sql</code> 提供了一个全局 <code>sql.DB</code> 对象作为连接池，维护 <code>maxOpenConns</code>、<code>maxIdleConns</code>、<code>connRequests</code> 等指标。库内部会独立管理“获取连接”和“建立连接”两条逻辑路径：当没有空闲连接时，会将获取请求排队（request queue），并在后台尝试建立新连接来填补池，而不是把连接建立严格绑定到某个请求的剩余超时时间上。建立成功的连接会被放回池中，供后续请求复用，从而把“单次请求的超时”与“连接能否长期复用”解耦。</li>
+<li><strong>独立拨号超时与可重用连接</strong>：<code>net/http.Transport</code> 与 <code>net.Dialer</code> 通常配置独立的网络超时（例如 <code>Dialer.Timeout</code>、<code>IdleConnTimeout</code>、<code>ResponseHeaderTimeout</code> 等），这些超时用于保护底层网络操作，但并不简单地把每个 HTTP 请求的上下文直接映射到拨号超时上。换言之，拨号有一个合理的最小时间窗口，让 TCP 三次握手和必要的重传有机会完成；一旦连接建立，Transport 会将连接作为空闲连接保留，供后续请求使用。</li>
+<li><strong>空闲连接的回收与复用</strong>：两者都实现了空闲连接管理（idle pool），包括最大空闲数、每主机最大空闲等策略，并对连接复用的生命周期做限制（例如 <code>IdleConnTimeout</code>、<code>MaxIdleConnsPerHost</code>）。这保证了即便某次请求因为超时而取消，已建立并健康的连接不会被立即销毁，而是回到空闲池中供其他请求复用，从而节省昂贵的拨号成本。</li>
+<li><strong>公平的等待队列与避免饥饿</strong>：成熟实现通常会有明确的等待队列策略（FIFO 或带优先级的队列）以避免某些请求长期饥饿，保证连接分配的公平性；这对高并发、连接匮乏的场景尤为关键。</li>
+</ul>
+<p>这些实现的共同思想是：<strong>分离连接建立与单次请求的超时控制</strong>，最大化连接复用并让底层的 TCP 有机会完成必要的重传与握手。</p>
+<h3 id="如何在-go-redis-落地"><a href="#如何在-go-redis-落地" class="headerlink" title="如何在 go-redis 落地"></a>如何在 go-redis 落地</h3><p>在 <code>database/sql.DB</code> 中，所有连接由单一后台协程串行创建，创建吞吐受限于单协程，对 DB 连接够用，但却无法满足 Redis 的吞吐要求。相较来说，可以将标准库 <code>net/http.Transport</code> 的实现细节迁移到 go-redis，主要优化点包括：</p>
+<ul>
+<li><strong>独立拨号上下文</strong>：拨号操作不再沿用请求的 <code>context.Context</code>，而是使用独立的上下文结合配置的 <code>DialTimeout</code> 来控制时长，同时保留对原请求上下文的监听用于清理资源。这样，即使请求超时了，拨号在不受影响的超时内仍可继续，给底层 TCP 完成三次握手足够的机会。</li>
+<li><strong>成功连接复用</strong>：如果新连接最终建立成功，即便触发此拨号的请求已经超时，该连接也不会丢弃，而是<strong>直接放入连接池</strong>中供后续请求复用。这一改动避免了“好不容易建立的连接因一个请求超时而被浪费”的现象。</li>
+<li><strong>FIFO 排队机制</strong>：引入了显式的<strong>先进先出队列</strong>，来公平地分配由多个等待请求共享新建连接的机会。</li>
+</ul>
+<p>此外，PR(<a target="_blank" rel="noopener" href="https://github.com/redis/go-redis/pull/3518">#3518</a>) 还增加了 <code>putIdleConn</code> 等内部方法优化，用于<strong>直接将新建连接放入池中</strong>，从而避免因为达到了 <code>MaxIdleConns</code> 限制而在放回时关闭本该有效的空闲连接。</p>
+<p>整体上，PR 在连接管理的控制流程上做了调整，把成熟库中的“拨号与请求分离、成功连接一定回池、FIFO 公平分配”这些原则逐步移植到 go-redis 的实现中，从而获得了更稳定的行为与更好的资源利用率。</p>
+<h2 id="优化效果"><a href="#优化效果" class="headerlink" title="优化效果"></a>优化效果</h2><p>这些改动主要带来了以下改善：首先，它<strong>减少了不必要的拨号超时错误</strong>。在实践中，新版 go-redis 在短时网络波动或高延迟场景下，可以避免因为请求上下文取消而放弃即将建立的连接，从而降低类似 “dial tcp i&#x2F;o timeout” 的报错频率（底层 TCP 终于有机会完成重传）。其次，通过将成功连接回归池、提高复用率，<strong>缓解了连接池压力</strong>：原本频繁出现的反复拨号和重建被减少，系统吞吐更加稳定。此外，优化还<strong>改善了资源分配</strong>：健康的连接不再被回退到后续请求中途丢弃，多台 Redis 节点之间的流量分配更加均衡。以往某些节点可能因为新建连接失败而参与度下降的问题得到缓解，从而整体负载倾斜现象减弱。</p>
+<p>参考 Go 标准库中 <code>database/sql</code> 与 <code>net/http</code> 的稳定实践，这些改进让客户端在面对临时的网络丢包和上下文超时时，具备更好的<strong>鲁棒性</strong>：它们保证了单个请求的超时不会牺牲整个连接池的健康，避免了因瞬时失败导致后续流量骤降的连锁反应。总体来看，该 PR 提高了系统对偶发故障的容忍度，使得分布式调用链中，下游服务（如 Redis 节点）的负载分布更加均衡，从而提升了服务的可靠性。</p>
+<h2 id="致谢"><a href="#致谢" class="headerlink" title="致谢"></a>致谢</h2><p>目前该优化已随最新版本（<a target="_blank" rel="noopener" href="https://github.com/redis/go-redis/releases/tag/v9.17.0">9.17.0</a>）发布。特别感谢 go-redis 维护者 ndyakov 在 Issue 与 PR 讨论中的耐心解答与宝贵 Review 建议。其对连接池机制的权衡解释与建议，为本次优化提供了重要帮助。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/11-23-2025/go-redis-connection-success-rate.html">https://www.cyningsun.com/11-23-2025/go-redis-connection-success-rate.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+            <li><span><a href="/05-05-2025/rocksdb-obsolete-files.html">深入理解 RocksDB 过期文件清理</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+    
+    <li class="previous"><a href="/08-26-2025/facebook-tectonic-filesystem.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

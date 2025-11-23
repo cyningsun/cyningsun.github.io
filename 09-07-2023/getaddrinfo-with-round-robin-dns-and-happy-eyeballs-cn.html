@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>译｜getaddrinfo with round robin DNS and happy eyeballs</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-09-07 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2023-09-07 00:00:00 +0800"/>
+
+<meta property="og:url" content="/09-07-2023/getaddrinfo-with-round-robin-dns-and-happy-eyeballs-cn.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="这不是新闻。这只是一些事实，但似乎仍然有许多人不知道，所以我想帮助记录这些内容，以帮助教育世界。我首先会通过提供完整的背景信息来绕着主题转一转…… 轮询基础轮询 DNS一直以来都是实现粗略且廉价的负载均衡和将访问者分散到多个主机上的方法，当他们尝试使用具有静态内容的单个主机&amp;#x2F;服务时。通过在 DNS 区域中设置一条 A 记录来解析为多个 IP 地址，">
+
+<meta name="keywords" content="dns resolution,getaddrinfo,dns resolver">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>译｜getaddrinfo with round robin DNS and happy eyeballs</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-09-07
+         | 
+        Last Revised: 2023-09-07
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <p>这不是新闻。这只是一些事实，但似乎仍然有许多人不知道，所以我想帮助记录这些内容，以帮助教育世界。我首先会通过提供完整的背景信息来绕着主题转一转……</p>
+<h2 id="轮询基础"><a href="#轮询基础" class="headerlink" title="轮询基础"></a>轮询基础</h2><p><a target="_blank" rel="noopener" href="http://en.wikipedia.org/wiki/Round-robin_DNS">轮询 DNS</a>一直以来都是实现粗略且廉价的负载均衡和将访问者分散到多个主机上的方法，当他们尝试使用具有静态内容的单个主机&#x2F;服务时。通过在 DNS 区域中设置<a target="_blank" rel="noopener" href="http://rscott.org/dns/a.html">一条 A  记录</a>来解析为多个 IP 地址，客户端将以半随机的方式获得不同的结果，从而在不同时间访问不同服务器：</p>
+<pre><code class="hljs sh">server  IN  A  192.168.0.1
+server  IN  A  10.0.0.1
+server  IN  A  127.0.0.1</code></pre>
+
+<p>例如，如果是一个小型开源项目，那么它是一种完美的方式来提供分布式服务，该服务以单一名称出现，但由互联网上的多个分布式独立服务器托管。它也被高端网络服务器使用，例如 <a target="_blank" rel="noopener" href="http://www.google.com/">www.google.com</a> 和 <a target="_blank" rel="noopener" href="http://www.yahoo.com/">www.yahoo.com</a> 。</p>
+<h2 id="主机名解析"><a href="#主机名解析" class="headerlink" title="主机名解析"></a>主机名解析</h2><p>如果您是一名老派黑客，如果您从 Stevens 的原著中学习了套接字和 TCP&#x2F;IP 编程，如果您是在 BSD unix 环境长大，您就会知道可以使用 <a target="_blank" rel="noopener" href="http://pubs.opengroup.org/onlinepubs/009695399/functions/gethostbyname.html">gethostbyname()</a>等方法来解析主机名。这是一个 POSIX 和单一 UNIX 规范，基本上一直存在。当对给定的循环主机名调用 <em>gethostbyname()</em> 时，该函数返回一个地址数组。该地址列表将以看似随机的顺序排列。如果应用程序只是按照接收到的顺序遍历列表并连接它们，则轮询概念非常有效。</p>
+<h2 id="但-gethostbyname-不够好"><a href="#但-gethostbyname-不够好" class="headerlink" title="但 gethostbyname 不够好"></a>但 gethostbyname 不够好</h2><p>gethostbyname() 只适用 IPv4，涉及 IPv6 就崩溃了。它必须被更好的东西取代。<a target="_blank" rel="noopener" href="http://pubs.opengroup.org/onlinepubs/009604499/functions/getaddrinfo.html">getaddrinfo ()</a> 加入，也是 POSIX（在 <a target="_blank" rel="noopener" href="http://www.ietf.org/rfc/rfc3493.txt">RFC 3943</a>定义，并在 <a target="_blank" rel="noopener" href="https://www.ietf.org/rfc/rfc5014.txt">RFC 5014</a>再次更新）。支持 IPv6 和更多功能的现代函数。这是世界所需要的闪亮之物！</p>
+<h2 id="不是直接替代品"><a href="#不是直接替代品" class="headerlink" title="不是直接替代品"></a>不是直接替代品</h2><p>因此，（世界好的部分）将所有调用 gethostbyname() 替换为调用 getaddrinfo() ，现在一切都支持 IPv6，一切都很好？不完全如此。因为其中涉及微妙之处。比如函数返回地址的顺序。2003 年，IETF 人员发布了 <a target="_blank" rel="noopener" href="http://www.ietf.org/rfc/rfc3484.txt">RFC 3484</a>，详细说明了 _Internet 协议版本 6 的默认地址选择_，并以此为指导，大多数（全部？）实现现在已改为按该顺序返回地址列表。然后它将成为按“首选”顺序排列的主机​​列表。突然间，应用程序将按照“从 IPv6 升级路径的角度来看很聪明的顺序”，同时遍历 IPv4 和 IPv6 地址，。</p>
+<h2 id="getaddrinfo-没有轮询"><a href="#getaddrinfo-没有轮询" class="headerlink" title="getaddrinfo 没有轮询"></a>getaddrinfo 没有轮询</h2><p>因此，相比旧的轮询 DNS 的方法：多个地址（无论是 IPv4 或 IPv6 或两者）。随着如何返回地址的新想法，这种负载平衡方式不再有效。现在 getaddrinfo() 每次调用基本上都返回相同的顺序。我在 2005 年注意到这一点，并在 glibc 黑客邮件列表上发布了一个问题：<a target="_blank" rel="noopener" href="http://www.cygwin.com/ml/libc-alpha/2005-11/msg00028.html">http://www.cygwin.com/ml/libc-alpha/2005-11/msg00028.html</a>正如您所看到的，我的问题被愉快地忽略了，并没有人回应过。顺序似乎主要由上述 RFC 和本地 <a target="_blank" rel="noopener" href="https://linux.die.net/man/5/gai.conf">&#x2F;etc&#x2F;gai.conf</a> 文件决定，但如果您的目标是获得良好的轮询，两者都无济于事。其他人<a target="_blank" rel="noopener" href="http://www.mail-archive.com/wget@sunsite.dk/msg09237.html">也</a><a target="_blank" rel="noopener" href="https://lists.debian.org/debian-ctte/2007/09/msg00035.html">注意到了这个缺陷</a> 有些人激烈争辩说这是一件坏事，当然也有相反的人声称这是正确的行为，并且无论如何，像这样做轮询 DNS 一开始就是一个坏主意。对大量常见实用程序的影响很简单，<strong>当它们启用 IPv6 时，也会同时禁用循环 DNS</strong>。</p>
+<h2 id="没有合适的方案"><a href="#没有合适的方案" class="headerlink" title="没有合适的方案"></a>没有合适的方案</h2><p>由于 getaddrinfo() 现在已经这样工作了近十年，我们可以忘掉“修复”它。。由于 gai.conf 需要本地编辑来提供不同的函数响应，因此它不是答案。但也许更糟糕的是，由于 getaddrinfo() 现在以某种优先顺序返回地址，，因此很难在顶部“粘贴”一个简单洗牌返回结果的层。洗牌需要考虑 IP 版本等因素。而且它将变得特定于应用程序，因此必须一次作用于一个程序。流行的浏览器似乎不太受到 getaddrinfo 的影响。。我的猜测是，因为他们致力于进行异步名称解析，以便名称解析不会阻塞进程，它们采取了不同的方法，因此拥有自己的代码。在 <a target="_blank" rel="noopener" href="http://curl.haxx.se/">curl</a> 情况下，即使支持IPv6，它也可以使用 <a target="_blank" rel="noopener" href="http://c-ares.haxx.se/">c-ares</a> 作为解析器后端构建，并且 c-ares 不提供 getaddrinfo的排序功能，因此在这些情况下，curl 将更像使用 gethostbyname 时那样与轮询 DNS 一起工作。</p>
+<h2 id="替代方案"><a href="#替代方案" class="headerlink" title="替代方案"></a>替代方案</h2><p>我所知道的所有替代方案的缺点是它们并没有充分利用朴素 DNS。为了避免我提到的问题，您可以调整 DNS 服务器以对不同的用户做出不同的响应。这样，您既可以随机以轮询的方式响应不同的地址，也可以尝试通过 <a target="_blank" rel="noopener" href="http://www.powerdns.com/content/home-powerdns.html">PowerDNS</a> 的 geobackend 功能等使其变得更加智能。当然，我们都知道 A) <a target="_blank" rel="noopener" href="http://en.wikipedia.org/wiki/Geotargeting">geoip</a>粗糙且经常错误，B) 现实世界地理位置与网络拓扑并不匹配。</p>
+<h2 id="happy-eyeballs"><a href="#happy-eyeballs" class="headerlink" title="happy eyeballs"></a>happy eyeballs</h2><p>在此期间，另一个与连接相关的问题出现了。事实上，IPv6 连接通常作为双栈计算机的第二个选项，而且事实上 IPv6 如今主要出现在双栈中。这可悲地惩罚了 IPv6 的早期采用者（是的，不幸的是，IPv6 仍然必须被视为早期），因为这些服务将比旧的纯 IPv4 服务慢。</p>
+<p>对于克服这个问题的方法似乎有一个普遍的共识：<a target="_blank" rel="noopener" href="http://tools.ietf.org/html/draft-ietf-v6ops-happy-eyeballs-07">happy eyeballs 方法</a>。简而言之，它建议同时尝试两个（或所有）选项，响应最快的获胜并被使用。这就需要同时解析 A 和 AAAA 名称，如果两者都得到响应，就连接到 IPv4 和 IPv6 地址，看看哪一个连接速度最快。</p>
+<p>这当然不仅仅是替换一两个函数的问题。要实施这种方法，您需要做一些全新的事情。例如，仅执行 getaddrinfo() + 循环地址并尝试 connect() 根本不起作用。您基本上要么启动两个线程，并在一个线程中执行 IPv4-only 路由，并在另一个线程中执行 IPv6 路由，_或者 _您必须发出非阻塞解析器调用以在同一线程中并行执行 A 和 AAAA 解析，并且当第一个响应到达时，您会触发非阻塞 connect() …</p>
+<p>我的观点是，无论如何，在您良好的旧套接字应用程序中引入 Happy Eyeballs 都需要进行一些相当大的改造。这样做很可能还会影响您的应用程序处理轮询  DNS 的方式，因此现在您有机会重新考虑您的选择和代码！</p>
+<p><em>原文：</em> <a target="_blank" rel="noopener" href="https://daniel.haxx.se/blog/2012/01/03/getaddrinfo-with-round-robin-dns-and-happy-eyeballs/">getaddrinfo with round robin DNS and happy eyeballs</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/09-07-2023/getaddrinfo-with-round-robin-dns-and-happy-eyeballs-cn.html">https://www.cyningsun.com/09-07-2023/getaddrinfo-with-round-robin-dns-and-happy-eyeballs-cn.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/10-08-2023/dive-into-dns-resolution.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-20-2023/go-redis-connection-timeout.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

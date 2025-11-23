@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Redis cluster 细节与技术选型</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-02-14 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2023-02-14 00:00:00 +0800"/>
+
+<meta property="og:url" content="/02-14-2023/details-about-redis-cluster.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="数据面Gossip集群是一个分片内的所有副本不能共一台机器，如果不同分片的副本共一台机器。该部署方式会导致单机故障影响多个副本，集群可用性低，共识达成慢，故障恢复时间较长。 N 个 Master 的集群，1 个 Master 节点挂掉仍然可用的概率是： 1-(1/(N*2-1)) 代理模式 Proxy Modecross-slots query ，等同于在 ">
+
+<meta name="keywords" content="Redis 选型,Redis 实现,Redis 源码分析">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Redis cluster 细节与技术选型</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-02-14
+         | 
+        Last Revised: 2023-02-14
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E9%9D%A2"><span class="toc-text">数据面</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Gossip"><span class="toc-text">Gossip</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A3%E7%90%86%E6%A8%A1%E5%BC%8F-Proxy-Mode"><span class="toc-text">代理模式 Proxy Mode</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%93%88%E5%B8%8C%E6%A7%BD-vs-%E5%88%86%E7%89%87"><span class="toc-text">哈希槽 vs 分片</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E5%88%86%E7%89%87-Resharding"><span class="toc-text">重新分片 Resharding</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%8E%E5%8F%AF%E8%AF%BB-Read-from-Slave"><span class="toc-text">从可读 Read from Slave</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E5%88%B6-Replication"><span class="toc-text">复制 Replication</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%85%E9%9A%9C%E8%BD%AC%E7%A7%BB-Failover"><span class="toc-text">故障转移 Failover</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%B9%E7%81%BE-Disaster-recovery"><span class="toc-text">容灾 Disaster recovery</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%8E%A7%E5%88%B6%E9%9D%A2"><span class="toc-text">控制面</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E5%88%86%E7%89%87-Resharding-1"><span class="toc-text">重新分片 Resharding</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%A7%BB%E9%99%A4%E8%8A%82%E7%82%B9-Forget-node"><span class="toc-text">移除节点 Forget node</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87-Metrics"><span class="toc-text">监控指标 Metrics</span></a></li></ol></li></ol>
+ 
+        <h2 id="数据面"><a href="#数据面" class="headerlink" title="数据面"></a>数据面</h2><h3 id="Gossip"><a href="#Gossip" class="headerlink" title="Gossip"></a>Gossip</h3><p>集群是一个分片内的所有副本不能共一台机器，如果不同分片的副本共一台机器。<strong>该部署方式会导致单机故障影响多个副本，集群可用性低，共识达成慢，故障恢复时间较长。</strong></p>
+<blockquote>
+<p>N 个 Master 的集群，1 个 Master 节点挂掉仍然可用的概率是： <code>1-(1/(N*2-1))</code> </p>
+</blockquote>
+<h3 id="代理模式-Proxy-Mode"><a href="#代理模式-Proxy-Mode" class="headerlink" title="代理模式 Proxy Mode"></a>代理模式 Proxy Mode</h3><p><code>cross-slots query</code> ，等同于在 Proxy 层扇出。单一分片故障的情况下，业务侧的重试会增加集群其他分片的流量，进而影响服务的稳定性。其次，由于 Redis 自身原子性的保证，目前 Redis 协议并不支持部分失败。</p>
+<h3 id="哈希槽-vs-分片"><a href="#哈希槽-vs-分片" class="headerlink" title="哈希槽 vs 分片"></a>哈希槽 vs 分片</h3><p>在限流、熔断等场景下，节点 IP 并不适合作为逻辑概念使用。其一在于会发生主从切换，其二在于硬件维护场景下节点迁移 IP 会发生变化。而 Slot 代表的是数据的逻辑概念，跟机器并不存在绑定关系。<strong>缺少 Shard 的概念，将难以基于 Shard 实现相关功能</strong></p>
+<blockquote>
+<p>备注：Redis 7.2 加入了 Shard 的概念，CLUSTER SLOTS 的相关命令也逐渐被 CLUSTER SHARDS 替代</p>
+</blockquote>
+<h3 id="重新分片-Resharding"><a href="#重新分片-Resharding" class="headerlink" title="重新分片 Resharding"></a>重新分片 Resharding</h3><p>当正在对 key 所属的 hash slots 进行重新分片时，<strong>多 key 操作可能变得不可用</strong>。</p>
+<blockquote>
+<p>    更具体地说，即使在重新分片期间，针对所有存在且仍哈希到同一 hash slot（重新分片的源节点或目标节点）的多 key 操作仍然可用。<br>    <br>    对不存在的 key 或在重新分片期间被拆分到源节点和目标节点之间 key 的多 key 操作将产生 -TRYAGAIN 错误。客户端可以在一段时间后尝试该操作，或报告错误。<br>    <br>    一旦指定 hash slot 的迁移终止，该 hash slot 的所有多 key 操作都将再次可用。</p>
+</blockquote>
+<p>同步搬迁遇到 <strong>Big key 会阻塞 Redis 处理请求，导致请求（延迟）毛刺</strong></p>
+<h3 id="从可读-Read-from-Slave"><a href="#从可读-Read-from-Slave" class="headerlink" title="从可读 Read from Slave"></a>从可读 Read from Slave</h3><p>因为 migrating 状态没有被同步到副本，所以当重新分片期间被拆分到源节点和目标节点之间 key 的多 key 操作，<strong>存在在另外一个节点的 key 读取到的数据为 nil</strong></p>
+<h3 id="复制-Replication"><a href="#复制-Replication" class="headerlink" title="复制 Replication"></a>复制 Replication</h3><p><strong>全量同步导致内存翻倍、数据复制导致 CPU 毛刺</strong></p>
+<blockquote>
+<p>Redis 并不适合绑定在单个 CPU 上。Redis fork 会运行 CPU 密集型的后台任务，如BGSAVE 或 BGREWRITEAF。如果 Redis 实例绑定在给定核心上，后台作业也将在同样的核心，抢占 CPU 核心，与 Redis 事件竞争 CPU 的循环。它产生了巨大的性能 Redis 实例的降级（延迟、吞吐量）</p>
+<p>最好将 Redis 绑定到 NUMA 节点（即多个核心），并在此基础上保持至少一个核心空闲支持后台任务</p>
+</blockquote>
+<p><strong>数据写入量大，主从同步落后，导致频繁全量同步</strong></p>
+<p>在使用 Redis 复制的设置中，<strong>强烈建议在主服务器和副本中启用持久化</strong>。当这不能实现时，例如，由于磁盘速度非常慢导致的延迟问题，应配置实例以 <strong>避免 reboot 后自动重启</strong>。</p>
+<blockquote>
+<p>为了更好地理解为什么将持久化关闭的 master 配置为自动重新启动是危险的，请防止以下故障模式，即<strong>从 master 及其所有副本中擦除数据</strong>：</p>
+<ul>
+<li>有一个设置，节点 A 充当 master 节点，持久化被关闭，节点 B 和 C 从节点 A 复制。</li>
+<li>节点 A 崩溃，但它有配置自动重启可以重启进程。但是，由于持久化已关闭，节点将以空数据集重新启动。</li>
+<li>节点 B 和 C 将从空的节点 A 复制，因此它们将实际上销毁已有的数据副本。</li>
+</ul>
+<p>当 Redis Sentinel 用于高可用性时，关闭主机上的持久化，并且配置自动重启进程，是危险的。例如，Master 节点可能快速重启，使 Sentinel 无法检测到故障，从而出现上述故障模式。</p>
+</blockquote>
+<p>默认情况下，副本将忽略  “maxmemory”（除非在故障切换后或手动将其升级为 Master 副本）。副本不会主动淘汰数据，而会等待 Master 的 DEL 命令。最终可能会使用比  maxmemory 设置更多的内存（因为复制副本上有某些缓冲区可能更大，或者数据结构有时会占用更多内存等等）。要更改此行为，可以允许复制副本不忽略最大内存。要使用的配置指令是：</p>
+<blockquote>
+<p>replica-ignore-maxmemory no</p>
+</blockquote>
+<h3 id="故障转移-Failover"><a href="#故障转移-Failover" class="headerlink" title="故障转移 Failover"></a>故障转移 Failover</h3><p>执行手动故障切换时，连接到 <strong>Master 节点的客户端都会被停止（延迟毛刺）</strong>。同时，Master 将复制偏移量发送给副本，副本等待该侧的偏移量到达。</p>
+<p>当达到复制偏移量时，故障切换将启动，并通知旧 Master 有关配置切换的信息。旧 Master 取消阻止客户端时，它们将重定向到新 Master。</p>
+<blockquote>
+<p>当副本想要成为 Master 时，没有分配 slots 的 Master 不参与选举过程。</p>
+</blockquote>
+<h3 id="容灾-Disaster-recovery"><a href="#容灾-Disaster-recovery" class="headerlink" title="容灾 Disaster recovery"></a>容灾 Disaster recovery</h3><p>Redis 环境中的灾难恢复与备份基本相同，而且能够在许多不同的外部数据中心传输这些备份。即使在某些灾难性事件影响到运行 Redis 并生成其快照的主数据中心的情况下，也可以通过这种方式保护数据。<br>- 备份 RDB<br>    - RPO：小时级<br>    - RTO：小时级<br>- 备份 AOF（Redis 7.0.0 以上）<br>    - RPO：分钟级<br>    - RTO：分钟级</p>
+<blockquote>
+<p><strong>RPO 和 RTO 较高<br>异构 DR 实现难度高</strong></p>
+</blockquote>
+<h2 id="控制面"><a href="#控制面" class="headerlink" title="控制面"></a>控制面</h2><h3 id="重新分片-Resharding-1"><a href="#重新分片-Resharding-1" class="headerlink" title="重新分片 Resharding"></a>重新分片 Resharding</h3><p><strong>搬迁数据只能顺序进行，速度慢。</strong></p>
+<p><strong>迁移状态不会广播给从节点，迁移过程中发生 failover，新的 master 迁移状态会丢失，需要重新设置</strong></p>
+<p><strong>因为 SET SLOT 是先生效再共识，迁移过程 SET SLOT 的操作需要严格有序，先设置 Dst Node 确认生效再设置 Src Node。</strong></p>
+<h3 id="移除节点-Forget-node"><a href="#移除节点-Forget-node" class="headerlink" title="移除节点 Forget node"></a>移除节点 Forget node</h3><p>移除节点需要在 <strong>1 分钟内通知所有节点，该节点下线。否则节点会可能再次加入集群</strong></p>
+<h3 id="监控指标-Metrics"><a href="#监控指标-Metrics" class="headerlink" title="监控指标 Metrics"></a>监控指标 Metrics</h3><p>Prometheus 一般 <strong>间隔</strong> 通过 Redis Exporter 调用 INFO 命令拉取 Redis 监控数据。<strong>有些指标是瞬时值，可能不会被记录下来</strong>。 例如 Loading 状态</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/02-14-2023/details-about-redis-cluster.html">https://www.cyningsun.com/02-14-2023/details-about-redis-cluster.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/03-12-2023/why-is-the-system-so-fragile.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/01-27-2023/etcd-implement-and-tech-selection.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

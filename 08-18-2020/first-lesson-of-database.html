@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>数据库常识课</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-08-18 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2025-08-03 00:00:00 +0800"/>
+
+<meta property="og:url" content="/08-18-2020/first-lesson-of-database.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="基础认知传统关系型数据库（一般，指 InnoDB MySQL ）参考指标： 1TB：如果数据库会膨胀到 TB 级别，需要考虑 MySQL 分库分库。 1000 万行或 10GB：单表的记录数超过 1000 万行，或单表磁盘空间占用超过 10GB，需要考虑分表 每秒 1000 次写入：单节点写入速率超过每秒 1000 次。可以考虑根据业务场景引入 Redis ">
+
+<meta name="keywords" content="数据库,性能指标,参数,Database">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>数据库常识课</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-08-18
+         | 
+        Last Revised: 2025-08-03
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+        <h3 id="基础认知"><a href="#基础认知" class="headerlink" title="基础认知"></a>基础认知</h3><p>传统关系型数据库（一般，指 InnoDB MySQL ）参考指标：</p>
+<ul>
+<li>1TB：如果数据库会膨胀到 TB 级别，需要考虑 MySQL 分库分库。</li>
+<li>1000 万行或 10GB：单表的记录数超过 1000 万行，或单表磁盘空间占用超过 10GB，需要考虑分表<ul>
+<li>每秒 1000 次写入：单节点写入速率超过每秒 1000 次。可以考虑根据业务场景引入 Redis 或消息队列作为写缓冲，实现数据库写操作异步化</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>来源：刘春辉 《Shopee 是如何进行数据库选型的？》</p>
+</blockquote>
+<p>数据库的单机QPS不过几千，显然满足不了互联网业务场景下对高并发的要求。因此，分库分表 + 读写分离成为常态。</p>
+<ul>
+<li>分库，即把一个库分成多个库，部署在多个实例之上。</li>
+<li>读写分析：主库承载写请求，从库承载读请求。由于多数业务场景都是读远多于写，一个主库挂多个从库，可以有效降低对单库的压力。</li>
+</ul>
+<p>如果写请求继续增加（或，数据量增加）达到瓶颈，就继续分库分表；反之，如果读的请求上升就挂更多的从库。</p>
+<h3 id="分表复杂性"><a href="#分表复杂性" class="headerlink" title="分表复杂性"></a>分表复杂性</h3><p>然而线上业务情况往往复杂的多，随着数据量增加、用户量增加，数据库分表（分库，一般按照业务因此问题不大，暂且不表）会逐渐暴漏出以下问题：</p>
+<ul>
+<li><p>分片复杂</p>
+<ul>
+<li><p>容量预估困难</p>
+<ul>
+<li>某单一数据没有考虑分表，随着业务发展需要分表，且分表字段不是已有的ID字段，变更代价高昂</li>
+</ul>
+<blockquote>
+<p>十倍架构设计、百倍数据设计</p>
+</blockquote>
+</li>
+<li><p>Coordinate&amp;Integrity</p>
+<ul>
+<li>以订单为例，业务会按照买家、卖家、订单状态、支付方式等维度筛选数据。若以买家维度分库分表，则卖家维度的查询会变得困难；反之亦然。解决方案一般是以主要查询为维度，分别建立异构索引，不同数据必然存在一致性的难题</li>
+</ul>
+</li>
+<li><p>数据倾斜</p>
+<ul>
+<li>诸如点赞和关注等偏社交类业务数据，按照用户维度分库分表后常出现数据分布不均匀的现象，少数分片的数据量可能远大于其他分片；这些大分片往往也是读写的热点，进而容易成为性能瓶颈。</li>
+</ul>
+<blockquote>
+<p>解决方案：使用大素数取模再分表 可以得到较好的效果</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>查询复杂</p>
+<ul>
+<li>多分表查询</li>
+<li>多维度维度：见订单部分</li>
+</ul>
+</li>
+</ul>
+<h3 id="存储细分"><a href="#存储细分" class="headerlink" title="存储细分"></a>存储细分</h3><p>由于数据分表可见的复杂性，在实际使用中，随着对分表的疲劳，不同于诸多传统关系型数据库的新兴分布式数据库也越来越多的被使用在生产环境，例如：TiDB</p>
+<blockquote>
+<p>参考：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/71023604">TiDB 在知乎万亿量级业务数据下的实践和挑战</a></p>
+</blockquote>
+<p>无论数据库如何多变，了解其类型和原理，才能看穿表象，把握本质，更好的应用到业务的设计之中</p>
+<h4 id="按照应用类型来分"><a href="#按照应用类型来分" class="headerlink" title="按照应用类型来分"></a>按照应用类型来分</h4><ul>
+<li>键值型：ID - Value</li>
+<li>表格型：ID Collection + Time - Value</li>
+<li>关系模型: ID + ID Collection + Time - Value</li>
+</ul>
+<blockquote>
+<p>参考： <a href="/07-27-2020/how-to-write-rpc-interface.html#%E8%AE%A4%E8%AF%86%E8%B5%84%E6%BA%90">认识资源</a></p>
+</blockquote>
+<h4 id="按照存储模型来分"><a href="#按照存储模型来分" class="headerlink" title="按照存储模型来分"></a>按照存储模型来分</h4><ul>
+<li>B-tree：读取友好，数据有序。LIRS算法，将缓冲池分为两级，数据首先进入第一级，如果数据在较短的时间内被访问两次或者以上，则成为热点数据进入第二级，每一级内部还是采用LRU替换算法</li>
+<li>Bitcask：写入友好，数据无序。在内存中存储了主键和value的索引信息，磁盘文件中存储了主键和value的实际内容。需要定期执行合并（Compaction）操作以实现垃圾回收。Bitcask通过索引文件（hint file）来提高重建哈希表的速度</li>
+<li>LSM：写入友好，数据有序。将对数据的修改增量保持在内存中，达到指定的大小限制后将这些修改操作批量写入磁盘，读取时需要合并磁盘中的历史数据和内存中最近的修改操作，需要定期执行合并（Compaction）操作以实现垃圾回收</li>
+</ul>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/08-18-2020/first-lesson-of-database.html">https://www.cyningsun.com/08-18-2020/first-lesson-of-database.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+            <li><span><a href="/08-03-2025/the-rocksdb-experience.html">译｜Evolution of Development Priorities in Key-value Stores Serving Large-scale Applications: The RocksDB Experience</a></span></li>
+          
+            <li><span><a href="/06-01-2025/disaggregating-rocksdb-a-production-experience-cn.html">译｜Disaggregating RocksDB: A Production Experience</a></span></li>
+          
+            <li><span><a href="/05-30-2025/rocksdb-memtable-flush.html">深入理解 RocksDB Memtable Flush 机制</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/08-25-2020/mysql-bplustree.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/08-09-2020/resouce-id-design.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

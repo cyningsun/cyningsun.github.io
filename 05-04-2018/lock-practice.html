@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>内容服务锁优化实践</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2018-05-04 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-01-25 00:00:00 +0800"/>
+
+<meta property="og:url" content="/05-04-2018/lock-practice.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="背景随着内部重点服务接入的内容越来越多，维护各种内容的动态信息(例如：播放量，删除状态等)的成本越来越高。独立出一个内容服务成为很自然的选择。 内容提供方按照调用快慢依次： NoSQL数据库：耗时5ms以下 BG内部服务：耗时10~20ms左右 外BG服务：耗时50ms+ 由于内容经常会出现下线，而下线的内容一般在推荐结果中的位于头部，较大可能逃脱推荐服务的">
+
+<meta name="keywords" content="锁,同步,多线程">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>内容服务锁优化实践</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2018-05-04
+         | 
+        Last Revised: 2020-01-25
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BC%93%E5%AD%98%E8%AE%BF%E9%97%AE%E5%88%86%E6%9E%90"><span class="toc-text">缓存访问分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%B8%80%E7%89%88%EF%BC%9ALRU%E7%BC%93%E5%AD%98"><span class="toc-text">第一版：LRU缓存</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%BA%8C%E7%89%88%EF%BC%9A%E5%88%86%E6%A1%B6LRU%E7%BC%93%E5%AD%98-%E7%8A%B6%E6%80%81-x2F-%E5%86%85%E5%AE%B9%E5%88%86%E7%A6%BB"><span class="toc-text">第二版：分桶LRU缓存+状态&#x2F;内容分离</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%B8%89%E7%89%88%EF%BC%9A%E5%86%85%E5%AD%98%E6%8B%B7%E8%B4%9D%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%9E%90%E6%9E%84%E4%BC%98%E5%8C%96"><span class="toc-text">第三版：内存拷贝和对象析构优化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>随着内部重点服务接入的内容越来越多，维护各种内容的动态信息(例如：播放量，删除状态等)的成本越来越高。独立出一个内容服务成为很自然的选择。</p>
+<blockquote>
+<p>内容提供方按照调用快慢依次：</p>
+</blockquote>
+<ul>
+<li>NoSQL数据库：耗时5ms以下</li>
+<li>BG内部服务：耗时10~20ms左右</li>
+<li>外BG服务：耗时50ms+</li>
+</ul>
+<p>由于内容经常会出现下线，而下线的内容一般在推荐结果中的位于头部，较大可能逃脱推荐服务的若干次截断，如果只在最终返回给用户的时候再进行过滤，就会出现部分类目的内容空白或者缺失。考虑到后端接口的性能，内容服务使用了二次过滤的方式来保证，因此服务提供了两个接口：</p>
+<blockquote>
+<p>前置接口：粗粒度的状态过滤<br>后置接口：内容获取与状态再过滤</p>
+</blockquote>
+<p>所谓粗粒度的过滤，就是可以容忍少量下线内容不被过滤掉，但是输入的数据量很大。再过滤则要求过滤掉所有下线内容，不过数据量只有前者的十分之一左右。根据以上分析就可以得到大致的架构，前置接口只查询缓存；后置接口依次按照缓存、KV、内部调用。而外部调用则通过异步更新的方式来保证。(由于内容在打开的时候，同样会进行内容有效性的检查，所以不涉及到缓存数据一致性)。<br><img src="/images/lock/SimpleContentSvr.png" alt="architecture"></p>
+<h3 id="缓存访问分析"><a href="#缓存访问分析" class="headerlink" title="缓存访问分析"></a>缓存访问分析</h3><p>上图可见，我们可以得到以下结论</p>
+<ol>
+<li>单机缓存查询:kw&#x2F;m<br>所有的请求都会查询本地缓存，缓存查询次数每分钟会有数亿次。以十台机器算，每台机器每分钟有kw级的查询，10w+&#x2F;m写入。</li>
+<li>缓存淘汰算法、加锁方式影响巨大<br>缓存的空间是有限的，缓存更新需要合适的淘汰机制，而共享数据淘汰则需要添加锁。</li>
+</ol>
+<h3 id="第一版：LRU缓存"><a href="#第一版：LRU缓存" class="headerlink" title="第一版：LRU缓存"></a>第一版：LRU缓存</h3><p>服务重构、完善监控、联调、灰度上线，Leader给的时间只有一周，所以缓存直接使用部门LRU缓存组件。缓存实现是unordered_map + 链表 + 互斥锁</p>
+<h3 id="第二版：分桶LRU缓存-状态-x2F-内容分离"><a href="#第二版：分桶LRU缓存-状态-x2F-内容分离" class="headerlink" title="第二版：分桶LRU缓存+状态&#x2F;内容分离"></a>第二版：分桶LRU缓存+状态&#x2F;内容分离</h3><p>第一版快速上线之后，发现单机并发始终上不去，性能瓶颈在前置接口，更准确说是锁冲突。LRU缓存组件被广泛使用在我们的后台系统中，之所以之前没有遇到类似的问题，是因为之前缓存读写的QPS远小于当前的应用场景，锁冲突的概率也远小于当前场景。那么如何减少锁冲突呢？参考<a target="_blank" rel="noopener" href="http://cyningsun.github.io/04-24-2018/lock.html" title="http://cyningsun.github.io/04-24-2018/lock.html">深入了解锁细节</a>以及我们的业务，可能有的选择是：</p>
+<ul>
+<li>减少锁请求频率：批量读写代替单个读写<blockquote>
+<p>批量读写的问题也很明显，意味着临界区内的时间大大加长。持有锁的时间越长，锁冲突的几率越大，效果难说。</p>
+</blockquote>
+</li>
+<li>分离&#x2F;分拆锁：将缓存分段，每段使用一个锁<blockquote>
+<p>效果明显，值得实施。</p>
+</blockquote>
+</li>
+<li>替代独占锁：使用自旋锁&#x2F;读写锁代替独占锁<blockquote>
+<ul>
+<li>考虑使用LRU缓存的场景，对于内容缓存更新使用LRU没有问题。但对于状态数据等需要强制过期淘汰的数据来说，更合适的缓存更新的策略其实是FIFO。所以可以考虑内容和状态分开缓存。FIFO由于读数据不需要更新状态，可以使用读写锁代替独占锁</li>
+<li>由于线程切换导致的代价详细位置，所以LRU使用自旋锁代替互斥锁，带来的收益以及付出的CPU代价，难以简单评估。</li>
+</ul>
+</blockquote>
+</li>
+</ul>
+<p>因此，第二版我们使用:<strong>“分桶LRU缓存”</strong> + **”状态&#x2F;内容分离”**来进行优化<br><img src="/images/lock/segment-lock.png" alt="architecture"></p>
+<h3 id="第三版：内存拷贝和对象析构优化"><a href="#第三版：内存拷贝和对象析构优化" class="headerlink" title="第三版：内存拷贝和对象析构优化"></a>第三版：内存拷贝和对象析构优化</h3><p>做完以上优化，使用perf工具跑下服务的性能。通过火焰图发现，由于单次请求查询数百条数据，会涉及到多次的对象创建和析构：</p>
+<blockquote>
+<p>创建对象-&gt;【 拷贝放入缓存】-&gt; 原对象析构<br>【缓存拷贝取出数据(对象过期析构)】 -&gt; 返回对象析构<br>备注：【】临界区</p>
+</blockquote>
+<p>而且对象的拷贝发生在临界区内，直接影响了持有锁的时间，而这些拷贝都可以通过share_ptr来避免，而过期对象的析构也可以通过异步处理来优化，这样大大减少了持有锁的时间，明显降低了锁冲突的概率。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>通过以上优化服务的并发成倍提升，耗时降低为第一版的一半，相同QPS CPU消耗降低三分之一，锁优化为缓存强依赖的服务带来明显收益。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/05-04-2018/lock-practice.html">https://www.cyningsun.com/05-04-2018/lock-practice.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+</div>
+
+
+    
+
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/06-08-2018/multi-level-hash.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/04-24-2018/lock.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

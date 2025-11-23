@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>Golang 进阶文章一览</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2020-10-15 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2020-10-16 00:00:00 +0800"/>
+
+<meta property="og:url" content="/10-15-2020/advanced-golang-article.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="最近在组内 Code Review 发现很多同学学习时间虽然不短，但Golang的一些基本Pattern仍然有所疏漏。 譬如，RPC接口内随意go协程，不考虑调用量大之后，协程暴涨可能导致程序OOM。再譬如，协程不知道有哪些同步、退出机制。 如果时间不是问题，那么就是知识体系存在漏洞。那么一个体系化、结构化的指南，对他们应该会帮助，因此整理之前主体阅读过的经">
+
+<meta name="keywords" content="Golang 进阶,Advanced golang">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>Golang 进阶文章一览</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2020-10-15
+         | 
+        Last Revised: 2020-10-16
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%E3%80%81Golang-Design-Cornerstone"><span class="toc-text">1、Golang Design Cornerstone</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%E3%80%81Concurrency-Pattern"><span class="toc-text">2、Concurrency Pattern</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3%E3%80%81Error-Handling"><span class="toc-text">3、Error Handling</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4%E3%80%81Naming"><span class="toc-text">4、Naming</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5%E3%80%81Package-Management"><span class="toc-text">5、Package Management</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6%E3%80%81Logging"><span class="toc-text">6、Logging</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7%E3%80%81Code-Style"><span class="toc-text">7、Code Style</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8%E3%80%81Debug-amp-Profile-amp-Diagnostics"><span class="toc-text">8、Debug&amp;Profile&amp;Diagnostics</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9%E3%80%81TDD"><span class="toc-text">9、TDD</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10%E3%80%81Golang-Struct"><span class="toc-text">10、Golang Struct</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11%E3%80%81%E7%B2%BE%E5%8D%8E%E7%BD%91%E7%AB%99"><span class="toc-text">11、精华网站</span></a></li></ol>
+ 
+        <p>最近在组内 Code Review 发现很多同学学习时间虽然不短，但Golang的一些基本Pattern仍然有所疏漏。</p>
+<blockquote>
+<p>譬如，RPC接口内随意go协程，不考虑调用量大之后，协程暴涨可能导致程序OOM。再譬如，协程不知道有哪些同步、退出机制。</p>
+</blockquote>
+<p>如果时间不是问题，那么就是知识体系存在漏洞。那么一个体系化、结构化的指南，对他们应该会帮助，因此整理之前主体阅读过的经典文章，形成了本篇文章。</p>
+<h3 id="1、Golang-Design-Cornerstone"><a href="#1、Golang-Design-Cornerstone" class="headerlink" title="1、Golang Design Cornerstone"></a>1、Golang Design Cornerstone</h3><blockquote>
+<p><code>Do not communicate by sharing memory; instead, share memory by communicating.</code></p>
+</blockquote>
+<p><a target="_blank" rel="noopener" href="https://blog.golang.org/codelab-share">《Share Memory By Communicating》</a><br><a target="_blank" rel="noopener" href="https://blog.golang.org/waza-talk">《Concurrency is not parallelism》</a></p>
+<h3 id="2、Concurrency-Pattern"><a href="#2、Concurrency-Pattern" class="headerlink" title="2、Concurrency Pattern"></a>2、Concurrency Pattern</h3><p><a target="_blank" rel="noopener" href="https://blog.golang.org/context">《Go Concurrency Patterns: Context》</a><br><a target="_blank" rel="noopener" href="https://blog.golang.org/pipelines">《Go Concurrency Patterns: Pipelines and cancellation》</a><br><a target="_blank" rel="noopener" href="https://blog.golang.org/concurrency-timeouts">《Go Concurrency Patterns: Timing out, moving on》</a><br><a target="_blank" rel="noopener" href="https://blog.golang.org/io2013-talk-concurrency">《Advanced Go Concurrency Patterns》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2017/08/20/context-isnt-for-cancellation">《Context isn’t for cancellation》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2016/12/22/never-start-a-goroutine-without-knowing-how-it-will-stop">《Never start a goroutine without knowing how it will stop》</a><br><a target="_blank" rel="noopener" href="https://drive.google.com/file/d/1nPdvhB0PutEJzdCq5ms6UI58dp50fcAN/view">《Rethinking Classical Concurrency Patterns》</a><br><a target="_blank" rel="noopener" href="https://github.com/golang/go/wiki/Timeouts">《Timeouts and Deadlines》</a></p>
+<h3 id="3、Error-Handling"><a href="#3、Error-Handling" class="headerlink" title="3、Error Handling"></a>3、Error Handling</h3><p><a target="_blank" rel="noopener" href="https://blog.golang.org/errors-are-values">《Errors are values》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully">《Don’t just check errors, handle them gracefully》</a></p>
+<h3 id="4、Naming"><a href="#4、Naming" class="headerlink" title="4、Naming"></a>4、Naming</h3><p><a target="_blank" rel="noopener" href="https://blog.golang.org/package-names">《Package names》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2019/01/08/avoid-package-names-like-base-util-or-common">《Avoid package names like base, util, or common》</a></p>
+<h3 id="5、Package-Management"><a href="#5、Package-Management" class="headerlink" title="5、Package Management"></a>5、Package Management</h3><p><a target="_blank" rel="noopener" href="https://blog.golang.org/using-go-modules">《Using Go Modules》</a></p>
+<h3 id="6、Logging"><a href="#6、Logging" class="headerlink" title="6、Logging"></a>6、Logging</h3><p><a target="_blank" rel="noopener" href="https://dave.cheney.net/2015/11/05/lets-talk-about-logging">《Let’s talk about logging》</a></p>
+<h3 id="7、Code-Style"><a href="#7、Code-Style" class="headerlink" title="7、Code Style"></a>7、Code Style</h3><p><a target="_blank" rel="noopener" href="https://dave.cheney.net/2016/08/20/solid-go-design">《SOLID Go Design》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2016/11/13/do-not-fear-first-class-functions">《Do not fear first class functions》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2020/02/23/the-zen-of-go">《The Zen of Go》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2019/07/09/clear-is-better-than-clever">《Clear is better than clever》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2017/06/11/go-without-package-scoped-variables">《Go, without package scoped variables》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2016/03/19/should-methods-be-declared-on-t-or-t">《Should methods be declared on T or *T》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2015/03/08/simplicity-and-collaboration">《Simplicity and collaboration》</a></p>
+<h3 id="8、Debug-amp-Profile-amp-Diagnostics"><a href="#8、Debug-amp-Profile-amp-Diagnostics" class="headerlink" title="8、Debug&amp;Profile&amp;Diagnostics"></a>8、Debug&amp;Profile&amp;Diagnostics</h3><p><a target="_blank" rel="noopener" href="https://blog.golang.org/pprof">《Profiling Go Programs》</a><br><a target="_blank" rel="noopener" href="https://golang.org/doc/diagnostics.html">《Diagnostics》</a><br><a target="_blank" rel="noopener" href="https://www.ardanlabs.com/blog/2015/01/stack-traces-in-go.html">《Stack Traces In Go》</a></p>
+<h3 id="9、TDD"><a href="#9、TDD" class="headerlink" title="9、TDD"></a>9、TDD</h3><p><a target="_blank" rel="noopener" href="https://dave.cheney.net/2019/05/07/prefer-table-driven-tests">《Prefer table driven tests》</a></p>
+<h3 id="10、Golang-Struct"><a href="#10、Golang-Struct" class="headerlink" title="10、Golang Struct"></a>10、Golang Struct</h3><p><a target="_blank" rel="noopener" href="https://dave.cheney.net/2017/04/30/if-a-map-isnt-a-reference-variable-what-is-it">《If a map isn’t a reference variable, what is it?》</a><br><a target="_blank" rel="noopener" href="https://dave.cheney.net/2018/07/12/slices-from-the-ground-up">《Slices from the ground up》</a></p>
+<h3 id="11、精华网站"><a href="#11、精华网站" class="headerlink" title="11、精华网站"></a>11、精华网站</h3><p><a target="_blank" rel="noopener" href="https://blog.gopheracademy.com/">Gopher Academy Blog</a>、<a target="_blank" rel="noopener" href="https://blog.golang.org/">The official Go Blog</a>、<a href="talks.golang.org">Golang Talks</a>、<a target="_blank" rel="noopener" href="https://github.com/golang/go/wiki">Go Wiki</a>、<a target="_blank" rel="noopener" href="https://dave.cheney.net/">Dave Cheney</a></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/10-15-2020/advanced-golang-article.html">https://www.cyningsun.com/10-15-2020/advanced-golang-article.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Golang" rel="category"># Golang</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/08-23-2021/there-are-no-reference-types-in-go-cn.html">译｜There Are No Reference Types in Go</a></span></li>
+          
+            <li><span><a href="/08-16-2021/go-has-no-reference-and-safe-pointer.html">Go 语言没有引用类型，指针也与众不同</a></span></li>
+          
+            <li><span><a href="/08-08-2021/go-accept-interfaces-return-structs.html">译｜What “accept interfaces, return structs” means in Go</a></span></li>
+          
+            <li><span><a href="/08-02-2021/using-golang-interface-well.html">如何用好 Go interface</a></span></li>
+          
+            <li><span><a href="/07-26-2021/go-a-graceful-lru-implement.html">一个优雅的 LRU 缓存实现</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/10-21-2020/thinking-clearly-about-performance-cn-part-one.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/09-18-2020/learn-virtual-filesystem-from-lsof.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

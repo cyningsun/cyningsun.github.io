@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解 DNS 解析</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2023-10-08 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2023-10-08 00:00:00 +0800"/>
+
+<meta property="og:url" content="/10-08-2023/dive-into-dns-resolution.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="作为互联网的基本设施，DNS 通过将域名转换为一组 IP 地址，在不同的连接尝试中，客户端将接收来自不同 IP 的服务器的服务，从而将整体负载分配到不同服务器之间。 在一些对响应延迟极度敏感的场景下，服务端负载不均会显著增加 P99&amp;#x2F;P999 延迟，例如：Redis 服务接入。假如后端服务能力一致，使用 DNS 作为服务发现的情况下，怎样才能让负载">
+
+<meta name="keywords" content="DNS 解析,DNS Resolver,CoreDNS,IPv4 IPv6,Name server">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解 DNS 解析</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2023-10-08
+         | 
+        Last Revised: 2023-10-08
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#DNS-%E6%9F%A5%E8%AF%A2"><span class="toc-text">DNS 查询</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%BF%AD%E4%BB%A3%E6%9F%A5%E8%AF%A2"><span class="toc-text">迭代查询</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%80%92%E5%BD%92%E6%9F%A5%E8%AF%A2"><span class="toc-text">递归查询</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%92%E5%BD%92%E8%A7%A3%E6%9E%90%E5%99%A8"><span class="toc-text">递归解析器</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%BD%AE%E8%AF%A2-DNS"><span class="toc-text">轮询 DNS</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BC%93%E5%AD%98%E6%8F%92%E4%BB%B6"><span class="toc-text">缓存插件</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9F%9F%E5%90%8D%E6%9C%8D%E5%8A%A1"><span class="toc-text">域名服务</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%BC%A0%E8%BE%93%E5%8D%8F%E8%AE%AE"><span class="toc-text">传输协议</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%B7%AF%E7%94%B1%E7%AD%96%E7%95%A5"><span class="toc-text">路由策略</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Resolver-%E5%BA%93"><span class="toc-text">Resolver 库</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#nsswitch-conf"><span class="toc-text">nsswitch.conf</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#host-conf"><span class="toc-text">host.conf</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#resolv-conf"><span class="toc-text">resolv.conf</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#gai-conf"><span class="toc-text">gai.conf</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Dial%EF%BC%9A%E8%BF%9E%E6%8E%A5%E5%88%9B%E5%BB%BA"><span class="toc-text">Dial：连接创建</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <p>作为互联网的基本设施，DNS 通过将域名转换为一组 IP 地址，在不同的连接尝试中，客户端将接收来自不同 IP 的服务器的服务，从而将整体负载分配到不同服务器之间。</p>
+<p>在一些对响应延迟极度敏感的场景下，服务端负载不均会显著增加 P99&#x2F;P999 延迟，例如：Redis 服务接入。假如后端服务能力一致，使用 DNS 作为服务发现的情况下，怎样才能让负载均衡到不同的服务器（注意：不仅仅是<strong>负载分配</strong>，而是<strong>负载均衡</strong>）。通常意义上，我们倾向于认为 <strong>DNS 解析</strong>返回的结果是 Round-robin 的，然而实际上并非如此。</p>
+<h3 id="DNS-查询"><a href="#DNS-查询" class="headerlink" title="DNS 查询"></a>DNS 查询</h3><h4 id="迭代查询"><a href="#迭代查询" class="headerlink" title="迭代查询"></a>迭代查询</h4><p>所有 DNS 服务器都属于以下四个类别之一：</p>
+<ul>
+<li>递归解析器（Local DNS）</li>
+<li>根域名服务器(Root Nameserver)</li>
+<li>TLD 域名服务器(TLD Nameserver)</li>
+<li>权威性域名服务器(Authoritative Nameserver)</li>
+</ul>
+<p>在典型 DNS 查找中，四种 DNS 服务器协同工作来完成客服端发起的域名到 IP 地址的解析任务。</p>
+<p><img src="/images/dive-into-dns-resolution/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20DNS%20%E8%A7%A3%E6%9E%90-20231008175440.png"></p>
+<p><strong>客户端不会直接与 DNS 域名服务器通信，递归解析器（也称为 DNS 解析器）作为客户端与 DNS 域名服务器的中间人，是 DNS 查询中的第一站</strong>。从客户端收到 DNS 查询后，递归解析器将使用缓存的数据进行响应，或向 Root 域名服务器发送请求，接着向 TLD 域名服务器发送另一个请求，然后向权威性域名服务器发送最后一个请求。收到来自权威性域名服务器的响应后，递归解析器将向客户端发送响应。</p>
+<h4 id="递归查询"><a href="#递归查询" class="headerlink" title="递归查询"></a>递归查询</h4><p>为了满足访问加速、私有（内部）域名、防止 DNS 劫持、智能路由等需求，实际生产环境中会有多级的递归解析器。递归解析器会缓存上游 DNS 服务的查询记录，并根据配置转发未命中缓存的 DNS 查询请求给上游 DNS 服务。</p>
+<p>以公有云 VPC 为例，可以在主机部署 node-local-dns，在 Kubernetes 集群部署 CoreDNS，在 VPC 内使用 <code>AWS Route 53</code> 等 DNS 服务。整体效果，如下图：</p>
+<p><img src="/images/dive-into-dns-resolution/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20DNS%20%E8%A7%A3%E6%9E%90-20231008175446.png"></p>
+<p>当 Kubernetes 集群内的容器进行 DNS 解析时，请求首先被转发给主机的 DNS 服务，在未命中缓存是逐级转发给上游的递归解析器。最后一级递归解析器，通过迭代查询返回解析结果。</p>
+<h3 id="递归解析器"><a href="#递归解析器" class="headerlink" title="递归解析器"></a>递归解析器</h3><p>使用 CoreDNS 搭建<a target="_blank" rel="noopener" href="https://github.com/cyningsun/kubetest/tree/main/coredns">域名服务</a>，配置如下：</p>
+<pre><code class="hljs corefile"># Corefile
+.:53 &#123;
+    log
+    errors
+    forward . 192.168.65.7    # 未命中私有域名、缓存的请求转发给主机 DNS
+    file /etc/coredns/db/example.com example.com # 私有域名
+    cache 30  # 缓存 30 秒
+    loop
+    reload
+    loadbalance round_robin # 充当循环DNS负载均衡器，随机响应中 A、AAAA 和 MX 记录的顺序。
+
+&#125;
+
+# /etc/coredns/db/example.com
+# www.example.com 两条 A 记录， 两 IP 均为 mock IP
+# www.cname.example.com CNAME 到 www.example.com
+...
+www    IN A     192.168.8.7 
+www    IN A     192.168.8.8
+www.cname    IN CNAME  www
+...</code></pre>
+
+<p>CoreDNS 通过 forward 插件实现递归查询；loadbalance 插件实现轮询 DNS；cache 插件根据域名和记录进行缓存。</p>
+<p>使用 dig 验证私有域名 <code>www.example.com</code>、<code>www.cname.example.com</code> 和 <code>serverfault.com</code>，可以看到正常解析，响应中 IP 顺序随机：</p>
+<pre><code class="hljs sh">$&gt; dig -p 53 @127.0.0.1 +noall +answer  www.example.com      
+www.example.com.	21	IN	A	192.168.8.8
+www.example.com.	21	IN	A	192.168.8.7
+
+$&gt; dig -p 53 @192.168.3.2 +noall +answer  www.cname.example.com
+www.cname.example.com.	18	IN	CNAME	www.example.com.
+www.example.com.	18	IN	A	192.168.8.7
+www.example.com.	18	IN	A	192.168.8.8
+
+$&gt; dig -p 53 @127.0.0.1 +noall +answer  serverfault.com
+serverfault.com.	30	IN	A	104.18.23.101
+serverfault.com.	30	IN	A	104.18.22.101</code></pre>
+
+<h4 id="轮询-DNS"><a href="#轮询-DNS" class="headerlink" title="轮询 DNS"></a>轮询 DNS</h4><p>统计 <code>serverfault.com</code> 返回记录的首位结果：</p>
+<pre><code class="hljs sh">$&gt; <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> $(<span class="hljs-built_in">seq</span> 1 10); <span class="hljs-keyword">do</span>  dig +short serverfault.com | <span class="hljs-built_in">head</span> -n 1; <span class="hljs-keyword">done</span> | <span class="hljs-built_in">sort</span> | <span class="hljs-built_in">uniq</span> -c
+      4 104.18.22.101
+      6 104.18.23.101</code></pre>
+
+<p>即使<strong>排除缓存失效再缓存</strong>的干扰，CoreDNS 结果也并不总是 5:5，看起来与想象的 <code>round-robin</code> 不同。</p>
+<p>深入 CoreDNS loadbalance 插件的源代码，可以看到:</p>
+<ul>
+<li>仅对 MX 和 A、AAAA 记录 <code>round-robin</code> shuffle </li>
+<li>A、AAAA 记录会合并到一起  <code>round-robin</code> shuffle</li>
+</ul>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">roundRobin</span><span class="hljs-params">(in []dns.RR)</span></span> []dns.RR &#123;
+	cname := []dns.RR&#123;&#125;
+	address := []dns.RR&#123;&#125;
+	mx := []dns.RR&#123;&#125;
+	rest := []dns.RR&#123;&#125;
+	<span class="hljs-keyword">for</span> _, r := <span class="hljs-keyword">range</span> in &#123;
+		<span class="hljs-keyword">switch</span> r.Header().Rrtype &#123;
+		<span class="hljs-keyword">case</span> dns.TypeCNAME:
+			cname = <span class="hljs-built_in">append</span>(cname, r)
+		<span class="hljs-keyword">case</span> dns.TypeA, dns.TypeAAAA: <span class="hljs-comment">// IPv4, IPv6</span>
+			address = <span class="hljs-built_in">append</span>(address, r)
+		<span class="hljs-keyword">case</span> dns.TypeMX:
+			mx = <span class="hljs-built_in">append</span>(mx, r)
+		<span class="hljs-keyword">default</span>:
+			rest = <span class="hljs-built_in">append</span>(rest, r)
+		&#125;
+	&#125;
+
+	roundRobinShuffle(address)
+	roundRobinShuffle(mx)
+
+	out := <span class="hljs-built_in">append</span>(cname, rest...)
+	out = <span class="hljs-built_in">append</span>(out, address...)
+	out = <span class="hljs-built_in">append</span>(out, mx...)
+	<span class="hljs-keyword">return</span> out
+&#125;</code></pre>
+
+<p>再看 <code>roundRobinShuffle</code> 的实现，可以看到排序规则：<strong>根据随机的消息 ID 做 random_shuffle（随机排列组合），而非像击球队伍中的运动员一样：每个人都轮到一次，然后移到队伍的后面</strong>。</p>
+<pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">roundRobinShuffle</span><span class="hljs-params">(records []dns.RR)</span></span> &#123;
+	<span class="hljs-keyword">switch</span> l := <span class="hljs-built_in">len</span>(records); l &#123;
+	<span class="hljs-keyword">case</span> <span class="hljs-number">0</span>, <span class="hljs-number">1</span>:
+		<span class="hljs-keyword">break</span>
+	<span class="hljs-keyword">case</span> <span class="hljs-number">2</span>:
+		<span class="hljs-keyword">if</span> dns.Id()%<span class="hljs-number">2</span> == <span class="hljs-number">0</span> &#123;
+			records[<span class="hljs-number">0</span>], records[<span class="hljs-number">1</span>] = records[<span class="hljs-number">1</span>], records[<span class="hljs-number">0</span>]
+		&#125;
+	<span class="hljs-keyword">default</span>:
+		<span class="hljs-keyword">for</span> j := <span class="hljs-number">0</span>; j &lt; l; j++ &#123;
+			p := j + (<span class="hljs-type">int</span>(dns.Id()) % (l - j))
+			<span class="hljs-keyword">if</span> j == p &#123;
+				<span class="hljs-keyword">continue</span>
+			&#125;
+			records[j], records[p] = records[p], records[j]
+		&#125;
+	&#125;
+&#125;
+
+<span class="hljs-comment">// Id by default returns a 16-bit random number to be used as a message id. The</span>
+<span class="hljs-comment">// number is drawn from a cryptographically secure random number generator.</span>
+<span class="hljs-comment">// This being a variable the function can be reassigned to a custom function.</span>
+<span class="hljs-comment">// For instance, to make it return a static value for testing:</span>
+<span class="hljs-comment">//</span>
+<span class="hljs-comment">//	dns.Id = func() uint16 &#123; return 3 &#125;</span>
+<span class="hljs-keyword">var</span> Id = id
+
+<span class="hljs-comment">// id returns a 16 bits random number to be used as a</span>
+<span class="hljs-comment">// message id. The random provided should be good enough.</span>
+<span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">id</span><span class="hljs-params">()</span></span> <span class="hljs-type">uint16</span> &#123;
+	<span class="hljs-keyword">var</span> output <span class="hljs-type">uint16</span>
+	err := binary.Read(rand.Reader, binary.BigEndian, &amp;output)
+	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;
+		<span class="hljs-built_in">panic</span>(<span class="hljs-string">&quot;dns: reading random id failed: &quot;</span> + err.Error())
+	&#125;
+	<span class="hljs-keyword">return</span> output
+&#125;</code></pre>
+
+<p>从 Wiki 的解释可以看出来，<strong>此 Round-robin 是指排列组合，更类似于 Random</strong>：</p>
+<blockquote>
+<p>The order in which IP addresses from the list are returned is the basis for the term <em><a target="_blank" rel="noopener" href="https://en.wiktionary.org/wiki/round_robin" title="wikt:round robin">round robin</a></em>. With each DNS response, the IP address sequence in the list is <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Permutation" title="Permutation">permuted</a>.  – <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Round-robin_DNS">Round-robin DNS</a></p>
+</blockquote>
+<h4 id="缓存插件"><a href="#缓存插件" class="headerlink" title="缓存插件"></a>缓存插件</h4><pre><code class="hljs sh">cache [TTL] [ZONES...]</code></pre>
+
+<ul>
+<li>TTL：最大TTL（秒）。如果未指定，将使用最大 TTL，对于 NOERROR 响应为 3600，对于拒绝存在的响应为 1800。将 TTL 设置为 300 : cache 300 将缓存最多 300 秒的记录。</li>
+<li>ZONE：它应该缓存的区域。如果为空，则使用配置块中的区域。</li>
+</ul>
+<p>缓存中的每个元素都根据其 TTL 进行缓存（TTL为最大值）。缓存有 256 个 Shard，默认情况下每 Shard 最多保存 39 条数据，总大小为 256*39&#x3D;9984 条数据。</p>
+<h3 id="域名服务"><a href="#域名服务" class="headerlink" title="域名服务"></a>域名服务</h3><p>如果一个域名有多条 A 记录，当发送 DNS 请求时：</p>
+<ol>
+<li>DNS 服务是否会返回全部记录？</li>
+<li>DNS 服务会以什么顺序返回记录？</li>
+</ol>
+<p>由于 RFC 缺少相关的规定，在传输协议的范围内，不同的名称服务器有不同的路由策略。两者共同决定了返回的记录和顺序</p>
+<h4 id="传输协议"><a href="#传输协议" class="headerlink" title="传输协议"></a>传输协议</h4><p>大多数 DNS <a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc1034">RFC1034</a> 请求通过 UDP <a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc768">RFC 768</a> 进行。<a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc791">IPv4</a>规定主机必须能够重组 少于等于 576 字节的数据包，包含 IPv4 报头和 8 字节 UDP报头。</p>
+<p>因此基于 UDP 的 DNS ，有效载荷限制为小于 512 字节，保证了如果 DNS 数据包在传输中被分段，可以重新组装，降低数据包被随机丢弃的可能性。超过 512 字节的响应将被截断，解析器必须通过 <a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc5966.html">TCP</a> 重新发出请求。</p>
+<p>如果解析器支持 <a target="_blank" rel="noopener" href="https://tools.ietf.org/html/rfc2671">EDNS0</a>，也可以通过 UDP 响应最多 4096 字节，且不会被截断。</p>
+<h4 id="路由策略"><a href="#路由策略" class="headerlink" title="路由策略"></a>路由策略</h4><p>常见的一种路由策略设置是：轮询 DNS</p>
+<blockquote>
+<p>当查询有多条记录时，名称服务器执行循环 DNS。在一个请求和下一个请求时，发送响应的顺序会有所不同。大多数客户端将连接到第条记录，因此可以实现负载平衡。</p>
+</blockquote>
+<p>分别使用 <code>8.8.8.8</code> 和 CoreDNS 分别作为名称服务器。前者直接解析返回，后者配置 <code>loadbalance round_robin</code> shuffle 返回。</p>
+<pre><code class="hljs yaml"><span class="hljs-string">loadbalance</span> [<span class="hljs-string">round_robin</span> <span class="hljs-string">|</span> <span class="hljs-string">weighted</span> <span class="hljs-string">WEIGHTFILE</span>] &#123; <span class="hljs-string">reload</span> <span class="hljs-string">DURATION</span> &#125;</code></pre>
+
+<p>查看 <code>serverfault.com</code> 返回记录的顺序，可以看到响应首位的结果差异</p>
+<pre><code class="hljs sh">$&gt; dig +short serverfault.com
+104.18.23.101
+104.18.22.101
+
+<span class="hljs-comment"># 8.8.8.8</span>
+$&gt; <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> $(<span class="hljs-built_in">seq</span> 1 10); <span class="hljs-keyword">do</span>  dig +short serverfault.com | <span class="hljs-built_in">head</span> -n 1; <span class="hljs-keyword">done</span> | <span class="hljs-built_in">sort</span> | <span class="hljs-built_in">uniq</span> -c
+     10 104.18.23.101
+
+<span class="hljs-comment"># CoreDNS: round-robin</span>
+ $&gt; <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> $(<span class="hljs-built_in">seq</span> 1 10); <span class="hljs-keyword">do</span>  dig +short serverfault.com | <span class="hljs-built_in">head</span> -n 1; <span class="hljs-keyword">done</span> | <span class="hljs-built_in">sort</span> | <span class="hljs-built_in">uniq</span> -c
+      4 104.18.22.101
+      6 104.18.23.101</code></pre>
+
+<p>除了 CoreDNS 的 <code>round-robin</code>，<a target="_blank" rel="noopener" href="https://docs.aws.amazon.com/zh_cn/Route53/latest/DeveloperGuide/routing-policy.html">AWS route 53</a> 之类的 DNS 服务提供了更多路由策略，常见：</p>
+<ul>
+<li>Geolocation routing policy</li>
+<li>IP-based routing policy</li>
+<li>Weighted routing policy</li>
+<li>…</li>
+</ul>
+<p><strong>值得注意的是，由于 CoreDNS 等下游递归解析器，在启用缓存时，并不感知上游的路由策略，因此会导致上游策略失效，甚至导致缺陷。</strong> </p>
+<blockquote>
+<p>假设，上游域名服务随机返回部分 IP，该部分 IP 会持续缓存直至缓存失效。在缓存失效前所有请求都会集中到该部分 IP，导致较为严重的访问倾斜。</p>
+</blockquote>
+<h3 id="Resolver-库"><a href="#Resolver-库" class="headerlink" title="Resolver 库"></a>Resolver 库</h3><p>在 Linux 上并不存在一个 <code>syscall</code> 用于域名解析，实际上<strong>大多数</strong>程序是通过一个 C 标准库调用 <a target="_blank" rel="noopener" href="http://man7.org/linux/man-pages/man3/getaddrinfo.3.html">getaddrinfo</a> 完成的。</p>
+<blockquote>
+<p><code>dig</code> 、<code>nslookup</code> 等，是查询 DNS 域名服务的工具，因此没有调用 <code>resolver</code> 库</p>
+</blockquote>
+<p><img src="/images/dive-into-dns-resolution/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20DNS%20%E8%A7%A3%E6%9E%90-20231008175446-1.png"></p>
+<p>通过 strace 命令可以看到执行的部分细节：</p>
+<pre><code class="hljs bash">$&gt; strace -e trace=openat -f ping -c1 serverfault.com
+openat(AT_FDCWD, <span class="hljs-string">&quot;/etc/ld.so.cache&quot;</span>, O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, <span class="hljs-string">&quot;/lib/x86_64-linux-gnu/libcap.so.2&quot;</span>, O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, <span class="hljs-string">&quot;/lib/x86_64-linux-gnu/libidn2.so.0&quot;</span>, O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, <span class="hljs-string">&quot;/lib/x86_64-linux-gnu/libc.so.6&quot;</span>, O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, <span class="hljs-string">&quot;/lib/x86_64-linux-gnu/libunistring.so.2&quot;</span>, O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, <span class="hljs-string">&quot;/etc/nsswitch.conf&quot;</span>, O_RDONLY|O_CLOEXEC) = 5
+openat(AT_FDCWD, <span class="hljs-string">&quot;/etc/host.conf&quot;</span>, O_RDONLY|O_CLOEXEC) = 5
+openat(AT_FDCWD, <span class="hljs-string">&quot;/etc/resolv.conf&quot;</span>, O_RDONLY|O_CLOEXEC) = 5
+openat(AT_FDCWD, <span class="hljs-string">&quot;/etc/hosts&quot;</span>, O_RDONLY|O_CLOEXEC) = 5
+openat(AT_FDCWD, <span class="hljs-string">&quot;/etc/gai.conf&quot;</span>, O_RDONLY|O_CLOEXEC) = 5
+PING serverfault.com (104.18.22.101) 56(84) bytes of data.
+openat(AT_FDCWD, <span class="hljs-string">&quot;/etc/hosts&quot;</span>, O_RDONLY|O_CLOEXEC) = 5
+64 bytes from 104.18.22.101 (104.18.22.101): icmp_seq=1 ttl=62 time=68.6 ms</code></pre>
+
+<p><img src="/images/dive-into-dns-resolution/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20DNS%20%E8%A7%A3%E6%9E%90-20231008175446-2.png"></p>
+<p>可以看到依次读取了 <code>/etc/nsswitch.conf</code>，<code>/etc/host.conf</code>，<code>/etc/resolv.conf</code> <code>/etc/gai.conf</code> 四个配置文件， DNS 解析的策略也跟他们相关。通过 POSIX 文档，可以了解四个配置文件的作用</p>
+<h4 id="nsswitch-conf"><a href="#nsswitch-conf" class="headerlink" title="nsswitch.conf"></a>nsswitch.conf</h4><p>Name Service Switch (NSS) 配置文件，管理了各种信息来源的类别和顺序。每一行可以当做是一个数据库，冒号前面的是信息类型，冒号后面是数据来源或服务。 举例：</p>
+<pre><code class="hljs sh">...
+
+hosts:          files dns
+networks:       files
+
+...</code></pre>
+
+<p>域名解析时，<code>gethostbyname</code> 会读取 hosts 一行，并从 files 和 dns 两个来源依次获取数据：</p>
+<ul>
+<li><code>/lib/libnss_files.so.X</code>：实现了 “files” 数据源，读取本地文件：<code>/etc/hosts</code></li>
+<li><code>/lib/libnss_dns.so.X</code>：实现 “dns” 数据源，访问远端 DNS 服务。</li>
+</ul>
+<p>相比于固定搜索顺序的硬编码， NSS 提供了一种更灵活的方法可以动态更新搜索顺序，插件化的增减来源。</p>
+<h4 id="host-conf"><a href="#host-conf" class="headerlink" title="host.conf"></a>host.conf</h4><p><code>host.conf</code> 包含了为解析库声明的配置信息. 每行含一个配置关键字，其后跟着合适的配置信息.。举例：</p>
+<pre><code class="hljs sh"><span class="hljs-comment"># The &quot;order&quot; line is only used by old versions of the C library.</span>
+order hosts,<span class="hljs-built_in">bind</span>
+multi on</code></pre>
+
+<ul>
+<li>order：管理解析顺序。表示先使用 <code>/etc/hosts</code> 文件，再使用 name server 解析。bind(Berkeley Internet Name Domain)，一种开源 DNS 协议实现。（仅 glibc 2.4及更早版本生效，更新版本见 NSS</li>
+<li>multi on：允许主机名对应多个 IP 地址，如果机器有多张网卡，就设置为 on</li>
+</ul>
+<h4 id="resolv-conf"><a href="#resolv-conf" class="headerlink" title="resolv.conf"></a>resolv.conf</h4><p><code>resolv.conf</code> 是解析器的核心配置，举例：</p>
+<pre><code class="hljs sh">$&gt; <span class="hljs-built_in">cat</span> /etc/resolv.conf
+options rotate     
+options <span class="hljs-built_in">timeout</span>:2  
+options attempts:3  
+options single-request-reopen
+nameserver 8.8.4.4
+nameserver 8.8.8.8</code></pre>
+
+<p>其配置项既要满足解析的基本要求：</p>
+<ol>
+<li>首先，在发起查询前要填补 local domain 得到 <strong>FQDN</strong> (Fully Qualified Domain Name 全限定域名): <a target="_blank" rel="noopener" href="https://access.redhat.com/solutions/58028"><code>search</code></a>、<code>ndots:n</code></li>
+<li>其次，有多个 nameserver 时，需要定义查询选择的 nameserver 策略: <code>nameserver</code>、<a target="_blank" rel="noopener" href="https://access.redhat.com/solutions/1426263"><code>rotate</code></a></li>
+</ol>
+<blockquote>
+<p> <strong>配置 <code>rotate</code> 时</strong><br>    - 以 <strong>Round Robin</strong> 的形式挑选 <code>nameserver</code>，而非每次都选择第一个，起到<strong>负载均衡</strong>的的作用。一次性请求的工具不生效，因为只有一次请求。</p>
+<p><strong>不配置 <code>rotate</code> 时</strong><br>    - 首先使用第一个 nameserver<br>    - 如果请求成功，永远不会继续尝试后续的 nameserver<br>    - 如果请求失败且尚未超时，则继续使用后续 nameserver，直至成功</p>
+</blockquote>
+<ol start="3">
+<li>再次，既然是远程调用，更要控制好请求超时时间，以及出错时的重试次数: <code>timeout</code>、<code>attempts</code></li>
+<li>最后，支持对返回的多个结果排序:  <code>sortlist</code></li>
+</ol>
+<p>也要兼容历史变迁的沧桑：</p>
+<ol>
+<li>首先，要兼容 IPv4 和 IPv6</li>
+<li>其次，数据包过大时，可以 TCP 解析: <code>use-vc</code></li>
+<li>最后，兼容种种历史缺陷: <a target="_blank" rel="noopener" href="https://tencentcloudcontainerteam.github.io/2018/10/26/DNS-5-seconds-delay/"><code>single-request-reopen</code>、<code>single-request</code></a></li>
+</ol>
+<h4 id="gai-conf"><a href="#gai-conf" class="headerlink" title="gai.conf"></a>gai.conf</h4><p>调用 <code>getaddrinfo</code> 可能会返回多个结果。根据 <a target="_blank" rel="noopener" href="https://www.ietf.org/rfc/rfc3484.txt">rfc3484</a> &#x2F; <a target="_blank" rel="noopener" href="https://www.ietf.org/rfc/rfc6724.txt">rfc6724</a> 的要求，需要根据<strong>根据来源 IP 与结果 IP 进行最长匹配排序，以便相同子网里的 IP 在列表中排在首位，以得到成功率最高的结果</strong>。当然相关排序机制也可以通过 <code>/etc/gai.conf</code> 配置控制。</p>
+<blockquote>
+<p>示例：</p>
+<p><a target="_blank" rel="noopener" href="https://kanochan.net/archives/3249.html">IPv4&#x2F;IPv6双栈网络下配置IPv4链路优先</a></p>
+</blockquote>
+<p>换句话说，按照最新规范，<strong>DNS 解析返回的结果应当是固定顺序的，而非 round-robin</strong>，那么当 DNS server 返回 <a href="/09-07-2023/getaddrinfo-with-round-robin-dns-and-happy-eyeballs-cn.html">round-robin</a> 的结果时，就会因为解析器的排序而不生效，导致新旧版本 library 之间行为不一。</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://engineering.grab.com/dns-resolution-in-go-and-cgo">DNS Resolution in Go and Cgo</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/golang/go/issues/18518"># net: replicate DNS resolution behaviour of getaddrinfo(glibc) in the go dns resolver</a></li>
+</ul>
+<p>最新的规范的前提都是 IPv6，然而 IPv6 到目前位置支持的并不理想，并且考虑基于兼容性的考虑：<strong>当返回结果中仅有 IPv4 时，不适用最长匹配相关的规则，也就不会调整结果的相对顺序（稳定排序）</strong>。</p>
+<h3 id="Dial：连接创建"><a href="#Dial：连接创建" class="headerlink" title="Dial：连接创建"></a>Dial：连接创建</h3><pre><code class="hljs go"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">Dial</span><span class="hljs-params">(network, address <span class="hljs-type">string</span>)</span></span> (Conn, <span class="hljs-type">error</span>)</code></pre>
+
+<p>Golang 创建连接时，使用 Dial 连接到 <code>named network</code> 的地址。</p>
+<p>已知 <code>network</code> 类型有：</p>
+<ul>
+<li>TCP：”tcp”、”tcp4” (IPv4-only)、”tcp6” (IPv6-only)</li>
+<li>UDP：”udp”、”udp4” (IPv4-only)、”udp6” (IPv6-only)</li>
+<li>IP：”ip”、”ip4” (IPv4-only)、”ip6” (IPv6-only)</li>
+<li>Unix domain socket：”unix”, “unixgram” and “unixpacket”.</li>
+</ul>
+<p>Golang 默认使用双栈（IPv4&amp;IPv6）DNS 解析，当 IPV6 不能访问时，支持 IPv6 的程序需要延迟几秒钟才能正常切换到 IPv4，为了不影响用户体验可以指定 <code>network</code> 为 <code>tcp4</code>，直接禁用 IPv6。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>综述，一次 DNS 解析，如果指定 network 为 TCP，在启用 IPv6 时：</p>
+<ol>
+<li>Golang Resolver 会并发发出 IPv4 和 IPv6 DNS 查询请求。查询的域名服务节点是 &#x2F;etc&#x2F;resolv.conf 指定的递归解析器，策略：详见 resolv.conf 节</li>
+<li>递归解析器如果从缓存中发现结果，则直接使用，否则递归查询上游的域名服务，并将结果缓存。得到结果之后，再根据路由策略返回。每一级域名服务均如是</li>
+<li>Golang net.Dial 选择 IP 列表中的第一个 IP 建立连接</li>
+</ol>
+<p>DNS 本身作为服务发现，通过轮询 DNS 提供了最基本的负载分配功能，而不能保证完美的负载均衡。对负载有极致需求的业务，建议自行负载均衡，策略参考：</p>
+<blockquote>
+<ol>
+<li><strong>动态（定时）更新</strong> DNS 对应的 IP 列表</li>
+<li>根据<strong>负载均衡策略</strong>从 IP 列表中选择合适的 IP</li>
+<li><strong>根据 IP 从连接池中获取连接</strong>，发起请求</li>
+</ol>
+</blockquote>
+<p><strong>备注：由于 Linux 发行版本众多，也有多种 Resolver 库、DNS 递归解析器，再叠加复杂的版本历史。因此本文中的众多细节仅供参考，实际情况建议使用 strace、tcpdump、ebpf tools 等工具确认</strong></p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/10-08-2023/dive-into-dns-resolution.html">https://www.cyningsun.com/10-08-2023/dive-into-dns-resolution.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#Network" rel="category"># Network</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/05-10-2023/a-scalable-commodity-data-center-network-architecture-cn.html">译｜A scalable, commodity data center network architecture</a></span></li>
+          
+            <li><span><a href="/04-26-2023/illustrated-guide-to-monitoring-and-tuning-the-Linux-networking-stack-recv-cn.html">译｜llustrated Guide to Monitoring and Tuning the Linux Networking Stack: Receiving Data</a></span></li>
+          
+            <li><span><a href="/04-25-2023/monitoring-and-tuning-the-linux-networking-stack-sent-cn.html">译｜Monitoring and Tuning the Linux Networking Stack: Sending Data</a></span></li>
+          
+            <li><span><a href="/04-24-2023/monitoring-and-tuning-the-linux-networking-stack-recv-cn.html">译｜Monitoring and Tuning the Linux Networking Stack: Receiving Data</a></span></li>
+          
+            <li><span><a href="/03-30-2023/network-transmission.html">TCP/IP 网络传输</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/12-22-2023/redis-latency-spike.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/09-07-2023/getaddrinfo-with-round-robin-dns-and-happy-eyeballs-cn.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2025 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>
