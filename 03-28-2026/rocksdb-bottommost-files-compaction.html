@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解 RocksDB BottommostFiles compaction</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2026-03-28 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2026-03-28 00:00:00 +0800"/>
+
+<meta property="og:url" content="/03-28-2026/rocksdb-bottommost-files-compaction.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="引言本文基于 RocksDB v8.8.1 代码与文档，默认使用 leveled compaction 且 allow_ingest_behind=false，分析 BottommostFiles compaction 的工作原理、触发机制和收敛逻辑，并围绕以下问题展开： 哪些文件会出现在 bottommost_files_ 列表？Bottom 层的文件是不">
+
+<meta name="keywords" content="BottommostFiles compaction,CompactionReason::kBottommostFiles">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解 RocksDB BottommostFiles compaction</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2026-03-28
+         | 
+        Last Revised: 2026-03-28
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E8%A8%80"><span class="toc-text">引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Bottommost-File-%E5%88%A4%E5%AE%9A%E8%A7%84%E5%88%99"><span class="toc-text">Bottommost File 判定规则</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Bottommost-File-%E7%94%9F%E6%88%90%E4%B8%8E%E6%A0%87%E8%AE%B0"><span class="toc-text">Bottommost File 生成与标记</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Compaction-%E6%96%87%E4%BB%B6%E9%80%89%E6%8B%A9"><span class="toc-text">Compaction 文件选择</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Compaction-%E8%BE%93%E5%87%BA%E5%B1%82"><span class="toc-text">Compaction 输出层</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Compaction-%E6%94%B6%E6%95%9B%E6%9C%BA%E5%88%B6"><span class="toc-text">Compaction 收敛机制</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+ 
+        <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>本文基于 RocksDB v8.8.1 代码与文档，默认使用 leveled compaction 且 <code>allow_ingest_behind=false</code>，分析 BottommostFiles compaction 的工作原理、触发机制和收敛逻辑，并围绕以下问题展开：</p>
+<ol>
+<li>哪些文件会出现在 bottommost_files_ 列表？Bottom 层的文件是不是就是 bottommost_files_？</li>
+<li>如果读写都没有使用快照，BottommostFiles compaction 是否会触发？</li>
+<li>每次释放快照的时候还是每次版本变更的时候会触发 BottommostFiles compaction？</li>
+<li>每次后台 compaction 调度，BottommostFiles compaction 最多会选中多少个 <code>bottommost_files_</code> 列表中的文件？</li>
+<li>BottommostFiles compaction 选择 <code>bottommost_files_</code> 列表中的文件的时候的规则是怎样的？</li>
+<li>BottommostFiles compaction 的 input 和 output level 分别是多少？</li>
+<li>BottommostFiles compaction 是怎么收敛的？</li>
+</ol>
+<p>下面按代码调用链展开，正文会在流程中逐步回答以上问题。</p>
+<h2 id="Bottommost-File-判定规则"><a href="#Bottommost-File-判定规则" class="headerlink" title="Bottommost File 判定规则"></a>Bottommost File 判定规则</h2><p>先区分两个概念：<strong>Bottommost Files 不一定是 Bottom Level Files</strong>。Bottommost Files 的判断标准不是文件所在层级，而是：<strong>该文件的 key range 在所有更低层级中都没有重叠</strong>。BottommostFiles 的判定还有三个前置条件：</p>
+<ul>
+<li><strong>L0 特例</strong>：仅 <code>LevelFiles(0)</code> 中“当前顺序的最后一个文件”（即 <code>last_l0_idx == LevelFiles(0).size()-1</code>）才可能被判定为 bottommost；其余 L0 文件在 <code>RangeMightExistAfterSortedRun()</code> 中会直接返回 <code>true</code>。源码注释说明该行为用于保持历史语义，并提到可改为按 overlap 判断。</li>
+<li><strong>allow_ingest_behind</strong>：启用该选项时，该机制会被跳过（不生成 <code>bottommost_files_</code>，也不会触发 BottommostFiles compaction）。</li>
+<li><strong>适用范围</strong>：该列表由 <code>VersionStorageInfo</code> 生成并持有，<code>LevelCompactionPicker</code> 在 leveled compaction 下消费它，其它 compaction style 不会使用。</li>
+</ul>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 在 GenerateBottommostFiles() 中的判断逻辑</span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">VersionStorageInfo::GenerateBottommostFiles</span><span class="hljs-params">()</span> </span>&#123;
+  <span class="hljs-built_in">assert</span>(!finalized_);
+  <span class="hljs-built_in">assert</span>(bottommost_files_.<span class="hljs-built_in">empty</span>());
+  
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">size_t</span> level = <span class="hljs-number">0</span>; level &lt; level_files_brief_.<span class="hljs-built_in">size</span>(); ++level) &#123;
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">size_t</span> file_idx = <span class="hljs-number">0</span>; file_idx &lt; level_files_brief_[level].num_files; ++file_idx) &#123;
+      <span class="hljs-type">const</span> FdWithKeyRange&amp; f = level_files_brief_[level].files[file_idx];
+      <span class="hljs-type">int</span> l0_file_idx;
+      <span class="hljs-keyword">if</span> (level == <span class="hljs-number">0</span>) &#123;
+        l0_file_idx = <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">int</span>&gt;(file_idx);
+      &#125; <span class="hljs-keyword">else</span> &#123;
+        l0_file_idx = <span class="hljs-number">-1</span>;
+      &#125;
+      Slice smallest_user_key = <span class="hljs-built_in">ExtractUserKey</span>(f.smallest_key);
+      Slice largest_user_key = <span class="hljs-built_in">ExtractUserKey</span>(f.largest_key);
+      
+      <span class="hljs-comment">// 关键判断：该文件的 key range 在更低层级是否存在</span>
+      <span class="hljs-keyword">if</span> (!<span class="hljs-built_in">RangeMightExistAfterSortedRun</span>(smallest_user_key, largest_user_key,
+                                         <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">int</span>&gt;(level), l0_file_idx)) &#123;
+        <span class="hljs-comment">// 这是一个 bottommost 文件</span>
+        bottommost_files_.<span class="hljs-built_in">emplace_back</span>(<span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">int</span>&gt;(level), f.file_metadata);
+      &#125;
+    &#125;
+  &#125;
+&#125;</code></pre>
+
+<p>RangeMightExistAfterSortedRun() 的 L0 特例（仅当前顺序最后一个 L0 文件才可能继续判定）：</p>
+<pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (last_level == <span class="hljs-number">0</span> &amp;&amp;
+    last_l0_idx != <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">int</span>&gt;(<span class="hljs-built_in">LevelFiles</span>(<span class="hljs-number">0</span>).<span class="hljs-built_in">size</span>() - <span class="hljs-number">1</span>)) &#123;
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+&#125;</code></pre>
+
+<p>例如，考虑以下 LSM 树结构：</p>
+<pre><code class="hljs yaml"><span class="hljs-attr">L2:</span> [<span class="hljs-attr">FileA:</span> <span class="hljs-string">a-m</span>] [<span class="hljs-attr">FileB:</span> <span class="hljs-string">n-z</span>]
+<span class="hljs-attr">L3:</span> [<span class="hljs-attr">FileC:</span> <span class="hljs-string">a-f</span>] [<span class="hljs-attr">FileD:</span> <span class="hljs-string">g-k</span>] [<span class="hljs-attr">FileE:</span> <span class="hljs-string">x-z</span>]
+<span class="hljs-attr">L4:</span> [<span class="hljs-attr">FileF:</span> <span class="hljs-string">b-d</span>]</code></pre>
+
+<p>在这种情况下：</p>
+<ul>
+<li><strong>FileA (L2)</strong>: 不是 bottommost（L3 的 FileC、FileD 与其重叠）</li>
+<li><strong>FileB (L2)</strong>: 不是 bottommost（L3 的 FileE 与其重叠）</li>
+<li><strong>FileC (L3)</strong>: 不是 bottommost（L4 的 FileF 与其重叠）</li>
+<li><strong>FileD (L3)</strong>: <strong>是 bottommost</strong>（没有更低层级与 g-k 重叠）</li>
+<li><strong>FileE (L3)</strong>: <strong>是 bottommost</strong>（没有更低层级与 x-z 重叠）</li>
+<li><strong>FileF (L4)</strong>: <strong>是 bottommost</strong>（已经在最低层级）</li>
+</ul>
+<h2 id="Bottommost-File-生成与标记"><a href="#Bottommost-File-生成与标记" class="headerlink" title="Bottommost File 生成与标记"></a>Bottommost File 生成与标记</h2><p><code>bottommost_files_</code> 在构建新 Version 时生成（<code>PrepareForVersionAppend()</code> → <code>GenerateBottommostFiles()</code>），释放快照不会重新生成该列表。每次安装新 Version（Flush、Compaction、SetOptions、IngestExternalFile、CreateColumnFamily 等，均通过 <code>AppendVersion()</code> 路径）都会触发 <code>ComputeCompactionScore()</code> → <code>ComputeBottommostFilesMarkedForCompaction()</code> 重新计算标记列表；<code>SuggestCompactRange</code>、<code>CompactFilesImpl</code>、<code>BackgroundCompaction</code> 失败重试等路径也会直接调用 <code>ComputeCompactionScore()</code>。</p>
+<p>生成后需经 <code>ComputeBottommostFilesMarkedForCompaction()</code> 标记才能进入 compaction 调度。标记需同时满足：<code>!being_compacted</code>、<code>largest_seqno != 0</code>（尚未归零）、<code>largest_seqno &lt; oldest_snapshot_seqnum_</code>，若设置了 <code>bottommost_file_compaction_delay</code> 还需满足时间条件。未满足序列号条件的文件会更新 <code>bottommost_files_mark_threshold_</code>（取所有未标记文件中 <code>largest_seqno</code> 的最小值），作为下次守卫判断的阈值。</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">VersionStorageInfo::ComputeBottommostFilesMarkedForCompaction</span><span class="hljs-params">(...)</span> </span>&#123;
+  <span class="hljs-comment">// ...</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; level_and_file : bottommost_files_) &#123;
+    <span class="hljs-keyword">if</span> (!level_and_file.second-&gt;being_compacted &amp;&amp;
+        level_and_file.second-&gt;fd.largest_seqno != <span class="hljs-number">0</span>) &#123;
+      <span class="hljs-keyword">if</span> (level_and_file.second-&gt;fd.largest_seqno &lt; oldest_snapshot_seqnum_) &#123;
+        <span class="hljs-comment">// 满足序列号条件，检查延迟后加入标记列表</span>
+        bottommost_files_marked_for_compaction_.<span class="hljs-built_in">push_back</span>(level_and_file);
+      &#125; <span class="hljs-keyword">else</span> &#123;
+        <span class="hljs-comment">// 未满足，更新阈值供下次守卫判断</span>
+        bottommost_files_mark_threshold_ =
+            std::<span class="hljs-built_in">min</span>(bottommost_files_mark_threshold_,
+                     level_and_file.second-&gt;fd.largest_seqno);
+      &#125;
+    &#125;
+  &#125;
+&#125;</code></pre>
+
+<p>标记条件中的关键变量 <code>oldest_snapshot_seqnum_</code> 通过 <code>UpdateOldestSnapshot()</code> 推进，调用入口是 <code>ReleaseSnapshot()</code>，因此触发节奏与快照释放强相关。<code>ReleaseSnapshot()</code> 有两层守卫：DB 全局层面 <code>oldest_snapshot &gt; DBImpl::bottommost_files_mark_threshold_</code>，CF 层面 <code>oldest_snapshot_seqnum_ &gt; VersionStorageInfo::bottommost_files_mark_threshold_</code>，两层都通过才执行标记。</p>
+<p>需要区分两种场景：如果应用<strong>从未创建过快照</strong>，<code>oldest_snapshot_seqnum_</code> 始终为初始值 0，没有文件能满足 <code>largest_seqno &lt; 0</code>，BottommostFiles compaction 不会被标记触发。但如果应用<strong>创建并释放了所有快照</strong>，<code>ReleaseSnapshot</code> 会将 <code>oldest_snapshot</code> 设为 <code>GetLastPublishedSequence()</code>（当前最新序列号），此时除 <code>largest_seqno == oldest_snapshot</code>、<code>being_compacted == true</code> 或未通过 delay 条件的文件外，其它满足条件的 Bottommost File 会被标记触发。</p>
+<h2 id="Compaction-文件选择"><a href="#Compaction-文件选择" class="headerlink" title="Compaction 文件选择"></a>Compaction 文件选择</h2><p>被标记的文件进入调度后，按以下规则选择压缩目标，流程以“先选一个起始文件”开始，但<strong>单次 compaction 可能包含多个文件</strong>：</p>
+<p>选择起始输入后会调用 <code>ExpandInputsToCleanCut()</code>，在同一层级内扩展以确保 clean cut（注意：RoundRobin 扩展仅适用于 <code>kLevelMaxLevelSize</code> 类型的 compaction，不适用于 BottommostFiles compaction）。</p>
+<p>假设有 5 个文件需要 BottommostFiles compaction，在<strong>不触发 clean-cut 扩展</strong>的简化情况下，（最多）需要 5 次调度才能完成所有文件的压缩。</p>
+<p>BottommostFiles compaction 按 <code>bottommost_files_marked_for_compaction_</code> 的顺序选择起始文件。具体实现在 <code>LevelCompactionBuilder::PickFileToCompact()</code> 中：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 调用链：</span>
+<span class="hljs-comment">// LevelCompactionBuilder::SetupInitialFiles()</span>
+<span class="hljs-comment">//  → 检查 score-based compaction</span>
+<span class="hljs-comment">//  → 检查 files_marked_for_compaction_</span>
+<span class="hljs-comment">//  → PickFileToCompact(BottommostFilesMarkedForCompaction(), false)</span>
+<span class="hljs-comment">//                                                            ^^^^^ </span>
+<span class="hljs-comment">//                                                compact_to_next_level = false</span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">LevelCompactionBuilder::PickFileToCompact</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> autovector&lt;std::pair&lt;<span class="hljs-type">int</span>, FileMetaData*&gt;&gt;&amp; level_files,</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">bool</span> compact_to_next_level)</span> </span>&#123;
+  
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>&amp; level_file : level_files) &#123;
+    <span class="hljs-comment">// 检查文件是否可以压缩</span>
+    <span class="hljs-built_in">assert</span>(!level_file.second-&gt;being_compacted);
+    start_level_ = level_file.first;
+    
+    <span class="hljs-comment">// 2. 检查层级限制，跳过不符合条件的层级</span>
+    <span class="hljs-keyword">if</span> ((compact_to_next_level &amp;&amp;
+         start_level_ == vstorage_-&gt;<span class="hljs-built_in">num_non_empty_levels</span>() - <span class="hljs-number">1</span>) ||
+        (start_level_ == <span class="hljs-number">0</span> &amp;&amp;
+         !compaction_picker_-&gt;<span class="hljs-built_in">level0_compactions_in_progress</span>()-&gt;<span class="hljs-built_in">empty</span>())) &#123;
+      <span class="hljs-keyword">continue</span>;
+    &#125;
+    
+    
+    <span class="hljs-keyword">if</span> (compact_to_next_level) &#123;
+      output_level_ =
+          (start_level_ == <span class="hljs-number">0</span>) ? vstorage_-&gt;<span class="hljs-built_in">base_level</span>() : start_level_ + <span class="hljs-number">1</span>;
+    &#125; <span class="hljs-keyword">else</span> &#123;
+      output_level_ = start_level_; <span class="hljs-comment">// 原地压缩</span>
+    &#125;
+    
+    <span class="hljs-comment">// 关键：只选择第一个符合条件的文件</span>
+    start_level_inputs_.files = &#123;level_file.second&#125;;
+    start_level_inputs_.level = start_level_;
+    
+    <span class="hljs-comment">// 尝试扩展输入文件以确保 clean cut，不破坏 SST 文件的原子边界</span>
+    <span class="hljs-keyword">if</span> (compaction_picker_-&gt;<span class="hljs-built_in">ExpandInputsToCleanCut</span>(cf_name_, vstorage_, &amp;start_level_inputs_)) &#123;
+      <span class="hljs-keyword">return</span>;  <span class="hljs-comment">// 成功选择文件，立即返回</span>
+    &#125;
+  &#125;
+  
+  <span class="hljs-comment">// 如果没有找到合适的文件，清空输入</span>
+  start_level_inputs_.files.<span class="hljs-built_in">clear</span>();
+&#125;</code></pre>
+
+<p>假设 <code>bottommost_files_marked_for_compaction_</code> 中依次包含 <code>FileA</code>、<code>FileB</code>、<code>FileC</code>、<code>FileD</code>、<code>FileE</code>，并且每次都不触发 clean-cut 扩展或 RoundRobin 扩展，那么 5 次调度会依次以这 5 个文件作为起始输入。</p>
+<h2 id="Compaction-输出层"><a href="#Compaction-输出层" class="headerlink" title="Compaction 输出层"></a>Compaction 输出层</h2><p>选中文件后，compaction 的输出层级由 <code>PickFileToCompact(..., false)</code> 决定：<code>compact_to_next_level = false</code> 时执行 <code>output_level_ = start_level_</code>，因此 BottommostFiles compaction 为原地压缩（Input Level &#x3D; Output Level）。原地压缩后文件仍输出到原层级，可消除的旧版本、墓碑或其它可裁剪内容在 compaction 中处理。</p>
+<h2 id="Compaction-收敛机制"><a href="#Compaction-收敛机制" class="headerlink" title="Compaction 收敛机制"></a>Compaction 收敛机制</h2><p>BottommostFiles compaction 通过<strong>序列号归零</strong>实现收敛：compaction 输出的文件如果所有键的序列号都被归零，<code>largest_seqno</code> 变为 0，就不再满足 <code>largest_seqno != 0</code> 的标记条件，从而退出后续的 BottommostFiles compaction 循环。</p>
+<p><strong>收敛过程示例</strong></p>
+<p>假设当前有 4 个 Bottommost File，<code>largest_seqno</code> 分别不超过 100、200、300、400，而 <code>oldest_snapshot_seqnum_ = 150</code>。此时只有第一个文件满足标记条件，<code>bottommost_files_mark_threshold_</code> 会收敛到其余未达标文件中的最小 <code>largest_seqno</code>，也就是 200。等 <code>oldest_snapshot_seqnum_</code> 后续推进到 250 时，因为它已经越过 200，系统才会重新计算标记列表；这时第二个文件变为可标记对象。之后重复同样过程，直到文件被重写为 <code>largest_seqno == 0</code>，或者始终无法满足归零条件。这个例子对应的正是阈值跨越后才重新标记的节奏。</p>
+<p><strong>序列号归零的前提：Bottommost Level 判定</strong></p>
+<p>序列号归零不限于 BottommostFiles compaction——无论是什么类型的 Compaction，只要输出范围被判定为 Bottommost Level，满足条件的点键序列号都可能被归零。Bottommost Level 的判定基于<strong>本次 compaction 的输入范围</strong>（包括 clean-cut 扩展后的文件范围），而不是单个文件：</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">Compaction::IsBottommostLevel</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">int</span> output_level, VersionStorageInfo* vstorage,</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> std::vector&lt;CompactionInputFiles&gt;&amp; inputs)</span> </span>&#123;
+  <span class="hljs-type">int</span> output_l0_idx;
+  <span class="hljs-keyword">if</span> (output_level == <span class="hljs-number">0</span>) &#123;
+    output_l0_idx = <span class="hljs-number">0</span>;
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> <span class="hljs-keyword">auto</span>* file : vstorage-&gt;<span class="hljs-built_in">LevelFiles</span>(<span class="hljs-number">0</span>)) &#123;
+      <span class="hljs-keyword">if</span> (inputs[<span class="hljs-number">0</span>].files.<span class="hljs-built_in">back</span>() == file) &#123;
+        <span class="hljs-keyword">break</span>;
+      &#125;
+      ++output_l0_idx;
+    &#125;
+    <span class="hljs-built_in">assert</span>(<span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">size_t</span>&gt;(output_l0_idx) &lt; vstorage-&gt;<span class="hljs-built_in">LevelFiles</span>(<span class="hljs-number">0</span>).<span class="hljs-built_in">size</span>());
+  &#125; <span class="hljs-keyword">else</span> &#123;
+    output_l0_idx = <span class="hljs-number">-1</span>;
+  &#125;
+  Slice smallest_key, largest_key;
+  <span class="hljs-built_in">GetBoundaryKeys</span>(vstorage, inputs, &amp;smallest_key, &amp;largest_key);
+  <span class="hljs-keyword">return</span> !vstorage-&gt;<span class="hljs-built_in">RangeMightExistAfterSortedRun</span>(smallest_key, largest_key,
+                                                  output_level, output_l0_idx);
+&#125;</code></pre>
+
+<p>因此，当 <code>ExpandInputsToCleanCut</code> 扩展包含与下层有重叠的文件时，原本的 Bottommost File 可能不会在 Bottommost Level 上进行压缩，序列号归零也就不会发生。</p>
+<p><strong>序列号归零的 8 个条件</strong></p>
+<p>在 Bottommost Level 压缩过程中，<code>CompactionIterator::PrepareOutput()</code> 需要同时满足以下 8 个条件才会将序列号设置为 0：</p>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">CompactionIterator::PrepareOutput</span><span class="hljs-params">()</span> </span>&#123;
+  <span class="hljs-keyword">if</span> (<span class="hljs-built_in">Valid</span>()) &#123;
+    <span class="hljs-comment">//...</span>
+    <span class="hljs-keyword">if</span> (<span class="hljs-built_in">Valid</span>() &amp;&amp; compaction_ != <span class="hljs-literal">nullptr</span> &amp;&amp;
+        !compaction_-&gt;<span class="hljs-built_in">allow_ingest_behind</span>() &amp;&amp;              <span class="hljs-comment">// 条件1：不允许 ingest behind</span>
+        bottommost_level_ &amp;&amp;                                 <span class="hljs-comment">// 条件2：必须是 bottommost 层级</span>
+        <span class="hljs-built_in">DefinitelyInSnapshot</span>(ikey_.sequence, earliest_snapshot_) &amp;&amp;  <span class="hljs-comment">// 条件3：序列号小于最早快照</span>
+        ikey_.type != kTypeMerge &amp;&amp;                          <span class="hljs-comment">// 条件4：不是 Merge 操作</span>
+        current_key_committed_ &amp;&amp;                            <span class="hljs-comment">// 条件5：键已提交</span>
+        !output_to_penultimate_level_ &amp;&amp;                     <span class="hljs-comment">// 条件6：不输出到倒数第二层</span>
+        ikey_.sequence &lt; preserve_time_min_seqno_ &amp;&amp;         <span class="hljs-comment">// 条件7：序列号小于时间保留阈值</span>
+        !is_range_del_) &#123;                                    <span class="hljs-comment">// 条件8：不是范围删除</span>
+      ikey_.sequence = <span class="hljs-number">0</span>;
+      last_key_seq_zeroed_ = <span class="hljs-literal">true</span>;
+      <span class="hljs-comment">//...</span>
+    &#125;
+  &#125;
+&#125;</code></pre>
+
+<p>归零后，<code>CompactionOutputs::AddToOutput()</code> 使用归零后的序列号更新输出文件的 <code>FileMetaData.largest_seqno</code>。如果所有键都被归零，<code>largest_seqno</code> 最终为 0，该文件就不再被标记为待压缩。</p>
+<p><strong>特别注意</strong></p>
+<p>在标准的 BottommostFiles compaction 且输出范围最终仍被判定为 Bottommost Level 的场景下，条件 2（<code>bottommost_level_</code>）、条件 3（<code>DefinitelyInSnapshot</code>）、条件 5（<code>current_key_committed_</code>）和条件 8（<code>!is_range_del_</code>）由对应路径状态直接判定；条件 4（<code>ikey_.type != kTypeMerge</code>）是否满足取决于 merge operator 与该键历史，不能假设一定会被折叠为 <code>kTypeValue</code>。条件 6（<code>!output_to_penultimate_level_</code>）与条件 7（<code>ikey_.sequence &lt; preserve_time_min_seqno_</code>）不满足时会直接阻断归零。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>BottommostFiles compaction 是 RocksDB 针对 Bottommost File 的一类定向重写机制。它在 <code>largest_seqno &lt; oldest_snapshot_seqnum_</code> 时才会被标记；如果该次 compaction 的输出范围又被判定为 <em>Bottommost Level</em>，满足条件的点键还可能执行序列号归零。也就是说，BottommostFiles 的“被调度”与 Bottommost Level 的“可归零”是两层不同的判断，它们相关，但并不等价。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/03-28-2026/rocksdb-bottommost-files-compaction.html">https://www.cyningsun.com/03-28-2026/rocksdb-bottommost-files-compaction.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/04-03-2026/optimizing-space-amplification-in-rocksdb-cn.html">译｜Optimizing Space Amplification in RocksDB</a></span></li>
+          
+            <li><span><a href="/03-27-2026/rocksdb-space-mgr.html">深入理解 RocksDB 磁盘空间管理</a></span></li>
+          
+            <li><span><a href="/03-14-2026/rocksdb-compaction-score.html">深入理解 RocksDB CompactionScore 机制</a></span></li>
+          
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/04-03-2026/optimizing-space-amplification-in-rocksdb-cn.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/03-27-2026/rocksdb-space-mgr.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2026 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

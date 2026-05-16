@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解 RocksDB CompactionScore 机制</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2026-03-14 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2026-03-23 00:00:00 +0800"/>
+
+<meta property="og:url" content="/03-14-2026/rocksdb-compaction-score.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="一、背景在 RocksDB 的 Leveled Compaction 策略下，ComputeCompactionScore 函数是压实调度决策的中枢。其核心任务是： 为每个层级（level）计算压实分数（score），并据此决定后台压实优先级。 触发阈值：score ≥ 1.0。 调度目标：优先处理高压层级，同时兼顾读放大、写放大、空间放大。 核心难点：L0">
+
+<meta name="keywords" content="CompactionScore">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解 RocksDB CompactionScore 机制</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2026-03-14
+         | 
+        Last Revised: 2026-03-23
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E8%83%8C%E6%99%AF"><span class="toc-text">一、背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81L0-%E5%B1%82%EF%BC%88level-x3D-x3D-0%EF%BC%89%E7%B2%BE%E7%BB%86%E5%8C%96%E8%AF%84%E5%88%86"><span class="toc-text">二、L0 层（level &#x3D;&#x3D; 0）精细化评分</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%881%EF%BC%89%E8%BF%9B%E5%85%A5%E8%AF%84%E5%88%86%E5%89%8D%EF%BC%9A%E5%85%88%E5%BB%BA%E7%AB%8B%E5%8F%AF%E8%AF%84%E5%88%86%E7%9A%84%E4%B8%8A%E4%B8%8B%E6%96%87"><span class="toc-text">（1）进入评分前：先建立可评分的上下文</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%882%EF%BC%89%E5%9F%BA%E7%A1%80%E7%BB%9F%E8%AE%A1"><span class="toc-text">（2）基础统计</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%883%EF%BC%89%E5%9F%BA%E7%A1%80%E5%88%86%E6%95%B0%EF%BC%9A%E6%96%87%E4%BB%B6%E6%95%B0%E9%87%8F%E9%A9%B1%E5%8A%A8"><span class="toc-text">（3）基础分数：文件数量驱动</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%884%EF%BC%89%E5%8A%A8%E6%80%81%E5%B1%82%E7%BA%A7%E5%AD%97%E8%8A%82%E6%A8%A1%E5%BC%8F%EF%BC%88level-compaction-dynamic-level-bytes-true%EF%BC%89"><span class="toc-text">（4）动态层级字节模式（level_compaction_dynamic_level_bytes &#x3D;&#x3D; true）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E6%94%AF-A%EF%BC%9A%E7%A1%AE%E4%BF%9D-L0-%E5%88%B0%E8%BE%BE-base-size-%E5%BF%85%E6%9C%89%E8%B5%84%E6%A0%BC"><span class="toc-text">分支 A：确保 L0 到达 base size 必有资格</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E6%94%AF-B%EF%BC%9A%E6%AF%94%E8%BE%83-L0-%E4%B8%8E-Base-Level%EF%BC%8C%E6%8E%A7%E5%88%B6%E4%B8%8B%E5%88%B7%E4%BC%98%E5%85%88%E7%BA%A7"><span class="toc-text">分支 B：比较 L0 与 Base Level，控制下刷优先级</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E6%94%AF-C%EF%BC%9A%E8%B6%85%E9%98%88%E5%80%BC%E5%90%8E%E5%88%86%E6%95%B0%E7%BC%A9%E6%94%BE"><span class="toc-text">分支 C：超阈值后分数缩放</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%885%EF%BC%89%E9%9D%99%E6%80%81%E6%A8%A1%E5%BC%8F%E8%A1%A5%E5%85%85%E5%88%A4%E6%96%AD"><span class="toc-text">（5）静态模式补充判断</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81L1-%E5%B1%82%EF%BC%88level-gt-0%EF%BC%89%E7%9A%84%E5%8A%A8%E6%80%81%E8%AF%84%E5%88%86%E6%9C%BA%E5%88%B6"><span class="toc-text">三、L1+ 层（level &gt; 0）的动态评分机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%881%EF%BC%89%E5%9F%BA%E7%A1%80%E7%BB%9F%E8%AE%A1"><span class="toc-text">（1）基础统计</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%882%EF%BC%89%E9%9D%99%E6%80%81%E6%A8%A1%E5%BC%8F"><span class="toc-text">（2）静态模式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%883%EF%BC%89%E5%8A%A8%E6%80%81%E6%A8%A1%E5%BC%8F%EF%BC%88%E6%A0%B8%E5%BF%83%EF%BC%89"><span class="toc-text">（3）动态模式（核心）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E6%94%AF-A%EF%BC%9A%E6%9C%AA%E8%B6%85%E9%99%90%EF%BC%8C%E5%B8%B8%E8%A7%84%E6%AF%94%E5%80%BC"><span class="toc-text">分支 A：未超限，常规比值</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E6%94%AF-B%EF%BC%9A%E8%B6%85%E9%99%90%E6%97%B6%E5%BC%95%E5%85%A5-total-downcompact-bytes-%E9%99%8D%E6%9D%83"><span class="toc-text">分支 B：超限时引入 total_downcompact_bytes 降权</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E6%94%AF-C%EF%BC%9A%E6%B8%85%E7%90%86%E2%80%9C%E4%B8%8D%E5%BF%85%E8%A6%81%E5%B1%82%E7%BA%A7%E2%80%9D"><span class="toc-text">分支 C：清理“不必要层级”</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%884%EF%BC%89total-downcompact-bytes-%E7%9A%84%E6%9B%B4%E6%96%B0%E5%9B%9E%E8%B7%AF"><span class="toc-text">（4）total_downcompact_bytes 的更新回路</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%EF%BC%885%EF%BC%89%E4%BB%8E-score-%E5%88%B0%E5%8F%AF%E6%89%A7%E8%A1%8C-compaction%EF%BC%8C%E5%86%8D%E5%88%B0-write-stall"><span class="toc-text">（5）从 score 到可执行 compaction，再到 write stall</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E6%80%BB%E7%BB%93%EF%BC%9A%E8%B0%83%E5%BA%A6%E4%BB%B2%E8%A3%81%E9%A1%BA%E5%BA%8F%E4%B8%8E%E5%A4%9A-CF-%E8%A1%8C%E4%B8%BA"><span class="toc-text">四、总结：调度仲裁顺序与多 CF 行为</span></a></li></ol>
+ 
+        <h2 id="一、背景"><a href="#一、背景" class="headerlink" title="一、背景"></a>一、背景</h2><p>在 RocksDB 的 Leveled Compaction 策略下，<code>ComputeCompactionScore</code> 函数是<strong>压实调度决策的中枢</strong>。其核心任务是：</p>
+<blockquote>
+<p><strong>为每个层级（level）计算压实分数（score），并据此决定后台压实优先级。</strong></p>
+</blockquote>
+<ul>
+<li><strong>触发阈值</strong>：score ≥ 1.0。</li>
+<li><strong>调度目标</strong>：优先处理高压层级，同时兼顾读放大、写放大、空间放大。</li>
+<li><strong>核心难点</strong>：L0 文件重叠且读路径敏感，L1+ 层有序但存在级联下压风险。</li>
+</ul>
+<p>为便于把阅读路径和代码执行路径对齐，先给出本文主线问题：</p>
+<ol>
+<li>为什么需要比较 L0 与 Base Level 大小，来提升 L0 的优先级？</li>
+<li>什么是”不必要层级”（<code>unnecessary_level</code>）？</li>
+<li>如何确定不必要层级？</li>
+<li>怎么实现不必要层的清理？</li>
+<li>怎么实现”即将流入的数据量”（<code>total_downcompact_bytes</code>）估计的？</li>
+<li>怎么通过”即将流入的数据量”降低当前层压实的优先级？</li>
+<li><code>ComputeCompactionScore</code> 与 <code>PickCompaction</code> 如何衔接？高分是否一定可执行？</li>
+<li>当 <code>score &gt; 1</code> 但选不出任务时，系统如何避免长期抖动或饥饿？</li>
+<li>score 与 write stall（L0 slowdown&#x2F;stop）以及 <code>pending_compaction_bytes</code> 如何协同？</li>
+</ol>
+<h2 id="二、L0-层（level-x3D-x3D-0）精细化评分"><a href="#二、L0-层（level-x3D-x3D-0）精细化评分" class="headerlink" title="二、L0 层（level &#x3D;&#x3D; 0）精细化评分"></a>二、L0 层（level &#x3D;&#x3D; 0）精细化评分</h2><h3 id="（1）进入评分前：先建立可评分的上下文"><a href="#（1）进入评分前：先建立可评分的上下文" class="headerlink" title="（1）进入评分前：先建立可评分的上下文"></a>（1）进入评分前：先建立可评分的上下文</h3><p>在一个新 Version 的准备流程里，<code>PrepareForVersionAppend()</code> 先做三件关键事情，然后才适合讨论 score：</p>
+<ol>
+<li><code>ComputeCompensatedSizes()</code>：计算每个文件的 <code>compensated_file_size</code>。它不是简单文件大小，而是把点删密度（<code>kDeletionWeightOnCompaction</code>）和 <code>compensated_range_deletion_size</code> 一并计入，因此在 tombstone&#x2F;range delete 场景下，能更接近真实压实收益。</li>
+<li><code>CalculateBaseBytes()</code>：计算动态层级字节模式下的 <code>base_level_</code>、<code>level_max_bytes_</code>、<code>lowest_unnecessary_level_</code>。这一步决定后续 L0 与 Base Level 的比较基准，也决定哪些层被视作 unnecessary。</li>
+<li><code>UpdateFilesByCompactionPri()</code>：更新各层内部文件优先级，为后续 <code>PickCompaction()</code> 的文件挑选做准备。</li>
+</ol>
+<p>因此，<code>ComputeCompactionScore()</code> 并不是孤立运行，它建立在这组状态之上。也正因为 <code>base_level_</code> 是在新 Version 形成时重算，而不是每次写入即时重算，短周期内会有状态滞后窗口，但会在后续 Version 切换中被纠正。</p>
+<h3 id="（2）基础统计"><a href="#（2）基础统计" class="headerlink" title="（2）基础统计"></a>（2）基础统计</h3><pre><code class="hljs cpp"><span class="hljs-type">int</span> num_sorted_runs = <span class="hljs-number">0</span>;
+<span class="hljs-type">uint64_t</span> total_size = <span class="hljs-number">0</span>;
+<span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span>* f : files_[level]) &#123;
+  total_downcompact_bytes += <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">double</span>&gt;(f-&gt;fd.<span class="hljs-built_in">GetFileSize</span>());
+  <span class="hljs-keyword">if</span> (!f-&gt;being_compacted) &#123;
+    total_size += f-&gt;compensated_file_size;
+    num_sorted_runs++;
+  &#125;
+&#125;</code></pre>
+
+<ul>
+<li><code>num_sorted_runs</code>：L0 每个未压实文件都视作一个独立 run（文件间重叠）。</li>
+<li><code>total_size</code>：只统计未处于 compaction 中的文件，避免把“正在处理的压力”重复计入。</li>
+<li><code>total_downcompact_bytes</code>：累计上层向下游传播的潜在压力，后续会参与 L1+ 评分降权。</li>
+</ul>
+<p>排除 <code>being_compacted</code> 的直接效果，是让分数反映“当前仍待调度的负载”；其代价是短窗口内会低估总压力，但每次 pick&#x2F;完成后都会重算分数，且 <code>level_total_bytes</code> 与 <code>total_downcompact_bytes</code> 机制会在后续层级补回部分前瞻信息。</p>
+<h3 id="（3）基础分数：文件数量驱动"><a href="#（3）基础分数：文件数量驱动" class="headerlink" title="（3）基础分数：文件数量驱动"></a>（3）基础分数：文件数量驱动</h3><pre><code class="hljs cpp">score = num_sorted_runs / level0_file_num_compaction_trigger;</code></pre>
+
+<p>默认 <code>level0_file_num_compaction_trigger = 4</code>，该规则先把 L0 读放大风险显式纳入优先级。</p>
+<h3 id="（4）动态层级字节模式（level-compaction-dynamic-level-bytes-true）"><a href="#（4）动态层级字节模式（level-compaction-dynamic-level-bytes-true）" class="headerlink" title="（4）动态层级字节模式（level_compaction_dynamic_level_bytes == true）"></a>（4）动态层级字节模式（<code>level_compaction_dynamic_level_bytes == true</code>）</h3><h4 id="分支-A：确保-L0-到达-base-size-必有资格"><a href="#分支-A：确保-L0-到达-base-size-必有资格" class="headerlink" title="分支 A：确保 L0 到达 base size 必有资格"></a>分支 A：确保 L0 到达 base size 必有资格</h4><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (total_size &gt;= mutable_cf_options.max_bytes_for_level_base) &#123;
+  score = std::<span class="hljs-built_in">max</span>(score, <span class="hljs-number">1.01</span>);
+&#125;</code></pre>
+
+<p>较大的 Write Buffer 会产生较大 SST，仅靠文件个数可能低估压力。这里把分数托到 1.0 以上，避免“写入已积压但分数未达阈值”的尴尬状态。</p>
+<h4 id="分支-B：比较-L0-与-Base-Level，控制下刷优先级"><a href="#分支-B：比较-L0-与-Base-Level，控制下刷优先级" class="headerlink" title="分支 B：比较 L0 与 Base Level，控制下刷优先级"></a>分支 B：比较 L0 与 Base Level，控制下刷优先级</h4><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (total_size &gt; level_max_bytes_[base_level_]) &#123;
+  <span class="hljs-type">uint64_t</span> base_level_size = <span class="hljs-number">0</span>;
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> f : files_[base_level_]) &#123;
+    base_level_size += f-&gt;compensated_file_size;
+  &#125;
+  score = std::<span class="hljs-built_in">max</span>(score, <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">double</span>&gt;(total_size) / 
+          <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">double</span>&gt;(std::<span class="hljs-built_in">max</span>(
+                base_level_size, 
+                level_max_bytes_[base_level_])));
+&#125;</code></pre>
+
+<p>这里比较的是 <code>L0_size</code> 与 <code>max(BaseLevel_size, BaseLevel_target)</code>，而不是固定比较某一层实际大小。这样做可以在 L0 快速增长时，把 L0-&gt;Base 的调度优先级拉高，防止 Base 层下游整理尚未完成时 L0 继续失控堆积。</p>
+<p><strong>例如</strong>（假设 base_level&#x3D;L1，且 L1_target&#x3D;100MB）：L0&#x3D;200MB, L1&#x3D;100MB，则 L0 分数为 <code>200/max(100,100)=2.0</code>，缩放后为 <code>2.0 × 10 (kScoreScale) = 20.0</code>。此时 <code>total_downcompact_bytes ≈ L0_size = 200MB</code>，L1 分数约为 <code>100MB/(100MB + 200MB) ×10 = 3.3</code>。**最终，L0 (20.0) &gt;&gt; L1 (3.3)**，L0 优先级会明显高于同周期内 BaseLevel 的整理任务。</p>
+<h4 id="分支-C：超阈值后分数缩放"><a href="#分支-C：超阈值后分数缩放" class="headerlink" title="分支 C：超阈值后分数缩放"></a>分支 C：超阈值后分数缩放</h4><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (score &gt; <span class="hljs-number">1.0</span>) score *= kScoreScale; <span class="hljs-comment">// kScoreScale = 10.0</span></code></pre>
+
+<p><code>kScoreScale</code> 的作用不是改变触发阈值，而是扩展超阈值区间的可排序空间。这样即使引入了 <code>total_downcompact_bytes</code> 这类降权项，系统仍能拉开高压层之间的优先级差异。</p>
+<h3 id="（5）静态模式补充判断"><a href="#（5）静态模式补充判断" class="headerlink" title="（5）静态模式补充判断"></a>（5）静态模式补充判断</h3><pre><code class="hljs cpp">score = std::<span class="hljs-built_in">max</span>(score, total_size / max_bytes_for_level_base);</code></pre>
+
+<p>静态模式下，L0 同时受“文件数”和“总大小”双约束，避免大文件场景只靠 run 数无法及时触发压实。</p>
+<h2 id="三、L1-层（level-gt-0）的动态评分机制"><a href="#三、L1-层（level-gt-0）的动态评分机制" class="headerlink" title="三、L1+ 层（level &gt; 0）的动态评分机制"></a>三、L1+ 层（level &gt; 0）的动态评分机制</h2><h3 id="（1）基础统计"><a href="#（1）基础统计" class="headerlink" title="（1）基础统计"></a>（1）基础统计</h3><pre><code class="hljs cpp"><span class="hljs-type">uint64_t</span> level_bytes_no_compacting = <span class="hljs-number">0</span>;
+<span class="hljs-type">uint64_t</span> level_total_bytes = <span class="hljs-number">0</span>;
+<span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> f : files_[level]) &#123;
+  level_total_bytes += f-&gt;fd.<span class="hljs-built_in">GetFileSize</span>();
+  <span class="hljs-keyword">if</span> (!f-&gt;being_compacted) &#123;
+    level_bytes_no_compacting += f-&gt;compensated_file_size;
+  &#125;
+&#125;</code></pre>
+
+<p>其中 <code>level_bytes_no_compacting</code> 统计当前仍待调度的有效压力；<code>level_total_bytes</code> 统计该层总物理大小，后续用于估算向下游传播的压力。</p>
+<h3 id="（2）静态模式"><a href="#（2）静态模式" class="headerlink" title="（2）静态模式"></a>（2）静态模式</h3><pre><code class="hljs cpp">score = <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">double</span>&gt;(level_bytes_no_compacting) / <span class="hljs-built_in">MaxBytesForLevel</span>(level);</code></pre>
+
+<p>仍是“当前大小 &#x2F; 目标大小”的经典定义。</p>
+<h3 id="（3）动态模式（核心）"><a href="#（3）动态模式（核心）" class="headerlink" title="（3）动态模式（核心）"></a>（3）动态模式（核心）</h3><h4 id="分支-A：未超限，常规比值"><a href="#分支-A：未超限，常规比值" class="headerlink" title="分支 A：未超限，常规比值"></a>分支 A：未超限，常规比值</h4><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (level_bytes_no_compacting &lt; <span class="hljs-built_in">MaxBytesForLevel</span>(level)) &#123;
+  score = <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">double</span>&gt;(level_bytes_no_compacting) / <span class="hljs-built_in">MaxBytesForLevel</span>(level);
+&#125;</code></pre>
+
+<h4 id="分支-B：超限时引入-total-downcompact-bytes-降权"><a href="#分支-B：超限时引入-total-downcompact-bytes-降权" class="headerlink" title="分支 B：超限时引入 total_downcompact_bytes 降权"></a>分支 B：超限时引入 <code>total_downcompact_bytes</code> 降权</h4><pre><code class="hljs cpp">score = <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">double</span>&gt;(level_bytes_no_compacting) / 
+                            (<span class="hljs-built_in">MaxBytesForLevel</span>(level) + total_downcompact_bytes) * 
+                            kScoreScale;</code></pre>
+
+<p>这一步对应“先看本层压力，再看上游即将流入压力”。当上游即将下压的数据很多时，先把本层 score 压低，避免做出“刚整理完马上又被灌满”的调度决策。</p>
+<p><strong>例如</strong>：L2 超限 50MB，但 L1 正在压 200MB 到 L2，则分母 &#x3D; 100 + 200 &#x3D; 300，计算分数为 0.33 × 10 &#x3D; 3.3。即使超限，该层优先级也会被下调，待后续再评估。</p>
+<p>该估计天然有误差：</p>
+<ul>
+<li>高估常见于整层 unnecessary 清理或后续会大量消解 tombstone 的场景；</li>
+<li>低估常见于突发写入尚未 flush 进当前 Version 视图的时段。</li>
+</ul>
+<p>但它的设计目标不是精确预测，而是给调度加入前瞻约束，降低 compaction 风暴概率。</p>
+<h4 id="分支-C：清理“不必要层级”"><a href="#分支-C：清理“不必要层级”" class="headerlink" title="分支 C：清理“不必要层级”"></a>分支 C：清理“不必要层级”</h4><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (level_bytes_no_compacting &gt; <span class="hljs-number">0</span> &amp;&amp; level &lt;= lowest_unnecessary_level_) &#123;
+  score = std::<span class="hljs-built_in">max</span>(score, kScoreScale * (<span class="hljs-number">1.001</span> + <span class="hljs-number">0.001</span> * (lowest_unnecessary_level_ - level)));
+&#125;</code></pre>
+
+<p><strong>什么是“不必要层级”？</strong> 只在启用动态层级字节数模式 (level_compaction_dynamic_level_bytes &#x3D; true) 时才会产生，指可被<strong>完全合并到下一层</strong>的层级（如 L3 只有 10MB，L4 目标 10GB）。当 <code>CalculateBaseBytes()</code> 把某些层判为 unnecessary 后，这里给它们一个稳定且有限的优先级（<strong>10.01 ~ 10.05</strong>,取决于 <code>lowest_unnecessary_level_ - level</code>）的分数。一方面，分数大于 1.0，意味着有资格压实；另外一方面，远小于 L0 超限时的分数（如 20.0），使其在 L0 不紧急时被逐步清理，但在 L0 高压时仍会让位给更紧急的下刷任务。</p>
+<p>在 CalculateBaseBytes 函数中，<code>lowest_unnecessary_level_</code> 的判定来自 base bytes 反推过程：从高层目标往前按 multiplier 递推，当某层理论目标跌破 <code>base_bytes_min</code> 且满足约束（含 <code>preclude_last_level_data_seconds</code> 相关条件）时，开始标记为 unnecessary 区间。</p>
+<pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (lowest_unnecessary_level_ == <span class="hljs-number">-1</span> &amp;&amp;
+    cur_level_size &lt;= base_bytes_min &amp;&amp;
+    (ioptions.preclude_last_level_data_seconds == <span class="hljs-number">0</span> ||
+     i &lt; num_levels_ - <span class="hljs-number">2</span>)) &#123;
+    lowest_unnecessary_level_ = i;
+&#125;</code></pre>
+
+<p>具体条件：</p>
+<ol>
+<li>尚未找到 unnecessary level (lowest_unnecessary_level_ &#x3D;&#x3D; -1)</li>
+<li>当前层级的理论目标大小小于等于 base_bytes_min &#x3D; max_bytes_for_level_base &#x2F; max_bytes_for_level_multiplier</li>
+<li>不是倒数第二层（当启用 per_key_placement 时，倒数第二层是必需的）</li>
+</ol>
+<p>假设：</p>
+<ul>
+<li>max_bytes_for_level_base &#x3D; 256MB</li>
+<li>max_bytes_for_level_multiplier &#x3D; 10</li>
+<li>base_bytes_min &#x3D; 256MB &#x2F; 10 &#x3D; 25.6MB</li>
+<li>最大层级（L6）有 10GB 数据</li>
+</ul>
+<p>计算过程：</p>
+<ul>
+<li>L6: 10GB (实际最大)</li>
+<li>L5: 10GB &#x2F; 10 &#x3D; 1GB (理论)</li>
+<li>L4: 1GB &#x2F; 10 &#x3D; 100MB (理论)</li>
+<li>L3: 100MB &#x2F; 10 &#x3D; 10MB (理论) ，此层级 10MB 小于 25.6MB，会被标记为 unnecessary</li>
+</ul>
+<p>因此 lowest_unnecessary_level_ &#x3D; 3。在该推导前提下（相关层级位于计算窗口且为非空层），可理解为 L1、L2、L3 都属于不必要层级候选。</p>
+<h3 id="（4）total-downcompact-bytes-的更新回路"><a href="#（4）total-downcompact-bytes-的更新回路" class="headerlink" title="（4）total_downcompact_bytes 的更新回路"></a>（4）<code>total_downcompact_bytes</code> 的更新回路</h3><pre><code class="hljs cpp"><span class="hljs-keyword">if</span> (level &lt;= lowest_unnecessary_level_) &#123;
+  total_downcompact_bytes += level_total_bytes; <span class="hljs-comment">// 不必要层级：全部计入</span>
+&#125; <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (level_total_bytes &gt; <span class="hljs-built_in">MaxBytesForLevel</span>(level)) &#123;
+  total_downcompact_bytes += <span class="hljs-built_in">static_cast</span>&lt;<span class="hljs-type">double</span>&gt;(level_total_bytes - <span class="hljs-built_in">MaxBytesForLevel</span>(level)); <span class="hljs-comment">// 超限部分计入</span>
+&#125;</code></pre>
+
+<p>把“上层会向下传播多少压力”显式反馈到后续层级评分。<code>ComputeCompactionScore()</code> 在层级遍历过程中不断更新该变量，形成一个由上到下的前瞻抑制回路。对于<strong>不必要层级</strong>，因为整个层级都会被压实掉，在估计中全部字节都计入下一层压力。对于 <strong>超限层级</strong>：在估计中仅计入<strong>超出目标的部分</strong>。</p>
+<h3 id="（5）从-score-到可执行-compaction，再到-write-stall"><a href="#（5）从-score-到可执行-compaction，再到-write-stall" class="headerlink" title="（5）从 score 到可执行 compaction，再到 write stall"></a>（5）从 score 到可执行 compaction，再到 write stall</h3><p>score 只是“候选优先级”，是否能执行要继续走调度链路：</p>
+<ol>
+<li><code>ColumnFamilyData::NeedsCompaction()</code> -&gt; <code>LevelCompactionPicker::NeedsCompaction()</code>：只要存在可触发条件（包括 <code>CompactionScore(i) &gt;= 1</code>、TTL、periodic、marked、forced blob GC、bottommost）就会进入候选。</li>
+<li><code>PickCompaction()</code> &#x2F; <code>SetupInitialFiles()</code>：先按 score 从高到低尝试，再进入实际文件选择。</li>
+<li>文件选择阶段还要满足执行约束：<ul>
+<li><code>ExpandInputsToCleanCut()</code> 必须成功；</li>
+<li>不能与正在运行 compaction 的输入&#x2F;输出范围冲突（<code>FilesRangeOverlapWithCompaction()</code>）；</li>
+<li>L0 有并发限制（有 L0 compaction 在跑时，新的 L0-&gt;base 可能被阻塞）。</li>
+</ul>
+</li>
+</ol>
+<p>这解释了“<code>score &gt; 1</code> 但仍选不出任务”的常见原因。系统不是停在原地，会继续尝试后续层级&#x2F;文件，L0 受阻时可回退尝试 <code>PickIntraL0Compaction()</code>，先降低 L0 文件数压力，若按分数选不出，会继续进入标记类任务路径。</p>
+<p>在 Level compaction 下，<code>SetupInitialFiles()</code> 的自动仲裁顺序可概括如下（仅在对应条件满足时生效，例如 <code>compaction_style</code> 为 level，且 TTL&#x2F;periodic&#x2F;blob GC 相关选项开启）：score 驱动任务、<code>FilesMarkedForCompaction</code>、<code>BottommostFilesMarkedForCompaction</code>、<code>ExpiredTtlFiles</code>、<code>FilesMarkedForPeriodicCompaction</code>、<code>FilesMarkedForForcedBlobGC</code></p>
+<p>调度最后还会与写入限流协同，<code>GetWriteStallConditionAndCause()</code> 使用 <code>l0_delay_trigger_count</code> 与 <code>estimated_compaction_needed_bytes</code>（soft&#x2F;hard pending bytes limit）判定 normal&#x2F;delayed&#x2F;stopped；<code>RecalculateWriteStallConditions()</code> 通过 <code>WriteController</code> 发放 delay&#x2F;stop&#x2F;compaction-pressure token；同一个系统里，score 决定“先做谁”，write stall 决定“写入端需要多强背压”，两者共同防止失稳。</p>
+<h2 id="四、总结：调度仲裁顺序与多-CF-行为"><a href="#四、总结：调度仲裁顺序与多-CF-行为" class="headerlink" title="四、总结：调度仲裁顺序与多 CF 行为"></a>四、总结：调度仲裁顺序与多 CF 行为</h2><p>从执行路径看，CompactionScore 相关机制可以压缩成一条主链：</p>
+<p><code>PrepareForVersionAppend</code><br>-&gt; <code>ComputeCompensatedSizes / CalculateBaseBytes</code><br>-&gt; <code>VersionSet::AppendVersion(ComputeCompactionScore)</code><br>-&gt; <code>NeedsCompaction</code><br>-&gt; <code>PickCompaction(SetupInitialFiles)</code><br>-&gt; <code>GetWriteStallConditionAndCause</code></p>
+<p>在这条链上：<code>ComputeCompactionScore</code> 负责表达“压力与优先级”；<code>PickCompaction</code> 负责在并发与重叠约束下寻找“可执行任务”；write stall 负责在压力持续时给写入路径施加背压。</p>
+<p>多 Column Family 场景下，后台线程以 DB 级 <code>compaction_queue_</code> 进行 CF 任务分发，体现为队列轮转而非全局最优 score 调度。</p>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/03-14-2026/rocksdb-compaction-score.html">https://www.cyningsun.com/03-14-2026/rocksdb-compaction-score.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/04-03-2026/optimizing-space-amplification-in-rocksdb-cn.html">译｜Optimizing Space Amplification in RocksDB</a></span></li>
+          
+            <li><span><a href="/03-28-2026/rocksdb-bottommost-files-compaction.html">深入理解 RocksDB BottommostFiles compaction</a></span></li>
+          
+            <li><span><a href="/03-27-2026/rocksdb-space-mgr.html">深入理解 RocksDB 磁盘空间管理</a></span></li>
+          
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/03-27-2026/rocksdb-space-mgr.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/11-23-2025/go-redis-connection-success-rate.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2026 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>

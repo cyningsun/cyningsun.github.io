@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="sogou_site_verification" content="MQ6oTycfG3"/>
+<meta name="google-site-verification" content="hqIFVwBa7rWx4VpI_8SjaGCBNRD664DCU_Sulcvdit8" />
+<meta name="360-site-verification" content="329fb6aa8e262eb052b215fce0617f04" />
+<meta name="bytedance-verification-code" content="UEpFiB9TrD8NdRaxRndn" />
+<meta name="shenma-site-verification" content="0651eae61e001b3f7a26821e537c7ad0_1600871722">
+
+<title>深入理解 RocksDB 磁盘空间管理</title>
+<meta property="og:site_name" content="有疑说">
+<meta property="article:publisher" content="https://www.cyningsun.com" />
+<meta property="article:author" content="https://www.cyningsun.com" />
+<meta property="article:published_time" content="2026-03-27 00:00:00 +0800"/>
+
+<meta property="article:modified_time" content="2026-03-27 00:00:00 +0800"/>
+
+<meta property="og:url" content="/03-27-2026/rocksdb-space-mgr.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta itemprop="description" name="description" content="一、引言本文基于 RocksDB v8.8.1 代码与文档，从代码层面分析 RocksDB 的空间管理机制。默认使用 leveled compaction，SstFileManager 已启用且设置了 max_allowed_space_ &amp;gt; 0（否则其“硬限制”与 compaction_buffer_size_ 的常规检查不生效），除特别说明外，默认">
+
+<meta name="keywords" content="Space Management">
+
+
+<link rel="stylesheet" href="/css/bootstrap.css">
+
+
+<link rel="stylesheet" href="/css/hc.css">
+
+<link rel="shortcut icon" href="/img/favicon.ico">
+<style>
+    html{ background:#eee; }
+    pre{white-space:pre-wrap;}
+
+    em{ text-transform:lowercase; color:#1abc9c; }
+    :-moz-any(h1, h2, h3, h4, h5, h5) em{ text-transform: capitalize; }
+    em:hover{ color:inherit; }
+
+    #article{ padding:10% 10% 1% 10%; position:relative;   background:#fff;}
+    #tagline{ color:#999; font-size:1em; margin:-2em 0 2em; padding-bottom:2em; border-bottom:3px double #eee; }
+    #table{ margin-bottom:2em; color:#888; }
+
+    a,code {
+      word-break:break-all;
+    }
+
+    @media only screen and (max-width: 640px) {
+      table{ word-break:break-all;word-wrap:break-word;font-size:12px; }
+      .typo table th, .typo table td, .typo-table th, .typo-table td .typo table caption {
+        padding: 0.5em;
+      }
+      #fork{ display:none; }
+    }
+
+    ol.toc::before {
+      content: '目录';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.toc {
+        background: #fff;
+        overflow: hidden;
+        border: 1px solid #efefef;
+        color: #999;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.toc li {
+      padding: 2px 5px 2px 20px;
+    }
+
+    ol.toc ol {
+      list-style: circle;
+      padding: 0px 0px 0px 0px;
+      margin-bottom: 0px;
+    }
+
+    ol.related::before {
+      content: '相关文章';
+      font-size: 1.3em;
+      border-left: 5px solid #999;
+      padding: 2px 5px 2px 15px;
+    }
+    ol.related {
+        background: #fff; 
+        overflow: hidden;
+        color: #999;
+        margin-top: 40px;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+
+    ol.related li {
+      padding: 2px 5px 2px 20px;
+    }
+    .official-account-wrapper {
+      width: 200px;
+      margin-left: 0px;
+      padding: 70px 5px 10px 20px;
+    }
+    .official-account-wrapper img {
+      width: 150px;
+      height: 150px;
+      border-width:2px;
+      border-color:#999;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/iconfont.css">
+
+
+<link rel="stylesheet" href="/css/syntax.css">
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?fedff94a2e83a6e2a4d203129a3272e8";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>    
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-156665333-1"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'UA-156665333-1');
+</script>
+  <meta name="generator" content="Hexo 5.4.2"><link rel="alternate" href="/feed.xml" title="有疑说" type="application/atom+xml">
+</head>
+  <body>
+    <div id = "wrapper">
+    <div class="nav-toggle"><i class="fa fa-bars fa-2x"></i> Herring Cove </div>
+<div class="navbar navbar-default" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+        </button>
+        <p class="navbar-brand">有疑说 </p>
+        </div>
+        <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+        </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-wrapper">
+  <ul class="sidebar-nav">
+    <li class="sidebar-brand"><a href="/"><div class="brand">有疑说 </div></a><div>博学、慎思、明辨、笃行</div></li>
+    <hr />
+          <li><a href="/subjects">主题</a></li>
+          <li><a href="/archives">归档</a></li>
+          <li><a href="/links">链接</a></li>
+          <li><a href="/about">关于</a></li>
+    <hr />
+    <div id="social-wrapper">
+      <li> <a href="http://weibo.com/CyningSun"  target="_blank"><i class="iconfont icon-weibo"></i> @Weibo</a></li>
+      <li> <a href="mailto:cyningsun@gmail.com" ><i class="iconfont icon-gmail"></i> Gmail</a> </li>
+      <li> <a href="https://www.douban.com/people/cyningscut" target="_blank"><i class="iconfont icon-douban"></i> Douban</a></li>
+      <li> <a href="https://github.com/cyningsun" target="_blank"><i class="iconfont icon-github"></i> Github</a> </li>
+      <li><a href="/feed.xml" target="_blank"><i class="iconfont icon-rss"></i> RSS</a></li>
+    </div>
+    <div class="official-account-wrapper" align="center">
+      <img src="/img/official-account-qrcode.jpg" alt="official-account-qrcode"/>
+      <div>关注公众号</div>
+      </div>
+  </ul>
+</div>
+      <div class="container">
+        <div id="article"  class="typo">
+    <h1>深入理解 RocksDB 磁盘空间管理</h1><br/>
+    
+    <div class="timestamp-info" style="font-family: 'PingFang SC', Verdana, 'Helvetica Neue', 'Microsoft Yahei', 'Hiragino Sans GB', 'Microsoft Sans Serif', 'WenQuanYi Micro Hei', sans-serif; font-weight: 100; font-size: 14px; color: #666; margin-bottom: 10px; padding: 5px; text-align: center;">
+        First Published: 2026-03-27
+         | 
+        Last Revised: 2026-03-27
+    </div>
+    
+    <h2 id="tagline" class="serif"></h2>
+    <div class="post">
+        
+    <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%BC%95%E8%A8%80"><span class="toc-text">一、引言</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81RocksDB-%E7%9A%84%E5%9B%9B%E7%A7%8D%E7%A3%81%E7%9B%98%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B"><span class="toc-text">二、RocksDB 的四种磁盘数据类型</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%90%84%E7%B1%BB%E5%9E%8B%E6%96%87%E4%BB%B6%E7%9A%84%E7%A9%BA%E9%97%B4%E6%8E%A7%E5%88%B6%E6%9C%BA%E5%88%B6"><span class="toc-text">三、各类型文件的空间控制机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-SST-%E6%96%87%E4%BB%B6%EF%BC%9ASstFileManager-%E7%9A%84%E7%A1%AC%E9%99%90%E5%88%B6"><span class="toc-text">3.1 SST 文件：SstFileManager 的硬限制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-WAL-%E6%96%87%E4%BB%B6%EF%BC%9A%E8%BD%AF%E9%99%90%E5%88%B6%E4%B8%8E%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">3.2 WAL 文件：软限制与生命周期</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-LOG-%E6%96%87%E4%BB%B6"><span class="toc-text">3.3 LOG 文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-CompactionBufferSize%EF%BC%9A%E4%B8%BB%E8%A6%81%E7%9A%84%E8%B7%A8%E7%B3%BB%E7%BB%9F%E4%BF%9D%E6%8A%A4"><span class="toc-text">3.4 CompactionBufferSize：主要的跨系统保护</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E5%BD%B1%E5%93%8D%E7%A3%81%E7%9B%98%E7%A9%BA%E9%97%B4%E7%9A%84%E6%93%8D%E4%BD%9C%E5%88%86%E6%9E%90"><span class="toc-text">四、影响磁盘空间的操作分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%B8%B8%E8%A7%84%E6%93%8D%E4%BD%9C%E7%9A%84%E7%A9%BA%E9%97%B4%E5%BD%B1%E5%93%8D"><span class="toc-text">4.1 常规操作的空间影响</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E9%AB%98%E9%A3%8E%E9%99%A9%E6%93%8D%E4%BD%9C%E8%AF%A6%E8%A7%A3"><span class="toc-text">4.2 高风险操作详解</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E8%87%AA%E5%8A%A8-Compaction-%E7%9A%84%E7%A9%BA%E9%97%B4%E6%8E%A7%E5%88%B6"><span class="toc-text">4.3 自动 Compaction 的空间控制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E5%BA%95%E5%B1%82-Compaction-%E7%9A%84%E7%89%B9%E6%AE%8A%E6%80%A7"><span class="toc-text">4.4 底层 Compaction 的特殊性</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E7%A9%BA%E9%97%B4%E7%9B%B8%E5%85%B3%E7%9A%84%E7%9B%91%E6%8E%A7%E6%8C%87%E6%A0%87"><span class="toc-text">五、空间相关的监控指标</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="toc-text">六、总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95%EF%BC%9A%E8%BF%90%E7%BB%B4%E7%BB%8F%E9%AA%8C%E4%B8%8E%E9%85%8D%E7%BD%AE%E5%8F%82%E8%80%83"><span class="toc-text">附录：运维经验与配置参考</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#A-%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E5%88%A9%E7%94%A8%E7%8E%87%E5%88%86%E6%9E%90"><span class="toc-text">A. 生产环境利用率分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#B-CompactionBufferSize-%E5%8F%82%E8%80%83%E5%85%AC%E5%BC%8F"><span class="toc-text">B. CompactionBufferSize 参考公式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#C-%E9%85%8D%E7%BD%AE%E7%A4%BA%E4%BE%8B%EF%BC%881TB-%E4%B8%93%E7%94%A8%E6%95%B0%E6%8D%AE%E7%9B%98%EF%BC%89"><span class="toc-text">C. 配置示例（1TB 专用数据盘）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#D-%E7%A9%BA%E9%97%B4%E4%B8%8D%E8%B6%B3%E6%97%B6%E7%9A%84%E9%99%8D%E7%BA%A7%E7%AD%96%E7%95%A5"><span class="toc-text">D. 空间不足时的降级策略</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#E-%E6%8F%90%E5%8D%87%E7%A9%BA%E9%97%B4%E5%88%A9%E7%94%A8%E7%8E%87%E7%9A%84%E6%96%B9%E6%A1%88"><span class="toc-text">E. 提升空间利用率的方案</span></a></li></ol></li></ol>
+ 
+        <h2 id="一、引言"><a href="#一、引言" class="headerlink" title="一、引言"></a>一、引言</h2><p>本文基于 RocksDB v8.8.1 代码与文档，从代码层面分析 RocksDB 的空间管理机制。默认使用 leveled compaction，<code>SstFileManager</code> 已启用且设置了 <code>max_allowed_space_ &gt; 0</code>（否则其“硬限制”与 <code>compaction_buffer_size_</code> 的常规检查不生效），除特别说明外，默认单 DB 实例，且主要讨论 <code>db_paths[0]</code> &#x2F; <code>cf_paths[0]</code> 路径。</p>
+<p>当空间不足时，RocksDB 会拒绝新的 Compaction 任务以避免磁盘写满。Flush 不做事前空间检查，第一次 Flush 仍会执行；但如果 Flush 完成后触发 <code>SpaceLimit</code>&#x2F;<code>NoSpace</code> 等硬错误，DB 会进入 stopped 状态，后续 Flush（错误恢复 Flush 除外）会被跳过。这仍可能导致 L0 文件堆积，最终触发 Write Stall，写入延迟急剧上升甚至完全停止。这会形成恶性循环：无法执行 Compaction 就无法回收空间，空间越少就越难执行 Compaction，直到服务完全不可用。一个典型的陷阱是”删除数据后空间不减反增”：删除操作只是写入 Tombstone 标记，真正的空间回收要等 Compaction 完成。如果此时空间已经紧张，Compaction 被拒绝，删除操作反而会占用更多空间。</p>
+<p>LSM-Tree 的设计特性决定了 Compaction 过程中原文件和新文件必须同时存在，峰值空间可达输入数据的两倍。RocksDB 通过预留缓冲区机制来应对这一问题，确保关键操作（如 WAL 写入和 Flush）在空间紧张时仍有足够空间可用。</p>
+<h2 id="二、RocksDB-的四种磁盘数据类型"><a href="#二、RocksDB-的四种磁盘数据类型" class="headerlink" title="二、RocksDB 的四种磁盘数据类型"></a>二、RocksDB 的四种磁盘数据类型</h2><p>RocksDB 在磁盘上会产生四种类型的文件，它们各自独立管理，这正是空间管理复杂性的根源。</p>
+<p><strong>SST 文件</strong>是 RocksDB 存储实际数据的地方，由 Flush 和 Compaction 产生。<code>SstFileManager</code> 可以对其跟踪到的 SST&#x2F;Blob 文件施加硬限制。坏消息是，Compaction 的峰值空间需求使得这个”硬限制”并不能简单地等于磁盘容量。</p>
+<p><strong>WAL 文件</strong>（Write-Ahead Log）记录每次写入操作，用于故障恢复。WAL 的限制是”软”的：当达到 <code>max_total_wal_size</code> 阈值时，RocksDB 会触发 Flush 来清理 WAL，但在 Flush 完成之前，WAL 可能继续增长。高写入压力下，WAL 实际大小可能显著超过配置值。</p>
+<p><strong>LOG 文件</strong>是 RocksDB 的运行日志，记录各种操作信息。LOG 通过 <code>max_log_file_size</code>（单文件大小）和 <code>keep_log_file_num</code>（保留数量）控制，总量上限约为两者的乘积。这只是轮转机制，不是硬限制。</p>
+<p><strong>MANIFEST 文件</strong>记录数据库的元数据和版本信息，通常较小，但在频繁变更的场景下也可能累积。</p>
+<p>理解这四种文件的关键在于：<strong>它们由不同的组件独立管理，互不感知</strong>。SST 空间紧张时，不会自动减少 WAL 或 LOG 的配额。这意味着，即使精确控制了 SST 的空间，WAL 或 LOG 的意外增长仍可能导致磁盘写满。</p>
+<h2 id="三、各类型文件的空间控制机制"><a href="#三、各类型文件的空间控制机制" class="headerlink" title="三、各类型文件的空间控制机制"></a>三、各类型文件的空间控制机制</h2><p><img src="/images/rocksdb-space-mgr/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20RocksDB%20%E7%A3%81%E7%9B%98%E7%A9%BA%E9%97%B4%E7%AE%A1%E7%90%86-20260327231429-1.png" alt="深入理解 RocksDB 磁盘空间管理-20260327231429-1.png"></p>
+<h3 id="3-1-SST-文件：SstFileManager-的硬限制"><a href="#3-1-SST-文件：SstFileManager-的硬限制" class="headerlink" title="3.1 SST 文件：SstFileManager 的硬限制"></a>3.1 SST 文件：SstFileManager 的硬限制</h3><p>SST 文件的空间控制是 RocksDB 中最完善的部分。<code>SstFileManager</code> 通过 <code>max_allowed_space_</code> 设置其跟踪文件（SST&#x2F;Blob）的总量上限。当前实现中，Flush&#x2F;Compaction 输出上报与 Open 扫描主要覆盖 <code>db_paths[0]/cf_paths[0]</code>（<code>path_id=0</code>），多路径场景需特别注意统计口径。</p>
+<p><strong>写入过程的空间检查分为四个阶段：</strong></p>
+<ol>
+<li><strong>写入阶段</strong>：用户写入时<strong>不检查</strong> <code>max_allowed_space</code>，数据直接写入 MemTable 和 WAL</li>
+<li><strong>Flush 阶段</strong>：MemTable Flush 成 SST 后，调用 <code>IsMaxAllowedSpaceReached()</code> 检查 <code>total_files_size_ &gt;= max_allowed_space_</code>，如果超限则设置 <code>BGError</code> 为 <code>Status::SpaceLimit</code></li>
+<li><strong>后续写入</strong>：触发错误的当前写请求（如 WAL append 失败）会直接失败；后续写入是否在 <code>PreprocessWrite()</code> 阶段被拒绝，取决于 DB 是否已进入 stopped 状态</li>
+<li><strong>后续 Flush</strong>：若错误严重级别达到 HardError（默认 <code>paranoid_checks=true</code> 时，Flush 路径的 <code>SpaceLimit/NoSpace</code> 会映射为 HardError），<code>is_db_stopped_</code> 会被置为 <code>true</code>，普通 Flush 在 <code>IsBGWorkStopped()</code> 为 true 时会被跳过（错误恢复 Flush 除外）</li>
+</ol>
+<pre><code class="hljs cpp"><span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">SstFileManagerImpl::IsMaxAllowedSpaceReached</span><span class="hljs-params">()</span> </span>&#123;
+  <span class="hljs-function">MutexLock <span class="hljs-title">l</span><span class="hljs-params">(&amp;mu_)</span></span>;
+  <span class="hljs-keyword">if</span> (max_allowed_space_ &lt;= <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+  &#125;
+  <span class="hljs-keyword">return</span> total_files_size_ &gt;= max_allowed_space_;
+&#125;</code></pre>
+
+<p>这种异步检查机制意味着，当空间真正不足时，可能已经有部分数据写入了 MemTable 和 WAL；当前请求可能先失败，而后续写入是否被入口直接拒绝取决于 DB 是否已 stopped。</p>
+<p>相比 Flush 的<strong>事后异步检查</strong>，Compaction 采用的是<strong>事前同步检查</strong>：在 Compaction 任务开始执行前，会调用 <code>EnoughRoomForCompaction()</code> 预先验证是否有足够空间完成整个操作，如果空间不足则直接拒绝该 Compaction 任务。从代码可以看出，Flush 必须尽可能执行（即使可能导致空间超限），而 Compaction 可以延后甚至取消。核心检查逻辑如下：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// file/sst_file_manager_impl.cc:148-205</span>
+<span class="hljs-function"><span class="hljs-type">bool</span> <span class="hljs-title">SstFileManagerImpl::EnoughRoomForCompaction</span><span class="hljs-params">(</span></span>
+<span class="hljs-params"><span class="hljs-function">    ColumnFamilyData* cfd, <span class="hljs-type">const</span> std::vector&lt;CompactionInputFiles&gt;&amp; inputs,</span></span>
+<span class="hljs-params"><span class="hljs-function">    <span class="hljs-type">const</span> Status&amp; bg_error)</span> </span>&#123;
+  <span class="hljs-function">MutexLock <span class="hljs-title">l</span><span class="hljs-params">(&amp;mu_)</span></span>;
+  <span class="hljs-type">uint64_t</span> size_added_by_compaction = <span class="hljs-number">0</span>;
+  <span class="hljs-comment">// First check if we even have the space to do the compaction</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-type">size_t</span> i = <span class="hljs-number">0</span>; i &lt; inputs.<span class="hljs-built_in">size</span>(); i++) &#123;
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">size_t</span> j = <span class="hljs-number">0</span>; j &lt; inputs[i].<span class="hljs-built_in">size</span>(); j++) &#123;
+      FileMetaData* filemeta = inputs[i][j];
+      size_added_by_compaction += filemeta-&gt;fd.<span class="hljs-built_in">GetFileSize</span>();
+    &#125;
+  &#125;
+
+  <span class="hljs-comment">// Update cur_compactions_reserved_size_ so concurrent compaction</span>
+  <span class="hljs-comment">// don&#x27;t max out space</span>
+  <span class="hljs-type">size_t</span> needed_headroom = cur_compactions_reserved_size_ +
+                           size_added_by_compaction + compaction_buffer_size_;
+  <span class="hljs-keyword">if</span> (max_allowed_space_ != <span class="hljs-number">0</span> &amp;&amp;
+      (needed_headroom + total_files_size_ &gt; max_allowed_space_)) &#123;
+    <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+  &#125;
+
+  <span class="hljs-comment">// Implement more aggressive checks only if this DB instance has already</span>
+  <span class="hljs-comment">// seen a NoSpace() error. ...</span>
+  <span class="hljs-keyword">if</span> (bg_error.<span class="hljs-built_in">IsNoSpace</span>() &amp;&amp; <span class="hljs-built_in">CheckFreeSpace</span>()) &#123;
+    <span class="hljs-comment">// ... 获取文件路径 fn ...</span>
+    <span class="hljs-type">uint64_t</span> free_space = <span class="hljs-number">0</span>;
+    Status s = fs_-&gt;<span class="hljs-built_in">GetFreeSpace</span>(fn, <span class="hljs-built_in">IOOptions</span>(), &amp;free_space, <span class="hljs-literal">nullptr</span>);
+    s.<span class="hljs-built_in">PermitUncheckedError</span>();  <span class="hljs-comment">// <span class="hljs-doctag">TODO:</span> Check the status</span>
+    <span class="hljs-comment">// ... If user didn&#x27;t specify any compaction buffer, add reserved_disk_buffer_</span>
+    <span class="hljs-keyword">if</span> (compaction_buffer_size_ == <span class="hljs-number">0</span>) &#123;
+      needed_headroom += reserved_disk_buffer_;
+    &#125;
+    <span class="hljs-keyword">if</span> (free_space &lt; needed_headroom + size_added_by_compaction) &#123;
+      <span class="hljs-comment">// ... 日志记录 ...</span>
+      <span class="hljs-keyword">return</span> <span class="hljs-literal">false</span>;
+    &#125;
+  &#125;
+
+  cur_compactions_reserved_size_ += size_added_by_compaction;
+  <span class="hljs-comment">// Take a snapshot of cur_compactions_reserved_size_ for when we encounter</span>
+  <span class="hljs-comment">// a NoSpace error.</span>
+  free_space_trigger_ = cur_compactions_reserved_size_;
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">true</span>;
+&#125;</code></pre>
+
+<p>理解上述检查逻辑的关键在于明确 <code>total_files_size_</code> 的统计口径。<code>SstFileManager</code> 的 <code>total_files_size_</code> 是 <code>tracked_files_</code> 的求和，由 <code>OnAddFile/OnDeleteFile</code> 驱动，因此它统计的是”被 SstFileManager 注册过”的文件，而不是”某个 Version 视角下的全部文件”。通常会覆盖：当前 Version 使用中的 SST&#x2F;Blob、旧 Version 被 Iterator&#x2F;Snapshot 持有的文件、尚未物理删除的 obsolete 文件、以及已 <code>OnAddFile</code> 但尚未安装到 Version 的临时输出文件；它不包含正在生成但尚未 <code>OnAddFile</code> 的文件。</p>
+<p>需要特别注意两点。第一，<code>DB::Open</code> 只会扫描 <code>db_paths[0]</code> 和各 Column Family 的 <code>cf_paths[0]</code> 来注册现有 SST&#x2F;Blob 文件，可能包含不在 MANIFEST 中的孤立文件。第二，Compaction 输出仅在 <code>path_id == 0</code> 时才会上报给 <code>SstFileManager</code>，因此多路径场景下 <code>total_files_size_</code> 与真实磁盘占用可能存在系统性偏差。</p>
+<p>与之对比，<code>rocksdb.live-sst-files-size</code> 是 Column Family current Version 视角，仅统计 live SST；<code>rocksdb.total-sst-files-size</code> 是该 Column Family 所有 Version 去重后的 SST 总和。它们与 <code>SstFileManager</code> 的 <code>total_files_size_</code> 在对象范围和路径范围上都不同，因此不宜简单用 <code>total_files_size_ - live_sst_files_size</code> 推断 obsolete SST 大小。</p>
+<p>对于可回收空间的精确监控，SST 部分建议直接使用 <code>rocksdb.obsolete-sst-files-size</code>；Blob 部分 RocksDB 未提供对应的 obsolete 指标，<code>rocksdb.total-blob-file-size - rocksdb.live-blob-file-size</code> 更接近”非 current-version blob 规模”，不等价于”待删除 blob 空间”。若启用 BlobDB，应结合 <code>live-blob-file-size</code> &#x2F; <code>total-blob-file-size</code> 观察整体空间使用情况。</p>
+<p>上述代码中 <code>compaction_buffer_size_</code> 和 <code>reserved_disk_buffer_</code> 的具体作用和触发条件，详见 §3.4。</p>
+<p>当且仅当配置了 <code>max_allowed_space_ &gt; 0</code> 时，业务可用空间可以从两个视角理解。从配置规划角度，<strong>业务理论最大可用空间</strong>约为 <code>max_allowed_space_ - compaction_buffer_size_</code>。从运行时监控角度，<strong>当前实际剩余空间</strong>约为 <code>max_allowed_space_ - total_files_size_ - compaction_buffer_size_</code>，反映了在 <code>SstFileManager</code> 统计口径下，扣除已使用空间与保护缓冲区后还能写入的数据规模。</p>
+<h3 id="3-2-WAL-文件：软限制与生命周期"><a href="#3-2-WAL-文件：软限制与生命周期" class="headerlink" title="3.2 WAL 文件：软限制与生命周期"></a>3.2 WAL 文件：软限制与生命周期</h3><p>WAL 的空间控制涉及三个参数：<code>max_total_wal_size</code> 控制活跃 WAL 的总大小，超过时触发 Flush；<code>WAL_ttl_seconds</code> 和 <code>WAL_size_limit_MB</code> 控制归档 WAL 的清理策略。需要注意 <code>max_total_wal_size</code> 主要用于多 Column Family 场景触发 Flush；单 Column Family 场景下，WAL 大小更多受 MemTable&#x2F;Flush 节奏影响。</p>
+<p>如果不显式设置 <code>max_total_wal_size</code>，RocksDB 会使用默认值：</p>
+<pre><code class="hljs abnf">默认值 <span class="hljs-operator">=</span> [Σ write_buffer_size × max_write_buffer_number] × <span class="hljs-number">4</span></code></pre>
+
+<p>需要注意的是，WAL 的限制是”软”的——超过阈值时触发 Flush，而非阻止写入。在 Flush 完成之前，WAL 仍会继续增长，高写入压力下可能显著超过配置值。</p>
+<p><strong>WAL 写入失败的严重后果：</strong></p>
+<p>与 SST 文件不同，WAL 写入失败会让<strong>当前写请求立即失败</strong>。当系统磁盘空间耗尽，<code>WriteToWAL()</code> 返回 <code>IOStatus::NoSpace()</code> 时，会触发以下处理流程：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db/db_impl/db_impl_write.cc:756-761</span>
+<span class="hljs-keyword">if</span> (!io_s.<span class="hljs-built_in">ok</span>()) &#123;
+  <span class="hljs-comment">// Check WriteToWAL status</span>
+  <span class="hljs-built_in">IOStatusCheck</span>(io_s); <span class="hljs-comment">// 立即设置 BGError</span>
+&#125;
+<span class="hljs-comment">// ... else 分支省略 ...</span>
+
+<span class="hljs-comment">// db/db_impl/db_impl_write.cc:1117-1131</span>
+<span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">DBImpl::IOStatusCheck</span><span class="hljs-params">(<span class="hljs-type">const</span> IOStatus&amp; io_status)</span> </span>&#123;
+  <span class="hljs-comment">// Is setting bg_error_ enough here?  This will at least stop</span>
+  <span class="hljs-comment">// compaction and fail any further writes.</span>
+  <span class="hljs-keyword">if</span> ((immutable_db_options_.paranoid_checks &amp;&amp; !io_status.<span class="hljs-built_in">ok</span>() &amp;&amp;
+       !io_status.<span class="hljs-built_in">IsBusy</span>() &amp;&amp; !io_status.<span class="hljs-built_in">IsIncomplete</span>()) ||
+      io_status.<span class="hljs-built_in">IsIOFenced</span>()) &#123;
+    mutex_.<span class="hljs-built_in">Lock</span>();
+    <span class="hljs-comment">// Maybe change the return status to void?</span>
+    error_handler_.<span class="hljs-built_in">SetBGError</span>(io_status, BackgroundErrorReason::kWriteCallback);
+    mutex_.<span class="hljs-built_in">Unlock</span>();
+  &#125; <span class="hljs-keyword">else</span> &#123;
+    <span class="hljs-comment">// Force writable file to be continue writable.</span>
+    logs_.<span class="hljs-built_in">back</span>().writer-&gt;<span class="hljs-built_in">file</span>()-&gt;<span class="hljs-built_in">reset_seen_error</span>();
+  &#125;
+&#125;</code></pre>
+
+<p>当 <code>IOStatusCheck()</code> 将错误上报给 ErrorHandler 且错误严重级别升级到 HardError 时，DB 会进入 stopped，后续写入会在 <code>PreprocessWrite()</code> 入口返回该后台错误。若 <code>paranoid_checks=false</code>，则同样的 WAL 错误不一定会触发这一停库路径。</p>
+<h3 id="3-3-LOG-文件"><a href="#3-3-LOG-文件" class="headerlink" title="3.3 LOG 文件"></a>3.3 LOG 文件</h3><p>LOG 文件通过 <code>max_log_file_size</code>（单文件大小）和 <code>keep_log_file_num</code>（保留数量）控制，总量约为两者的乘积。这只是轮转机制，不是硬限制。</p>
+<h3 id="3-4-CompactionBufferSize：主要的跨系统保护"><a href="#3-4-CompactionBufferSize：主要的跨系统保护" class="headerlink" title="3.4 CompactionBufferSize：主要的跨系统保护"></a>3.4 CompactionBufferSize：主要的跨系统保护</h3><p><strong>核心问题</strong>：SST、WAL、LOG 由不同组件独立管理、互不感知。当 SST 空间紧张时，不会自动为 WAL、LOG、MANIFEST 等文件预留空间。如 §3.1 所述，Flush 无事前检查、仅事后检查，Compaction 同时存在事前和事后检查。这意味着 Compaction 可能因空间不足被拒绝，但 Flush 和 WAL 写入仍需继续执行——如果此时没有预留空间，可能导致磁盘写满。</p>
+<p><strong>解决方案</strong>：<code>compaction_buffer_size_</code> 是 RocksDB 的主要跨系统保护旋钮。需要注意，它在 <code>SstFileManager</code> 常规空间检查中稳定生效的前提是 <code>max_allowed_space_ &gt; 0</code>。在该前提下，它会在 SST 空间检查时预留一块缓冲区，给以下文件和场景留出余量：WAL 文件（包括 Active 和 Archived）、LOG 文件（RocksDB 操作日志）、MANIFEST 文件（数据库元数据）、Flush 过程中正在生成但尚未调用 <code>OnAddFile</code> 的 SST 文件、Compaction 过程中正在生成但尚未调用 <code>OnAddFile</code> 的输出 SST 文件。</p>
+<p><strong>实现细节</strong>：<code>compaction_buffer_size_</code> 是用户显式设置的保护缓冲区大小，在正常检查中会直接参与 <code>needed_headroom</code> 计算。<code>reserved_disk_buffer_</code> 由 <code>ReserveDiskBuffer()</code> 累加：单 DB 实例时通常等于该实例所有 Column Family 的最大 <code>write_buffer_size</code>；若多个 DB 共享同一个 <code>SstFileManager</code>，则会叠加多个实例的预留值。它只在满足全部条件时才会额外加入检查：当前 <code>bg_error</code> 为 <code>IOError::NoSpace</code>（<code>SpaceLimit</code> 不满足）、<code>SstFileManager</code> 内部错误严重级别为 <code>kSoftError</code>、且 <code>compaction_buffer_size_</code> 为 0。</p>
+<h2 id="四、影响磁盘空间的操作分析"><a href="#四、影响磁盘空间的操作分析" class="headerlink" title="四、影响磁盘空间的操作分析"></a>四、影响磁盘空间的操作分析</h2><h3 id="4-1-常规操作的空间影响"><a href="#4-1-常规操作的空间影响" class="headerlink" title="4.1 常规操作的空间影响"></a>4.1 常规操作的空间影响</h3><p><strong>写入操作</strong>会立即增加 WAL 大小，同时 LOG 记录操作日志。数据先写入内存中的 MemTable，此时不占用 SST 空间。</p>
+<p><strong>删除操作</strong>不会立即释放空间，而是写入 Tombstone 标记，反而会短暂增加空间占用。真正的空间回收要等 Compaction 将 Tombstone 与原数据合并后才能完成。</p>
+<p><strong>Flush 操作</strong>将 MemTable 持久化为 SST 文件。Flush 完成后，当所有引用该 WAL 的 Column Family 都已 flush 时，该 WAL 变为 obsolete，可被清理（如果配置了 <code>WAL_ttl_seconds</code> 或 <code>WAL_size_limit_MB</code> 则先归档，否则直接删除）。</p>
+<h3 id="4-2-高风险操作详解"><a href="#4-2-高风险操作详解" class="headerlink" title="4.2 高风险操作详解"></a>4.2 高风险操作详解</h3><p><strong>DB::Open()</strong> 在特定配置下可能触发大规模层级重整。最典型的场景是启用 <code>level_compaction_dynamic_level_bytes</code> 后首次打开数据库：RocksDB 会自动执行 Trivial Move 来调整层级结构。Trivial Move 本身只是元数据操作（VersionEdit），不复制 SST 文件，磁盘空间不会因此变化。但层级重整后，大量文件被移动到底层，随后触发的底层 Compaction 才是真正的空间风险所在（见 §4.4）。</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// db/db_impl/db_impl_open.cc:582-641</span>
+<span class="hljs-comment">// 当启用 level_compaction_dynamic_level_bytes=true 时</span>
+<span class="hljs-comment">// DB 打开时会自动进行 trivial move，完全不检查 max_compaction_bytes</span>
+<span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> from_level = to_level; from_level &gt;= <span class="hljs-number">0</span>; --from_level) &#123;
+  <span class="hljs-type">const</span> std::vector&lt;FileMetaData*&gt;&amp; level_files =
+      cfd-&gt;<span class="hljs-built_in">current</span>()-&gt;<span class="hljs-built_in">storage_info</span>()-&gt;<span class="hljs-built_in">LevelFiles</span>(from_level);
+  <span class="hljs-keyword">if</span> (level_files.<span class="hljs-built_in">empty</span>() || from_level == <span class="hljs-number">0</span>) &#123;
+    <span class="hljs-keyword">continue</span>;
+  &#125;
+  <span class="hljs-comment">// ... assert 省略 ...</span>
+  <span class="hljs-comment">// Trivial move files from `from_level` to `to_level`</span>
+  <span class="hljs-keyword">if</span> (from_level &lt; to_level) &#123;
+    VersionEdit edit;
+    edit.<span class="hljs-built_in">SetColumnFamily</span>(cfd-&gt;<span class="hljs-built_in">GetID</span>());
+    <span class="hljs-keyword">for</span> (<span class="hljs-type">const</span> FileMetaData* f : level_files) &#123;
+      edit.<span class="hljs-built_in">DeleteFile</span>(from_level, f-&gt;fd.<span class="hljs-built_in">GetNumber</span>());
+      edit.<span class="hljs-built_in">AddFile</span>(to_level, f-&gt;fd.<span class="hljs-built_in">GetNumber</span>(), f-&gt;fd.<span class="hljs-built_in">GetPathId</span>(),
+                   f-&gt;fd.<span class="hljs-built_in">GetFileSize</span>(), f-&gt;smallest, f-&gt;largest,
+                   <span class="hljs-comment">/* ... 其他元数据参数 ... */</span>);
+    &#125;
+    recovery_ctx-&gt;<span class="hljs-built_in">UpdateVersionEdits</span>(cfd, edit);
+  &#125;
+  --to_level;
+&#125;</code></pre>
+
+<p><strong>CompactRange()</strong> 在 Leveled Compaction 下，<code>input_level &gt; 0</code> 时文件选择阶段受 <code>max_compaction_bytes</code> 约束；但 <code>input_level == 0</code> 时不受此限制（L0 文件可重叠，必须全部选入）。尽管单次 compaction 有大小限制，全范围压缩 <code>CompactRange(nullptr, nullptr)</code> 会逐层执行多次 compaction，整体仍可能导致大量数据参与，峰值空间占用可达原始数据的两倍（输入文件 + 输出文件同时存在）。</p>
+<p><strong>CompactFiles()</strong> 允许用户直接指定参与压缩的文件列表，绕过了 RocksDB 的自动选择逻辑。如果选择的文件集合过大，同样可能导致严重的空间问题。</p>
+<p><strong>IngestExternalFile()</strong> 导入外部 SST 文件时，内部会构造用于范围冲突管理的”等价 Compaction”对象，该对象使用 <code>LLONG_MAX</code>（并非真实重写任务本身）。真正的空间风险在于：外部文件若相互重叠会落入 L0，随后触发的大型自动压缩可能带来峰值空间压力。</p>
+<h3 id="4-3-自动-Compaction-的空间控制"><a href="#4-3-自动-Compaction-的空间控制" class="headerlink" title="4.3 自动 Compaction 的空间控制"></a>4.3 自动 Compaction 的空间控制</h3><p>自动 Compaction 相对可控，主要受 <code>max_compaction_bytes</code> 约束。这个参数的默认值是 <code>target_file_size_base * 25 = 1.6GB</code>，目的是<strong>控制单次 Compaction 的资源消耗</strong>（临时磁盘空间、I&#x2F;O 带宽、执行时间）。在 Compaction 选择阶段，计算”Ln 层选中的文件大小 + Ln+1 层中与之重叠的文件大小”，总和超过 <code>max_compaction_bytes</code> 就停止扩展更多文件。在 Trivial Move 场景下，还会检查”移动到 Ln+1 的文件大小 + Ln+2 层重叠文件大小”是否超过 <code>max_compaction_bytes</code>，<strong>防止后续 Ln+1 → Ln+2 的 Compaction 过大</strong>。</p>
+<p>但该限制并非硬性的：为了保证 Clean Cut（文件边界对齐），可能必须包含额外文件；某些情况下为了数据一致性，必须将特定文件纳入同一次 Compaction。因此 <code>max_compaction_bytes</code> 更像是”尽量遵守”的软约束。</p>
+<h3 id="4-4-底层-Compaction-的特殊性"><a href="#4-4-底层-Compaction-的特殊性" class="headerlink" title="4.4 底层 Compaction 的特殊性"></a>4.4 底层 Compaction 的特殊性</h3><p>最底层 Compaction 通常没有更低层可作为祖父层（Grandparent），因此”基于祖父层重叠边界的切分优化”在这里不适用。但输出文件仍受 <code>max_output_file_size</code> 和输出切分逻辑约束，并非完全无边界。</p>
+<p>该特性会与 <code>DB::Open()</code> 的 Trivial Move 形成风险叠加：启用 <code>level_compaction_dynamic_level_bytes</code> 后，Open 阶段的 Trivial Move 不检查 <code>max_compaction_bytes</code>，可能把大量文件下沉到底层，随后底层 Compaction 一次处理的数据规模变大，峰值空间可能接近翻倍。</p>
+<h2 id="五、空间相关的监控指标"><a href="#五、空间相关的监控指标" class="headerlink" title="五、空间相关的监控指标"></a>五、空间相关的监控指标</h2><p>RocksDB 提供了以下与空间管理直接相关的内部指标：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 1. Live SST Files Size（当前 Version 中的有效数据）</span>
+db-&gt;<span class="hljs-built_in">GetProperty</span>(<span class="hljs-string">&quot;rocksdb.live-sst-files-size&quot;</span>, &amp;live_size);
+<span class="hljs-comment">// 说明：仅包含 current_ Version 中所有层级的文件，不包含 obsolete 和临时文件</span>
+
+<span class="hljs-comment">// 2. Total SST Files Size（该 Column Family 所有 Version 中的 SST 文件）</span>
+db-&gt;<span class="hljs-built_in">GetProperty</span>(<span class="hljs-string">&quot;rocksdb.total-sst-files-size&quot;</span>, &amp;total_size);
+<span class="hljs-comment">// 说明：遍历该 Column Family 的所有 Version（含被 Iterator/Snapshot 持有的旧 Version），去重求和</span>
+<span class="hljs-comment">// 注意：这不等于 SstFileManager 的 total_files_size_（后者还包含 obsolete 文件和</span>
+<span class="hljs-comment">// 已 OnAddFile 但尚未 Install 的临时文件，正常情况下差距很小）</span>
+
+<span class="hljs-comment">// 3. Pending Compaction Bytes（等待 compaction 的字节数）</span>
+db-&gt;<span class="hljs-built_in">GetProperty</span>(<span class="hljs-string">&quot;rocksdb.estimate-pending-compaction-bytes&quot;</span>, &amp;pending_bytes);
+<span class="hljs-comment">// 说明：Level Compaction 下，需要重写的数据量估算</span>
+
+<span class="hljs-comment">// 4. L0 Files Count（L0 层文件数量）</span>
+db-&gt;<span class="hljs-built_in">GetProperty</span>(<span class="hljs-string">&quot;rocksdb.num-files-at-level0&quot;</span>, &amp;l0_files);
+<span class="hljs-comment">// 说明：L0 积压是空间不足的典型表现</span>
+<span class="hljs-comment">// 当 compaction 被取消时，L0 文件会持续堆积</span>
+
+<span class="hljs-comment">// 5. Compaction Cancelled（累计取消的 compaction 次数）</span>
+<span class="hljs-type">uint64_t</span> cancelled = statistics-&gt;<span class="hljs-built_in">getTickerCount</span>(COMPACTION_CANCELLED);
+<span class="hljs-comment">// 触发条件：EnoughRoomForCompaction() 返回 false</span>
+<span class="hljs-comment">// 这是最直接的&quot;磁盘空间不足&quot;信号</span>
+
+<span class="hljs-comment">// 6. Obsolete SST Files Size（已 obsolete 但尚未删除的 SST）</span>
+db-&gt;<span class="hljs-built_in">GetProperty</span>(<span class="hljs-string">&quot;rocksdb.obsolete-sst-files-size&quot;</span>, &amp;obsolete_sst_bytes);
+<span class="hljs-comment">// 说明：这是待删 SST 的直接观测指标（全 DB 口径）</span></code></pre>
+
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p><code>compaction_buffer_size_</code> 是空间管理的核心保护机制之一。当 <code>compaction_buffer_size_</code> 为 0 时，正常检查不会有额外缓冲区保护（<code>reserved_disk_buffer_</code> 仅在 <code>bg_error</code> 为 <code>IOError::NoSpace</code> 且 <code>SstFileManager</code> 内部错误为 <code>kSoftError</code> 时才会生效）。</p>
+<p>RocksDB 的空间管理有以下关键特征：</p>
+<ol>
+<li><strong>SstFileManager 提供的是”按其跟踪范围”的硬限制</strong>：通过 <code>max_allowed_space_</code> 控制跟踪到的 SST&#x2F;Blob 文件。<strong>风险</strong>：路径覆盖差异与 WAL&#x2F;LOG 的意外增长仍可能导致磁盘写满。</li>
+<li><strong>Flush 和 Compaction 的空间检查策略不同</strong>：Flush 无事前检查且在事后超限时可能停库并跳过后续普通 Flush；Compaction 同时存在事前（<code>EnoughRoomForCompaction()</code>）和事后（输出后 <code>IsMaxAllowedSpaceReached()</code>）检查。<strong>影响</strong>：L0 易堆积并触发 Write Stall。</li>
+<li><strong>四种文件类型独立管理、互不感知</strong>：<code>compaction_buffer_size_</code> 是主要的跨系统保护旋钮，但在 <code>max_allowed_space_ &gt; 0</code> 的常规检查路径下才稳定生效。<strong>风险</strong>：配置为 0 或过小会导致 WAL&#x2F;LOG&#x2F;MANIFEST 保护不足。</li>
+<li><strong>手动操作（CompactRange&#x2F;CompactFiles&#x2F;IngestExternalFile）的空间约束弱于自动 Compaction</strong>。<strong>风险</strong>：全范围压缩或大文件集合可能导致峰值空间接近翻倍，需谨慎使用。</li>
+<li><strong>底层 Compaction 不适用祖父层边界优化</strong>：与 DB::Open 的 Trivial Move 叠加时风险最大。<strong>影响</strong>：启用 <code>level_compaction_dynamic_level_bytes</code> 后首次打开可能触发大规模底层 Compaction，峰值空间需求显著增加。</li>
+</ol>
+<hr>
+<h2 id="附录：运维经验与配置参考"><a href="#附录：运维经验与配置参考" class="headerlink" title="附录：运维经验与配置参考"></a>附录：运维经验与配置参考</h2><blockquote>
+<p>以下内容基于运维经验和假设场景，非 RocksDB 代码内置逻辑，仅供参考。</p>
+</blockquote>
+<h3 id="A-生产环境利用率分析"><a href="#A-生产环境利用率分析" class="headerlink" title="A. 生产环境利用率分析"></a>A. 生产环境利用率分析</h3><p>通过合理设置 <code>compaction_buffer_size_</code> 等参数，只允许利用预留的空间进行 Compaction，业务数据理论上可以占到 <code>max_allowed_space_</code> 的 90% 以上（详见 §C 配置示例）。</p>
+<p>然而，生产环境的实际利用率会更低：</p>
+<ol>
+<li><strong>扩容水位</strong>：如果采用<strong>小的逻辑隔离集群</strong>而非大的共享集群，通常在 70～80% 时触发扩容告警（业界常见做法），预留充足的时间进行数据迁移，避免接近上限</li>
+<li><strong>主从复制</strong>：主从断连需要全量同步时，从节点必须同时保留旧数据和新数据，空间需求翻倍。除非重新新建从节点替代的旧从节点（增加运维负担），或者使用 RAFT&#x2F;Paxos 等 3 副本方案（可安全丢弃旧数据），否则双副本架构下 <code>max_allowed_space_</code> 可能只能设为磁盘容量的 50%</li>
+</ol>
+<p>以 1TB 专用数据盘为例，格式化为 ext4 后空间约 940GB。配置 <code>max_allowed_space_</code> &#x3D; 900GB（含 30GB 的 <code>compaction_buffer</code>，在 900GB 内预留）：</p>
+<ul>
+<li><strong>无主从复制场景</strong>：业务实际可用约 <strong>610～700GB</strong></li>
+<li><strong>主从复制场景</strong>：<code>max_allowed_space_</code> 需限制到 450GB，业务实际可用约 <strong>280～320GB</strong></li>
+</ul>
+<p><strong>从平台产品角度看使用率更低</strong>：上述计算基于扩容水位（70～80%），但实际运维中，业务不会持续保持在高水位并频繁扩容。触发扩容告警后，增加容量会使使用率大幅下降，平台的平均磁盘使用率往往只有 **40-60%**（经验估算）。以 1TB 磁盘为例，按前文无主从复制场景的 610～700GB 可用空间和 40-60% 平均水位计算，长期平均业务数据量约 <strong>250～420GB</strong>。</p>
+<p>此外，如果采用<strong>小的逻辑隔离集群</strong>而非大的共享集群，还会产生<strong>集群外碎片</strong>问题：集群规格通常是固定的（如 100GB、200GB、500GB 等档位），用户实际数据可能只需 80GB，却不得不购买 100GB 规格，造成约 20% 的容量浪费。大共享集群可以更灵活地分配资源，但隔离性较差。这是平台产品设计中的经典权衡。</p>
+<h3 id="B-CompactionBufferSize-参考公式"><a href="#B-CompactionBufferSize-参考公式" class="headerlink" title="B. CompactionBufferSize 参考公式"></a>B. CompactionBufferSize 参考公式</h3><pre><code class="hljs cpp"><span class="hljs-comment">// 参考公式（非 RocksDB 内置逻辑，需根据实际场景调整）：</span>
+<span class="hljs-comment">// WAL 峰值 + LOG 峰值 + 安全边际</span>
+compaction_buffer_size ≈ max_total_wal_size + (WAL_size_limit_MB / <span class="hljs-number">1024</span>) 
+                        + (max_log_file_size × keep_log_file_num / GB) 
+                        + safety_margin</code></pre>
+
+<h3 id="C-配置示例（1TB-专用数据盘）"><a href="#C-配置示例（1TB-专用数据盘）" class="headerlink" title="C. 配置示例（1TB 专用数据盘）"></a>C. 配置示例（1TB 专用数据盘）</h3><p>假设有一块 1TB 的专用数据盘（系统使用独立磁盘），格式化为 ext4 文件系统，该如何配置 RocksDB，能存储多少业务数据？</p>
+<p>1TB 原始磁盘格式化为 ext4 后（默认参数），扣除保留块（5%）、元数据（1%）等开销约 60GB，<strong>普通用户实际可用约 940GB</strong>。以此为基础配置 RocksDB：</p>
+<p><strong>配置方案（无主从复制）</strong>：</p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 1. SST 空间控制</span>
+<span class="hljs-keyword">auto</span> sfm = <span class="hljs-built_in">NewSstFileManager</span>(env);
+sfm-&gt;<span class="hljs-built_in">SetMaxAllowedSpaceUsage</span>(<span class="hljs-number">900ULL</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>);  <span class="hljs-comment">// 900GB（SST 硬限制）</span>
+sfm-&gt;<span class="hljs-built_in">SetCompactionBufferSize</span>(<span class="hljs-number">30ULL</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>);   <span class="hljs-comment">// 30GB（在 900GB 内预留）</span>
+
+<span class="hljs-comment">// 2. WAL 空间控制（考虑主从复制场景）</span>
+options.max_total_wal_size = <span class="hljs-number">512ULL</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>;     <span class="hljs-comment">// 512MB Active WAL（主从延迟/断连容忍）</span>
+options.WAL_ttl_seconds = <span class="hljs-number">21600</span>;                             <span class="hljs-comment">// 6 小时 TTL（避免从节点短期断连需要全量同步）</span>
+options.WAL_size_limit_MB = <span class="hljs-number">16384</span>;                           <span class="hljs-comment">// 16GB Archived 限制（对应 6 小时产生量）</span>
+
+<span class="hljs-comment">// 3. LOG 空间控制</span>
+options.max_log_file_size = <span class="hljs-number">512</span> * <span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>;               <span class="hljs-comment">// 512MB/文件</span>
+options.keep_log_file_num = <span class="hljs-number">8</span>;                               <span class="hljs-comment">// 保留 8 个</span>
+options.info_log_level = WARN_LEVEL;                         <span class="hljs-comment">// 生产环境建议</span></code></pre>
+
+<p><strong>空间分配详解</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>大小</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>文件系统可用</td>
+<td>940GB</td>
+<td>1024GB - 约 60GB（保留块 5% + 元数据 1%）</td>
+</tr>
+<tr>
+<td><code>max_allowed_space_</code></td>
+<td>900GB</td>
+<td>SST 文件硬限制（含 compaction 临时文件）</td>
+</tr>
+<tr>
+<td>├─ <code>compaction_buffer</code></td>
+<td>30GB</td>
+<td>在 900GB 内预留（防止 SST 占满）</td>
+</tr>
+<tr>
+<td>├─ 业务实际可用</td>
+<td>≤870GB</td>
+<td>900GB - 30GB 缓冲</td>
+</tr>
+<tr>
+<td>WAL 配置空间</td>
+<td>16.5GB</td>
+<td>Active 512MB + Archived 16GB（文件系统层面）</td>
+</tr>
+<tr>
+<td>LOG 配置空间</td>
+<td>4GB</td>
+<td>512MB × 8 ≈ 4GB（文件系统层面）</td>
+</tr>
+<tr>
+<td><strong>文件系统余量（<code>max_allowed_space_</code> 之外）</strong></td>
+<td><strong>40GB</strong></td>
+<td>940 - 900（应对配置误差与突发开销）</td>
+</tr>
+</tbody></table>
+<p>上表中的 40GB 是 “<code>max_allowed_space_</code> 之外的余量” 口径，不是扣除 WAL&#x2F;LOG 后的实时可用值；WAL&#x2F;LOG 与临时文件的安全性依赖 <code>compaction_buffer_size_</code> 和该余量共同兜底。</p>
+<p>业务可用空间为 <code>max_allowed_space_</code>（900GB）中扣除空间检查时强制预留 <code>compaction_buffer</code>（30GB），<strong>业务理论可用约 870GB</strong>（&#x3D; 900 - 30）。但考虑 70-80% 扩容水位，<strong>实际可用约 610～700GB</strong>。</p>
+<h3 id="D-空间不足时的降级策略"><a href="#D-空间不足时的降级策略" class="headerlink" title="D. 空间不足时的降级策略"></a>D. 空间不足时的降级策略</h3><p>当监控到以下信号时，说明空间管理出现问题，需要<strong>主动干预</strong>：</p>
+<ul>
+<li><strong><code>COMPACTION_CANCELLED</code> 持续增长</strong>：空间不足导致 compaction 被频繁取消（最关键信号）</li>
+<li><strong><code>rocksdb.estimate-pending-compaction-bytes</code> 持续增大</strong>：等待 compaction 的数据量不断积压</li>
+<li><strong><code>rocksdb.num-files-at-level0</code> 超阈值</strong>：L0 文件堆积，可能触发 write stall</li>
+<li><strong><code>rocksdb.obsolete-sst-files-size</code> 持续增大</strong>：过期 SST 积压，无法及时删除</li>
+</ul>
+<p><strong>降级策略优先级</strong>：</p>
+<ol>
+<li><p><strong>立即清理 obsolete files</strong></p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 重启 DB（会强制全量扫描并清理 obsolete 文件）   </span>
+
+<span class="hljs-comment">// 若之前禁用过文件删除，先恢复（真实可调用 API）</span>
+db-&gt;<span class="hljs-built_in">EnableFileDeletions</span>(<span class="hljs-comment">/*force=*/</span><span class="hljs-literal">false</span>);</code></pre>
+</li>
+<li><p><strong>临时调整参数</strong></p>
+<pre><code class="hljs cpp"><span class="hljs-comment">// 增加 compaction 线程数（加快空间回收）</span>
+db-&gt;<span class="hljs-built_in">SetDBOptions</span>(&#123;&#123;<span class="hljs-string">&quot;max_background_jobs&quot;</span>, <span class="hljs-string">&quot;6&quot;</span>&#125;&#125;);  <span class="hljs-comment">// 默认为 2</span>
+
+<span class="hljs-comment">// 提高 write stall/stop 阈值（延缓写入阻塞，争取更多时间回收空间）</span>
+db-&gt;<span class="hljs-built_in">SetOptions</span>(&#123;
+    &#123;<span class="hljs-string">&quot;level0_slowdown_writes_trigger&quot;</span>, <span class="hljs-string">&quot;30&quot;</span>&#125;,    <span class="hljs-comment">// 默认 20</span>
+    &#123;<span class="hljs-string">&quot;level0_stop_writes_trigger&quot;</span>, <span class="hljs-string">&quot;40&quot;</span>&#125;,        <span class="hljs-comment">// 默认 36</span>
+    &#123;<span class="hljs-string">&quot;soft_pending_compaction_bytes_limit&quot;</span>, <span class="hljs-string">&quot;128GB&quot;</span>&#125;,  <span class="hljs-comment">// 默认 64GB</span>
+    &#123;<span class="hljs-string">&quot;hard_pending_compaction_bytes_limit&quot;</span>, <span class="hljs-string">&quot;256GB&quot;</span>&#125;   <span class="hljs-comment">// 默认 256GB</span>
+&#125;);</code></pre>
+</li>
+<li><p><strong>紧急扩容</strong></p>
+<ul>
+<li>如果以上措施无效，说明配置严重不足，需要紧急扩容</li>
+</ul>
+</li>
+</ol>
+<h3 id="E-提升空间利用率的方案"><a href="#E-提升空间利用率的方案" class="headerlink" title="E. 提升空间利用率的方案"></a>E. 提升空间利用率的方案</h3><p>综合前文分析，传统架构下存储层长期平均使用率较低。以 §C 的 1TB 配置示例为例，无主从复制场景下业务可用约 610～700GB，按 70-80% 扩容水位的平均值估算，长期水位约 35-40%。提升利用率有以下方向：</p>
+<ul>
+<li><strong>共享大集群</strong>：多租户共享总空间，无需每个租户单独预留集群容量和 Compaction 空间，利用率可显著提升（经验估算 **65%～75%**）。主要面临的问题：隔离性差，资源争抢风险。</li>
+<li><strong>存算分离</strong>：SST 文件存储在远程存储（S3&#x2F;OSS），本地磁盘仅存 WAL&#x2F;LOG。本地磁盘无需预留 Compaction 临时文件空间，远程存储按需弹性扩展，无扩容水位损耗，利用率可进一步提升（经验估算 **75%～85%**）。主要面临的问题：读写延迟增加（需通过缓存优化）。</li>
+</ul>
+<p><strong>本文作者</strong> ： cyningsun<br /><strong>本文地址</strong> ： <a href="https://www.cyningsun.com/03-27-2026/rocksdb-space-mgr.html">https://www.cyningsun.com/03-27-2026/rocksdb-space-mgr.html</a> <br /><strong>版权声明</strong> ：本博客所有文章除特别声明外，均采用 <a target="_blank" rel="noopener" href="http://creativecommons.org/licenses/by-nc-nd/3.0/cn/">CC BY-NC-ND 3.0 CN</a> 许可协议。转载请注明出处！</p>
+
+    </div>
+    
+<div class="post-subject">
+    
+    <a href="/subjects#数据库" rel="category"># 数据库</a>
+    
+</div>
+
+
+    
+
+
+
+  <ol class="related">
+      
+            <li><span><a href="/04-03-2026/optimizing-space-amplification-in-rocksdb-cn.html">译｜Optimizing Space Amplification in RocksDB</a></span></li>
+          
+            <li><span><a href="/03-28-2026/rocksdb-bottommost-files-compaction.html">深入理解 RocksDB BottommostFiles compaction</a></span></li>
+          
+            <li><span><a href="/03-14-2026/rocksdb-compaction-score.html">深入理解 RocksDB CompactionScore 机制</a></span></li>
+          
+            <li><span><a href="/11-23-2025/go-redis-connection-success-rate.html">go-redis 连接池重建连接优化</a></span></li>
+          
+            <li><span><a href="/08-26-2025/facebook-tectonic-filesystem.html">译｜Facebook&#39;s Tectonic Filesystem: Efficiency from Exascale</a></span></li>
+          
+  </ol>
+
+
+    <ul class="pager">
+     
+     <li class="next"><a href="/03-28-2026/rocksdb-bottommost-files-compaction.html">Newer &rarr;</a></li>
+    
+    
+    <li class="previous"><a href="/03-14-2026/rocksdb-compaction-score.html">&larr; Older</a></li>
+    
+</ul>
+</div>
+
+<div id="comment"  class="typo">
+			<!-- Comment BEGIN -->
+      <script src="https://utteranc.es/client.js"
+            repo="cyningsun/blog-sidecar"
+            issue-term="title"
+            theme="github-light"
+            crossorigin="anonymous"
+            async>
+      </script>
+
+
+<!-- Comment END -->
+</div>
+      </div>
+      <div class="container">
+  <footer>
+    <p class="text-muted credit">Copyright ©2026 cyningsun
+    <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span id="busuanzi_container_site_pv">本站总访问量<span id="busuanzi_value_site_pv"></span>次</span>
+    <a href="  https://www.cyningsun.com">Powered by Hexo</a></p>
+  </footer>
+</div>
+
+  <script src='https://unpkg.com/mermaid@8.6.4/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize({theme: 'neutral'});
+    }
+  </script>
+
+    </div>
+    <!-- Bootstrap core JavaScript-->
+
+<script src="/js/jquery-1.10.2.min.js"></script>
+
+
+<script src="/js/bootstrap.min.js"></script>
+
+
+<script src="/js/hc.js"></script>
+
+<script>
+    (function(){
+        var bp = document.createElement('script');
+        var curProtocol = window.location.protocol.split(':')[0];
+        if (curProtocol === 'https') {
+            bp.src = 'https://zz.bdstatic.com/linksubmit/push.js';
+        }
+        else {
+            bp.src = 'http://push.zhanzhang.baidu.com/push.js';
+        }
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(bp, s);
+    })();
+</script>
+
+<script src="/js/syntax.js"></script>
+
+  </body>
+</html>
